@@ -1,0 +1,9 @@
+Truth => P
+P => Q |R
+
+Q => P | S
+
+S => Falsehood
+
+
+

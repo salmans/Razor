@@ -1,0 +1,5 @@
+Truth => P(a(),b())
+Truth => T(c())
+(P(x,y) & Q(y,z)) => R(x,z)
+(R(x,y) & S(x)) => Falsehood
+(P(x,y) & T(z)) => Q(y,z)

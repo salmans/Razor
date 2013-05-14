@@ -1,0 +1,4 @@
+Truth => exists y . R(y) & U(y)
+U(u) & R(x) => exists z . Q(x,u)
+--R(x) => exists z . Q(x,z)
+

@@ -1,0 +1,3 @@
+exists x.P(f(x))
+exists x.Q(f(x))
+P(x) => Q(x)

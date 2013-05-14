@@ -1,0 +1,23 @@
+Model -----------------------------------
+Domain: ["[True]","[const0]","[const1]","[const2]","[const3]"]
+Functions: ["[a1] = [const0]","[a4] = [const1]","[a3] = [const2]","[a2] = [const3]"]
+Relations: ["Accept([const3],[const2],[const1],[const0])","ip([const3])","port([const1])","ip00([const2])","port00([const0])"]
+-----------------------------------------
+,
+Model -----------------------------------
+Domain: ["[True]","[const0]","[const1]","[const2]","[const3]"]
+Functions: ["[a1] = [const0]","[a4] = [const1]","[a3] = [const2]","[a2] = [const3]"]
+Relations: ["Accept([const3],[const2],[const1],[const0])","ip([const3])","port([const1])","ip01([const2])","port01([const0])"]
+-----------------------------------------
+,
+Model -----------------------------------
+Domain: ["[True]","[const0]","[const1]","[const2]","[const3]"]
+Functions: ["[a1] = [const0]","[a4] = [const1]","[a3] = [const2]","[a2] = [const3]"]
+Relations: ["Accept([const3],[const2],[const1],[const0])","ip([const3])","port([const1])","ip02([const2])","port00([const0])"]
+-----------------------------------------
+,
+Model -----------------------------------
+Domain: ["[True]","[const0]","[const1]","[const2]","[const3]"]
+Functions: ["[a1] = [const0]","[a4] = [const1]","[a3] = [const2]","[a2] = [const3]"]
+Relations: ["Accept([const3],[const2],[const1],[const0])","ip([const3])","port([const1])","ip03([const2])","port01([const0])"]
+-----------------------------------------

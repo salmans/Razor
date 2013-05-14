@@ -1,0 +1,1 @@
+Truth => exists y . exists z.  R(y,z)

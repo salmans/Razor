@@ -1,0 +1,81 @@
+-- Axioms for projective planes
+
+-- (i) Given any two distinct points, there is exactly one line incident with both of them.
+
+-- (ii) Given any two distinct lines, there is exactly one point incident with both of them.
+
+-- (iii) There are four points such that no line is incident with more than two of them.
+
+-- A finite projective plane has N^2 + N + 1 points and lines, N + 1 points
+-- on each line, N + 1 lines through each point.  All know examples have
+-- N a prime power.  Example, 7 pts and lines, 3 points on each line
+
+
+-- Pt(x) means x is a point
+-- Ln(x) means x is a line
+-- IsOn(p,l) means point p is incident on line l
+
+
+-- dis-equality 
+NE(x,x) => Falsehood
+-- SALMAN:
+-- Truth =>  x=y | NE(x,y)
+Pt(x) & Pt(y) => x=y | NE(x,y)
+Ln(x) & Ln(y) => x=y | NE(x,y)
+--SALMAN:
+-- Two objects cannot be both equal and unequal
+NE(x,y) & x = y => Falsehood
+
+-- unnecessary, I think
+-- IsOn(p,l) => Pt(p) & Ln(l)
+
+-- ensure disjointness of Pt and Line 
+Pt(x) & Ln(x) => Falsehood
+
+--
+-- Axiom 1
+--
+-- two points determine a line
+-- SALMAN:
+-- Pt(p) & Pt(q)  => exists l. IsOn(p, l) & IsOn(q,l)
+Pt(p) & Pt(q) & NE(p,q) => exists l.IsOn(p,l) & IsOn(q,l)
+-- two points determine ONLY one line
+NE(p,q) & IsOn(p, l) & IsOn(q,l) & IsOn(p, m) & IsOn(q,m) => l = m
+
+--
+-- Axiom 2
+--
+-- two lines determine a point
+-- SALMAN:
+-- Ln(l) & Ln(m)  => exists p. IsOn(p, l) & IsOn(p,m)
+Ln(l) & Ln(m) & NE(l,m)  => exists p. IsOn(p, l) & IsOn(p,m)
+-- two lines determine ONLY one point
+NE(l,m) & IsOn(p, l) & IsOn(p, m)  & IsOn(q,l) & IsOn(q,m) => p = q
+
+
+-- a line has at least two points
+-- isOn(p,l) => exists q . (isOn(q,l) & NE(p,q))
+-- Ln(x) => exists p q  . isOn(p,x) & isOn(q,x) & NE(p,q)
+
+--
+-- Axiom (iii)
+--
+-- Here are 4 points
+Truth => exists p0 p1 p2 p3 . P0(p0) & P1(p1) & P2(p2) & P3(p3) & Pt(p0) & Pt(p1) & Pt(p2) & Pt(p3)
+P0(x) & P0(y) => x = y
+P1(x) & P1(y) => x = y
+P2(x) & P2(y) => x = y
+P3(x) & P3(y) => x = y
+-- -- they are different:
+P0(x) & P1(x) => Falsehood
+P0(x) & P2(x) => Falsehood
+P0(x) & P3(x) => Falsehood
+P1(x) & P2(x) => Falsehood
+P1(x) & P3(x) => Falsehood
+P2(x) & P3(x) => Falsehood
+
+-- -- no three are on the same line
+P0(x)  & P1(y) & P2(z)  & isOn(x,l) & isOn(y,l) & isOn(z,l) => Falsehood
+P0(x)  & P1(y) & P3(z)  & isOn(x,l) & isOn(y,l) & isOn(z,l) => Falsehood
+P0(x)  & P2(y) & P3(z)  & isOn(x,l) & isOn(y,l) & isOn(z,l) => Falsehood
+P1(x)  & P2(y) & P3(z)  & isOn(x,l) & isOn(y,l) & isOn(z,l) => Falsehood

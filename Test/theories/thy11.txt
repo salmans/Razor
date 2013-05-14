@@ -1,0 +1,21 @@
+Truth =>   (exists x y . Q(x,y))
+Q(x,y) =>  (exists x . Q1(x,y) ) | (exists x . Q2(x,y))
+
+
+Q1(x,y) =>  (exists x . Q11(x,y) ) | (exists x . Q12(x,y))
+Q2(x,y) =>  (exists x . Q21(x,y) ) | (exists x . Q22(x,y))
+
+Q11(x,y) =>  (exists x . Q111(x,y) ) | (exists x . Q112(x,y)) 
+Q12(x,y) =>  (exists x . Q121(x,y) ) | (exists x . Q122(x,y)) 
+Q21(x,y) =>  (exists x . Q211(x,y) ) | (exists x . Q212(x,y))
+Q22(x,y) =>  (exists x . Q221(x,y) ) | (exists x . Q222(x,y))
+
+Q111(x,y) =>  (exists x . Q1111(x,y) ) | (exists x . Q1112(x,y))
+Q112(x,y) =>  (exists x . Q1121(x,y) ) | (exists x . Q1122(x,y))
+Q121(x,y) =>  (exists x . Q1211(x,y) ) | (exists x . Q1212(x,y))
+Q122(x,y) =>  (exists x . Q1221(x,y) ) | (exists x . Q1222(x,y))
+
+Q211(x,y) =>  (exists x . Q2111(x,y) ) | (exists x . Q2112(x,y))
+Q212(x,y) =>  (exists x . Q2121(x,y) ) | (exists x . Q2122(x,y))
+Q221(x,y) =>  (exists x . Q2211(x,y) ) | (exists x . Q2212(x,y))
+Q222(x,y) =>  (exists x . Q2221(x,y) ) | (exists x . Q2222(x,y))

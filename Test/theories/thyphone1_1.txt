@@ -1,0 +1,17 @@
+-- Vocabulary
+
+
+-- Policy
+GetExchange(src, e1) & GetExchange(dest, e1) => TollFree(src, dest)
+GetExchange(src, e2) & GetExchange(dest, e3) & NE(e2,e3) => Toll(src, dest)
+
+OutOfService(src) => Refuse(src, dest)
+OutOfService(dest) => Refuse(src, dest)
+(src = dest) => Refuse(src,dest)
+
+-- Query
+
+Toll(src,dest) => exists e1. exists e2. GetExchange(src,e1) & GetExchange(dest,e2) & NE(e1,e2)
+~(NE(x,y) & x = y)
+
+exists x. exists y. Toll(x,y)

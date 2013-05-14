@@ -1,0 +1,4 @@
+Truth => exists a . Q(a) 
+Q(x) => R(x,x) 
+--R(x,g(y)) => exists e d. Q(e) & R(d,f(y))
+R(x,y) => exists e d. Q(e) & R(d,e)

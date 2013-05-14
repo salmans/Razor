@@ -1,0 +1,4 @@
+Truth => exists a . Q(a) 
+Q(x) => R(x,f(x)) 
+
+

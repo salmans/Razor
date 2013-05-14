@@ -1,0 +1,5 @@
+Truth => exists b . B(b)
+Truth => exists d . D(d)
+--B(x) & D(y) => y=x
+B(x) & D(y) => f(y) = f(x)
+

@@ -1,0 +1,7 @@
+--Truth => exists a . Q(a) 
+-- Q(x) => R(x,x) 
+Truth => exists a . R(a,a)
+R(x,x) => exists e . P(e) & R(e,x)
+
+
+

@@ -1,0 +1,32 @@
+
+====================
+file: "Test/access-control-policies/phone/1/phone1.cp"
+Theory: 
+[(Number(x) & Exchange(x)) => Falsehood,InService(x) => Number(x),OutOfService(x) => Number(x),GetExchange(x,y) => (Number(x) & Exchange(y)),Toll(x,y) => (Number(x) & Number(y)),TollFree(x,y) => (Number(x) & Number(y)),(GetExchange(src,e1) & GetExchange(dest,e1)) => TollFree(src,dest),(GetExchange(src,e2) & GetExchange(dest,e3)) => (Toll(src,dest) | =(e2,e3)),(OutOfService(src) & Number(dest)) => Refuse(src,dest),(OutOfService(dest) & Number(src)) => Refuse(src,dest),=(src,dest) => Refuse(src,dest),Toll(src,dest) => exists e1. exists e2. ((GetExchange(src,e1) & GetExchange(dest,e2)) & NE(e1,e2)),(NE(x,y) & =(x,y)) => Falsehood,(Exchange(x) & Exchange(y)) => (NE(x,y) | =(x,y)),Truth => exists x. exists y. Toll(x,y)]
+Model: 
+[
+Model -----------------------------------
+Domain: ["[True]","[const0]","[const1]","[const6]","[const8]"]
+Functions: ["[a2] = [const0]","[a1] = [const1]","[a3] = [const6]","[a4] = [const8]"]
+Relations: ["Toll([const1],[const0])","Number([const1])","Number([const0])","GetExchange([const1],[const6])","GetExchange([const0],[const8])","NE([const6],[const8])","Exchange([const8])","TollFree([const0],[const0])","Toll([const0],[const0])","Exchange([const6])","TollFree([const1],[const1])","Toll([const1],[const1])","Toll([const0],[const1])","NE([const8],[const6])"]
+-----------------------------------------
+,
+Model -----------------------------------
+Domain: ["[True]","[const0]","[const1]","[const6]","[const8]"]
+Functions: ["[a2] = [const0]","[a1] = [const1]","[a3] = [const6]","[a4] = [const8]"]
+Relations: ["Toll([const1],[const0])","Number([const1])","Number([const0])","GetExchange([const1],[const6])","GetExchange([const0],[const8])","NE([const6],[const8])","Exchange([const8])","TollFree([const0],[const0])","Toll([const0],[const0])","Exchange([const6])","TollFree([const1],[const1])","Toll([const0],[const1])","NE([const8],[const6])"]
+-----------------------------------------
+,
+Model -----------------------------------
+Domain: ["[True]","[const0]","[const1]","[const6]","[const8]"]
+Functions: ["[a2] = [const0]","[a1] = [const1]","[a3] = [const6]","[a4] = [const8]"]
+Relations: ["Toll([const1],[const0])","Number([const1])","Number([const0])","GetExchange([const1],[const6])","GetExchange([const0],[const8])","NE([const6],[const8])","Exchange([const8])","TollFree([const0],[const0])","Exchange([const6])","TollFree([const1],[const1])","Toll([const1],[const1])","Toll([const0],[const1])","NE([const8],[const6])"]
+-----------------------------------------
+,
+Model -----------------------------------
+Domain: ["[True]","[const0]","[const1]","[const6]","[const8]"]
+Functions: ["[a2] = [const0]","[a1] = [const1]","[a3] = [const6]","[a4] = [const8]"]
+Relations: ["Toll([const1],[const0])","Number([const1])","Number([const0])","GetExchange([const1],[const6])","GetExchange([const0],[const8])","NE([const6],[const8])","Exchange([const8])","TollFree([const0],[const0])","Exchange([const6])","TollFree([const1],[const1])","Toll([const0],[const1])","NE([const8],[const6])"]
+-----------------------------------------
+]
+

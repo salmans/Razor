@@ -1,0 +1,5 @@
+-- UNSAT
+exists x. exists y.P(x,y)
+P(x,y) => f(x) = g(f(y))
+P(x,y) => Q(g(f(y)))
+~ Q(f(x))

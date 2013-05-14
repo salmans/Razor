@@ -1,0 +1,10 @@
+#! /bin/bash
+
+# Executable name is Main
+#
+
+
+for file in theories/thy*.txt; 
+    do echo $file;
+    ../Main "$file" >> test_results_`date +%m-%d-%y-%Hh:%Mm`;
+done 

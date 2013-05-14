@@ -1,0 +1,3 @@
+exists x. exists y.P(x,y)
+P(x,y) => (Q(f(x),g(y)) | f(x) = g(y))
+~ Q(x,y)

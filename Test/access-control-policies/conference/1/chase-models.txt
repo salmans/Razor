@@ -1,0 +1,32 @@
+
+====================
+file: "Test/access-control-policies/conference/1/conference1.cp"
+Theory: 
+[((Author(x) & ReadPaper(x)) & Paper(x)) => Falsehood,Conflicted(x,y) => (Author(x) & Paper(y)),Assigned(x,y) => (Author(x) & Paper(y)),((ReadPaper(a) & Paper(r)) & Author(s)) => (Permit(s,a,r) | Conflicted(s,r)),((Assigned(s,r) & ReadPaper(a)) & Paper(r)) => Permit(s,a,r),((Conflicted(s,r) & ReadPaper(a)) & Paper(r)) => Deny(s,a,r),Permit(s,a,r) => ((((ReadPaper(a) & Paper(r)) & Author(s)) & NotConflicted(s,r)) | ((Assigned(s,r) & ReadPaper(a)) & Paper(r))),(Conflicted(s,r) & NotConflicted(s,r)) => Falsehood,(Author(s) & Paper(r)) => (Conflicted(s,r) | NotConflicted(s,r)),Truth => exists x. exists y. exists z. Permit(x,y,z)]
+Model: 
+[
+Model -----------------------------------
+Domain: ["[True]","[const0]","[const1]","[const2]"]
+Functions: ["[a3] = [const0]","[a2] = [const1]","[a1] = [const2]"]
+Relations: ["Permit([const2],[const1],[const0])","ReadPaper([const1])","Paper([const0])","Author([const2])","NotConflicted([const2],[const0])"]
+-----------------------------------------
+,
+Model -----------------------------------
+Domain: ["[True]","[const0]","[const1]","[const2]"]
+Functions: ["[a3] = [const0]","[a2] = [const1]","[a1] = [const2]"]
+Relations: ["Permit([const2],[const1],[const0])","Assigned([const2],[const0])","ReadPaper([const1])","Paper([const0])","Author([const2])","Conflicted([const2],[const0])","Deny([const2],[const1],[const0])"]
+-----------------------------------------
+,
+Model -----------------------------------
+Domain: ["[True]","[const0]","[const1]","[const2]"]
+Functions: ["[a3] = [const0]","[a2] = [const1]","[a1] = [const2]"]
+Relations: ["Permit([const2],[const1],[const0])","Assigned([const2],[const0])","ReadPaper([const1])","Paper([const0])","Author([const2])","Conflicted([const2],[const0])","Deny([const2],[const1],[const0])"]
+-----------------------------------------
+,
+Model -----------------------------------
+Domain: ["[True]","[const0]","[const1]","[const2]"]
+Functions: ["[a3] = [const0]","[a2] = [const1]","[a1] = [const2]"]
+Relations: ["Permit([const2],[const1],[const0])","Assigned([const2],[const0])","ReadPaper([const1])","Paper([const0])","Author([const2])","NotConflicted([const2],[const0])"]
+-----------------------------------------
+]
+

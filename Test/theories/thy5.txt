@@ -1,0 +1,3 @@
+Truth => exists y. Q(y)
+Q(x) => R(x) | S(x)
+R(x) => Falsehood

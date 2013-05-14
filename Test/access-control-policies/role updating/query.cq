@@ -1,0 +1,97 @@
+-- State of the world:
+-- All roles are one of the constants
+-- Role(r) => (r = professor()) | (r = student()) | (r = ta()) | (r = ra())
+
+-- All users are one of the constants
+-- User(u) => (r = tim()) | (r = dan()) | (r = salman())
+
+-- All permissions are one of the constants         
+-- Perm(p) => (p = grade()) | (p = teach()) | (p = lab()) | (p = exam()) | (p = paper())
+
+Role(professor())
+Role(student())
+Role(ta())
+Role(ra())
+User(tim())
+User(dan())
+User(salman())
+Perm(grade())
+Perm(teach())
+Perm(lab())
+Perm(exam())
+Perm(paper())
+
+-- All are disjoint
+(tim() = dan()) => Falsehood
+(tim() = salman()) => Falsehood
+(dan() = salman()) => Falsehood
+(professor() = student()) => Falsehood
+(professor() = ta()) => Falsehood
+(professor() = ra()) => Falsehood
+(student() = ta()) => Falsehood
+(student() = ra()) => Falsehood
+(ta() = ra()) => Falsehood
+(grade() = teach()) => Falsehood
+(grade() = lab()) => Falsehood
+(grade() = exam()) => Falsehood
+(grade() = paper()) => Falsehood
+(teach() = lab()) => Falsehood
+(teach() = exam()) => Falsehood
+(teach() = paper()) => Falsehood
+(lab() = exam()) => Falsehood
+(lab() = paper()) => Falsehood
+(exam() = paper()) => Falsehood               
+-- Roles and permissions (and negations)
+HadRole(salman(), student())
+HadRole(salman(), ta())
+HadRole(salman(), ra())
+~HadRole(salman(), professor())
+                   
+HadRole(tim(), student())
+HadRole(tim(), ra())
+~HadRole(tim(), professor())
+~HadRole(tim(), ta())
+                   
+HadRole(dan(), professor())
+~HadRole(dan(), ta())
+~HadRole(dan(), ra())
+~HadRole(dan(), student())
+                   
+HadPerm(professor(), paper())
+HadPerm(professor(), grade())
+HadPerm(professor(), teach())
+HadPerm(professor(), lab())
+~HadPerm(professor(), exam())
+HadPerm(student(), exam())
+~HadPerm(student(), paper())
+~HadPerm(student(), grade())
+~HadPerm(student(), teach())
+~HadPerm(student(), lab())
+HadPerm(ta(), grade())
+~HadPerm(ta(), lab())
+~HadPerm(ta(), paper())
+~HadPerm(ta(), teach())
+HadPerm(ta(), exam())
+HadPerm(ra(), paper())
+HadPerm(ra(), lab())
+~HadPerm(ra(), grade())
+~HadPerm(ra(), teach())
+~HadPerm(ra(), exam())
+-- role permissions are EXACTLY THE SAME in new policy
+
+HadPerm(r,p) => HasPerm(r,p)
+
+-- Permits are EXACTLY THE SAME in new policy except: (Tim, Grading), which can change.
+Permitted(u,p) => Permit(u,p) | u = tim() | p = grade()
+
+-- ^^^ note: this statement induces 2 Skolem functions from (User x Perm) -> Role
+-- because each policy's Permit fmla has 1 existential in it...
+
+-- Policy:
+HasRole(u,r) & HasPerm(r,p) => Permit(u,p)
+HadRole(u,r) & HadPerm(r,p) => Permitted(u,p)
+
+-- Query:
+-- Wasn't Permitted before but is Permitted now.
+-- Permit(u,p) & Role(r) => HasRole(u,r) & HasPerm(r,p) | Permitted(u,p) | u = tim() | p = grade()
+-- exists u.exists p.Permit(u,p)
