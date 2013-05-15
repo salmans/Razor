@@ -1,4 +1,4 @@
-{-| Time-stamp: <2013-02-11 23:58:07 Salman Saghafi>
+{-| Time-stamp: <2013-05-14 19:45:59 Salman Saghafi>
 
    This module defines the underlying data-structures that form for a chase problem. Conceptually, a problem is a branch of chase execution with its own result (whether it has a model or it is unsatisfiable).
 
@@ -11,7 +11,7 @@ import qualified Data.Map as Map
 
 -- Logic Modules
 import Formula.SyntaxGeo
-import Utils.GeoUtilities(Fv(fv))
+import Utils.GeoUtilities(TermBased(..))
 
 -- Chase Modeuls:
 import Chase.Problem.Observation
@@ -19,13 +19,7 @@ import Chase.Problem.Model
 import qualified CC.CC as CC
 
 {- A unique ID for every frame in the problem -}
-newtype ID = ID Int
-
-instance Show ID where
-    show (ID id) = show id
-
-instance Eq ID where
-    (ID id1) == (ID id2) = (id1 == id2)
+type ID = Int
 
 {-| Frame is a data structure corresponding to a geometric sequent in a problem. A Frame structure consists of the following parts:
   - frameID: a unique ID for every Frame
@@ -50,16 +44,19 @@ instance Eq Frame where
     (Frame _ b1 h1 _) == (Frame _ b2 h2 _) =
         b1 == b2 && h1 == h2
 
+
+instance TermBased Frame where
+    liftTerm f (Frame id body head vars) = 
+        Frame id (map (liftTerm f) body) (map (liftTerm f) head) vars
+    freeVars = frameVars
+
 {-| SymbolMap is a map from every symbol (relation symbol or function symbol) to the IDs of frames in whose body they appear and the ordinal of the term in the body.
 -}
 type SymbolMap = Map.Map Sym [(ID, Int)]
 
 {-| The deduced new facts that are added to the model will be queued in a queue until their impact is pushed back to the list of frames. In fact, the list is a list of terms equivalent to the deduced facts. 
 -}
-newtype Queue = Queue [Obs]
-
-instance Show Queue where
-    show (Queue q) = show q
+type Queue = [Obs]
 
 {-| A problem represents keeps track of a branch of computation, which contains a geometric theory (a set of sequents) and a model. It also has a queue of deduced facts that are waiting to be processed.
   - problemFrames: a list of frames corresponding to the sequents of the problem.

@@ -25,13 +25,61 @@ overatoms f fm b =
       where over1 p = overatoms f p b
             over2 p q = overatoms f p (overatoms f q b)
 --
-onSequent :: (Term -> Term) -> Sequent -> Sequent
-onSequent f (Sequent b h) = 
-    Sequent (onFormula f b) (onFormula f h)
--- 
-onFormula :: (Term -> Term) -> Formula -> Formula
-onFormula f = onAtoms(\(R p a) -> Atm(R p (map f a)))
+class TermBased a where
+    liftTerm :: (Term -> Term) -> a -> a
+
+    freeVars :: a -> Vars
+
+    toTerm :: a -> Maybe Term
+    toTerm _ = Nothing -- default implementation
+
+    fromTerm :: Term -> Maybe a
+    fromTerm _ = Nothing -- default implementation
 --
+instance TermBased Term where
+    liftTerm f = f
+
+    freeVars (Var x)     = [x]
+    freeVars (Fn _ args) = Tools.ListSet.unions (map freeVars args)
+    freeVars (Elm _)     = []
+
+    toTerm = Just
+    fromTerm = Just
+--
+instance TermBased Atom where
+    liftTerm f (R sym terms) = R sym (map f terms)
+
+    freeVars (R _ args) = Tools.ListSet.unions (map freeVars args)
+    
+    toTerm (R sym terms) = Just $ Fn sym terms
+
+    fromTerm (Var _) = Nothing
+    fromTerm (Fn sym ts) = Just $ R sym ts
+    fromTerm (Elm elm) = Just $ R elm []
+--
+instance TermBased Formula where
+    liftTerm f = onAtoms(\(R p a) -> Atm(R p (map f a)))
+
+    freeVars fm = case fm of
+                    Tru -> []
+                    Fls -> []
+                    Exists x p -> freeVars p \\ [x]
+                    And p q -> combine p q
+                    Or p q -> combine p q
+                    Atm a -> freeVars a
+        where combine p q = Tools.ListSet.union (freeVars p) (freeVars q)
+--
+instance TermBased Sequent where
+    liftTerm f (Sequent b h) =
+        Sequent (liftTerm f b) (liftTerm f h)
+
+    freeVars (Sequent body head) = List.union (freeVars body) (freeVars head)
+-- 
+instance TermBased a => TermBased [a] where
+    liftTerm f = map (liftTerm f)
+
+    freeVars xs = Tools.ListSet.unions (map freeVars xs)
+-- 
 onAtoms :: (Atom -> Formula) -> Formula -> Formula
 onAtoms f fm =
     case fm of 
@@ -41,43 +89,9 @@ onAtoms f fm =
       Or p q -> Or (onAtoms f p) (onAtoms f q)
       And p q -> And (onAtoms f p) (onAtoms f q)
       Exists x p -> Exists x (onAtoms f p)
-
-onAtom :: (Term -> Term) -> Atom -> Atom
-onAtom f (R sym terms) = R sym (map f terms)
 --
 atomUnion :: Eq b => (Atom -> [b]) -> Formula -> [b]
 atomUnion f fm = List.nub (overatoms (\h t -> f(h) ++ t) fm [])
--- 
-
--- %%% Free Variables
--- 
-class Fv a where
-  fv :: a -> Vars
--- 
-instance Fv Term where
-  fv (Var x) = [x]
-  fv (Fn _ args) = Tools.ListSet.unions (map fv args)
-  fv (Elm _) = []
--- 
-instance Fv Atom where
-  fv (R _ args) = Tools.ListSet.unions (map fv args)
--- 
-instance Fv Formula where
-  fv fm = case fm of
-          Tru -> []
-          Fls -> []
-          Exists x p -> fv p \\ [x]
-          And p q -> combine p q
-          Or p q -> combine p q
-          Atm a -> fv a
-    where combine p q = Tools.ListSet.union (fv p) (fv q)
-
-instance Fv Sequent where
-    fv (Sequent body head) = List.union (fv body) (fv head)
--- 
-instance Fv a => Fv [a] where
-  fv xs = Tools.ListSet.unions (map fv xs)
--- 
 
 -- LEFTOVER: (a list of all the variables occurring in a term)
 termVars :: Term -> [Var]
@@ -136,9 +150,9 @@ applyq :: Sub -> (Var -> Formula -> Formula)
        -> Var -> Formula -> Formula
 applyq env quant x p = quant x' (apply ((Map.insert x (Var x')) env) p)
     where x' = if List.any (\k -> case Map.lookup k env of
-                                  Just v -> List.elem x (fv v)
-                                  Nothing -> False) (fv p \\ [x]) 
-               then variant x (fv(apply (Map.delete x env) p)) else x
+                                  Just v -> List.elem x (freeVars v)
+                                  Nothing -> False) (freeVars p \\ [x]) 
+               then variant x (freeVars(apply (Map.delete x env) p)) else x
 -- 
 termval :: ([a], Var -> [b] -> b, Var -> [b] -> Bool) -> Map Var b -> Term -> b
 termval m@(_, func, _) v tm =

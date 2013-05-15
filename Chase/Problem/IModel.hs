@@ -1,4 +1,4 @@
-{-| Time-stamp: <2013-04-01 14:28:42 Salman Saghafi>
+{-| Time-stamp: <2013-05-14 11:52:48 Salman Saghafi>
   This module defines a Model structure that will be used inside a Problem structure. This module can be redefined based on the underlying implementation for models.
 -}
 module Chase.Problem.IModel where
@@ -6,6 +6,7 @@ module Chase.Problem.IModel where
 -- General Modules
 import Data.List
 import qualified Data.Map as Map
+import Data.Maybe
 
 -- Logic Modules
 import Formula.SyntaxGeo
@@ -88,7 +89,7 @@ add model@(Model trs consts) obs =
 obsToEquation :: Obs -> CC.Equation
 obsToEquation (Den t) = error err_ChaseProblemModel_NoEqToDen
 obsToEquation (Eql t1 t2) = CC.Eql t1 t2
-obsToEquation (Fct a) = CC.Eql (atomToTerm a) truth
+obsToEquation (Fct a) = CC.Eql (fromJust (toTerm a)) truth
 
 {-| Returns true if a term is true in the model; That is, if the Obs is "Fct a", it verifies whether t is true in the model. If the Obs is "Eql t1 t2", it verifies whether t1 and t2 are equal in the model. -} 
 isTrue :: Model -> Obs -> Bool

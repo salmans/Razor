@@ -1,4 +1,4 @@
-{- Time-stamp: <Wed 11/14/12 11:42 Dan Dougherty Unification.hs>
+{- Time-stamp: <2013-05-15 12:36:47 Salman Saghafi>
    Unification, following a Martelli-Montanari-style transformations approach.
 -}
 
@@ -19,11 +19,23 @@ import CC.CC
 
 truth = Elm "True" -- Not ideal!
 
+{-| Uses narrowTerm to create a set of narrowing substitutions for the two sides of an equation.
+-}
+{- The output set of substitutions are guaranteed to lead to a useful 
+   instantiation of the corresponding frame; that is, they are returned only if 
+   they reduce reduce the two sides of the equation to the same symbol in the 
+   rewrite system.
+
+   REMARK: this function puts slightly increases the overhead of narrowing in order 
+   to reduce the number of instantiated frames.
+-}
 narrowEquation :: Bool -> TRS -> [RWRule] -> Term -> Term -> [Sub]
 narrowEquation isFact trs rs t1 t2 =
-    [Map.union s s' | (t,s) <- ts, 
-                      (t',s') <- narrowTerm isFact trs rs (lift s t2),
-                      t == t']
+    [sub | (t,s) <- ts, 
+           (t',s') <- narrowTerm isFact trs rs (lift s t2),
+           let sub = Map.union s s',
+           t == t',
+           normalForm trs (lift sub t1) == normalForm trs (lift sub t2)]
     where ts = narrowTerm isFact trs rs t1
 
 {-| Applies narrowTermForRule for a given *set* of rules:
@@ -34,9 +46,18 @@ narrowEquation isFact trs rs t1 t2 =
 -- Param3: the set of rewrite rules
 -- Param4: the term to narrow
 -}
+{- The output set of substitutions are guaranteed to lead to a useful 
+   instantiation of the corresponding frame; that is, they are returned only if 
+   they reduce the input fact to True.
+   (2) reduce the two sides of the equation to the same symbol in the rewrite system.
+
+  REMARK: this function puts slightly increases the overhead of narrowing in order to reduce the number of instantiated frames.
+-}
+
 narrowTerm :: Bool -> TRS -> [RWRule] -> Term -> [(Term, Sub)]
 narrowTerm isFact trs rs t = 
-    concatMap (\r -> narrowTermForRule isFact trs r t) rs
+    filter (\(_, s) -> normalForm trs (lift s t) == truth)
+               $ concatMap (\r -> narrowTermForRule isFact trs r t) rs
 
 -- Applies a narrowing step for a term for a given rewrite rule. That is, it 
 -- **matches** a position in the term with the left of the rule, then replaces

@@ -1,4 +1,4 @@
-{- Time-stamp: <2013-02-11 23:56:27 Salman Saghafi>
+{- Time-stamp: <2013-05-14 12:59:51 Salman Saghafi>
   Runs chase' on the input theory and returns the first model
   for the theory (if any exists). It also verifies the output
   model against the input theory.
@@ -57,10 +57,10 @@ main = do
   let verifyMsg = 
           if Maybe.isJust model
           then (let (Model trs domain) = Maybe.fromJust model 
-                    maps f = Utils.Utils.allMaps (fv f) domain
+                    maps f = Utils.Utils.allMaps (freeVars f) domain
                     fmlas = concatMap insts inputFmlas
                     insts = (\f -> map 
-                                   (\s -> onSequent (lift s) f) 
+                                   (\s -> (liftTerm.lift) s f) 
                                    (maps f)) 
                 in
 --                  (trace (show (filter (\s -> (sequentHolds (Maybe.fromJust model) s)) fmlas)))

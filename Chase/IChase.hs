@@ -1,4 +1,4 @@
-{- Time-stamp: <2013-05-13 00:25:44 Salman Saghafi>
+{- Time-stamp: <2013-05-14 11:48:19 Salman Saghafi>
 
    This module, contains our primary model-finding algorithm
    that will use other modules.
@@ -20,6 +20,7 @@ import Chase.Problem.Observation
 import Chase.Problem.Structures
 import Chase.Problem.Operations
 import Chase.Problem.Model(Model (..))
+import qualified Chase.Problem.Model as Model
 import qualified CC.CC as CC -- remove this
 
 -- Other Modules
@@ -49,7 +50,7 @@ process probPool =
               -- Select a problem from the pool
           newProbs = mapProblem prob 
               -- map the selected problem
-          (processed, unprocessed) = partition emptyQueue newProbs
+          (processed, unprocessed) = partition (null.problemQueue) newProbs
               -- If any of the mapped problems have something in their
               -- queue, they have to be reduced. Mapped problems with 
               -- empty queues are done!
@@ -72,9 +73,8 @@ process' probPool =
     else process' scheduled
     where (prob, rest) = selectProblem probPool
           problems = mapProblem prob
-          unprocessed = filter (\p -> not (emptyQueue p)) problems
-          processed = filter emptyQueue problems
-          reduced = [p | p <- map reduceProblem unprocessed]          
+          (processed, unprocessed) = partition (null.problemQueue) problems
+          reduced = [p | p <- map reduceProblem unprocessed]     
           scheduled = foldr scheduleProblem rest reduced
 
 
@@ -97,7 +97,7 @@ mapProblem p@(Problem frames model queue syms lastID lastConst) =
     -- if the theory has a contradictory sequent
     then [] -- then don't continue this branch
     else map (\q -> (Problem remainingFrames model 
-                     (Queue q) syms lastID newConst)) queues
+                     q syms lastID newConst)) queues
     where (queues, newConst) = foldr buildQueues ([[]], lastConst) frames
           buildQueues f (terms, counter) =
               let (ts, c) = deduceForFrame counter model f 
@@ -115,11 +115,11 @@ mapProblem p@(Problem frames model queue syms lastID lastConst) =
    in the queue of the problem.
 -}
 reduceProblem :: Problem -> Problem
-reduceProblem (Problem frames model (Queue queue) symMap lastID lastConst) =
+reduceProblem (Problem frames model queue symMap lastID lastConst) =
     let tempProb = Problem normalFrames newModel 
-                     (Queue []) symMap lastID lastConst
+                     [] symMap lastID lastConst
     in extendProblem tempProb newFrames
-    where (newModel, newRules) = addToModel model queue
+    where (newModel, newRules) = Model.add model queue
           newFrames = concatMap (\f -> instFrame newModel symMap f newRules)
                       normalFrames
                       -- a list of newly instantiated frames          
@@ -184,7 +184,7 @@ deduceHelper counter model@(Model trs domain) vars allObs@(obs:rest)
     | null $ existVars `intersect` vars =
         let freshConstants = map makeFreshConstant [(counter + 1)..]
             existSubs      = Map.fromList $ zip existVars freshConstants
-            liftedRest     = map ((onObs.lift) existSubs) allObs
+            liftedRest     = map ((liftTerm.lift) existSubs) allObs
             newCounter     = counter + length existVars
         in deduceHelper newCounter model vars liftedRest
             -- In this case, all of the free variables in the observation 
@@ -195,13 +195,13 @@ deduceHelper counter model@(Model trs domain) vars allObs@(obs:rest)
             -- There is a universally quantified variable in the obs. We don't
             -- support universally quantified on right when they are not defined
             -- on left of a sequent. So, there is something wrong!
-    where existVars = fv obs -- existentially quantified vars in obs
+    where existVars = freeVars obs -- existentially quantified vars in obs
 
 {- Instantiates a frame according to a list of rewrite rules and returns a list 
    of instantiated frames. This function uses matchFrame to match the frame with
    left of the rules based on narrowing.   
 -}
-instFrame :: Model -> SymbolMap -> Frame -> [CC.RWRule] -> [Frame]
+instFrame :: Model -> SymbolMap -> Frame -> [CC.RWRule]  -> [Frame]
 instFrame model symMap frame newRules = 
     let frames = map (\ss -> applySubList model frame ss) subLists
     in  map (normalizeFrame model) frames 
@@ -221,10 +221,10 @@ instFrame model symMap frame newRules =
 normalizeFrame :: Model -> Frame -> Frame   
 normalizeFrame model frame@(Frame id body head vars) = 
     Frame id 
-          (filter (not.isObserved model) normalizedBody)
+          (filter (not.Model.isTrue model) normalizedBody)
           head
           vars
-    where normalizedBody = map (denotes model) body
+    where normalizedBody = map (Model.denotes model) body
           
 {- Instantiates the input frame by applying all the given substitutions on it.
 -}
@@ -249,9 +249,8 @@ matchFrame mdl _ frame newRules =
 -}
 liftFrame :: Model -> Sub -> Frame -> Frame
 liftFrame model sub frame = 
-    let Frame id b h v = onFrame lifter lifter frame
+    let Frame id b h v = liftTerm (lift sub) frame
     in  Frame id b h $ v \\ Map.keys sub
-    where lifter = (onObs.lift) sub
 
 {- Helper Functions -}
 {- make a new constant (special element starting with "a") -}

@@ -1,4 +1,4 @@
-{-| Time-stamp: <2013-02-22 01:08:17 Salman Saghafi>
+{-| Time-stamp: <2013-05-15 12:36:58 Salman Saghafi>
 
    This module contains basic operations related to a problem structure. 
 
@@ -9,6 +9,7 @@ module Chase.Problem.IOperations where
 -- General Modules
 import Data.List
 import qualified Data.Map as Map
+import Data.Maybe
 
 -- Logic Modules
 import Formula.SyntaxGeo
@@ -50,53 +51,63 @@ err_ChaseProblemOperations_NarrowDen =
 -}
 buildProblem :: Theory -> Problem
 buildProblem thy =
-    Problem frms Model.empty (Queue []) (framesSymbolMap frms) 
-                (ID (length thy)) 0
-    where frms = zipWith (\x y -> buildFrame (ID x) y) [1..] thy
+    Problem { problemFrames       = frms 
+            , problemModel        = Model.empty 
+            , problemQueue        = [] 
+            , problemSymbols      = framesSymbolMap frms 
+            , problemLastID       = length thy 
+            , problemLastConstant = 0}
+    where frms = zipWith (\x y -> buildFrame x y) [1..] thy
+          -- convert sequents to frames and assign IDs to them.
 
 {-| Updates a problem by adding new frames to its theory. It updates problem's symbol map accordingly.
 -}
 extendProblem :: Problem -> [Frame] -> Problem
-extendProblem (Problem oldFrames model queue symMap lastID@(ID last) lastConst) frames =
+extendProblem (Problem oldFrames model queue symMap last lastConst) frames =
     Problem (union oldFrames newFrames) model queue newSymMap newLastID lastConst
+        -- REMARK: the two set of frames have to be unined; otherwise, the chase may
+        -- never terminate (as for thyphone1_2)
     where newFrames = zipWith (\(Frame _ body head vars) id -> 
-                                   (Frame (ID id) body head vars)) 
+                                   (Frame id body head vars))
                       frames [(last + 1)..]
-          newLastID = ID $ last + (length newFrames)
+          newLastID = last + (length newFrames)
           newSymMap = Map.unionWith (++) symMap $ framesSymbolMap newFrames
 
 {-| Selects a problem from a pool of problems and returns the selected problem together with the rest of the problems. For now, we choose the first problem in the list in a FIFO fashion.
 -}
 selectProblem :: [Problem] -> (Problem, [Problem])
 selectProblem [] = error err_ChaseProblemOperations_NoProb
-selectProblem probs = (head probs, tail probs) -- FIFO for now
+selectProblem probs = (head probs, tail probs)
 
 {-| Combines a problem into a list of problems. The position of the problem in the list can be an important parameter for selectProblem; thus, it is a scheduling procedure. The current scheduling procedure is FIFO.
 -}
 scheduleProblem :: Problem -> [Problem] -> [Problem]
-scheduleProblem prob probs = prob:probs -- probs ++ [prob] -- FIFO for now
+scheduleProblem = (:) -- Reschedule in the head of the pool for now 
+-- probs ++ [prob] -- Uncomment for FIFO
 
 
 {- Builds a symbol map for a list of frames. -}
 framesSymbolMap :: [Frame] -> SymbolMap
 framesSymbolMap [] = Map.empty
-framesSymbolMap (frm:frms) =
-    Map.unionWith (++) 
-       -- Symbols within frame frm:       
-       (Map.fromListWith (++) [(s, [(frameID frm, n)])| 
-                               (n, ss) <- syms, s <- ss])
-       -- Symbols of the remaining frames:
-       (framesSymbolMap frms)
-    where syms = zip [0..] $ map obsFuncSyms $frameBody frm
-    -- Syms is a list of symbols in every obs of the body and together
-    -- with the ordinal of the body.
+framesSymbolMap frms =
+    foldr1 (\f res -> Map.unionWith (++) res f) mapList
+    -- Let's fold the SymbolMap of all frames to construct a SymbolMap for all
+    where mapList = map symMap frms
+          -- mapListis a list of SymbolMaps for all of the input frames.
+          symMap f = Map.fromListWith (++) [(s, [(frameID f, n)])| 
+                                            (n, ss) <- syms f,
+                                            s <- ss]
+          -- (symMap f) constructs a SymbolMap for f
+          syms f   = zip [0..] $ map obsFuncSyms $frameBody f
+          -- (syms f) is a list of symbols in every obs of f's body together
+          -- with the ordinal of the body in f.
 
 {-| Creates a Frame from a given sequent. 
 -}
 buildFrame :: ID -> Sequent -> Frame
 buildFrame id sequent@(Sequent body head) = 
     Frame id (processBody body) (processHead head) 
-              (union (fv head) (fv body))
+              (union (freeVars head) (freeVars body))
 
 
 {- Constructs the head of a frame from the head of a sequent. Here, we assume 
@@ -106,19 +117,18 @@ the top level of the head.
 processHead :: Formula -> [[Obs]]
 processHead Fls = []
 processHead (And p q) = 
-    case (p',q') of
-      -- Because disjunction appears only at the top level, the result of
-      -- applying this function to a conjunct must be a list with only one
-      -- element:
-      ([], []) -> []
-      ([p''], [q'']) -> [p'' ++ q'']
-      ([p''], []) -> [p'']
-      ([], [q'']) -> [q'']
-      otherwise -> error err_ChaseProblemOperations_DisjTop 
-    where p' = processHead p
-          q' = processHead q
-processHead (Or p q) = 
-    filter (\h -> not (null h)) (processHead p) ++ (processHead q)
+    let p' = processHead p
+        q' = processHead q        
+    in case (p',q') of
+         -- Because disjunction appears only at the top level, the result of
+         -- applying this function to a conjunct must be a list with only one
+         -- element:
+         ([], []) -> []
+         ([p''], [q'']) -> [p'' ++ q'']
+         ([p''], []) -> [p'']
+         ([], [q'']) -> [q'']
+         otherwise -> error err_ChaseProblemOperations_DisjTop 
+processHead (Or p q) = filter (not.null) $ processHead p ++ processHead q
 processHead (Exists x p) = processHead p
 processHead (Atm (R "=" [t1, t2])) = [[Eql t1 t2]] -- dealing with equality
 -- The following would never happen unless something is wrong with the parser:
@@ -132,82 +142,49 @@ disjunctions or existential quantifiers.
 -}
 processBody :: Formula -> [Obs]
 processBody Tru = []
-processBody (And p q) = (processBody p) ++ (processBody q)
+processBody (And p q) = processBody p ++ processBody q
 processBody (Atm (R "=" [t1, t2])) = [Eql t1 t2] -- dealing with equality
 processBody (Atm (R "=" _)) = error err_ChaseProblemOperations_EqTwoParam
 processBody (Atm atm) = [Fct atm] -- atoms other than equality
 processBody _ = error err_ChaseProblemOperations_InvldSeq
 
-{-| Returns true if the queue of the problem is empty; otheriwse, returns false.
--}
-emptyQueue :: Problem -> Bool
-emptyQueue p = null q
-    where Queue q = problemQueue p
-
-{-| Applies a function (Obs -> Obs) to the body and ([Obs] -> [Obs]) to the head of a frame and returns the frame after the application of these two functions.
--}
-onFrame :: (Obs -> Obs) -> (Obs -> Obs) -> Frame -> Frame
-onFrame bodyFunc headFunc (Frame id body head vars) = 
-    Frame id (map bodyFunc body) (map (map headFunc) head) vars
-
-{-| Returns true if the input Obs can be observed in the given model.
--}
-isObserved :: Model -> Obs -> Bool
-isObserved model obs = Model.isTrue model obs
-
-{-| Returns the term in a model to which the input obs denotes inside an Obs wrapper.
--}
-denotes :: Model -> Obs -> Obs
-denotes model obs = Model.denotes model obs
-
 {-| Returns True if the input set of observations are true in the given mode, otherwise False. Vars is the set of universally quantified variables in the observations while the other variables in the formula are existentially quantified (the same contract as for Frame). -}
 holds :: Model -> Vars -> [Obs] -> Bool
 holds _ _ [] = True
-holds model@(Model trs domain) vars allObs@(obs:rest)
-      | null fvars = isObserved model obs && (holds model vars rest)
+holds model@(Model _ domain) vars allObs@(obs:rest)
+      | null fvars = Model.isTrue model obs && (holds model vars rest)
       -- if the formula is closed, check if it is true in the model
       | null (fvars `intersect` vars) =
-          or $ map 
-                  (\e -> 
-                       holds model vars (map ((onObs.lift) (makeSub e)) allObs))
-                  domain 
-      -- if the formula is not closed, instantiate the first for one of the
+          let makeSub      = Map.singleton $ head fvars
+              liftAllObs e = map ((liftTerm.lift) (makeSub e)) allObs
+          in or $ map (\e -> holds model vars (liftAllObs e)) domain 
+      -- If the formula is not closed, instantiate the first for one of the
       -- instantiations of the first existential variable, it has to be true.
       | otherwise = error err_ChaseProblemOperations_OpenFmla
-    where fvars = fv obs
-          makeSub elem = Map.singleton (head fvars) elem
+    where fvars = freeVars obs
 
 {-| Returns true if the sequent is true under the given model.
 -}
 sequentHolds :: Model -> Sequent -> Bool
 sequentHolds model (Sequent b h) =
-    (not (formulaHolds model b)) || (formulaHolds model h)
+    (not.formulaHolds model) b || formulaHolds model h
 
 {-| Returns true if the formula is true under a given model.
 -}
 formulaHolds :: Model -> Formula -> Bool
 formulaHolds _ Fls = False
 formulaHolds _ Tru = True
-formulaHolds model atom@(Atm atm@(R sym terms)) 
-    | (all closedTerm terms) && cond = True
-    | otherwise = False
-    where cond = isObserved model (termToObs True (atomToTerm atm)) --not great!!
-formulaHolds model (Or p q) = 
-    holdsP || holdsQ
-    where holdsP = formulaHolds model p
-          holdsQ = formulaHolds model q
-formulaHolds model (And p q) = 
-    holdsP && holdsQ
-    where holdsP = formulaHolds model p
-          holdsQ = formulaHolds model q
+formulaHolds model atom@(Atm atm@(R sym terms)) =
+    Model.isTrue model obs
+    where obs = termToObs True $ (fromJust.toTerm) atm --not great!!
+formulaHolds model (Or p q) = fmlaHolds p || fmlaHolds q
+    where fmlaHolds = formulaHolds model
+formulaHolds model (And p q) = fmlaHolds p && fmlaHolds q
+    where fmlaHolds = formulaHolds model
 formulaHolds model@(Model trs domain) (Exists x p) = 
-    or $ map (\e -> formulaHolds model (onFormula (lift (makeSub e)) p)) domain
-    where makeSub elem = Map.singleton x elem
-
-{-| Adds a list of obs to the given model and returns a new model containing the new obs.
--}
-addToModel :: Model -> [Obs] -> (Model, [CC.RWRule])
-addToModel model obs = Model.add model obs
+    let makeSub    = Map.singleton x
+        liftWith e = (liftTerm.lift) (makeSub e) p
+    in or $ map ((formulaHolds model).liftWith) domain
 
 {-| Applies narrowing on a given observation to with respect to a set of rewrite rules
   and returns a set of substitutions.
@@ -218,15 +195,5 @@ narrowObs mdl@(Model trs _) rules (Den t) =
 narrowObs mdl@(Model trs _) rules (Eql t1 t2) =
     narrowEquation False trs rules t1 t2
 narrowObs mdl@(Model trs _) rules f@(Fct a) =
-    [s | (_, s) <- narrowTerm True trs rules t, 
-                   CC.normalForm trs (lift s t) == truth]
-    where t = atomToTerm a
--- A less efficient version of narrowing:
--- narrowObs mdl@(Model trs _) rules (Den t) = 
---     [s | (_, s) <- narrowTerm False trs rules t]
--- narrowObs mdl@(Model trs _) rules (Eql t1 t2) = union subs1 subs2
---     where subs1 = [s | (t1', s) <- narrowTerm False trs rules t1]
---           subs2 = [s | (t2', s) <- narrowTerm False trs rules t2]
--- narrowObs mdl@(Model trs _) rules (Fct a) = 
---     [s | (_, s) <- narrowTerm True trs rules t]
---     where t = atomToTerm a
+    map snd $ narrowTerm True trs rules t
+    where t = fromJust $ toTerm a
