@@ -22,7 +22,7 @@ import Tools.GeoUnification
 import Chase.Problem.Model
 import Chase.Problem.Operations (sequentHolds)
 import Chase.Chase
-
+import CC.CC as CC
 -- ============================
 -- Main
 -- ============================
@@ -57,7 +57,8 @@ main = do
   let verifyMsg = 
           if Maybe.isJust model
           then (let (Model trs domain) = Maybe.fromJust model 
-                    maps f = Utils.Utils.allMaps (freeVars f) domain
+                    maps f = Utils.Utils.allMaps (freeVars f)
+                             $ filter (\e -> CC.normalForm trs e /= truth) domain
                     fmlas = concatMap insts inputFmlas
                     insts = (\f -> map 
                                    (\s -> (liftTerm.lift) s f) 
@@ -85,7 +86,7 @@ main = do
   putStrLn "Model: "
   putStrLn $ show model
   --putStrLn ""
-  --putStrLn $ "-> " ++ verifyMsg
+  putStrLn $ "-> " ++ verifyMsg
   putStrLn ""
 
 

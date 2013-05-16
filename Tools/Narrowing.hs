@@ -7,7 +7,7 @@ module Tools.Narrowing where
 import qualified Data.Map as Map
 import Data.Maybe
 import Control.Exception -- for assert
--- import Debug.Trace
+import Debug.Trace
 import Data.List
 --
 import Formula.SyntaxGeo
@@ -32,11 +32,11 @@ truth = Elm "True" -- Not ideal!
 narrowEquation :: Bool -> TRS -> [RWRule] -> Term -> Term -> [Sub]
 narrowEquation isFact trs rs t1 t2 =
     [sub | (t,s) <- ts, 
-           (t',s') <- narrowTerm isFact trs rs (lift s t2),
+           (t',s') <- narrow isFact trs rs (lift s t2),
            let sub = Map.union s s',
            t == t',
            normalForm trs (lift sub t1) == normalForm trs (lift sub t2)]
-    where ts = narrowTerm isFact trs rs t1
+    where ts = narrow isFact trs rs t1
 
 {-| Applies narrowTermForRule for a given *set* of rules:
 -- Inputs:
@@ -57,7 +57,12 @@ narrowEquation isFact trs rs t1 t2 =
 narrowTerm :: Bool -> TRS -> [RWRule] -> Term -> [(Term, Sub)]
 narrowTerm isFact trs rs t = 
     filter (\(_, s) -> normalForm trs (lift s t) == truth)
-               $ concatMap (\r -> narrowTermForRule isFact trs r t) rs
+               $ narrow isFact trs rs t
+
+
+narrow :: Bool -> TRS -> [RWRule] -> Term -> [(Term, Sub)]
+narrow isFact trs rs t = 
+    concatMap (\r -> narrowTermForRule isFact trs r t) rs
 
 -- Applies a narrowing step for a term for a given rewrite rule. That is, it 
 -- **matches** a position in the term with the left of the rule, then replaces

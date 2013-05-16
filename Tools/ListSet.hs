@@ -18,7 +18,7 @@ module Tools.ListSet ( ListSet
                      ) where
 -- 
 import Prelude 
-import qualified List
+import qualified Data.List as List
 -- 
 type ListSet a = [a]
 -- 
