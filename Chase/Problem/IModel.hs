@@ -34,14 +34,14 @@ data Model = Model {
 }
 
 instance Show Model where
-    show (Model trs domain) = 
-        "\n" ++
-        "Model -----------------------------------\n" ++
-        "Domain: " ++ (show (nub dom)) ++ "\n" ++
-        "Functions: " ++ (show func) ++ "\n" ++
-        "Relations: " ++ (show rel) ++ "\n" ++
-        "-----------------------------------------\n"
-        where (dom, func, rel) = showFacts trs
+    show (Model trs domain) = show trs
+        -- "\n" ++
+        -- "Model -----------------------------------\n" ++
+        -- "Domain: " ++ (show (nub dom)) ++ "\n" ++
+        -- "Functions: " ++ (show func) ++ "\n" ++
+        -- "Relations: " ++ (show rel) ++ "\n" ++
+        -- "-----------------------------------------\n"
+        -- where (dom, func, rel) = showFacts trs
 
 {- Shows the values of functions and relations of a model in a pair of
    strings.

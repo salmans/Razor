@@ -1,30 +1,16 @@
-{- Time-stamp: <2013-02-11 23:57:15 Salman Saghafi>
+{- Time-stamp: <Mon 11/12/12 11:35 Dan Dougherty CC.hs>
    Implements an algorithm for computing congruence closure based on
    Bachmair, Tiwari and Vigneron's (BTV) rewriting transformations.
 -}
 
-module CC.CC (
-              RWRule(..),
-              Equation(..),
-              TRS,
-              buildTRS,
-              normalForm
-)where
+module CC.CC where
 
 import Control.Applicative
 
-import Text.ParserCombinators.Parsec hiding ( (<|>) )
-import Text.Parsec.Token ( TokenParser )
-import qualified Text.Parsec.Token as Token
-import Text.ParserCombinators.Parsec.Language ( haskellStyle )
-import qualified Text.ParserCombinators.Parsec.Expr as Expr
-
 import Data.List
-import qualified Data.Map
+import qualified  Data.Map
 import Data.Maybe
-import Debug.Trace (trace)
 import Control.Exception -- for assert
-import Data.Tree
 
 
 -- Logic modules:
@@ -35,77 +21,23 @@ import Tools.GeoUnification
 
 -- A rewrite rule in the form of a D-rule or a C-rule
 data RWRule = RW Term Term
-              deriving (Show, Eq, Ord)
+              deriving (Show, Eq)
 
 -- An equation on two terms
 data Equation = Eql Term Term 
                 deriving (Show, Eq)
 
 
--- Term Rewriting System
-type TRS = [RWRule]
+type TRS = [RWRule] -- A Term Rewrite System
 
--- flags for operations that still can be applied.
--- flags: sim ext del ori col ded
-data RWFlags = Flg {
-      flgSim :: Bool,
-      flgExt :: Bool,
-      flgDel :: Bool,
-      flgOri :: Bool,
-      flgCol :: Bool,
-      flgDed :: Bool,
-      flgCom :: Bool
-      } deriving Show
+type CCModel = (TRS, [Term])
 
-allFlags = Flg True True True True True True True
-
-unsetSim :: RWFlags -> RWFlags
-unsetSim (Flg _ e d o c de co) = Flg False e d o c de co
-
-unsetExt :: RWFlags -> RWFlags
-unsetExt (Flg s _ d o c de co) = Flg s False d o c de co
-
-unsetDel :: RWFlags -> RWFlags
-unsetDel (Flg s e _ o c de co) = Flg s e False o c de co
-
-unsetOri :: RWFlags -> RWFlags
-unsetOri (Flg s e d _ c de co) = Flg s e d False c de co
-
-unsetCol :: RWFlags -> RWFlags
-unsetCol (Flg s e d o _ de co) = Flg s e d o False de co
-
-unsetDed :: RWFlags -> RWFlags
-unsetDed (Flg s e d o c _ co) = Flg s e d o c False co
-
-unsetCom :: RWFlags -> RWFlags
-unsetCom (Flg s e d o c de _) = Flg s e d o c de False
-
--- Representing the state of the computation.
+-- A rewrite system representing the state of the computation.
 data RWState = RWSt {
-    stConstants :: [Term],
+    stConstants :: [Term], 
     stEquations :: [Equation], 
-    stRules :: TRS,
-    stFlags :: RWFlags
+    stRules :: TRS
     } deriving Show
-
-
--- Computes a congruence closure for a set of equations.
--- The order of applying the operations should not should matter.
--- Returns a list of rules that it introduces to the input rewrite
--- system.
-cc :: (RWState, [RWRule]) -> (RWState, [RWRule])
-cc (st@(RWSt _ _ _ flgs), rs)
-   | flgSim flgs = cc (sim (st, rs))
-   | flgExt flgs = cc (ext (st, rs))
-   | flgDel flgs = cc (del (st, rs))
-   | flgOri flgs = cc (ori (st, rs))
-   | flgCol flgs = cc (col (st, rs))
-   | flgDed flgs = cc (ded (st, rs))
-   | flgCom flgs = cc (com (st, rs))
-   | otherwise = (st, rs)
-   where prnt (x,y) l = case (length y) /= (length.nub) y of
-                          True -> (trace l)(x,y)
-                          False -> (x,y)
 
 -- Updates a rewrite system with a list a new equations. It applies
 -- cc on the rewrite system and retrurns the new rewrite system.
@@ -114,43 +46,77 @@ cc (st@(RWSt _ _ _ flgs), rs)
 -- Inputs: new equations :: [Equation]
 --         old rewrite system and its constants :: (TRS, [Term])
 -- Output: new rewrite system and its constants :: (TRS, [Term])
-buildTRS :: [Equation] -> (TRS, [Term]) -> ((TRS, [Term]), [RWRule])
+buildTRS :: [Equation] -> CCModel -> (CCModel, [RWRule])
 buildTRS eqs (sys, cs)  = 
-    ((stRules new, stConstants new), pl)
-    where (new,pl) = cc (RWSt cs eqs sys allFlags, [])
-
-drawTRS :: TRS -> [Tree Term] -> [Tree Term]
-drawTRS (r:rs) trees = undefined
+    ((stRules new, stConstants new) , newRules)
+    where (new,newRules) = cc (RWSt cs eqs sys) []
 
 
-addToTree :: RWRule -> Tree Term -> Maybe (Tree Term)
-addToTree r@(RW t1 t2) (Node n ts) =
-    if t1 == n
-    then Just (Node n ((Node t2 []):ts))
-    else (if null ts
-          then Nothing
-          else Just (Node n ts'))
-    where ts' = map fromJust $ filter isJust $ map (addToTree r) ts
+-- Computes a congruence closure for a set of equations according to
+-- Shotak's algorithm: ((sim*.ext?)*.(del + ori).(col.ded*)*)*
+cc :: RWState -> [RWRule] -> (RWState, [RWRule])
+cc st rs = com $ cc' st rs
+
+
+cc' :: RWState -> [RWRule] -> (RWState, [RWRule])
+cc' sys@(RWSt _ [] _) newRules = (sys, newRules)
+cc' sys@(RWSt consts (eq:eqs) rs) newRules =
+    if t1' == t2'
+    then cc' (RWSt consts' eqs rs') newRules'''
+    else cc' (RWSt consts' eqs'' (rule:rs'')) newRules'''
+    where (consts', eq'@(Eql t1' t2'), rs', newRules') = 
+              simsexts consts rs eq newRules
+          (eqs'', rs'', newRules''') = coldedss consts rule (eqs) rs' newRules''
+          (rule, newRules'') = ori consts' eq' newRules'
+
+
+
+--------------------------------
+-- Steps
+--------------------------------
+simsexts :: [Term] -> TRS -> Equation -> [RWRule] -> 
+            ([Term], Equation, TRS, [RWRule])
+simsexts consts rs eq newRules =
+    case extResult of
+      Nothing -> (consts, eq', rs, newRules)
+      Just (consts'', eq'', rs'', newRules') -> 
+          simsexts consts'' (union rs rs'') eq'' newRules'
+    where eq' = sims rs eq
+          extResult = ext consts eq' rs newRules
+
+
+-- TODO: the performance is can be improved
+coldedss :: [Term] -> RWRule -> [Equation] -> TRS -> [RWRule] -> 
+            ([Equation], TRS, [RWRule])
+coldedss _ _ eqs [] newRules = (eqs, [], newRules)
+coldedss consts rule eqs (r:rs) newRules = 
+    -- if r == r' -- no collapse for this rule
+    -- then (union dedEqs restEqs, r':(union dedRules restRules))
+    -- else (union dedEqs restEqs, r':(union dedRules restRules))
+    (union dedEqs restEqs, r':(union dedRules restRules), newRules')
+    where (r', newRules''') = col consts rule r newRules
+          (dedEqs, dedRules, newRules'') = deds (r':rs) newRules'''
+          (restEqs, restRules, newRules') = coldedss consts rule eqs rs newRules''
 
 --------------------------------
 -- Simplification
 --------------------------------
--- Applies simplification on the first equation that can be simplified.
--- If there is no such equation, unsets the simplification flag.
-sim :: (RWState, [RWRule]) -> (RWState, [RWRule])
-sim (RWSt cs [] rs flgs, newRules) = (RWSt cs [] rs (unsetSim flgs), newRules)
-sim (RWSt cs (eq:eqs) rs flgs, newRules) =
-    (if eq == eq'
-    then (RWSt cs (eq:eqs') rs flgs', newRules) -- cannot simplify this term
-    else (RWSt cs (eq':eqs) rs allFlags, newRules))
-    where eq' = foldr (\r e -> (onEquation (simTerm r)) e) eq rs
-          (RWSt _ eqs' _ flgs', _) = sim (RWSt cs eqs rs flgs, newRules)
+-- Applies sim* on an equation until the equation doesn't change.
+-- (Question: do we ever need to apply a rule twice?)
+sims :: TRS -> Equation -> Equation
+sims rs eq = if eq == eq' 
+             then eq 
+             else sims rs eq'
+    where eq' = sim rs eq
+-- Applies a simplification step on an equation for a given set of rewrite rules.
+sim :: TRS -> Equation -> Equation
+sim rs eq = foldr (\r e -> (onEquation (simTerm r)) e) eq rs
 
 -- Simplieifes a term w.r.t a rewrite rule
 simTerm :: RWRule -> Term -> Term
 simTerm _ (Var _) = error "simTerm: the input term must be ground!"
 simTerm r@(RW t1 t2) t@(Fn f ts)
-        | t == t1 = t2
+        | t == t1 = t2 -- Question: what if r applies on t2?
         | otherwise = Fn f (map (simTerm r) ts)
 simTerm r@(RW t1 t2) t@(Elm _)
         | t == t1 = t2
@@ -159,46 +125,42 @@ simTerm r@(RW t1 t2) t@(Elm _)
 --------------------------------
 -- Extension
 --------------------------------
--- Applies one extension step on an equation. It tries to extend the term on
+-- Applies one extension step on an euqation. It tries to extend the term on
 -- left first; if it cannot find any extension for the term on left, extends
 -- the term on right. Also, within each term, it extends its subterms from
 -- left to right and returns if an extension is applicable; if none of the
 -- subterms can be extended, it tries to extend the term itself.
--- If it can find an equation to extend, it extends the equation and returns
--- the results; otherwise, unsets the extension flag.
-ext :: (RWState, [RWRule]) -> (RWState, [RWRule])
-ext (RWSt cs [] rs flgs, newRules) = (RWSt cs [] rs (unsetExt flgs), newRules)
-ext (RWSt cs (eq@(Eql t1 t2):eqs) rs flgs, newRules) = 
+ext :: [Term] -> Equation -> TRS -> [RWRule] -> 
+       Maybe ([Term],Equation, TRS, [RWRule])
+ext consts eq@(Eql t1 t2) rules newRules =
     case (ext_t1, ext_t2) of
-      (Nothing, Nothing) -> (RWSt cs' (eq:eqs') rs' flgs', newRules')
-      (Just (t1', c' ,rules'), _) -> (RWSt (c':cs) ((Eql t1' t2):eqs) 
-                                           (rs ++ rules') allFlags, 
-                                           newRules' ++ rules')
-      (Nothing, Just (t2',c' ,rules')) -> (RWSt (c':cs) ((Eql t1 t2'):eqs) 
-                                                (rs ++ rules') allFlags, 
-                                                newRules' ++ rules')
-    where (RWSt cs' eqs' rs' flgs', newRules') = 
-              ext (RWSt cs eqs rs flgs, newRules)
-          ext_t1 = extTerm cs t1 rs
-          ext_t2 = extTerm cs t2 rs
-
+      (Nothing, Nothing) -> Nothing 
+      (Just (t1', c', rules'), _) -> Just (c':consts, 
+                                           Eql t1' t2, 
+                                           rules', 
+                                           newRules ++ rules')
+      (Nothing, Just (t2', c', rules')) -> Just (c':consts, 
+                                                 Eql t1 t2', 
+                                                 rules',
+                                                 newRules ++ rules')
+    where ext_t1 = extTerm consts t1 rules
+          ext_t2 = extTerm consts t2 rules
 
 extTerm :: [Term] -> Term -> TRS -> Maybe (Term, Term, TRS)
 extTerm _ (Var _) _ = error "extTerm: the input term must be ground!"
-extTerm consts elm@(Elm sym) rules =
+extTerm consts elm@(Elm sym) rules = 
     if elm `elem` consts
     then Nothing
     else case sym of
-           "True" -> Just (elm, elm, []) -- Elm "True" is a special case
-           otheriwse -> Just (new, new, [RW elm new])
-    where new = freshConstant (length consts)
-extTerm consts term@(Fn f []) rules = Just (new, new, [RW term new])
+           "True"    -> Just (elm, elm, []) -- Elm "True" is a special case
+           otherwise -> Just (new, new, [RW elm new])
     where new = freshConstant (length consts)
 extTerm consts term@(Fn f terms) rules = 
     case extSubterms rules consts terms of
       Nothing -> Just (new, new, [RW term new])
       Just (terms', sym', rules') -> Just (Fn f terms', sym', rules')
-    where new = freshConstant $ length consts
+    where new = freshConstant (length consts)
+
 
 -- This function extends the firs term that can be extended and 
 -- keeps the rest unchanged. It returns the new list of terms,
@@ -222,74 +184,38 @@ extSubterms rules consts terms =
                      False -> (case extTerm consts t rules of
                                  Nothing -> (False, t:ts, s, rs)
                                  Just (t', s', rs') -> (True, t':ts, s', rs'))
-                     True -> (True, t:ts, s, rs))) (False,[], Elm "c",rules) terms
+                     True -> (True, t:ts, s, rs))) (False,[],Elm "c",rules) terms
 
 --------------------------------
 -- Deletion
 --------------------------------
-del :: (RWState, [RWRule]) -> (RWState, [RWRule])
-del (RWSt cs [] rs flgs, newRules) = (RWSt cs [] rs (unsetDel flgs), newRules)
-del (RWSt cs (eq@(Eql t1 t2):eqs) rs flgs, newRules) =
-    if t1 == t2
-    then (RWSt cs (eqs) rs flgs, newRules) -- deletion does not cause new transformations
-    else (RWSt cs (eq:eqs') rs flgs', newRules)
-    where (RWSt _ eqs' _ flgs', _) = del (RWSt cs eqs rs flgs, newRules)
+
 --------------------------------
 -- Orientation
 --------------------------------
--- Creates a rewriting rule corresponding to an equation based on an orientation 
--- transformation.
--- This function transforms the first equation in the state.
-ori :: (RWState, [RWRule]) -> (RWState, [RWRule])
-ori (RWSt cs [] rs flgs, newRules) = (RWSt cs [] rs (unsetOri flgs), newRules)
-ori (RWSt cs (eq@(Eql t1 t2):eqs) rs flgs, newRules)
-    | t1 `elem` cs && t2 `elem` cs =
-        if t1 > t2 || t2 == Elm "True" -- Elm "True" is smaller than everything
-        then (RWSt cs eqs ((RW t1 t2):rs) allFlags, (RW t1 t2):newRules')
-        else (RWSt cs eqs ((RW t2 t1):rs) allFlags, (RW t2 t1):newRules')
-    | t1 `elem` cs = (RWSt cs eqs (RW t2 t1:rs) allFlags, (RW t2 t1):newRules')
-    | t2 `elem` cs = (RWSt cs eqs (RW t1 t2:rs) allFlags, (RW t1 t2):newRules')
-    | otherwise = (RWSt cs (eq:eqs') rs' flgs', newRules')
-    where (RWSt _ eqs' rs' flgs', newRules') = 
-              ori (RWSt cs eqs rs flgs, newRules)
+-- Creates a rewriting rule corresponding to an equation based on an 
+-- orientation transformation.
+ori :: [Term] -> Equation -> [RWRule] -> (RWRule, [RWRule])
+ori consts (Eql t1 t2) newRules
+    | t1 `elem` consts && t2 `elem` consts =
+      if t1 > t2
+      then (RW t1 t2, RW t1 t2: newRules)
+      else (RW t2 t1, RW t2 t1: newRules)
+    | t1 `elem` consts = (RW t2 t1, RW t2 t1: newRules)
+    | t2 `elem` consts = (RW t1 t2, RW t1 t2: newRules)
+    | otherwise = error "ori: this wasn't expected!"
 
 --------------------------------
 -- Collapse
 --------------------------------
--- Collapses a rewrite rule according to another rule.
--- This function takes the first applicable rewrite rule as the reference rule
--- and collapses the other rules accordingly. If it cannot find such rule,
--- unsets the collapse flag.
--- Note that it only collapses the left of the rule.
-col :: (RWState, [RWRule]) -> (RWState, [RWRule])
-col (RWSt cs eqs rs flgs, newRules) =
-    case col' cs rs [] newRules of
-      (Nothing, _) -> (RWSt cs eqs rs (unsetCol flgs), newRules)
-      (Just rs', newRules') -> (RWSt cs eqs rs' allFlags, newRules')
-
-
--- A helper for collapse: it divides the rules into two lists: processed and
--- unprocessed and always uses the first unprocessed rule as the reference
--- rule for the collapse transformation. It returns nothign if none of the
--- rules could cause a collapse of the other rules. Otherwise, returns the
--- collapsed rules.
-col' :: [Term] -> TRS -> TRS -> [RWRule] -> (Maybe TRS, [RWRule])
-col' _ [] _ newRules = (Nothing, newRules)
-col' consts (rule:rs) rs' newRules =
-    case colHelper consts rule (rs ++ rs') newRules of
-      (Nothing, _) -> col' consts rs (rule:rs') newRules
-      (Just collapsed, newRules') -> (Just (rule:collapsed), rule:newRules')
-
-
--- A helper for col'
-colHelper :: [Term] -> RWRule -> TRS -> [RWRule]-> (Maybe TRS, [RWRule])
-colHelper _ rule [] newRules = (Nothing, newRules)
-colHelper consts rule@(RW rt1 rt2) (r@(RW t1 t2):rs) newRules =
-    if  (greater t2 t1') || (t1 == t1') -- it has to respect term ordering
-    then ((r:) <$> rest, newRules') -- doesn't collapse this rule
-    else (((r':) <$> rest) <|> Just (r':rs), r':delete r newRules')
+-- Collapses a rewrite rule according to another rule. Note that it
+-- only collapses the left of the rule.
+col :: [Term] -> RWRule -> RWRule -> [RWRule] -> (RWRule, [RWRule])
+col consts rule@(RW rt1 rt2) r@(RW t1 t2) newRules = --RW (colTerm rule t1) t2
+    if (greater t2 t1') || (t1 == t1') -- follow term ordering
+    then (r, newRules) -- do not collapse this rule
+    else (r', r':delete r newRules)
     where r'@(RW t1' _) = RW (colTerm rule t1) t2
-          (rest, newRules') = colHelper consts rule rs newRules
           greater x y = 
               case (x `elem` consts, y `elem` consts) of
                 (True, True) -> x >= y
@@ -297,12 +223,12 @@ colHelper consts rule@(RW rt1 rt2) (r@(RW t1 t2):rs) newRules =
                 (False, True) -> True
                 (True, False) -> False
 
+
 -- Collapses a term w.r.t a rewrite rule (happens to be similar to simTerm)
--- TODO: unify this function with simTerm
 colTerm :: RWRule -> Term -> Term
-colTerm _ (Var _) = error "colTerm: the input term must be ground!"
+colTerm _ (Var _) = error "simTerm: the input term must be ground!"
 colTerm r@(RW t1 t2) t@(Fn f ts)
-        | t == t1 = t2 
+        | t == t1 = t2 -- Question: what if r applies on t2?
         | otherwise = Fn f (map (colTerm r) ts)
 colTerm r@(RW t1 t2) t@(Elm _)
         | t == t1 = t2
@@ -311,74 +237,33 @@ colTerm r@(RW t1 t2) t@(Elm _)
 --------------------------------
 -- Deduction
 --------------------------------
--- Deduces a new equation in a given state
-ded :: (RWState, [RWRule]) -> (RWState, [RWRule])
-ded (RWSt cs eqs [] flgs, newRules) = (RWSt cs eqs [] (unsetDed flgs), newRules)
-ded (RWSt cs eqs (r@(RW t1 t2):rs) flgs, newRules) =
+deds :: TRS -> [RWRule] -> ([Equation], TRS, [RWRule])
+deds [] newRules = ([], [], newRules)
+deds (r@(RW t1 t2):rs) newRules =
     case r' of
-      Nothing -> (RWSt cs restEqs (r:restRules) flgs', newRules')
-      Just (RW t1' t2') -> (RWSt cs ((Eql t2 t2'):eqs) rs allFlags, 
-                                 delete r newRules')
+      Nothing -> ([], r:restRules, newRules')
+      Just (RW t1' t2') -> ((Eql t2 t2'):restEqs, restRules, delete r newRules')
     where r' = find (\(RW x y) -> x == t1) rs 
-          (RWSt _ restEqs restRules flgs', newRules') = 
-              ded (RWSt cs eqs rs flgs, newRules)
+          (restEqs, restRules, newRules') = deds rs newRules
 
 --------------------------------
 -- Composition
 --------------------------------
 -- Composes two rules in the TRS
 com :: (RWState, [RWRule]) -> (RWState, [RWRule])
-com (state@(RWSt cs eqs rules flgs), newRules) = comHelper rules state newRules
+com (state@(RWSt cs eqs rules), newRules) = comHelper rules state newRules
 
 comHelper :: [RWRule] -> RWState -> [RWRule] -> (RWState, [RWRule])
-comHelper _ (RWSt cs eqs [] flgs) newRules = (RWSt cs eqs [] (unsetCom flgs), newRules)
-comHelper allRules (RWSt cs eqs (r@(RW t1 t2):rs) flgs) newRules =
+comHelper _ (RWSt cs eqs []) newRules = (RWSt cs eqs [], newRules)
+comHelper allRules (RWSt cs eqs (r@(RW t1 t2):rs)) newRules =
     (case r' of
-      Nothing -> (RWSt cs restEqs (r:restRules) flgs', newRules')
-      Just (RW t1' t2') -> (RWSt cs eqs ((RW t1 t2'):rs) allFlags,
+      Nothing -> (RWSt cs restEqs (r:restRules), newRules')
+      Just (RW t1' t2') -> (RWSt cs eqs ((RW t1 t2'):rs),
                             union [RW t1 t2'] (delete (RW t1 t2) newRules')))
     where r' = find (\(RW x y) -> x == t2) allRules
 
-          (RWSt _ restEqs restRules flgs', newRules') = 
-              comHelper allRules (RWSt cs eqs rs flgs) newRules
-
---------------------------------
--- Flattens the terms of a set of equations.
--- Inputs:
---     A counter that keeps track of the constants that have been added so far.
---     A set of equations (left) to keep track of equations whose left side
---   has been flattened so far.
---     A set of equations (right) that keeps track of equations whose left term
---   has been flattened but the right term has not.
--- Output:
---     Last counter representing the number of constants in the form of "c(n)"
---   that have been created by this procedure.
---     A new set of equations with flattened terms.
---
--- Starting State: 0 equations []
--- flatten :: Int -> [Equation] -> [Equation] -> (Int, [Equation])
--- flatten counter [] [] = (counter, []) -- We are done
--- flatten counter ((Eql (Fn f ts) t2):rest) right = -- process left
---     (restCounter, restEqs)
---     where eq = (Eql (Fn f ts') t2)
---           newEqs = zipWith (\x y -> Eql x y) ts' ts
---           ts' = map (\x -> Fn x []) newConstants
---           newConstants = map (\x -> freshConstant (counter + x)) [1..arity]
---           arity = length ts
---           (restCounter, restEqs) = flatten (counter + arity) (rest ++ newEqs) (eq:right)
--- flatten counter left right@((Eql t1 (Fn f ts)):rest) = -- process right
---     (restCounter, eq:restEqs)
---     where eq = (Eql t1 (Fn f ts'))
---           newEqs = zipWith (\x y -> Eql x y) ts' ts
---           ts' = map (\x -> Fn x []) newConstants
---           newConstants = map (\x -> freshConstant (counter + x)) [1..arity]
---           arity = length ts
---           (restCounter, restEqs) = flatten (counter + arity) left (rest ++ newEqs)
-
--- applyFlatten :: [(String, String)] -> [Equation]
--- applyFlatten pairs = snd (flatten 0 eqs [])
---     where eqs = map (\(x, y) -> Eql (parseTerm x) (parseTerm y)) pairs
-
+          (RWSt _ restEqs restRules, newRules') = 
+              comHelper allRules (RWSt cs eqs rs) newRules
 --------------------------------
 -- Test Equality
 --------------------------------
@@ -411,12 +296,10 @@ normalForm rs t@(Elm f) =
                                 RW (Elm _) _ -> True
                                 otherwise -> False) rs
 
-
 -- Returns true if the two terms have the same normal form in the given
 -- rewrite system; otherwise, returns false.
 equalTerms :: TRS -> Term -> Term -> Bool
 equalTerms rs t1 t2 = (normalForm rs t1) == (normalForm rs t2)
-
 --------------------------------
 -- Helpers
 --------------------------------
@@ -442,3 +325,21 @@ makeEql str1 str2 = Eql (parseTerm str1) (parseTerm str2)
 
 makeRW :: String -> String -> RWRule
 makeRW str1 str2 = RW (parseTerm str1) (parseTerm str2)
+
+
+test_eq1 = makeEql "a()" "b()"
+test_eq2 = makeEql "c()" "b()"
+test_eq3 = makeEql "f(a())" "b()"
+test_eq4 = makeEql "g(f(a()))" "h(a(), c())"
+test_eq5 = makeEql "g(b())" "d()"
+
+
+test_eqs1 = [test_eq1, test_eq2]
+test_eqs2 = [test_eq2, test_eq3]
+test_eqs3 = [test_eq2, test_eq3, test_eq4, test_eq5]
+
+test_dd = [makeEql "f(f(f(a())))"  "a()" ,makeEql "f(f(f(f(f(a())))))"  "a()",makeEql "a()"  "d()" , makeEql "g(h(a()))"  "a()" ,makeEql "g(m(a()))"  "a()" ,makeEql "h(a())"  "c()" , makeEql "m(g(c()))"  "b()"]
+
+test_tst = [(makeEql "f(f(f(a())))" "a()" )]
+
+go eqs = cc (RWSt [] eqs [])
