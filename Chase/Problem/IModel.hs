@@ -41,33 +41,35 @@ instance Show Model where
         "Functions: " ++ (show func) ++ "\n" ++
         "Relations: " ++ (show rel) ++ "\n" ++
         "-----------------------------------------\n"
-        where (dom, func, rel) = showFacts trs
+        where (func, rel) = showFacts dom trs trs
+              dom              = showDomain trs
 
-{- Shows the values of functions and relations of a model in a pair of
+{- Lists the values of functions and relations of a model in a pair of
    strings.
 -}
-showFacts :: CC.TRS -> ([String], [String], [String])
-showFacts [] = ([], [], [])
-showFacts (r:rs) = 
-    case r of
-      CC.RW t1@(Fn _ _) t2@(Elm "True") -> 
-          ((show t2):restDom, restFunc, (show t1):restRel)
-           -- Relation values for terms
-      CC.RW t1@(Fn _ _) t2@(Elm _) -> 
-          ((show t2):restDom, 
-           ((show t1) ++ " = " ++ (show t2)):restFunc, 
-           restRel)
-          -- Function values for terms
-      CC.RW t1@(Elm _) t2@(Elm "True") -> 
-          ((show t2):restDom, restFunc, restRel)
-          -- Relation values for observations
-      CC.RW t1@(Elm _) t2@(Elm _) -> 
-          ((show t2):restDom, 
-           ((show t1) ++ " = " ++ (show t2)):restFunc, 
-           restRel)
-          -- Function values for observations
-      otherwise -> (restDom, restFunc, restRel)
-    where (restDom, restFunc, restRel) = showFacts rs
+showFacts :: [Term] -> CC.TRS -> CC.TRS -> ([String], [String])
+showFacts _ _ [] = ([], [])
+showFacts dom trs rs = 
+    foldr augment ([],[]) rs
+    where augment (CC.RW t1@(Fn _ _) _) (funcs, rels) = 
+              let t1' = CC.normalForm trs t1
+              in if t1' == truth               
+                 then (funcs, (show t1):rels)
+                 else (((show t1) ++ " = " ++ (show t1')):funcs, rels)
+          augment (CC.RW t1@(Elm _) _) (funcs, rels) =
+              let t1' = CC.normalForm trs t1
+              in  if t1' == truth
+                  then (funcs, rels)
+                  else if t1 `elem` dom
+                       then (((show t1) ++ " = " ++ (show t1')):funcs, rels)
+                       else (funcs, rels)
+          augment _ (funcs, rels) = (funcs, rels)
+
+{- Compute the set of elements in the domain that are displayed to the user. -}
+showDomain :: CC.TRS -> [Term]
+showDomain trs =
+    foldr augment [] trs
+    where augment (CC.RW t1 _) = (CC.normalForm trs t1:)
 
 {-| truth is an special element represented by "True" in models. -}
 truth :: Term
