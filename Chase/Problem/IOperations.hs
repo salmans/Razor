@@ -193,7 +193,10 @@ narrowObs :: Model -> [CC.RWRule] -> Obs -> [Sub]
 narrowObs mdl@(Model trs _) rules (Den t) =
     error err_ChaseProblemOperations_NarrowDen
 narrowObs mdl@(Model trs _) rules (Eql t1 t2) =
-    narrowEquation False trs rules t1 t2
+    if null subs
+       then narrowEquation False trs rules t2 t1
+       else subs
+    where subs = narrowEquation False trs rules t1 t2
 narrowObs mdl@(Model trs _) rules f@(Fct a) =
     map snd $ narrowTerm True trs rules t
     where t = fromJust $ toTerm a
