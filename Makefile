@@ -14,8 +14,9 @@ rc: realclean
 
 
 profile: Main.hs
-	ghc -O2 -odir binaries -hidir binaries -prof -auto-all -caf-all -fforce-recomp -optl-w --make Main.hs -o
+	ghc -O2 -odir binaries -hidir binaries -prof -auto-all -caf-all -fforce-recomp -optl-w --make Main.hs
 
+# -o is ignored for now
 
 # to profile it:
 # ./go -i whatever  +RTS -p
