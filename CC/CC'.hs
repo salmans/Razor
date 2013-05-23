@@ -381,35 +381,29 @@ comHelper allRules (RWSt cs eqs (r@(RW t1 t2):rs) flgs) newRules =
 --------------------------------
 -- Test Equality
 --------------------------------
--- Returns the normal form of a term according to a given rewrite system.
-normalForm :: TRS -> Term -> Term
--- Generally, the normal form of a variable does not make sense because
--- the rewrite system will not contain any variables; however, we return
--- the variable itself instead of throwing an exception because the we want
--- to make this function compatible with situations where terms of a 
--- sequent are reduced to their normal form during instantiation.
-normalForm _ (Var x) = Var x
-normalForm rs t@(Fn f ts) =
-    (let rule = find (\(RW t1@(Fn rf rts) t2) -> 
-                         (Fn rf (nfs rts)) == (Fn f (nfs ts))) rs' in
-    case rule of
-      Nothing -> t
-      Just (RW _ t') ->  normalForm rs t')
-    where nfs x = map (normalForm rs) x
-          rs' = filter (\r -> case r of
-                                RW (Fn _ _ ) _ -> True
-                                otherwise -> False) rs
-normalForm rs t@(Elm f) =
-    (let rule = find (\(RW (Elm t1) t2) -> 
-                         t1 == f) rs' in
-    case rule of
-      Nothing -> t
-      Just (RW _ t') ->  normalForm rs t')
-    where nfs x = map (normalForm rs) x
-          rs' = filter (\r -> case r of
-                                RW (Elm _) _ -> True
-                                otherwise -> False) rs
+{- Tries to perform a single rewrite step at the root of t by examining the 
+rules (l,r) in order -}
+rewrite :: TRS -> Term -> Maybe Term
+rewrite [] t = Nothing
+rewrite ((RW l r):rest) t = 
+    case match [(l, t)] of 
+      -- We don't need unification because we have a ground TRS.
+      Nothing -> rewrite rest t
+      Just s  -> Just $ liftTerm (lift s) r
 
+{-| Returns the normal form of a term according to a given rewrite system. -}
+normalForm :: TRS -> Term -> Term
+normalForm _ (Var x)     = Var x
+normalForm trs (Fn f ts) =
+    let u = Fn f (map (normalForm trs) ts)
+    in  case rewrite trs u of
+          Nothing -> u
+          Just t  -> normalForm trs t
+normalForm trs (Elm e)   = 
+    let u = Elm e
+    in  case rewrite trs u of
+          Nothing -> u
+          Just t  -> normalForm trs t
 
 -- Returns true if the two terms have the same normal form in the given
 -- rewrite system; otherwise, returns false.
