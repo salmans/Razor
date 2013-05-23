@@ -30,13 +30,24 @@ truth = Elm "True" -- Not ideal!
    to reduce the number of instantiated frames.
 -}
 narrowEquation :: Bool -> TRS -> [RWRule] -> Term -> Term -> [Sub]
-narrowEquation isFact trs rs t1 t2 =
-    [sub | (t,s) <- ts, 
-           (t',s') <- narrow isFact trs rs (lift s t2),
-           let sub = Map.union s s',
-           t == t',
-           normalForm trs (lift sub t1) == normalForm trs (lift sub t2)]
-    where ts = narrow isFact trs rs t1
+narrowEquation isFact trs rs t1 t2 = 
+    filter (\s -> normalForm trs (lift s t1)  == normalForm trs (lift s t2)) 
+           -- Return only those substitutions that make equal temrs 
+           -- on both sides.
+           $ concatMap subs narrowLeft
+    where narrowLeft  = narrow isFact trs rs t1
+                        -- Results of narrowing applied on t1
+          narrowRight (t, s) = [s' | (t',s') <- narrow isFact trs rs (lift s t2)
+                               , t == t']
+                        -- Apply narrowing on (lift s t2) where t2 is a 
+                        -- substitution resulted from narrowing t1. It returns
+                        -- a list of substitutions.
+          subs (t,s) = case narrowRight (t,s) of
+                         [] -> [s]
+                         ts -> map (\s' -> Map.union s s') ts
+                         -- If there is any substitutions from narrowing right,
+                         -- compose them with the substitutions from narrowing
+                         -- left, otherwise, only return left narrowings.
 
 {-| Applies narrowTermForRule for a given *set* of rules:
 -- Inputs:
