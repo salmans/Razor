@@ -39,7 +39,7 @@ instance Show Model where
         "Model -----------------------------------\n" ++
         "Domain: " ++ (show (nub dom)) ++ "\n" ++
         "Functions: " ++ (show func) ++ "\n" ++
-        "Relations: " ++ (show rel) ++ "\n" ++
+        "Relations: " ++ (show (nub rel)) ++ "\n" ++
         "-----------------------------------------\n"
         where (func, rel) = showFacts dom trs trs
               dom              = showDomain trs
