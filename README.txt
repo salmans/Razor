@@ -52,6 +52,14 @@ Version 2.1
      - New test cases are added to the regression test repository (theories).
      - Minor bugs resolved.
 
+Version 2.2
+     - Uses Shostak's CC algorithm (faster than the naive implementation)
+     - A new implementation of "CC/CC.normalForm" resulting into a huge speed up
+     - Showing models is faster and does not show unhelpful element domains.
+     - A bug in narrowing is fixed.
+     - Make profile is restored
+
+
 Coming next:
      - Modifying automatic testing to work with the new version.
      - WeaklyAcyclic implementaiton.
