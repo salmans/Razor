@@ -54,9 +54,9 @@ instance TermBased Frame where
 -}
 type SymbolMap = Map.Map Sym [(ID, Int)]
 
-{-| The deduced new facts that are added to the model will be queued in a queue until their impact is pushed back to the list of frames. In fact, the list is a list of terms equivalent to the deduced facts. 
+{-| The new rewrite rules that are added to the model will be queued in a queue until their impact is pushed back to the list of frames.
 -}
-type Queue = [Obs]
+type Queue = [CC.RWRule]
 
 {-| A problem represents keeps track of a branch of computation, which contains a geometric theory (a set of sequents) and a model. It also has a queue of deduced facts that are waiting to be processed.
   - problemFrames: a list of frames corresponding to the sequents of the problem.

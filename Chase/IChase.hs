@@ -25,6 +25,7 @@ import qualified CC.CC as CC -- remove this
 
 -- Other Modules
 import Utils.Utils (allMaps, prodList, allSublists, allCombinations)
+import Debug.Trace
 
 {-| This is the main function that tries to find the set of all the models for a given geometric theory.
 -}
@@ -79,11 +80,11 @@ process' probPool =
 
 
 {- Maps a problem to another problem (possibly a list of problems) by
-   branching over the righ of the frames whose bodies are empty. For each
+   branching over the right of the frames whose bodies are empty. For each
    disjunct on right of a frame with an empty body, we create a new problem
-   and add the deduced facts for that disjunct to the problem's queue.
-   Consequently, the frame, with an empty body, will be removed from the 
-   problem.
+   that contains new models and add the new rewrite rules for each model 
+   to the problem's queue. Consequently, the frame, with an empty body, will 
+   be removed from the problem.
    If any of the frames of the input problem is empty on both left and right,
    the chase fails in this branch.
 
@@ -96,34 +97,50 @@ mapProblem p@(Problem frames model queue syms lastID lastConst) =
     if any' (\f -> (null . frameBody) f && (null . frameHead) f) frames
     -- if the theory has a contradictory sequent
     then [] -- then don't continue this branch
-    else map (\q -> (Problem remainingFrames model 
-                     q syms lastID newConst)) queues
-    where (queues, newConst) = foldr buildQueues ([[]], lastConst) frames
-          buildQueues f (terms, counter) =
-              let (ts, c) = deduceForFrame counter model f 
-              in (prodList ts terms, c)
-              -- Composes the deduced facts for a frame with a previously 
-              -- constructed set of facts.
-          remainingFrames = filter (not . null . frameBody) frames
+    else map (\(m, q, c) -> 
+              (Problem nonEmptyFrs m q syms lastID c)) queues
+    where queues = foldr mapModels [(model, [], lastConst)] emptyFrs
+              -- Constructs the queue of rewrite rules and corresponding models
+              -- for each model mapping.
+          (emptyFrs, nonEmptyFrs) = partition (null.frameBody) frames
               -- get rid of frames that we have alrady pushed into the model
           any' pred = foldr (\e r -> pred e || r) False
               -- Since we extend the frames of a problem by adding new
               -- frames to the end, a more efficient version of any,
               -- i.e. eny', starts from the end of the list.
 
+{- Given an input frame and a list of models together with new rewrite rules 
+   being added to each model (as the result of applying this function on 
+   previous frames, returns a list of models together with their rewrite rules
+   that are just added to them.
+   Algorithmically, the function deduces *a list of list of new facts* for the
+   frame, then if the list is not empty, it creates a list of new models by
+   adding each list of facts to the original model.
+-}
+mapModels :: Frame -> [(Model, [CC.RWRule], Int)] -> [(Model, [CC.RWRule], Int)]
+mapModels f [] = []
+mapModels f ms = 
+    foldr combine [] ms
+    where combine (m, rs, c) res = 
+              let (os, c') = deduceForFrame c m f
+              in if null os                                            
+                 then (m, rs, c):res
+                 else let ms' = map (Model.add m) os
+                      in (map (\(m', rs') -> (m', rs ++ rs', c')) ms') ++ res
+
+
 {- Reduces a problem by instantiating the frames of the problem with the obs
    in the queue of the problem.
 -}
 reduceProblem :: Problem -> Problem
 reduceProblem (Problem frames model queue symMap lastID lastConst) =
-    let tempProb = Problem normalFrames newModel 
+    let tempProb = Problem normalFrames model
                      [] symMap lastID lastConst
     in extendProblem tempProb newFrames
-    where (newModel, newRules) = Model.add model queue
-          newFrames = concatMap (\f -> instFrame newModel symMap f newRules)
+    where newFrames = concatMap (\f -> instFrame model symMap f queue)
                       normalFrames
                       -- a list of newly instantiated frames          
-          normalFrames = map (normalizeFrame newModel) frames
+          normalFrames = map (normalizeFrame model) frames
                       -- We normalize old frames as we do for new frames in
                       -- every instFrame call.
 

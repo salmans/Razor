@@ -57,12 +57,13 @@ Version 2.2
      - A new implementation of "CC/CC.normalForm" resulting into a huge speed up
      - Showing models is faster and does not show unhelpful element domains.
      - A bug in narrowing is fixed.
-     - Make profile is restored
+     - Now, new facts are added to the models in mapProblem instead of in
+     reduceProblem. This resolves a bug where new facts were being added twice
+     to a model when more than one instance of a frame with empty body was being
+     created.
+     - Make profile is restored.
 
 
 Coming next:
      - Modifying automatic testing to work with the new version.
      - WeaklyAcyclic implementaiton.
-     - Adopting Shostack's CC algorithm to the new version.
-     - Returning the new constants that are added to the model at each step,
-     as opposed to instantiating frames with every subterm of a new fact.

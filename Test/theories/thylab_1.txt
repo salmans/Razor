@@ -1,0 +1,22 @@
+-- ~(Person(x) & Lab(x))
+-- ~(Person(x) & Department(x))
+-- ~(Lab(x) & Department(x))
+
+-- Lab(l) => Department(labDepartment(l))
+
+-- Student(s) => Person(s)
+-- Professor(p) => Person(p)
+-- memberOf(p,d) => Person(p) & Department(d)
+-- isClosed(l) => Lab(l)
+hasAuthorization(p,s) => Professor(p) & Student(s)
+
+-- ~(hasAuthorization(p,p))
+
+-- Lab(l) & hasAuthorization(p,s) & memberOf(p,labDepartment(l)) => permit(s,l)
+-- Lab(l) & memberOf(p,labDepartment(l)) => permit(p,l)
+-- Person(p) & isClosed(l) => deny(p,l)
+
+exists p. exists l. Student(p) & permit(p,l)
+--permit(p,l) => Person(p) & Lab(l)
+--Student(p) & permit(p,l) => exists pf. ((hasAuthorization(pf,p)) & memberOf(pf, labDepartment(l)))
+Student(p) & permit(p,l) => exists pf. ((hasAuthorization(pf,p)) & memberOf(pf, labDepartment(l)))
