@@ -62,8 +62,10 @@ Version 2.2
      to a model when more than one instance of a frame with empty body was being
      created.
      - Make profile is restored.
+     - Shows models in a more readable fashion.
 
 
 Coming next:
      - Modifying automatic testing to work with the new version.
      - WeaklyAcyclic implementaiton.
+     - Improve the code and the algorithm for showing models.
