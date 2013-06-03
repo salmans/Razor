@@ -146,18 +146,21 @@ reduceProblem (Problem frames model queue symMap lastID lastConst) =
 
 
 {- For a frame whose body is empty, returns a pair containing a list of list of 
-   obs, which are deduced from the right of the frame. Ever item in an inner 
+   obs, which are deduced from the right of the frame. Every item in an inner 
    list, corresponds to the deduced terms for a disjunct on right; thus, the 
    outer list contains a list of all the Obs deduced from all the disjuncts 
-   on right. It also returns a new value for problemLastConstant of the problem
-   to which the frame belongs. If the frame's body is not empty, it simply 
-   returns an empty list and the input problemLastConstant.
+   on right. The list of deduced facts is empty if any of the disjuncts in the 
+   head is true in the current model.
+   It also returns a new value for problemLastConstant of the problem to which 
+   the frame belongs. If the frame's body is not empty, it simply returns an 
+   empty list and the input problemLastConstant.
    The parameters are (1) problemLastConstant of the problem to which the frame 
    belongs to, (2) the problemModel of the problem, and (3) finally the frame.
 -}
 deduceForFrame :: Int -> Model -> Frame -> ([[Obs]], Int)
 deduceForFrame counter model frame@(Frame _ body head vars)
-   | null body = deduceForFrameHelper counter model vars head
+   | null body && not (any (holds model vars) head) = 
+       deduceForFrameHelper counter model vars head
    | otherwise = ([], counter)
 
 {- This is a helper for deduceForFrame. It handles the recursive calls over the
@@ -179,11 +182,8 @@ deduceForFrameHelper counter model vars hs =
    input observations.
 -}
 deduce :: Int -> Model -> Vars -> [Obs] -> ([Obs], Int)
-deduce counter model vars hs 
-    | holds model vars hs = ([], counter)
-        -- The conjunction formula of observations is already true; 
-        -- thus, nothing to deduce!
-    | otherwise = deduceHelper counter model vars hs
+deduce counter model vars hs =
+    deduceHelper counter model vars hs
         -- Call a helper function to deduce new facts.
 
 {- This is a helper function for deduce. It infers a list of observations
@@ -274,6 +274,3 @@ makeFreshConstant counter = Elm ("a" ++ show counter)
 
 doChase thy = chase $ map parseSequent thy
 doChase' thy = chase' $ map parseSequent thy
-
-
-thyTest = ["exists x.P(x) | exists x.exists y.P(x) & P(y) & x = y"]

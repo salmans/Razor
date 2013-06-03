@@ -69,6 +69,8 @@ Version 2.2
      - A garbage collection transformation is applied on Shostak's CC 
      implementation to get rid of transformations in form of c -> d where both
      c and d are elements of the model (constants in K in the rewrite system).
+     - Fixed a bug where every disjunct on the right needed to be true in order 
+     for the formula not to be instantiated.
      
 
 
