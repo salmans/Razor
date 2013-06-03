@@ -11,7 +11,7 @@ import Data.List
 import qualified  Data.Map
 import Data.Maybe
 import Control.Exception -- for assert
-
+import Debug.Trace
 
 -- Logic modules:
 import Formula.SyntaxGeo
@@ -65,7 +65,7 @@ buildTRS eqs (trs, cs)  =
 -- Computes a congruence closure for a set of equations according to
 -- Shotak's algorithm: ((sim*.ext?)*.(del + ori).(col.ded*)*)*
 cc :: RWState -> RWState
-cc = com.ccHelper
+cc = garbageCollect.com.ccHelper
 
 ccHelper :: RWState -> RWState
 ccHelper st@(RWSt [] _ newRules) = st
@@ -255,20 +255,42 @@ deds (r@(RW t1 t2):rs) newRules =
 -- Composition
 --------------------------------
 -- Composes two rules in the TRS
+-- The way that composition works is not ideal because of the way we deal with
+-- multiple rules that can be composed, in particular, how delList works. 
+-- However, since we want to implement a new congruence closure algorithm, this
+-- approach is fine for now.
 com :: RWState -> RWState
-com state@(RWSt _ (rules, _) _) = comHelper rules state
+com state@(RWSt _ (rules, _) _) = 
+    comHelper rules state
 
 comHelper :: [RWRule] -> RWState -> RWState
 comHelper _ st@(RWSt eqs ([], cs) newRules) = st
 comHelper allRules (RWSt eqs (r@(RW t1 t2):rs, cs) newRules) =
     (case r' of
       Nothing -> RWSt restEqs (r:restRules,cs) newRules'
-      Just (RW t1' t2') -> RWSt eqs ((RW t1 t2'):rs, cs)
-                            $ union [RW t1 t2'] (delete (RW t1 t2) newRules'))
+      Just (RW t1' t2') -> RWSt eqs ((RW t1 t2'):(delList rs), cs)
+                            $ union [RW t1 t2'] (delList newRules'))
     where r' = find (\(RW x y) -> x == t2) allRules
-
           RWSt restEqs (restRules,_) newRules' = 
               comHelper allRules (RWSt eqs (rs, cs) newRules)
+          delList l = deleteBy (\(RW x _) (RW y _) -> x == y) (RW t1 t2) l
+
+--------------------------------
+-- Composition
+--------------------------------
+-- In the next congruence closure implementation, we should be handle garbage
+-- collection within the algorithm as a part of transformations.
+garbageCollect :: RWState -> RWState
+garbageCollect state@(RWSt eqs (rs, cs) nrs) =
+    RWSt eqs (rs', cs) nrs
+    where rs' = foldr (\r@(RW x y) rules ->
+                           if (x `elem` cs) && 
+                              (y `elem` cs) && 
+                              (y /= Elm "True") -- not great!
+                           then rules
+                           else r:rules) [] rs
+
+
 --------------------------------
 -- Test Equality
 --------------------------------

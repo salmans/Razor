@@ -164,12 +164,10 @@ deduceForFrame counter model frame@(Frame _ body head vars)
    disjuncts on the right of the frame.
 -}
 deduceForFrameHelper :: Int -> Model -> Vars -> [[Obs]] -> ([[Obs]], Int)
-deduceForFrameHelper counter _ _ [] = ([], counter)
-deduceForFrameHelper counter model vars (h:hs) =
-    (result:rest, finalCounter)
-    where (result, newCounter) = deduce counter model vars h
-          (rest, finalCounter) = deduceForFrameHelper newCounter model vars hs
-       
+deduceForFrameHelper counter model vars hs =
+    foldr (\h (rest, c) -> 
+               let (result, newCounter) = deduce c model vars h
+               in  (result:rest, newCounter)) ([], counter) hs
                         
 {- Deduces new facts for a list of conjuncted Obs and a model. This method 
    is called on right of sequents whose body is empty. Vars is a set of 
@@ -276,3 +274,6 @@ makeFreshConstant counter = Elm ("a" ++ show counter)
 
 doChase thy = chase $ map parseSequent thy
 doChase' thy = chase' $ map parseSequent thy
+
+
+thyTest = ["exists x.P(x) | exists x.exists y.P(x) & P(y) & x = y"]

@@ -63,6 +63,13 @@ Version 2.2
      created.
      - Make profile is restored.
      - Shows models in a more readable fashion.
+     - A bug in Shostak's CC implementation is resolved where if more than one
+     rule could be composed with a reference rule, one of them remained left
+     in the rewrite system.
+     - A garbage collection transformation is applied on Shostak's CC 
+     implementation to get rid of transformations in form of c -> d where both
+     c and d are elements of the model (constants in K in the rewrite system).
+     
 
 
 Coming next:
