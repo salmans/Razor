@@ -255,28 +255,30 @@ deds (r@(RW t1 t2):rs) newRules =
 -- Composition
 --------------------------------
 -- Composes two rules in the TRS
--- The way that composition works is not ideal because of the way we deal with
--- multiple rules that can be composed, in particular, how delList works. 
--- However, since we want to implement a new congruence closure algorithm, this
--- approach is fine for now.
+-- The way that composition works is not ideal but  since we want to implement a
+-- new congruence closure algorithm, this approach is fine for now.
 com :: RWState -> RWState
 com state@(RWSt _ (rules, _) _) = 
     comHelper rules state
 
-comHelper :: [RWRule] -> RWState -> RWState
-comHelper _ st@(RWSt eqs ([], cs) newRules) = st
-comHelper allRules (RWSt eqs (r@(RW t1 t2):rs, cs) newRules) =
-    (case r' of
-      Nothing -> RWSt restEqs (r:restRules,cs) newRules'
-      Just (RW t1' t2') -> RWSt eqs ((RW t1 t2'):(delList rs), cs)
-                            $ union [RW t1 t2'] (delList newRules'))
-    where r' = find (\(RW x y) -> x == t2) allRules
-          RWSt restEqs (restRules,_) newRules' = 
-              comHelper allRules (RWSt eqs (rs, cs) newRules)
-          delList l = deleteBy (\(RW x _) (RW y _) -> x == y) (RW t1 t2) l
+comHelper :: TRS -> RWState -> RWState
+comHelper trs (RWSt eqs (rs, cs) newRules) = 
+    RWSt eqs ((nub.normalize) rs,cs) ((nub.normalize) newRules)
+    where normalize = foldr (\(RW t1 t2) res -> 
+                                 (RW t1 (normalForm trs t2)):res) []
 
+-- comHelper _ st@(RWSt eqs ([], cs) newRules) = st
+-- comHelper allRules (RWSt eqs (r@(RW t1 t2):rs, cs) newRules) =
+--     (case r' of
+--       Nothing -> RWSt restEqs (r:restRules,cs) newRules'
+--       Just (RW t1' t2') -> RWSt eqs ((RW t1 t2'):(delList rs), cs)
+--                             $ union [RW t1 t2'] (delList newRules'))
+--     where r' = find (\(RW x y) -> x == t2) allRules
+--           RWSt restEqs (restRules,_) newRules' = 
+--               comHelper allRules (RWSt eqs (rs, cs) newRules)
+--           delList l = deleteBy (\(RW x _) (RW y _) -> x == y) (RW t1 t2) l
 --------------------------------
--- Composition
+-- Garbage Collection
 --------------------------------
 -- In the next congruence closure implementation, we should be handle garbage
 -- collection within the algorithm as a part of transformations.
