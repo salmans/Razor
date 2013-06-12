@@ -86,7 +86,7 @@ main = do
   putStrLn "Model: "
   putStrLn $ show model
   --putStrLn ""
-  putStrLn $ "-> " ++ verifyMsg
+  -- putStrLn $ "-> " ++ verifyMsg
   putStrLn ""
 
 
