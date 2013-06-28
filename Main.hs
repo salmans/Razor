@@ -86,44 +86,44 @@ main = do
   putStrLn "Model: "
   putStrLn $ show model
   --putStrLn ""
-  -- putStrLn $ "-> " ++ verifyMsg
+  putStrLn $ "-> " ++ verifyMsg
   putStrLn ""
 
 
-  --putStrLn  ("Found " ++ (show $ length models) ++  " models ")
+  --putStrLn  ("Found " ++ (show $ length model) ++  " models ")
 
-  saveXMLJustModel model
+  --saveXMLJustModel model
 
 -- end main
 
 
 -- Save a model in "model.xml" if it is just; otherwise, the file becomes empty
-saveXMLJustModel model =
-    let outs = if (Maybe.isJust model) then
-                 "<?xml version=\"1.0\"?>\n" ++
-                 "<TRS>\n" ++
-                 (concatMap xmlRW (modelTRS (Maybe.fromJust model))) ++
-                 "</TRS>"
-               else
-                 ""
-               in
-    do
-        outh <- openFile "model.xml" WriteMode
-        hPutStrLn outh outs
-        hClose outh
+-- saveXMLJustModel model =
+--     let outs = if (Maybe.isJust model) then
+--                  "<?xml version=\"1.0\"?>\n" ++
+--                  "<TRS>\n" ++
+--                  (concatMap xmlRW (modelTRS (Maybe.fromJust model))) ++
+--                  "</TRS>"
+--                else
+--                  ""
+--                in
+--     do
+--         outh <- openFile "model.xml" WriteMode
+--         hPutStrLn outh outs
+--         hClose outh
 
--- Helper function for saveJustModel to write a rule in the XML format
-xmlRW (RW (Elm _) _) = ""
-xmlRW (RW (Fn f args) (Elm e)) =
-    "\t<RW>\n" ++
-    "\t\t<LHSName>" ++ f ++ "</LHSName>\n" ++
-    "\t\t<LHSArguments>\n" ++
+-- -- Helper function for saveJustModel to write a rule in the XML format
+-- xmlRW (RW (Elm _) _) = ""
+-- xmlRW (RW (Fn f args) (Elm e)) =
+--     "\t<RW>\n" ++
+--     "\t\t<LHSName>" ++ f ++ "</LHSName>\n" ++
+--     "\t\t<LHSArguments>\n" ++
 
-    (concatMap xmlArg args) ++
+--     (concatMap xmlArg args) ++
 
-    "\t\t</LHSArguments>\n" ++
-    "\t\t<RHS>" ++ e ++ "</RHS>\n" ++
-    "\t</RW>\n"
+--     "\t\t</LHSArguments>\n" ++
+--     "\t\t<RHS>" ++ e ++ "</RHS>\n" ++
+--     "\t</RW>\n"
 
--- Helper function for xmlRW to write an argument in the XML format
-xmlArg (Elm arg) = "\t\t\t<Argument>" ++ arg ++ "</Argument>\n"
+-- -- Helper function for xmlRW to write an argument in the XML format
+-- xmlArg (Elm arg) = "\t\t\t<Argument>" ++ arg ++ "</Argument>\n"
