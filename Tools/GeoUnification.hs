@@ -142,21 +142,21 @@ io_unify pairs =
       Just sub -> prettySub sub
 
 
-t1 = parseTerm "f(x0,x0)"
-t2 = parseTerm "f(x1,x1)"
-t3 = parseTerm "g(f(g(x), f(y,u)))"
-t4 = parseTerm "g(f(u, f(x,g(z))))"
-t5 = parseTerm "g(f(u, f(x,x))))"
+-- t1 = parseTerm "f(x0,x0)"
+-- t2 = parseTerm "f(x1,x1)"
+-- t3 = parseTerm "g(f(g(x), f(y,u)))"
+-- t4 = parseTerm "g(f(u, f(x,g(z))))"
+-- t5 = parseTerm "g(f(u, f(x,x))))"
 
-pairs1 = [(t1,t2)]
-pairs2 = [(t1,t3)]
-pairs3 = [(t3,t4)]
-pairs4 = [(t3,t5)]
+-- pairs1 = [(t1,t2)]
+-- pairs2 = [(t1,t3)]
+-- pairs3 = [(t3,t4)]
+-- pairs4 = [(t3,t5)]
 
-a1 = io_unify pairs1
-a2 = io_unify pairs2
-a3 = io_unify pairs3
-a4 = io_unify pairs4
+-- a1 = io_unify pairs1
+-- a2 = io_unify pairs2
+-- a3 = io_unify pairs3
+-- a4 = io_unify pairs4
 
 {- answers for the above tests 
 *Unif> a1

@@ -23,13 +23,13 @@ truth = Elm "True" -- Not ideal!
 -}
 {- The output set of substitutions are guaranteed to lead to a useful 
    instantiation of the corresponding frame; that is, they are returned only if 
-   they reduce reduce the two sides of the equation to the same symbol in the 
-   rewrite system.
+   they reduce the two sides of the equation to the same symbol in the rewrite
+   system.
 
    REMARK: this function puts slightly increases the overhead of narrowing in order 
    to reduce the number of instantiated frames.
 -}
-narrowEquation :: Bool -> TRS -> [RWRule] -> Term -> Term -> [Sub]
+narrowEquation :: Bool -> [RWRule] -> [RWRule] -> Term -> Term -> [Sub]
 narrowEquation isFact trs rs t1 t2 = 
     filter (\s -> normalForm trs (lift s t1)  == normalForm trs (lift s t2)) 
            -- Return only those substitutions that make equal temrs 
@@ -65,13 +65,13 @@ narrowEquation isFact trs rs t1 t2 =
   REMARK: this function puts slightly increases the overhead of narrowing in order to reduce the number of instantiated frames.
 -}
 
-narrowTerm :: Bool -> TRS -> [RWRule] -> Term -> [(Term, Sub)]
+narrowTerm :: Bool -> [RWRule] -> [RWRule] -> Term -> [(Term, Sub)]
 narrowTerm isFact trs rs t = 
     filter (\(_, s) -> normalForm trs (lift s t) == truth)
                $ narrow isFact trs rs t
 
 
-narrow :: Bool -> TRS -> [RWRule] -> Term -> [(Term, Sub)]
+narrow :: Bool -> [RWRule] -> [RWRule] -> Term -> [(Term, Sub)]
 narrow isFact trs rs t = 
     concatMap (\r -> narrowTermForRule isFact trs r t) rs
 
@@ -91,7 +91,7 @@ narrow isFact trs rs t =
 -- the terms in the rewrite rule correspond to a fact or a term denotation, we
 -- return the normal form instead of right. Thus, we don't need to compute the
 -- normal form in a normalization process in the main algorithm (the chase).
-narrowTermForRule :: Bool -> TRS -> RWRule -> Term -> [(Term, Sub)]
+narrowTermForRule :: Bool -> [RWRule] -> RWRule -> Term -> [(Term, Sub)]
 narrowTermForRule isFact trs rule@(RW l r) t@(Fn f ts) = 
     case match [(t, l)] of -- Does the current position match to rule's left?
       Nothing -> subts     
@@ -117,7 +117,7 @@ narrowTermForRule isFact trs rule@(RW l r) t =
 -- term. The result, is a list of list of terms such that in each sublist,
 -- only one of the terms are narrowed but the terms on left and right of
 -- that term are just the input terms as they were passed to this function.
-narrowSubterms :: TRS -> [Term] -> [Term] -> RWRule -> [([Term], Sub)]
+narrowSubterms :: [RWRule] -> [Term] -> [Term] -> RWRule -> [([Term], Sub)]
 narrowSubterms _ _ [] _ = []
 narrowSubterms trs ls (t:rs) rule@(RW l r) = 
     [(ls ++ (ct:rs), cs) | (ct, cs) <- narrowTermForRule False trs rule t]

@@ -29,7 +29,7 @@ err_ChaseProblemModel_EqlDenotes =
 {-| A modle is a rewrite system together with a set of special constants in the rewrite system.
 -}
 data Model = Model {
-      modelTRS :: CC.TRS,
+      modelTRS :: [CC.RWRule],
       modelDomain :: [Term]
 }
 
@@ -62,6 +62,7 @@ numberElmToInt :: Term -> Int
 numberElmToInt (Elm ('c':'o':'n':'s':'t' : num)) = (read num::Int)
 {- Otherwise, just read the number -}
 numberElmToInt (Elm num) = (read num::Int)
+numberElmToInt x = error $ show x
 
 {- Converts (Fn name parameters) into (name, parameters as ints) -}
 funcStringToInt :: Term -> (String, [Int])
@@ -190,7 +191,8 @@ groupNames _ accum = map sortParamList accum
 {- Lists the values of functions and relations of a model in a pair of
    term-term pairs and terms.
 -}
-showFactsInTerms :: CC.TRS -> CC.TRS -> ([(Term, Term)], [Term]) -- funcs and rels
+showFactsInTerms :: [CC.RWRule] -> [CC.RWRule] -> ([(Term, Term)], [Term]) 
+-- funcs and rels
 showFactsInTerms _ [] = ([], [])
 showFactsInTerms trs rs =
     foldr augment ([],[]) rs
@@ -203,7 +205,7 @@ showFactsInTerms trs rs =
 
 
 {- Compute the set of elements in the domain that are displayed to the user. -}
-showDomain :: CC.TRS -> [Term]
+showDomain :: [CC.RWRule] -> [Term]
 showDomain trs =
     foldr augment [] trs
     where augment (CC.RW t1 _) = (CC.normalForm trs t1:)
@@ -214,7 +216,7 @@ truth = Elm "True"
 
 {-| A shorthand for an empty model. -}
 empty :: Model
-empty = Model [] []
+empty = Model [] [truth]
 
 {-| Adds a list of new observations to the given model. It also returns a set of rewrite rules that are introduced to the underlying rewrite system as the new observations are being added.
 -}
