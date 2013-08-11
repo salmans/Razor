@@ -13,6 +13,8 @@ import Data.Maybe
 import Control.Exception -- for assert
 import Debug.Trace
 
+import qualified Control.Monad.State as State
+
 -- Logic modules:
 import Formula.SyntaxGeo
 import Utils.GeoUtilities
@@ -42,6 +44,15 @@ type TRS = [RWRule] -- A Term Rewrite System
 
 type CCModel = (TRS, [Term])
 
+type CountState = State.State Int
+increment :: CountState Term
+increment =
+    do
+      counter <- State.get
+      State.put (counter + 1)
+      return $ freshConstant counter
+      
+
 -- A rewrite system representing the state of the computation.
 data RWState = RWSt {
     stEquations :: [Equation] 
@@ -58,50 +69,56 @@ data RWState = RWSt {
 -- Output: new rewrite system and its constants :: (TRS, [Term])
 buildTRS :: [Equation] -> CCModel -> (CCModel, [RWRule])
 buildTRS eqs (trs, cs)  = 
-    let (RWSt _ (newTRS, newCs) newRules) = cc $ RWSt eqs (trs,cs) []
+    let (rwSt, counter) = State.runState (cc $ RWSt eqs (trs,cs) []) (length cs)
+        (RWSt _ (newTRS, newCs) newRules) = rwSt
     in  ((newTRS, newCs) , newRules)
 
 
 -- Computes a congruence closure for a set of equations according to
 -- Shostak's algorithm: ((sim*.ext?)*.(del + ori).(col.ded*)*)*
-cc :: RWState -> RWState
-cc = garbageCollect.com.ccHelper
+cc :: RWState -> CountState RWState
+-- cc = garbageCollect.com.ccHelper
+cc = \x -> ccHelper x >>= com >>= garbageCollect
 
-ccHelper :: RWState -> RWState
-ccHelper st@(RWSt [] _ newRules) = st
+ccHelper :: RWState -> CountState RWState
+ccHelper st@(RWSt [] _ newRules) = return st
 ccHelper st@(RWSt (eq:eqs) (trs,cs) rs) =
-    let (cs', eq'@(Eql t1' t2'), trs', rs') = 
+    do
+      (cs', eq'@(Eql t1' t2'), trs', rs') <- 
             simsexts cs trs eq rs  -- apply (sim*.ext?)*
-        (rule, rs'') = ori cs' eq' rs'
-        (eqs''', trs''', rs''') = 
+      (rule, rs'') <- ori cs' eq' rs'
+      (eqs''', trs''', rs''') <- 
             coldedss cs rule (eqs) trs' rs'' -- apply (col.ded*)*
-    in if t1' == t2' 
-       then ccHelper (RWSt eqs (trs', cs') rs') -- recurse
+      if t1' == t2' 
+        then ccHelper (RWSt eqs (trs', cs') rs') -- recurse
            -- ignore the result of ext (del) if eq' is trivial, then recurse
-       else ccHelper (RWSt eqs''' (rule:trs''', cs') rs''')
+        else ccHelper (RWSt eqs''' (rule:trs''', cs') rs''')
            -- recurse
           
 --------------------------------
 -- Steps
 --------------------------------
 simsexts :: [Term] -> TRS -> Equation -> [RWRule] -> 
-            ([Term], Equation, TRS, [RWRule])
+            CountState ([Term], Equation, TRS, [RWRule])
 simsexts cs trs eq rs =
-    let eq' = sims trs eq -- apply sim*
-    in case ext cs eq' trs rs of -- apply (ext?)
-         Nothing -> (cs, eq', trs, rs)
-         Just (cs'', eq'', trs'', rs'') -> 
-             simsexts cs'' (union trs trs'') eq'' rs'' -- recurse
+    do
+      eq' <- sims trs eq -- apply sim*
+      ex  <- ext cs eq' trs rs -- apply (ext?)
+      case ex of
+        Nothing -> return (cs, eq', trs, rs)
+        Just (cs'', eq'', trs'', rs'') -> 
+            simsexts cs'' (union trs trs'') eq'' rs'' -- recurse
 
 -- TODO: the performance can be improved
 coldedss :: [Term] -> RWRule -> [Equation] -> TRS -> [RWRule] -> 
-            ([Equation], TRS, [RWRule])
-coldedss _ _ eqs [] rs = (eqs, [], rs)
+            CountState ([Equation], TRS, [RWRule])
+coldedss _ _ eqs [] rs = return (eqs, [], rs)
 coldedss cs rule eqs (r:trs) rs = 
-    let (r', rs') = col cs rule r rs -- apply col
-        (eqs'', trs'', rs'') = deds (r':trs) rs' -- apply ded*
-        (eqs''', trs''', rs''') = coldedss cs rule eqs trs rs'' -- recurse
-    in  (eqs''', r':trs''', rs''') -- collect results
+    do
+      (r', rs') <- col cs rule r rs -- apply col
+      (eqs'', trs'', rs'') <- deds (r':trs) rs' -- apply ded*
+      (eqs''', trs''', rs''') <- coldedss cs rule eqs trs rs'' -- recurse
+      return (eqs''', r':trs''', rs''') -- collect results
         -- EXPERIMENT
         -- (union eqs'' eqs''', r':(union trs'' trs'''), rs''')
 
@@ -109,8 +126,8 @@ coldedss cs rule eqs (r:trs) rs =
 -- Simplification
 --------------------------------
 {- Applies sim* on an equation until the equation doesn't change. -}
-sims :: TRS -> Equation -> Equation
-sims rs eq | eq == eq' = eq
+sims :: TRS -> Equation -> CountState Equation
+sims rs eq | eq == eq' = return eq
            | otherwise = sims rs eq'
     where eq' = sim rs eq
 
@@ -137,46 +154,67 @@ simTerm r@(RW t1 t2) t@(Elm _)
 -- left to right and returns if an extension is applicable; if none of the
 -- subterms can be extended, it tries to extend the term itself.
 ext :: [Term] -> Equation -> TRS -> [RWRule] -> 
-       Maybe ([Term],Equation, TRS, [RWRule])
+       CountState (Maybe ([Term],Equation, TRS, [RWRule]))
 ext consts eq@(Eql t1 t2) rules newRules =
-    case (extend t1, extend t2) of
-      (Just (t1', c', rules'), _                     ) ->
-          -- the term on left can be extended
-          Just (c':consts, Eql t1' t2, rules', newRules ++ rules')
-      (Nothing               , Just (t2', c', rules')) ->
-          -- only the term on right can be extended
-          Just (c':consts, Eql t1 t2', rules', newRules ++ rules')
-      otherwise                                        -> 
-          -- neither of the terms can be extended
-          Nothing
-    where extend  = \t -> extTerm consts t rules
+    do
+    ex1 <- extTerm consts t1 rules
+    ex2 <- extTerm consts t2 rules
+    return $ case (ex1, ex2) of
+               (Just (t1', c', rules'), _                     ) ->
+                   -- the term on left can be extended
+                   Just (c':consts, Eql t1' t2, rules', newRules ++ rules')
+               (Nothing               , Just (t2', c', rules')) ->
+                   -- only the term on right can be extended
+                   Just (c':consts, Eql t1 t2', rules', newRules ++ rules')
+               otherwise                                        -> 
+                   -- neither of the terms can be extended
+                   Nothing
 
-extTerm :: [Term] -> Term -> TRS -> Maybe (Term, Term, TRS)
+extTerm :: [Term] -> Term -> TRS -> CountState (Maybe (Term, Term, TRS))
 extTerm _ (Var _) _ = error "extTerm: the input term must be ground!"
 extTerm consts elm@(Elm _) rules = 
     if elm `elem` consts
-    then Nothing
+    then return Nothing
     else if elm == Elm "True"
-         then Just (elm, elm, []) -- Elm "True" is a special case
-         else Just (freshC, freshC, [RW elm freshC])
-    where freshC = freshConstant $ length consts
+         then return $ Just (elm, elm, []) -- Elm "True" is a special case
+         else (do
+                --counter <- increment
+                --let freshC = freshConstant (length consts)
+                freshC <- increment
+                return $ Just (freshC, freshC, [RW elm freshC]))
 extTerm consts term@(Fn f terms) rules = 
-    case extSubterms rules consts terms of
-      Nothing                     -> Just (freshC, freshC, [RW term freshC])
-      Just (terms', sym', rules') -> Just (Fn f terms', sym', rules')
+    do
+      ex <- extSubterms rules consts terms
+      case ex of
+        Nothing                     -> 
+            (do
+              --counter <- increment
+              --let freshC = freshConstant (length consts)
+              freshC <- increment
+              return $ Just (freshC, freshC, [RW term freshC]))
+        Just (terms', sym', rules') -> 
+            return $ Just (Fn f terms', sym', rules')
     where freshC = freshConstant (length consts)
 
+
+-- <<ALERT>>
+-- The following code is extremely inefficient and unreadable.
+-- Since the code is completely thrown away in the new incremental
+-- implementation of the chase, don't bother changing it!
 
 -- This function extends the firs term that can be extended and 
 -- keeps the rest unchanged. It returns the new list of terms,
 -- the new symbol replacing the extended term, and the new TRS
 -- if such extension exists. Otherwise, returns Nothing.
-extSubterms :: TRS -> [Term] -> [Term] -> Maybe ([Term], Term, TRS)
+extSubterms :: TRS -> [Term] -> [Term] -> 
+               CountState (Maybe ([Term], Term, TRS))
 extSubterms rules consts terms =
-    if flg' == True 
-    then Just (ts', sym', rs')
-    else Nothing
-    where (flg', ts', sym', rs') = 
+    do
+      (flg', ts', sym', rs') <- folded
+      if flg' == True 
+        then return $ Just (ts', sym', rs')
+        else return Nothing
+    where folded= 
               -- flg: determines whether a term has already been extended or not.
               -- ts: will contain the new terms (where only the first term that
               -- can be extended is extended) when the folding is over.
@@ -184,12 +222,17 @@ extSubterms rules consts terms =
               -- constant.
               -- rs: contains the rewrite rules and will be updated according to
               -- the new extension.
-              foldr (\t (flg, ts, s, rs) -> 
-                  (case flg of
-                     False -> (case extTerm consts t rules of
-                                 Nothing -> (False, t:ts, s, rs)
-                                 Just (t', s', rs') -> (True, t':ts, s', rs'))
-                     True -> (True, t:ts, s, rs))) (False,[],Elm "c",rules) terms
+              foldr (\t soFar -> 
+                  (do
+                    (flg, ts, s, rs) <- soFar
+                    ex <- extTerm consts t rules
+                    case flg of
+                      False -> (case ex of
+                                  Nothing -> return (False, t:ts, s, rs)
+                                  Just (t', s', rs') -> return (True, t':ts, s', rs'))
+                      True -> return (True, t:ts, s, rs))) 
+              (return (False,[],Elm "c",rules))
+              terms
 
 --------------------------------
 -- Deletion
@@ -200,14 +243,14 @@ extSubterms rules consts terms =
 --------------------------------
 -- Creates a rewriting rule corresponding to an equation based on an 
 -- orientation transformation.
-ori :: [Term] -> Equation -> [RWRule] -> (RWRule, [RWRule])
+ori :: [Term] -> Equation -> [RWRule] -> CountState (RWRule, [RWRule])
 ori consts (Eql t1 t2) newRules
     | t1 `elem` consts && t2 `elem` consts =
       if t1 > t2
-      then (RW t1 t2, RW t1 t2: newRules)
-      else (RW t2 t1, RW t2 t1: newRules)
-    | t1 `elem` consts = (RW t2 t1, RW t2 t1: newRules)
-    | t2 `elem` consts = (RW t1 t2, RW t1 t2: newRules)
+      then return (RW t1 t2, RW t1 t2: newRules)
+      else return (RW t2 t1, RW t2 t1: newRules)
+    | t1 `elem` consts = return (RW t2 t1, RW t2 t1: newRules)
+    | t2 `elem` consts = return (RW t1 t2, RW t1 t2: newRules)
     | otherwise = error "ori: this wasn't expected!"
 
 --------------------------------
@@ -215,11 +258,11 @@ ori consts (Eql t1 t2) newRules
 --------------------------------
 -- Collapses a rewrite rule according to another rule. Note that it
 -- only collapses the left of the rule.
-col :: [Term] -> RWRule -> RWRule -> [RWRule] -> (RWRule, [RWRule])
+col :: [Term] -> RWRule -> RWRule -> [RWRule] -> CountState (RWRule, [RWRule])
 col consts rule@(RW rt1 rt2) r@(RW t1 t2) newRules = --RW (colTerm rule t1) t2
     if (greater t2 t1') || (t1 == t1') -- follow term ordering
-    then (r, newRules) -- do not collapse this rule
-    else (r', r':delete r newRules)
+    then return (r, newRules) -- do not collapse this rule
+    else return (r', r':delete r newRules)
     where r'@(RW t1' _) = RW (colTerm rule t1) t2
           greater x y = 
               case (x `elem` consts, y `elem` consts) of
@@ -242,14 +285,16 @@ colTerm r@(RW t1 t2) t@(Elm _)
 --------------------------------
 -- Deduction
 --------------------------------
-deds :: TRS -> [RWRule] -> ([Equation], TRS, [RWRule])
-deds [] newRules = ([], [], newRules)
+deds :: TRS -> [RWRule] -> CountState ([Equation], TRS, [RWRule])
+deds [] newRules = return ([], [], newRules)
 deds (r@(RW t1 t2):rs) newRules =
-    case r' of
-      Nothing -> ([], r:restRules, newRules')
-      Just (RW t1' t2') -> ((Eql t2 t2'):restEqs, restRules, delete r newRules')
+    do 
+      (restEqs, restRules, newRules') <- deds rs newRules
+      case r' of
+        Nothing -> return ([], r:restRules, newRules')
+        Just (RW t1' t2') -> return ((Eql t2 t2'):restEqs, restRules, delete r newRules')
     where r' = find (\(RW x y) -> x == t1) rs 
-          (restEqs, restRules, newRules') = deds rs newRules
+          
 
 --------------------------------
 -- Composition
@@ -257,13 +302,13 @@ deds (r@(RW t1 t2):rs) newRules =
 -- Composes two rules in the TRS
 -- The way that composition works is not ideal but  since we want to implement a
 -- new congruence closure algorithm, this approach is fine for now.
-com :: RWState -> RWState
+com :: RWState -> CountState RWState
 com state@(RWSt _ (rules, _) _) = 
     comHelper rules state
 
-comHelper :: TRS -> RWState -> RWState
+comHelper :: TRS -> RWState -> CountState RWState
 comHelper trs (RWSt eqs (rs, cs) newRules) = 
-    RWSt eqs ((nub.normalize) rs,cs) ((nub.normalize) newRules)
+    return $ RWSt eqs ((nub.normalize) rs,cs) ((nub.normalize) newRules)
     where normalize = foldr (\(RW t1 t2) res -> 
                                  (RW t1 (normalForm trs t2)):res) []
 
@@ -282,9 +327,9 @@ comHelper trs (RWSt eqs (rs, cs) newRules) =
 --------------------------------
 -- In the next congruence closure implementation, we should be handle garbage
 -- collection within the algorithm as a part of transformations.
-garbageCollect :: RWState -> RWState
+garbageCollect :: RWState -> CountState RWState
 garbageCollect state@(RWSt eqs (rs, cs) nrs) =
-    RWSt eqs (rs', cs) nrs
+    return $ RWSt eqs (rs', cs) nrs
     where rs' = foldr (\r@(RW x y) rules ->
                            if (x `elem` cs) && 
                               (y `elem` cs) && 
