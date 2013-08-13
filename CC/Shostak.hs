@@ -1,4 +1,4 @@
-{- Time-stamp: <Mon 11/12/12 11:35 Dan Dougherty CC.hs>
+{-
    Implements an algorithm for computing congruence closure based on
    Bachmair, Tiwari and Vigneron's (BTV) rewriting transformations.
 -}

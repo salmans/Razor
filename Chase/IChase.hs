@@ -1,4 +1,4 @@
-{- Time-stamp: <2013-05-14 11:48:19 Salman Saghafi>
+{-
 
    This module, contains our primary model-finding algorithm
    that will use other modules.
@@ -9,6 +9,8 @@ module Chase.IChase where
 import Data.List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
+import qualified Control.Monad.State as State
+import qualified Control.Monad.Writer as Writer
 
 -- Logic Modules
 import Formula.SyntaxGeo
@@ -27,57 +29,47 @@ import qualified CC.CC as CC -- remove this
 import Utils.Utils (allMaps, prodList, allSublists, allCombinations)
 import Debug.Trace
 
-{-| This is the main function that tries to find the set of all the models for a given geometric theory.
+{-| This is the main chase function, which tries to find the set of all the models for a given geometric theory.
 -}
 chase :: Theory -> [Model]
-chase thy = map problemModel $ process [problem]
-    where problem = buildProblem thy
+chase thy = map problemModel $ probs
+    where problem           = buildProblem thy -- create the initial problem
+          writer            = State.runStateT run [] 
+                              -- the wrapper Writer monad for logging
+          ((probs, _), log) = Writer.runWriter writer
+                              -- use the log information when needed
+          run               = scheduleProblem problem >>= (\_ -> 
+                              process) -- schedule the problem, then process it
 
-{-| Just like chase but it returns only the first model found.
+{-| Like chase, but returns only the first model found.
 -}
 chase' :: Theory -> Maybe Model
-chase' thy = fmap problemModel $ process' [problem]
-    where problem = buildProblem thy
+chase' thy = Maybe.listToMaybe $ chase thy
 
-{- Applies mapProblem and reduceProblem on a pool (list) of problems and returns
-   a list of problems that cannot be mapped or reduced anymore. The models of
-   the processed problems are the models we are looking for.
+{- Applies mapProblem and reduceProblem on a pool (list) of problems and 
+   returns a list of problems that cannot be mapped or reduced anymore. 
+   The models of the processed problems are the models that the chase 
+   is looking for.
 -}
-process :: [Problem] -> [Problem]
-process [] = []
-process probPool =
-    processed ++ (process scheduled)
-    where (prob, rest) = selectProblem probPool 
-              -- Select a problem from the pool
-          newProbs = mapProblem prob 
-              -- map the selected problem
-          (processed, unprocessed) = partition (null.problemQueue) newProbs
-              -- If any of the mapped problems have something in their
-              -- queue, they have to be reduced. Mapped problems with 
-              -- empty queues are done!
-          reduced =  map reduceProblem unprocessed
-              -- Reduce the problems that are not done yet
-              -- (reduced problems are ready to be mapped again.)
-          scheduled = foldr scheduleProblem rest reduced
-              -- Schedule the problems after reduction
-
-
-
-{- Just like process but terminates as soon as one of the problems is completely
-   processed.
--}
-process' :: [Problem] -> Maybe Problem
-process' [] = Nothing
-process' probPool =
-    if not (null processed) 
-    then Just $ head processed
-    else process' scheduled
-    where (prob, rest) = selectProblem probPool
-          problems = mapProblem prob
-          (processed, unprocessed) = partition (null.problemQueue) problems
-          reduced = [p | p <- map reduceProblem unprocessed]     
-          scheduled = foldr scheduleProblem rest reduced
-
+process :: ProbPool [Problem]
+process = do
+      prob <- selectProblem -- select a problem from the pool
+      case prob of
+        Nothing   -> return [] -- no problems
+        Just p -> 
+            do
+              let newProbs = mapProblem p -- map the problem (in MapReduce)
+              let (processed, unprocessed) = 
+                      partition (null.problemQueue) newProbs
+                  -- If any of the mapped problems have something in their
+                  -- queue, they must be reduced. Mapped problems with empty
+                  -- queues are done!
+              let reduced = map reduceProblem unprocessed                  
+                  -- Reduce the problems that are not done processing yet.
+              mapM scheduleProblem reduced
+                  -- Schedule the reduced problems in the pool.
+              ps <- process -- Recursive call for furhter processing
+              return $ processed ++ ps
 
 {- Maps a problem to another problem (possibly a list of problems) by
    branching over the right of the frames whose bodies are empty. For each
@@ -273,4 +265,4 @@ makeFreshConstant :: Int -> Term
 makeFreshConstant counter = Elm ("a" ++ show counter)
 
 doChase thy = chase $ map parseSequent thy
-doChase' thy = chase' $ map parseSequent thy
+doChase' thy = chase' $ map parseSequent thy              

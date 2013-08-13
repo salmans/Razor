@@ -3,12 +3,12 @@
    Bachmair, Tiwari and Vigneron's (BTV) rewriting transformations.
 -}
 
-module CC.CC' (
-              RWRule(..),
-              Equation(..),
-              TRS,
-              buildTRS,
-              normalForm
+module CC.Naive (
+                 RWRule(..),
+                 Equation(..),
+                 TRS,
+                 buildTRS,
+                 normalForm
 )where
 
 import Control.Applicative

@@ -1,4 +1,4 @@
-{-| Time-stamp: <2013-05-15 12:36:58 Salman Saghafi>
+{-|
 
    This module contains basic operations related to a problem structure. 
 
@@ -10,6 +10,8 @@ module Chase.Problem.IOperations where
 import Data.List
 import qualified Data.Map as Map
 import Data.Maybe
+import qualified Control.Monad.State as State
+import qualified Control.Monad.Writer as Writer
 
 -- Logic Modules
 import Formula.SyntaxGeo
@@ -50,15 +52,17 @@ err_ChaseProblemOperations_NarrowDen =
 {-| Creates a problem corresponding to a given geometric theory.
 -}
 buildProblem :: Theory -> Problem
-buildProblem thy =
-    Problem { problemFrames       = frms 
-            , problemModel        = Model.empty 
-            , problemQueue        = [] 
-            , problemSymbols      = framesSymbolMap frms 
-            , problemLastID       = length thy 
-            , problemLastConstant = 0}
+buildProblem thy = problem
+    -- State.put [problem] >>= \_ -> return ()
     where frms = zipWith (\x y -> buildFrame x y) [1..] thy
           -- convert sequents to frames and assign IDs to them.
+          problem =     Problem { problemFrames       = frms 
+                                , problemModel        = Model.empty 
+                                , problemQueue        = [] 
+                                , problemSymbols      = framesSymbolMap frms
+                                , problemLastID       = length thy 
+                                , problemLastConstant = 0}
+
 
 {-| Updates a problem by adding new frames to its theory. It updates problem's symbol map accordingly.
 -}
@@ -73,17 +77,23 @@ extendProblem (Problem oldFrames model queue symMap last lastConst) frames =
           newLastID = last + (length newFrames)
           newSymMap = Map.unionWith (++) symMap $ framesSymbolMap newFrames
 
-{-| Selects a problem from a pool of problems and returns the selected problem together with the rest of the problems. For now, we choose the first problem in the list in a FIFO fashion.
+{-| Selects a problem from a pool of problems and returns the selected problem. The function changes the current state of the pool of problems.
+If the pool is empty, the function returns Nothing. Otherwise, returns the problem wrapped in Just.
 -}
-selectProblem :: [Problem] -> (Problem, [Problem])
-selectProblem [] = error err_ChaseProblemOperations_NoProb
-selectProblem probs = (head probs, tail probs)
+selectProblem :: ProbPool (Maybe Problem)
+selectProblem =
+    State.get >>= (\probs ->
+    case probs of
+      []   -> return Nothing
+      p:ps -> State.put ps >>= (\_ -> 
+              return $ Just p))
 
-{-| Combines a problem into a list of problems. The position of the problem in the list can be an important parameter for selectProblem; thus, it is a scheduling procedure. The current scheduling procedure is FIFO.
--}
-scheduleProblem :: Problem -> [Problem] -> [Problem]
-scheduleProblem = (:) -- Reschedule in the head of the pool for now 
--- probs ++ [prob] -- Uncomment for FIFO
+{-| Inserts a problem into the problem pool. -}
+scheduleProblem :: Problem -> ProbPool ()
+scheduleProblem = \p -> State.get  >>= (\ps ->
+                  -- Reschedule the problem at the head of the pool
+                  State.put (p:ps) >>= (\_ -> 
+                  return ()))
 
 
 {- Builds a symbol map for a list of frames. -}
