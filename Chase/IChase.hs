@@ -11,6 +11,7 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Control.Monad.State as State
 import qualified Control.Monad.Writer as Writer
+import Control.Applicative
 
 -- Logic Modules
 import Formula.SyntaxGeo
@@ -24,22 +25,26 @@ import Chase.Problem.Operations
 import Chase.Problem.Model(Model (..))
 import qualified Chase.Problem.Model as Model
 import qualified CC.CC as CC -- remove this
+import Chase.Problem.IRelAlg as RA
 
 -- Other Modules
 import Utils.Utils (allMaps, prodList, allSublists, allCombinations)
 import Debug.Trace
+import Tools.Logger
 
 {-| This is the main chase function, which tries to find the set of all the models for a given geometric theory.
 -}
 chase :: Theory -> [Model]
-chase thy = map problemModel $ probs
+chase thy = 
+--    (trace.show) log
+    map problemModel $ probs
     where problem           = buildProblem thy -- create the initial problem
           writer            = State.runStateT run [] 
                               -- the wrapper Writer monad for logging
           ((probs, _), log) = Writer.runWriter writer
                               -- use the log information when needed
           run               = scheduleProblem problem >>= (\_ -> 
-                              process) -- schedule the problem, then process it
+                              processRA) -- schedule the problem, then process it
 
 {-| Like chase, but returns only the first model found.
 -}
@@ -95,7 +100,7 @@ mapProblem p@(Problem frames model queue syms lastID lastConst) =
               -- Constructs the queue of rewrite rules and corresponding models
               -- for each model mapping.
           (emptyFrs, nonEmptyFrs) = partition (null.frameBody) frames
-              -- get rid of frames that we have alrady pushed into the model
+              -- get rid of frames that we have already pushed into the model
           any' pred = foldr (\e r -> pred e || r) False
               -- Since we extend the frames of a problem by adding new
               -- frames to the end, a more efficient version of any,
@@ -150,7 +155,7 @@ reduceProblem (Problem frames model queue symMap lastID lastConst) =
    belongs to, (2) the problemModel of the problem, and (3) finally the frame.
 -}
 deduceForFrame :: Int -> Model -> Frame -> ([[Obs]], Int)
-deduceForFrame counter model frame@(Frame _ body head vars)
+deduceForFrame counter model frame@(Frame _ body head vars _)
    | null body && not (any (holds model vars) head) = 
        deduceForFrameHelper counter model vars head
    | otherwise = ([], counter)
@@ -226,11 +231,12 @@ instFrame model symMap frame newRules =
    (rewrite to truth) in the model from the frame's body.
 -}
 normalizeFrame :: Model -> Frame -> Frame   
-normalizeFrame model frame@(Frame id body head vars) = 
-    Frame id 
-          (filter (not.Model.isTrue model) normalizedBody)
-          head
-          vars
+normalizeFrame model frame@(Frame id body head vars orig) = 
+    Frame { frameID   = id 
+          , frameBody = (filter (not.Model.isTrue model) normalizedBody)
+          , frameHead = head
+          , frameVars = vars
+          , frameOrig = orig}
     where normalizedBody = map (Model.denotes model) body
           
 {- Instantiates the input frame by applying all the given substitutions on it.
@@ -250,19 +256,92 @@ matchFrame :: Model -> SymbolMap -> Frame -> [CC.RWRule] -> [[Sub]]
 matchFrame mdl _ frame newRules =
     map (narrowObs mdl newRules) (frameBody frame)
 
-
 {- Lifts a frame with a substitution and returns a new frame. It also updates
    the list of free variables of the frame accordingly.
 -}
 liftFrame :: Model -> Sub -> Frame -> Frame
 liftFrame model sub frame = 
-    let Frame id b h v = liftTerm (lift sub) frame
-    in  Frame id b h $ v \\ Map.keys sub
+    let Frame id b h v o = liftTerm (lift sub) frame
+    in  Frame id b h (v \\ Map.keys sub) o
 
 {- Helper Functions -}
 {- make a new constant (special element starting with "a") -}
 makeFreshConstant :: Int -> Term
-makeFreshConstant counter = Elm ("a" ++ show counter)
+makeFreshConstant counter = Fn ("a" ++ (show counter)) []
+--Elm ("a" ++ show counter)
 
 doChase thy = chase $ map parseSequent thy
-doChase' thy = chase' $ map parseSequent thy              
+doChase' thy = chase' $ map parseSequent thy
+
+
+-- Relational Algebra
+processRA :: ProbPool [Problem]
+processRA = do
+      prob <- selectProblem -- select a problem from the pool
+      case prob of
+        Nothing -> return [] -- no problems
+        Just p  -> 
+            do
+              let newProbs = newProblems p -- map the problem (in MapReduce)
+              State.lift $ logM "Problems" newProbs
+              case newProbs of
+                Nothing -> processRA
+                Just [] -> do
+                  rest <- processRA
+                  return (p:rest)
+                Just ps -> do 
+                  mapM scheduleProblem ps
+                  processRA
+
+
+newProblems :: Problem -> Maybe [Problem]
+newProblems problem@(Problem frames model queue symMap lastID lastConst) =
+    case newModels frames model lastConst of
+      Nothing      -> Nothing
+      Just []      -> Just []
+      Just models  -> Just $ map (\(m, _, c) -> 
+                               Problem { problemFrames       = frames
+                                       , problemModel        = m
+                                       , problemQueue        = queue
+                                       , problemSymbols      = symMap
+                                       , problemLastID       = lastID
+                                       , problemLastConstant = c}) models
+
+newModels :: [Frame] -> Model -> Int -> Maybe [(Model, [CC.RWRule], Int)]
+newModels [] _ _ = Just []
+newModels (frame:frames) model counter = 
+    do
+      currentFrame <- newModelsForFrame frame model counter
+      otherFrames  <- newModels frames model counter
+      return (currentFrame <|> otherFrames)
+
+newModelsForFrame :: Frame -> Model -> Int -> 
+                     Maybe [(Model, [CC.RWRule], Int)]
+newModelsForFrame frame model counter = 
+    -- (trace.show) (newFacts counter model frame)
+    -- $
+    case newFacts counter model frame of
+      Nothing      -> Nothing
+      Just ([], _) -> Just []
+      Just (os, c) -> let ms = map (Model.add model) os
+                      in Just $ map (\(m, rs) -> (m, rs, c)) ms
+
+newFacts :: Int -> Model -> Frame -> Maybe ([[Obs]], Int)
+newFacts counter model frame = 
+    -- (trace.show) model
+    -- $
+    if   null subs
+         -- It sucks that we have to check this here!
+    then Just $ ([], counter)
+    else if (null.frameHead) frame 
+         then Nothing
+         else Just $ deduceForFrameHelper counter model vars heads
+    where subs    = RA.matchRA (frameOrig frame) (Model.modelTables model)
+          lifted  = liftFrame model (head subs) frame
+          heads   = frameHead lifted
+          vars    = frameVars lifted
+          -- For now just use the first sub and drop the rest!
+          -- Also, let's just lift the body for now!
+
+testThy = ["exists x. exists y.P(x,y)",
+           "P(x,y) => f(x) = g(f(y))"]

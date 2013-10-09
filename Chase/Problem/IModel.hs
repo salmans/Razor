@@ -1,4 +1,4 @@
-{-| Time-stamp: <2013-05-14 11:52:48 Salman Saghafi>
+{-|
   This module defines a Model structure that will be used inside a Problem structure. This module can be redefined based on the underlying implementation for models.
 -}
 module Chase.Problem.IModel where
@@ -7,6 +7,7 @@ module Chase.Problem.IModel where
 import Data.List
 import qualified Data.Map as Map
 import Data.Maybe
+import Control.Applicative
 
 -- Logic Modules
 import Formula.SyntaxGeo
@@ -14,7 +15,12 @@ import Utils.GeoUtilities
 
 -- Chase Modules:
 import Chase.Problem.Observation
+import Chase.Problem.IRelAlg
 import qualified CC.CC as CC
+import qualified RelAlg.DB as RA
+
+-- Other Modules
+import Debug.Trace
 
 {- Errors raised by this modeule -}
 err_ChaseProblemModel_IsTruthDen =
@@ -26,10 +32,11 @@ err_ChaseProblemModel_DelDenotes =
 err_ChaseProblemModel_EqlDenotes =
     "Chase.Problem.Model.denotes: Not applicable on Eql"
 
+
 {-| A modle is a rewrite system together with a set of special constants in the rewrite system.
 -}
 data Model = Model {
-      modelTRS :: [CC.RWRule],
+      modelTRS    :: [CC.RWRule],
       modelDomain :: [Term]
 }
 
@@ -221,16 +228,32 @@ empty = Model [] [truth]
 {-| Adds a list of new observations to the given model. It also returns a set of rewrite rules that are introduced to the underlying rewrite system as the new observations are being added.
 -}
 add :: Model -> [Obs] -> (Model, [CC.RWRule])
-add model@(Model trs consts) obs = 
-    (Model newTRS newConsts, newRules)
+add model@(Model trs consts) obs =     
+    let newModel = Model newTRS newConsts -- (addToTables tables obs)
+    in  (newModel, newRules) -- (normalizeTables newModel, newRules)
     where ((newTRS, newConsts), newRules) = CC.buildTRS eqs (trs, consts)
-          eqs = map obsToEquation obs
+          eqs                             = map obsToEquation obs
 
 {- Convert an obs to a CC.Equation -}
 obsToEquation :: Obs -> CC.Equation
-obsToEquation (Den t) = error err_ChaseProblemModel_NoEqToDen
+obsToEquation (Den t)     = error err_ChaseProblemModel_NoEqToDen
 obsToEquation (Eql t1 t2) = CC.Eql t1 t2
-obsToEquation (Fct a) = CC.Eql (fromJust (toTerm a)) truth
+obsToEquation (Fct a)     = CC.Eql (fromJust (toTerm a)) truth
+
+{- Adds facts to the tables of the model -}
+addToTables :: Tables -> [Obs] -> Tables
+addToTables tables obs = foldr addObs tables obs
+    where addObs (Fct (R sym ts)) tables = 
+              Map.insertWith insertFunc sym (RA.Set [ts]) tables
+          addObs _ _                     = undefined -- must be defined for Eql
+          insertFunc (RA.Set a) (RA.Set b) = RA.Set (a ++ b)
+
+
+{- Normalizes the tables of a model with respect to its rewrite system. -}
+-- normalizeTables :: Model -> Model
+-- normalizeTables (Model trs cs tbls) =
+--     Model trs cs $ (((CC.normalForm trs <$>) <$>) <$>) tbls
+
 
 {-| Returns true if a term is true in the model; That is, if the Obs is "Fct a", it verifies whether t is true in the model. If the Obs is "Eql t1 t2", it verifies whether t1 and t2 are equal in the model. -} 
 isTrue :: Model -> Obs -> Bool
@@ -252,7 +275,7 @@ denotes (Model trs _)  obs@(Den t) =
              -- like a fact, this function is only applicable on truth but 
              -- not other denotations.
     else error err_ChaseProblemModel_DelDenotes
-denotes (Model trs _) (Eql t1 t2) = Eql (nf t1) (nf t2)
+denotes (Model trs _) ob@(Eql t1 t2) = liftTerm nf ob
     where nf = CC.normalForm trs
 denotes (Model trs _) obs = 
     if nf == truth
@@ -261,3 +284,23 @@ denotes (Model trs _) obs =
          -- HINT: look at the documentation for termToObs to understand
          -- the first boolean argument.
     where nf = CC.normalForm trs $ obsToTerm obs
+
+
+
+-- Relational Algebra
+-- modelFunSet :: Model -> Sym -> RA.Set [Term]
+-- modelFunSet mdl sym = RA.Set [ts ++ [t] | CC.RW (Fn s ts) t <- trs, s == sym]
+--     where trs = modelTRS mdl
+
+modelTables :: Model -> Tables
+modelTables mdl =
+    let recs = mapRule <$> filter filterRule trs
+    in  RA.Set <$> Map.fromListWith (++) recs
+    where trs     = modelTRS mdl
+          filterRule = \r -> case r of
+                               (CC.RW (Fn sym ts) t) -> True
+                               otherwise             -> False
+          mapRule    = \r@(CC.RW (Fn sym ts) t) ->
+                       if   t == truth
+                       then (sym, [ts])
+                       else (sym, [ts ++ [t]])

@@ -1,6 +1,6 @@
-module Logger where
+module Tools.Logger where
 
 import Control.Monad.Writer
 
-log :: (Show a) => String -> a -> Writer [String] a
-log t x = writer (x, [t ++ " ==> " ++ (show x)])
+logM :: (Show a) => String -> a -> Writer [String] a
+logM t x = writer (x, [t ++ " ==> " ++ (show x)])

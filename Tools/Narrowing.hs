@@ -26,8 +26,8 @@ truth = Elm "True" -- Not ideal!
    they reduce the two sides of the equation to the same symbol in the rewrite
    system.
 
-   REMARK: this function puts slightly increases the overhead of narrowing in order 
-   to reduce the number of instantiated frames.
+   REMARK: this function puts slightly increases the overhead of narrowing in 
+   order to reduce the number of instantiated frames.
 -}
 narrowEquation :: Bool -> [RWRule] -> [RWRule] -> Term -> Term -> [Sub]
 narrowEquation isFact trs rs t1 t2 = 
@@ -51,7 +51,7 @@ narrowEquation isFact trs rs t1 t2 =
 
 {-| Applies narrowTermForRule for a given *set* of rules:
 -- Inputs:
--- Param1: is the term representing a fact in the rewrite system?
+-- Param1: is the term representing a fact in the rewrite system.
 -- Param2: the original rewrite system under which being a fact is
 -- checked.
 -- Param3: the set of rewrite rules
@@ -60,9 +60,11 @@ narrowEquation isFact trs rs t1 t2 =
 {- The output set of substitutions are guaranteed to lead to a useful 
    instantiation of the corresponding frame; that is, they are returned only if 
    they reduce the input fact to True.
-   (2) reduce the two sides of the equation to the same symbol in the rewrite system.
+   (2) reduce the two sides of the equation to the same symbol in the rewrite 
+   system.
 
-  REMARK: this function puts slightly increases the overhead of narrowing in order to reduce the number of instantiated frames.
+  REMARK: this function puts slightly increases the overhead of narrowing in 
+  order to reduce the number of instantiated frames.
 -}
 
 narrowTerm :: Bool -> [RWRule] -> [RWRule] -> Term -> [(Term, Sub)]

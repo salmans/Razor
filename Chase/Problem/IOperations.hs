@@ -25,7 +25,7 @@ import Chase.Problem.Structures
 import Chase.Problem.Model (Model(..))
 import qualified Chase.Problem.Model as Model
 import qualified CC.CC as CC
-
+import Chase.Problem.IRelAlg
 -- Other Modules
 import Debug.Trace
 
@@ -67,12 +67,18 @@ buildProblem thy = problem
 {-| Updates a problem by adding new frames to its theory. It updates problem's symbol map accordingly.
 -}
 extendProblem :: Problem -> [Frame] -> Problem
-extendProblem (Problem oldFrames model queue symMap last lastConst) frames =
-    Problem (union oldFrames newFrames) model queue newSymMap newLastID lastConst
+extendProblem (Problem oldFrames model queue symMap last lastConst) 
+              frames =
+    Problem { problemFrames       = (union oldFrames newFrames) 
+            , problemModel        = model 
+            , problemQueue        = queue 
+            , problemSymbols      = newSymMap
+            , problemLastID       = newLastID
+            , problemLastConstant = lastConst}
         -- REMARK: the two set of frames have to be unined; otherwise, the chase may
         -- never terminate (as for thyphone1_2)
-    where newFrames = zipWith (\(Frame _ body head vars) id -> 
-                                   (Frame id body head vars))
+    where newFrames = zipWith (\(Frame _ body head vars seq) id -> 
+                                   (Frame id body head vars seq))
                       frames [(last + 1)..]
           newLastID = last + (length newFrames)
           newSymMap = Map.unionWith (++) symMap $ framesSymbolMap newFrames
@@ -116,8 +122,11 @@ framesSymbolMap frms =
 -}
 buildFrame :: ID -> Sequent -> Frame
 buildFrame id sequent@(Sequent body head) = 
-    Frame id (processBody body) (processHead head) 
-              (union (freeVars head) (freeVars body))
+    Frame { frameID = id
+          , frameBody = (processBody body) 
+          , frameHead = (processHead head) 
+          , frameVars = (union (freeVars head) (freeVars body))
+          , frameOrig = sequent}
 
 
 {- Constructs the head of a frame from the head of a sequent. Here, we assume 

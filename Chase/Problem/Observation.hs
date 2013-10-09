@@ -1,4 +1,4 @@
-{-| Time-stamp: <2013-05-14 18:40:52 Salman Saghafi>
+{-|
   An observation defines a data structure that denotes an element in the model as well as the equality between to elements.
 -}
 module Chase.Problem.Observation where
@@ -23,7 +23,7 @@ err_ChaseProblemObservation_RepWithFct =
 {-| An observation falls into the following three categories:
   1. A term denotes an element in a model 
   2. Two terms are equal in a model
-  3. A relational fact is a in the model
+  3. A relational fact is in the model
 -}
 data Obs = Den Term -- Term denotes an element
          | Eql Term Term -- Two terms are equal

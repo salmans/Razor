@@ -6,4 +6,4 @@
 module CC.CC(RWRule(..), Equation(..), buildTRS, normalForm) where
 
 {- Specify the CC module to use -}
-import CC.Shostak
+import CC.Naive

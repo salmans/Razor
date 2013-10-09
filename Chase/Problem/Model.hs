@@ -6,6 +6,7 @@ module Chase.Problem.Model(Model(..),
                            empty,
                            add,
                            isTrue,
-                           denotes) where
+                           denotes,
+                           modelTables) where
 
 import Chase.Problem.IModel

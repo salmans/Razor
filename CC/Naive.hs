@@ -103,9 +103,6 @@ cc (st@(RWSt _ _ _ flgs), rs)
    | flgDed flgs = cc (ded (st, rs))
    | flgCom flgs = cc (com (st, rs))
    | otherwise = (st, rs)
-   where prnt (x,y) l = case (length y) /= (length.nub) y of
-                          True -> (trace l)(x,y)
-                          False -> (x,y)
 
 -- Updates a rewrite system with a list a new equations. It applies
 -- cc on the rewrite system and returns the new rewrite system.

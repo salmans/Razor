@@ -10,7 +10,6 @@ module Chase.Problem.Operations (buildProblem,
                                  holds,
                                  formulaHolds,
                                  sequentHolds,
-                                 narrowObs,
-                                 customLog) where
+                                 narrowObs) where
 
 import Chase.Problem.IOperations
