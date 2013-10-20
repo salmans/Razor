@@ -144,8 +144,8 @@ processHead (And p q) =
          -- element:
          ([], []) -> []
          ([p''], [q'']) -> [p'' ++ q'']
-         ([p''], []) -> [p'']
-         ([], [q'']) -> [q'']
+         ([p''], []) -> [] -- [p'']
+         ([], [q'']) -> [] -- [q'']
          otherwise -> error err_ChaseProblemOperations_DisjTop 
 processHead (Or p q) = filter (not.null) $ processHead p ++ processHead q
 processHead (Exists x p) = processHead p

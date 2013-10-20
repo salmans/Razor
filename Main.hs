@@ -52,6 +52,8 @@ main = do
   -- get the answer
   let model  = chase' inputFmlas
 
+  -- Remove functions from the input sequents, like what the chase does:
+  let inputFmlas' = relConvert inputFmlas
 
   -- Verify that every formula in the theory is true:
   let verifyMsg = 
@@ -59,7 +61,7 @@ main = do
           then (let (Model trs domain) = Maybe.fromJust model 
                     maps f = Utils.Utils.allMaps (freeVars f)
                              $ filter (\e -> CC.normalForm trs e /= truth) domain
-                    fmlas = concatMap insts inputFmlas
+                    fmlas = concatMap insts inputFmlas'
                     insts = (\f -> map 
                                    (\s -> (liftTerm.lift) s f) 
                                    (maps f)) 
@@ -81,7 +83,7 @@ main = do
   putStrLn $ "file: " ++ show inputFileName
   -- echo the input theory:
   putStrLn "Theory: "
-  putStrLn $ show inputFmlas
+  putStrLn $ show inputFmlas'
 
   putStrLn "Model: "
   putStrLn $ show model

@@ -16,8 +16,10 @@ import Formula.SyntaxGeo
 import Utils.GeoUtilities
 import qualified Utils.Utils
 import Tools.GeoUnification
-import Chase.Problem.Model
+import CC.CC as CC
 import Chase.Chase
+import Chase.Problem.Model
+import Chase.Problem.Operations (sequentHolds)
 import WeaklyAcyclic.WeaklyAcyclic
 import Test.QuickCheck
 
@@ -32,7 +34,7 @@ maxFuncArity = 3
 -- parameters that control term generation:
 varProb = 2 -- 1/varProb is the chance of a term being a variable.
 exVarProb = 2 -- 1/exVarProb is the chance of a variable being existential.
-constProb = 2 -- 1/constProb is the chance of a function term being a constant.
+constProb = 1 -- 1/constProb is the chance of a function term being a constant.
 
 -- parameters to control formula generation on left:
 lTrueProb = 10
@@ -114,7 +116,7 @@ rightTerms size vars exvars = do
 instance Arbitrary Sequent where
     arbitrary = do 
       left <- buildLeft
-      right <- buildRight (fv left) [] 0
+      right <- buildRight (freeVars left) [] 0
       return $ Sequent left right
     coarbitrary = undefined
 
@@ -178,23 +180,21 @@ prop_validModel sequents =
 
 -- Verify that every formula in the theory is true:
 verify :: Maybe Model -> [Sequent] -> Maybe Bool
-verify Nothing _ = Nothing
-verify (Just _) _ = Just True
--- verify model inputFmlas = 
---     trace ("verifying")
---     (if Maybe.isJust model
---     then (let (trs, domain) = Maybe.fromJust model 
---               dom = map (\sym -> Fn sym []) domain
---               maps f = Utils.Utils.allMaps (fv f) dom 
---               fmlas = concatMap insts inputFmlas
---               insts = (\f -> map 
---                              (\s -> onFormula (lift s) f) 
---                              (maps f)) 
---           in
---           (case all (\f -> Maybe.isJust 
---                            (holds' (Maybe.fromJust model) f))
---                            fmlas 
---            of
---              True -> Just True
---              False -> Just False ))
---     else Nothing)
+-- verify Nothing _ = Nothing
+-- verify (Just _) _ = Just True
+verify model inputFmlas = 
+    trace ("verifying")
+    (if Maybe.isJust model
+    then (let Model trs domain = Maybe.fromJust model 
+              maps f = Utils.Utils.allMaps (freeVars f)
+                       $ filter (\e -> CC.normalForm trs e /= truth) domain
+              fmlas = concatMap insts inputFmlas
+              insts = (\f -> map 
+                             (\s -> (liftTerm.lift) s f) 
+                             (maps f))
+          in
+          (case all (\s -> (sequentHolds (Maybe.fromJust model) s)) 
+                fmlas of               
+             True -> Just True
+             False -> Just False ))
+    else Nothing)

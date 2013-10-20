@@ -1,5 +1,7 @@
 {-|
-  This module defines a Model structure that will be used inside a Problem structure. This module can be redefined based on the underlying implementation for models.
+  This module defines a Model structure that will be used inside a Problem 
+  structure. This module can be redefined based on the underlying implementation 
+  for models.
 -}
 module Chase.Problem.IModel where
 
@@ -33,26 +35,27 @@ err_ChaseProblemModel_EqlDenotes =
     "Chase.Problem.Model.denotes: Not applicable on Eql"
 
 
-{-| A modle is a rewrite system together with a set of special constants in the rewrite system.
+{-| A modle is a rewrite system together with a set of special constants in the 
+  rewrite system.
 -}
 data Model = Model {
       modelTRS    :: [CC.RWRule],
       modelDomain :: [Term]
-}
+} deriving (Show)
 
-instance Show Model where
-    show (Model trs domain) =
-        "\n" ++
-        "----------------- Model -----------------\n" ++
-        "Domain: " ++ domString ++ "\n\n" ++
-        "Functions: " ++ funcString ++ "\n\n" ++
-        "Relations:" ++ relString ++ "\n" ++
-        "-----------------------------------------\n"
-        where funcString = printNone (mergeLines (funcGroupToString (groupFunction (nub (sortFuncAsNumber func)))))
-              relString = printNone (mergeLines (relGroupToString (groupRelation (nub (sortRelAsNumber rel)))))
-              domString = printNone (intercalate "," (map show (sortDomAsNumber (removeTrue dom))))
-              (func, rel) = showFactsInTerms trs trs
-              dom = nub (showDomain trs)
+-- instance Show Model where
+--     show (Model trs domain) =
+--         "\n" ++
+--         "----------------- Model -----------------\n" ++
+--         "Domain: " ++ domString ++ "\n\n" ++
+--         "Functions: " ++ funcString ++ "\n\n" ++
+--         "Relations:" ++ relString ++ "\n" ++
+--         "-----------------------------------------\n"
+--         where funcString = printNone (mergeLines (funcGroupToString (groupFunction (nub (sortFuncAsNumber func)))))
+--               relString = printNone (mergeLines (relGroupToString (groupRelation (nub (sortRelAsNumber rel)))))
+--               domString = printNone (intercalate "," (map show (sortDomAsNumber (removeTrue dom))))
+--               (func, rel) = showFactsInTerms trs trs
+--               dom = nub (showDomain trs)
 
 {--- Common helper functions ---}
 
@@ -225,7 +228,9 @@ truth = Elm "True"
 empty :: Model
 empty = Model [] [truth]
 
-{-| Adds a list of new observations to the given model. It also returns a set of rewrite rules that are introduced to the underlying rewrite system as the new observations are being added.
+{-| Adds a list of new observations to the given model. It also returns a set 
+  of rewrite rules that are introduced to the underlying rewrite system as the 
+  new observations are being added.
 -}
 add :: Model -> [Obs] -> (Model, [CC.RWRule])
 add model@(Model trs consts) obs =     
@@ -240,22 +245,15 @@ obsToEquation (Den t)     = error err_ChaseProblemModel_NoEqToDen
 obsToEquation (Eql t1 t2) = CC.Eql t1 t2
 obsToEquation (Fct a)     = CC.Eql (fromJust (toTerm a)) truth
 
-{- Adds facts to the tables of the model -}
-addToTables :: Tables -> [Obs] -> Tables
-addToTables tables obs = foldr addObs tables obs
-    where addObs (Fct (R sym ts)) tables = 
-              Map.insertWith insertFunc sym (RA.Set [ts]) tables
-          addObs _ _                     = undefined -- must be defined for Eql
-          insertFunc (RA.Set a) (RA.Set b) = RA.Set (a ++ b)
-
-
 {- Normalizes the tables of a model with respect to its rewrite system. -}
 -- normalizeTables :: Model -> Model
 -- normalizeTables (Model trs cs tbls) =
 --     Model trs cs $ (((CC.normalForm trs <$>) <$>) <$>) tbls
 
 
-{-| Returns true if a term is true in the model; That is, if the Obs is "Fct a", it verifies whether t is true in the model. If the Obs is "Eql t1 t2", it verifies whether t1 and t2 are equal in the model. -} 
+{-| Returns true if a term is true in the model; That is, if the Obs is 
+  "Fct a", it verifies whether t is true in the model. If the Obs is 
+  "Eql t1 t2", it verifies whether t1 and t2 are equal in the model. -} 
 isTrue :: Model -> Obs -> Bool
 isTrue (Model trs _) obs@(Den t) = 
     case t == truth of -- Since we treat truth as a denotation, truth is an 
@@ -266,7 +264,9 @@ isTrue (Model trs _) obs@(Fct a) = CC.normalForm trs (obsToTerm obs) == truth
 isTrue (Model trs _) (Eql t1 t2) = nf t1 == nf t2
     where nf = CC.normalForm trs
 
-{-| Returns an element in the domain of the model to which a given Fct observation denotes. If the observation is an equation, the function reduces the two sides of the equation to what they denote.
+{-| Returns an element in the domain of the model to which a given Fct 
+  observation denotes. If the observation is an equation, the function reduces 
+  the two sides of the equation to what they denote.
 -}
 denotes :: Model -> Obs -> Obs
 denotes (Model trs _)  obs@(Den t) = 
@@ -294,13 +294,16 @@ denotes (Model trs _) obs =
 
 modelTables :: Model -> Tables
 modelTables mdl =
-    let recs = mapRule <$> filter filterRule trs
-    in  RA.Set <$> Map.fromListWith (++) recs
-    where trs     = modelTRS mdl
-          filterRule = \r -> case r of
+    (trace.show) mdl
+    $
+    let recs = mapRule   <$> filter filterRule (modelTRS mdl)
+        doms = mapDomain <$> filter ((/=) truth) (modelDomain mdl)
+    in  RA.Set <$> Map.fromListWith (++) (recs ++ doms)
+    where filterRule = \r -> case r of
                                (CC.RW (Fn sym ts) t) -> True
                                otherwise             -> False
           mapRule    = \r@(CC.RW (Fn sym ts) t) ->
                        if   t == truth
                        then (sym, [ts])
                        else (sym, [ts ++ [t]])
+          mapDomain  = \t -> ("*", [[t]])

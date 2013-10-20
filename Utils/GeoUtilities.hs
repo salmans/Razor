@@ -1,14 +1,43 @@
-module Utils.GeoUtilities where
+module Utils.GeoUtilities (isVar, 
+--                          overatoms,
+                          TermBased (..),
+--                          onAtoms,
+--                          atomUnion,
+                          termVars,
+                          functions,
+--                          funcs,
+                          predicates,
+                          Sub,
+                          Subst,
+--                          variant,
+--                          applyq,
+--                          termval,
+--                          theoryRelations,
+--                          theoryFunctions,
+--                          formulaRelations,
+--                          formulaFunctions,
+--                          termFunctions,
+                          termFuncSyms,
+--                          hasFuncSymbol,
+                          closedTerm,
+                          subterms,
+--                          subtermPos,
+--                          replaceSubterms,
+                          Counter,
+                          relConvert) where
+{- Salman: Unexported functions may be removed! -}
 -- 
 import Prelude 
-import qualified List 
+import List 
 import qualified Char 
 import qualified Data.Map as Map
 import Data.Map(Map)
 import qualified Tools.ListSet
-import Tools.ListSet((\\))
 
 import Formula.SyntaxGeo
+
+import Control.Applicative
+import Control.Monad.State as State
 
 isVar :: Term -> Bool
 isVar (Var _) = True
@@ -63,7 +92,7 @@ instance TermBased Formula where
     freeVars fm = case fm of
                     Tru -> []
                     Fls -> []
-                    Exists x p -> freeVars p \\ [x]
+                    Exists x p -> freeVars p Tools.ListSet.\\ [x]
                     And p q -> combine p q
                     Or p q -> combine p q
                     Atm a -> freeVars a
@@ -151,7 +180,8 @@ applyq :: Sub -> (Var -> Formula -> Formula)
 applyq env quant x p = quant x' (apply ((Map.insert x (Var x')) env) p)
     where x' = if List.any (\k -> case Map.lookup k env of
                                   Just v -> List.elem x (freeVars v)
-                                  Nothing -> False) (freeVars p \\ [x]) 
+                                  Nothing -> False) 
+                           (freeVars p Tools.ListSet.\\ [x]) 
                then variant x (freeVars(apply (Map.delete x env) p)) else x
 -- 
 termval :: ([a], Var -> [b] -> b, Var -> [b] -> Bool) -> Map Var b -> Term -> b
@@ -248,3 +278,113 @@ replaceSubterms t1 t2 t3@(Fn f terms) =
     if t3 == t1
     then t2
     else Fn f $ map (replaceSubterms t1 t2) terms
+
+
+-- Convert for Relational Algebra
+type Counter = State.State Int
+
+{- Eliminates all function symbols in the sequents of a theory and replaces 
+  them with relational symbols. -}
+relConvert :: Theory -> Theory
+relConvert thy  = orig ++ integ
+    where orig  = fst $ State.runState (theoryRelConvert thy) 0
+          integ = integritySequents $ theoryFuncs thy
+          
+
+{- Eliminates all function symbols in the sequents of a theory and replaces 
+  them with relational symbols. -}
+theoryRelConvert :: Theory -> Counter Theory
+theoryRelConvert thy = mapM sequentRelConvert thy
+
+{- Eliminates all function symbols in a sequent and replaces them with 
+  relational symbols. -}
+sequentRelConvert :: Sequent -> Counter Sequent
+sequentRelConvert (Sequent bdy hd) = 
+    formulaRelConvert bdy >>= 
+    (\bdyres -> (formulaRelConvert hd >>=
+    (\hdres  -> return $ Sequent (makeExists bdyres) (makeExists hdres))))
+    where makeExists (fmla, vs) = foldr (\v f -> Exists v f) fmla vs
+
+{- Eliminates all function symbols in a formula and replaces them with 
+  relational symbols. It also retruns a list of existential variables introduced
+  in this way. -}
+formulaRelConvert :: Formula -> Counter (Formula, [Var])
+formulaRelConvert Tru                = return (Tru, [])
+formulaRelConvert Fls                = return (Fls, [])
+formulaRelConvert (Atm (R sym ts))   = do
+  (fs', ts', vs') <- foldM foldFunc ([], [], []) ts 
+  return $ (andFmlas fs' (Atm (R sym ts')), vs')
+    -- Replace ts with new variables computed by flattening terms. Also, 
+    -- return a formula, corresponding to the conjunction of the formulas for
+    -- flattening subterms. (This is pretty much like flattening terms below.)
+    where andFmlas  = \fmlas fmla -> foldr (\f1 f2 -> And f1 f2) fmla fmlas
+          foldFunc  = \(ffs, fts, fvs) t -> 
+              do
+                res <- termRelConvert t
+                case res of
+                  Nothing            -> 
+                      return (ffs, fts ++ [t], fvs)
+                  Just (tf, tt, tvs) -> 
+                      return (ffs ++ [tf], fts ++ [tt], fvs ++ tvs)
+formulaRelConvert (And fmla1 fmla2)  = do
+  (fmla1', vs1) <- formulaRelConvert fmla1
+  (fmla2', vs2) <- formulaRelConvert fmla2
+  return $ (And fmla1' fmla2', vs1 ++ vs2)
+formulaRelConvert (Or fmla1 fmla2)   = do
+  res1 <- formulaRelConvert fmla1
+  res2 <- formulaRelConvert fmla2
+  return $ (Or (makeExists res1) (makeExists res2), [])
+      -- Since disjunctions occur at the topmost level, apply existential
+      -- quantification on the newly introduced variables before returning from
+      -- this call.
+  where makeExists (fmla, vs) = foldr (\v f -> Exists v f) fmla vs
+formulaRelConvert (Exists v fmla)    = do
+  (fmla', vs) <- formulaRelConvert fmla
+  return $ (Exists v fmla', vs)
+
+{- Eliminates all function symbols in a term and replaces them with relational 
+   symbols. It also returns a set of existential variables introduced by the 
+   process. -}
+termRelConvert :: Term -> Counter (Maybe (Formula, Term, [Var]))
+termRelConvert (Var v)   = return Nothing
+termRelConvert (Fn _ []) = return Nothing
+termRelConvert (Fn f ts) = do
+  (fs', ts', vs') <- foldM foldFunc ([], [], []) ts
+  v         <- freshVar
+  let var   =  Var v
+  return $ Just (andFmlas fs' (Atm (R f (ts' ++ [var]))), var, v:vs')
+    where andFmlas  = \fmlas fmla -> foldr (\f1 f2 -> And f1 f2) fmla fmlas
+          foldFunc  = \(ffs, fts, fvs) t -> -- for each subterm
+              do
+                res <- termRelConvert t -- flatten the subterm
+                case res of             
+                  Nothing            -> 
+                      return (ffs, fts ++ [t], fvs)
+                         -- If the subterm is either a constant or a variable,
+                         -- use the subterm itself; no formula to conjoin.
+                  Just (tf, tt, tvs) -> 
+                      return (ffs ++ [tf], fts ++ [tt], fvs ++ tvs)
+                         -- Otherwise, replace the term with a new variable
+                         -- (returned by flattening the subterm); conjoin the
+                         -- corresponding formula.
+
+-- Create additional sequents to enforce function integrity constraints.
+sequentFuncs :: Sequent -> [(Sym, Int)]
+sequentFuncs (Sequent bdy hd) = (functions bdy) `union` (functions hd)
+
+theoryFuncs :: Theory -> [(Sym, Int)]
+theoryFuncs thy = filter (\(_, a) -> a /= 0) $ nub $ concatMap sequentFuncs thy
+
+integritySequents :: [(Sym, Int)] -> [Sequent]
+integritySequents fs = seq <$> fs
+    where seq fa     = Sequent (lft fa) (parseFormula "y = y'")
+          lft (f, a) = parseFormula (f ++ "(" ++ (vars a) ++ ",y ) & "
+                                       ++
+                                     f ++ "(" ++ (vars a) ++ ",y')")
+          vars  a    = concat $ intersperse "," (vs a)
+          vs a       = (\i -> ("x" ++ show i)) <$> [1.. a]
+---------------------------------------------
+freshVar :: Counter Var
+freshVar = get >>= 
+           (\c -> put (c + 1) >> 
+           (return $ "x#" ++ (show c)))

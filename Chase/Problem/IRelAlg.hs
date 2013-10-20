@@ -31,6 +31,15 @@ type Table = RA.Set Record
 {- A map from relational symbols to tables -}
 type Tables = Map.Map Sym Table
 
+{- Relational expression, corresponding to a view for a geometric formula
+   (without disjunction) -}
+data RelExp = TblEmpty
+            | TblFull
+            | Tbl  Sym
+            | Proj RelExp [Int]
+            | Slct RelExp [(Int, Int)] [(Int, Term)]
+            | Join RelExp RelExp [(Int, Int)]
+            deriving (Show)
 
 -- THIS HAS TO BE MOVED SOMEWHERE ELSE!
 instance Functor RA.Set where
@@ -40,19 +49,236 @@ instance Applicative RA.Set where
     pure x                = RA.Set (pure x)
     RA.Set f <*> RA.Set x = RA.Set (f <*> x)
 
+{- A column label is either a variable or Nothing -}
+type Label  = Maybe Var
+type Labels = [Maybe Var]
+--------------------------------------------------------------------------------
+relExp :: Formula -> (RelExp, Labels)
+relExp fmla =
+    (projectVars exp lbls, newLbls)
+    where (exp, lbls) = formulaRelExp fmla
+          newLbls     = nub $ filter (/= Nothing) lbls
+
+projectVars :: RelExp -> Labels -> RelExp
+projectVars exp lbls = 
+    Proj exp pos
+    where lblMap = createLabelMap lbls
+          pos    = [fromJust p | l <- nub lbls, 
+                    isJust l, 
+                    let p = Map.lookup (fromJust l) lblMap, 
+                    isJust p]
+
+{- Builds a relational expression for a goemetric formula (disjunction free). 
+ It also returns a set of variables that appear in every formula. -}
+formulaRelExp :: Formula -> (RelExp, Labels)
+formulaRelExp Fls                 = (TblEmpty, [])
+formulaRelExp Tru                 = (TblFull , [Nothing])
+formulaRelExp (Atm a)             = atomRelExp a
+formulaRelExp (And fmla1 fmla2)   =
+    if (fmla1 == Fls || fmla2 == Fls) 
+    then (TblEmpty, []) -- shortcut Falsehood
+    else joinRelExp res1 res2 -- Join
+    where res1 = formulaRelExp fmla1  -- apply recursion
+          res2 = formulaRelExp fmla2
+formulaRelExp (Exists x fmla)     = (exp, newLbls)
+    where (exp, lbls) = formulaRelExp fmla
+          newLbls     = (\l -> if l == Just x then Nothing else l) <$> lbls
+          -- Do not keep existential variables in labels.
+    -- if   null ps
+    -- then (exp, lbls) -- alternatively (FullTbl, [])
+    -- else (Proj exp [pos], [Just x])
+    -- where (exp, lbls)  = formulaRelExp fmla
+    --       ps           = filter (\(v, _) -> (isJust v) && (fromJust v) == x) 
+    --                      $ zip lbls [0..]
+    --       pos          = snd $ head ps
+
+atomRelExp :: Atom -> (RelExp, Labels)
+atomRelExp a@(R "=" [t1, t2]) =
+    let res1 = termRelExp t1
+        res2 = termRelExp t2
+    in  equalityRelExp res1 res2
+atomRelExp a@(R sym ts)       = 
+    let exp = if vPairs == [] && ePairs == []
+              then Tbl sym
+              else Slct (Tbl sym) vPairs ePairs
+    in  foldl foldFunc (exp, lbls) $ zip ts [0..]
+                  -- Select the records that match the terms of the relation
+    where ePairs = elmPreds ts 
+                 -- (1) Predicates that choose records whose entries match the 
+                 -- elements in the atomic formula within the positions they 
+                 -- appear.
+          vPairs = varPreds ts
+                 -- (2) predicates that force positions equal content in 
+                 -- columns whose corresponding variables are the same in the 
+                 -- atomic formula.
+          lbls   = termLabels ts
+          foldFunc (exp, ls) (term, i)  -- only care about variable labels
+                 = case term of
+                     Var v     -> (exp, ls)
+                     -- dealt with in varPreds
+                     Elm _     -> (exp, ls)
+                     -- dealt with in elmPreds
+                     Fn c []   -> (Join exp (Tbl c) [(i, 0)], ls ++ [Nothing])
+                     -- nothing left but constants
+                     otherwise -> error $ "Chase.Problem.IRelAlg.atomRelExp: " ++
+                                  "function symbols are not permitted!"
+
+{- Creates a join expression for two input relational expressions and their
+   corresponding variable labels. -}
+joinRelExp :: (RelExp, Labels) -> (RelExp, Labels) -> (RelExp, Labels)
+joinRelExp (exp1, lbls1) (exp2, lbls2) = 
+    (Join exp1 exp2 pairs, lbls1 ++ lbls2)
+    where pairs = varJoinPairs lbls1 lbls2
+          -- Construct a set of pairs, representing a joining predicate.
+
+{- Creates a join expression for two input relational expressions and their
+   corresponding variable labels. -}
+-- Salman: simplify considering functions are not permitted.
+equalityRelExp :: (RelExp, Labels) -> (RelExp, Labels) -> (RelExp, Labels)
+equalityRelExp (exp1, lbls1) (exp2, lbls2) = 
+    (Join exp1 exp2 [pair], lbls1 ++ lbls2)
+    where pair = (length lbls1 - 1, length lbls2 - 1)
+          -- Construct a pair for joining the two sets.
+
+termRelExp :: Term -> (RelExp, Labels)
+termRelExp (Var v)   = (Tbl "*", [Just v])
+termRelExp (Fn c []) = (Tbl c, [Nothing])
+termRelExp _         = error $ "Chase.Problem.IRelAlg.termRelExp: function " ++
+                       "symbols are not permitted!"
+
+{- Constructs a set of pairs to filter the records of a set based on the 
+elements appearing in the terms of an atomic formula. -}
+elmPreds :: [Term] -> [(Int, Term)]
+elmPreds ts = fst $ foldl foldFunc ([], 0) ts
+    where foldFunc (pairs, i) t = 
+              case t of
+                Elm _     -> ((i, t): pairs, i + 1)                
+                otherwise -> (pairs, i + 1)  -- otherwise, ignore
+
+{- Constructs a set of pairs to filter the records of a set based on the
+   positions of an atomic formula's terms that share the same variables.
+-}
+varPreds :: [Term] -> [(Int, Int)]
+varPreds ts = 
+    let varMap = createVarMap ts
+    in  Map.fold foldPred [] varMap
+    where foldPred ps pairs = 
+              if length ps > 1
+              then (pairsOf ps) ++  pairs
+              else pairs
+          pairsOf pos        = (\t -> (head pos, t)) <$> (tail pos)
+
+evaluateRelExp :: Tables -> RelExp -> RA.Set [Term]
+evaluateRelExp _ TblEmpty = RA.Set []
+evaluateRelExp _ TblFull  = RA.Set [[Elm "True"]]
+evaluateRelExp tbls (Tbl t) = case Map.lookup t tbls of
+                                Nothing -> RA.Set []
+                                Just t' -> t'
+evaluateRelExp tbls (Proj exp inds) = 
+    if    (not.null) (RA.toList set) && null (RA.toList projected)
+    then  evaluateRelExp tbls TblFull
+    else  projected
+    where set       = evaluateRelExp tbls exp
+          projected = RA.project (buildProjPred inds) set
+evaluateRelExp tbls (Slct exp vPairs ePairs) =
+    RA.select pred set
+    where set   = evaluateRelExp tbls exp
+          pred  = RA.Pred $ \x -> vPred x && ePred x
+          vPred = \x -> and $ (\(p1, p2) -> x !! p1 == x !! p2) <$> vPairs
+          ePred = \x -> and $ (\(p,  t ) -> x !! p  == t      ) <$> ePairs
+evaluateRelExp tbls (Join exp1 exp2 pairs) = 
+    mergeSetPairs $ RA.join pred set1 set2
+    where set1  = evaluateRelExp tbls exp1
+          set2  = evaluateRelExp tbls exp2
+          pred  = RA.Pred $ \(x,y) -> 
+                  and $ (\(p1, p2) -> x !! p1 == y !! p2) <$> pairs
+
+-- Helper
+{- Returns a list of labels (as needed by _RelExp functions) for a given set
+ of terms. -}
+termLabels :: [Term] -> Labels
+termLabels ts = labelingFunc <$> ts
+    where labelingFunc t = case t of 
+                             Var v     -> Just v
+                             otherwise -> Nothing
+
+{- Creates a list of pairs, representing a join predicate for two set of input
+ labels. -}
+varJoinPairs :: Labels -> Labels -> [(Int, Int)]
+varJoinPairs lLbls rLbls = 
+    foldr foldPred [] $ Map.toList lVarMap
+    where lVarMap               = createLabelMap lLbls
+          rVarMap               = createLabelMap rLbls
+          -- Construct two maps for the variables of the two sets of labels and
+          -- only choose one of the positions for each variable (head).
+          foldPred (v, lp) pairs = 
+              case Map.lookup v rVarMap of
+                Nothing -> pairs
+                Just rp -> (lp, rp): pairs
+              -- If a variable from the first map appears in a the second map,
+              -- construct a pair to force equality for the two corresponding 
+              -- positions.
+
+{- Creates a map from a variable name to its positions in a list of variable
+   labels.-}
+createLabelMap :: Labels -> Map.Map Var Int
+createLabelMap ts = fst $ foldl foldFunc (Map.empty, 0) ts                    
+    where foldFunc (m, i) t = 
+              case t of
+                Just t'    -> (Map.insertWith const t' i m, i + 1)
+                Nothing    -> (m, i + 1)
+
+{- Just like createLabelMap, creates a map from a variable name to its 
+   positions in a list of variable labels.-}
+createVarMap :: [Term] -> Map.Map Var [Int]
+createVarMap ts = fst $ foldl foldFunc (Map.empty, 0) ts
+    where foldFunc (m, i) t = 
+              case t of
+                Var t'    -> (Map.insertWith (++) t' [i] m, i + 1)
+                othewrise -> (m, i + 1)
+
+{- Merges a pair of tables (wrapped inside one RA.Set) into one table. This 
+kind of pairs are usually constructed by the join operation in Henglein's 
+library. -}
+mergeSetPairs :: RA.Set ([a], [a]) -> RA.Set [a]
+mergeSetPairs tbl = mergeFunc <$> tbl
+    where mergeFunc = \(a, b) -> (a ++ b)
+
+{- Construct a projection predicate for a given set of indices. -}
+buildProjPred :: [Int] -> RA.Proj [Term] [Term]
+buildProjPred inds = RA.Proj (indProjList inds)
+
+indProjList :: [Int] -> [a] -> [a]
+indProjList ps xs = [xs !! p | p <- ps]
+
 --------------------------------------------------------------------------------
 -- Use frame instead of sequent. Then get rid of origin in Frame.
 matchRA :: Sequent -> Tables -> [Sub]
-matchRA (Sequent bdy hds) tbls = 
+matchRA seq@(Sequent bdy hds) tbls = 
+    --(trace.show) seq
     --(trace.show) tbls
+    --trace ("tableDiff  -> " ++ (show (tableDiff  bdySet hdSets)))
+    --trace ("tableDiff' -> " ++ (show (tableDiff' bdySet hdSets)))
+    --(trace.show) (createSubs (snd bdySet) facts)
+    -- $
     createSubs (snd bdySet) facts
-    where bdySet@(_, bdyLbls) = bodySet tbls bdy
-          hdSets              = headSet tbls hds
-          facts               = tableDiff bdySet hdSets
+    where bdySet@(_, bdyLbls) = bodySet' tbls bdy
+          hdSets              = headSet' tbls hds
+          facts               = tableDiff' bdySet hdSets
           noFVars lbls        = all (\l -> ((not.isJust) l) ||
                                            not(l `elem` bdyLbls)) lbls
 
-tableDiff :: (RA.Set [Term], [Maybe Var]) -> [(RA.Set [Term], [Maybe Var])]
+
+bodySet' tbls fmla = (evaluateRelExp tbls exp, lbls)
+    where (exp, lbls) = relExp fmla
+
+
+headSet' tbls (Or fmla1 fmla2) = headSet' tbls fmla1 ++ headSet' tbls fmla2
+headSet' tbls fmla = [(evaluateRelExp tbls exp, lbls)]
+    where (exp, lbls) = relExp fmla
+
+
+tableDiff :: (RA.Set [Term], Labels) -> [(RA.Set [Term], Labels)]
           -> RA.Set [Term]
 tableDiff (bdySet, bdyLbls') hds' =
     let (facts, _) = unzip
@@ -109,190 +335,70 @@ tableDiff (bdySet, bdyLbls') hds' =
                        -- Choose those records in the body that do not exist
                        -- in the head.
 
-          
-{- Given the head of a geometric sequent and a set of tables, returns a list of
-data views for the relational expressions corresponding to the disjuncts in the
-head formula.
--}
-headSet :: Tables -> Formula -> [(RA.Set [Term], [Maybe Var])]
-headSet tbls (Or f1 f2)    = 
-    headSet tbls f1 ++ headSet tbls f2 -- Disjunctions at the top level
-headSet tbls (Exists x f1) =
-    headSet tbls f1  -- NOT SURE!
-headSet tbls fmla          = [formulaSet tbls fmla]
+{- New Implementation -}
+tableDiff' :: (RA.Set [Term], Labels) -> [(RA.Set [Term], Labels)]
+          -> RA.Set [Term]
+tableDiff' bdy@(RA.Set set, _) hds = -- if hds is empty
+    let temp = zip set conds
+    in  RA.Set $ fst.unzip $ filter (\t -> snd t == True) temp
+    where diffs = (tDiff bdy) <$> hds
+          conds = foldr1 (zipWith (&&)) diffs
 
-{- Given the body of a geometric sequent and a set of tables, returns a data 
-view corresponding to the formula's relational expression.
--}
-bodySet :: Tables -> Formula -> (RA.Set [Term], [Maybe Var])
-bodySet =  formulaSet
+tDiff :: (RA.Set [Term], Labels) -> (RA.Set [Term], Labels) -> [Bool]
+tDiff (bdySet, bdyLbls) (hdSet, hdLbls) = 
+    --(trace.show) bdyLbls
+    --(trace.show) hdLbls
+    --(trace.show) bdySet
+    --(trace.show) hdSet
+    --(trace.show) ((\t -> not (t `elem` hdSet')) <$> bdySet')
+    -- $
+    (\t -> not (t `elem` hdSet')) <$> bdySet'
+    where (bdyPrj, hdPrj) = sequentProjections bdyLbls hdLbls
+          RA.Set bdySet'  = RA.project bdyPrj bdySet
+          RA.Set hdSet'   = RA.project hdPrj hdSet
 
-{- Computes the output of formulaSet. This function maintains a list of terms 
-appearing in the atomic formulas as it proceeds. This list is used to compute
-joins between tables over common variables in atomic formulas.
--}
-formulaSet :: Tables -> Formula -> (RA.Set [Term], [Maybe Var])
-formulaSet _ Fls                 = (RA.Set [], [])
-formulaSet _ Tru                 = (RA.Set [[Elm "True"]], [Nothing])
--- NOT SURE
-formulaSet tbls (Atm a@(R _ ts)) = atomSet a tbls
-formulaSet tbls (And f1 f2)          = 
-    joinHelper (\(x,y) -> True) res1 res2 -- Join the two sets
-    where res1 = formulaSet tbls f1  -- simple recursion
-          res2 = formulaSet tbls f2
+sequentProjections :: Labels -> Labels -> 
+                    (RA.Proj [Term] [Term], RA.Proj [Term] [Term])
+sequentProjections bdyLbls hdLbls = 
+    (arrangeLabels bdyLbls' bdyRef, arrangeLabels hdLbls' hdRef)
+    where bdyRef   = sortedReference bdyLbls
+          hdRef    = sortedReference hdLbls
+          bdyLbls' = filterLabels bdyLbls hdLbls
+          hdLbls'  = filterLabels hdLbls bdyLbls'
 
-atomSet :: Atom -> Tables -> (RA.Set [Term], [Maybe Var])
-atomSet a@(R "=" [t1, t2]) tbls =
-    let res1 = termSet t1 tbls
-        res2 = termSet t2 tbls
-    in  joinHelper (\_ -> True) res1 res2
-atomSet a@(R sym ts) tbls = 
-    case tbl of
-      Nothing  -> (RA.Set [], [])
-                  -- The table does not exist, no data found!
-      Just t   -> let set = RA.select pred t
-                  in  foldl foldFunc (set, lbls) $ zip ts [0..]
-                  -- Select the records that match the terms of the relation
-    where tbl  = Map.lookup sym tbls 
-                 -- Lookup the table associated with this relation
-          pred = RA.Pred $ \x -> constPredicates ts x && varPredicates ts x
-          lbls = (\t -> case t of 
-                         Var v     -> Just v
-                         otherwise -> Nothing) <$> ts
-                 -- Make a conjunction of two sets of predicates: 
-                 -- (1) predicates that choose records whose entries match the 
-                 -- constants in the atomic formula within the positions they 
-                 -- appear, and (2) predicates that force positions equal 
-                 -- content in columns whose corresponding variables are the 
-                 -- same in the atomic formula.
-          foldFunc (set, ls) (term, i) =  -- only care about variable labels
-              case term of
-                Var v     -> (set, ls)
-                -- Fn sym [] -> (set, ts, i + 1)
-                Elm _     -> (set, ls) 
-                -- dealt with in constPredicates
-                otherwise -> 
-                    let (set', ls') = termSet term tbls
-                        initPred    = \(x,y) -> 
-                                      x !! i == 
-                                        y !! ((length ls') - 1)
-                    in (joinHelper initPred (set, ls) (set', ls')) 
+{- Filters a list of labels according to a refrence set of labels. It removes
+ the labels that do not show up in the reference set. -}
+filterLabels :: Labels -> Labels -> Labels
+filterLabels lbls refLbls = 
+    filter ((flip elem) refLbls) varLbls
+    where varLbls = filter (/= Nothing) lbls
 
--- NOTE: processing variables, constants and functions can happen in one run.
-termSet :: Term -> Tables -> (RA.Set [Term], [Maybe Var])
-termSet t@(Fn sym terms) tbls = 
-    case tTable of
-      []        -> (RA.Set [], []) -- maybe?!?
-      otherwise -> foldl foldFunc (tSet, lbls) $ zip terms [0..]
-    where tSet@(RA.Set tTable)  = funcSet t tbls
-          lbls = (\t -> case t of 
-                         Var v     -> Just v
-                         otherwise -> Nothing) <$> terms <|> [Nothing]
-          foldFunc (set, ls) (term, i) = 
-              case term of
-                Var v     -> (set, ls)
-                --Fn sym [] -> (set, ts, i + 1)
-                Elm sym   -> (set, ls )
-                otherwise -> 
-                    let (set', ls') = termSet term tbls
-                        initPred    = \(x,y) -> 
-                                      y !! i == 
-                                        x !! ((length ls') - 1)
-                    in (joinHelper initPred (set', ls') (set, ls)) 
-termSet t _ = (error.show) t
+{- Maps every variable in a list of tables to a position corresponding to the 
+   variable in a sorted list of variables. -}
+sortedReference :: Labels -> Map.Map Var Int
+sortedReference lbls =     
+    fst $ foldl foldFunc (Map.empty, 0) lbls
+    where foldFunc (m, i) (Just v)
+                     = (Map.insert v i m, i + 1)
+          foldFunc (m, i) Nothing
+                     = (m, i + 1)
 
 
-funcSet :: Term -> Tables -> RA.Set [Term]
-funcSet (Var _)   _      = error "Cannot be a variable!"
--- funcSet (Fn _ []) _      = error "Cannot be a constant!"
-funcSet (Fn sym ts) tbls = 
-    case tbl of
-      Nothing  -> RA.Set []
-                  -- The table does not exist, no data found!
-      Just t   -> RA.select pred t
-                  -- Select the records that match the terms of the relation
-    where tbl  = Map.lookup sym tbls 
-                 -- Lookup the table associated with this relation
-                 -- Probably function lookup is different than table lookup!
-          pred = RA.Pred $ \x -> constPredicates ts x && varPredicates ts x
-                 -- Make a conjunction of two sets of predicates: 
-                 -- (1) predicates that choose records whose entries match the 
-                 -- constants in the atomic formula within the positions they 
-                 -- appear, and (2) predicates that force positions equal 
-                 -- content in columns whose corresponding variables are the 
-                 -- same in the atomic formula.
+{- Creates an RA.Proj instance that arranges a set of labels based on a set of
+   reference positions maps. It simply ignores the labels that do not show up
+   in the reference. -}
+arrangeLabels :: Labels -> Map.Map Var Int -> RA.Proj [Term] [Term]
+arrangeLabels lbls refMap = RA.Proj $ arrangeLabelsHelper lbls refMap
 
-{- Constructs predicates to filter the records of a set based on the constants 
-appearing in the terms of an atomic formula. -}
-constPredicates :: [Term] -> ([Term] -> Bool)
-constPredicates ts = fst $ foldl foldFunc (\x -> True, 0) ts
-    where foldFunc (pred, i) t = 
-              case t of
-                Elm _     -> ((\x -> (x !! i) == t --constant
-                                   && (pred x)) , i + 1)
-                
-                -- Fn _ []   -> ((\x -> (x !! i) == t --constant
-                --                    && (pred x)) , i + 1)
-                otherwise -> (pred, i + 1)  -- otherwise, ignore
+arrangeLabelsHelper :: Labels -> Map.Map Var Int -> [Term] -> [Term]
+arrangeLabelsHelper lbls refMap ts =
+    foldr arrangeFunc [] $ filter (/=Nothing) $ sort lbls
+    where arrangeFunc (Just l) res = case Map.lookup l refMap of
+                                       Nothing -> res
+                                       Just p  -> ts !! p: res
 
-{- Constructs predicates to filter the records of a set with regards to the
-positions of an atomic formula's terms that share the same variables.
--}
-varPredicates :: [Term] -> ([Term] -> Bool)
-varPredicates ts = 
-    let varMap = createVarMap ts
-    in  Map.fold foldPred (\x -> True) varMap
-    where foldPred ps pred = 
-              if length ps > 1
-              then \x -> varPred ps x && pred x
-              else pred
 
-varJoinPredicates :: (([Term], [Term]) -> Bool) -> [Maybe Var] -> [Maybe Var]
-                      -> (([Term], [Term]) -> Bool)
-varJoinPredicates initPred lts rts = 
-    foldr foldPred initPred $ Map.toList lVarMap
-    where lVarMap               = head <$> createVarMap' lts
-          rVarMap               = head <$> createVarMap' rts
-          -- Construct two maps for the variables of the two sets of terms and
-          -- only choose one of the positions for each variable (head).
-          foldPred (v, lp) pred = 
-              case Map.lookup v rVarMap of
-                Nothing -> pred
-                Just rp -> \xy -> varJoinPred lp rp xy && pred xy
-              -- If a variable from the first map appears in a the second map,
-              -- construct a predicate to force equality for the two 
-              -- corresponding positions.
 
-joinHelper :: (([Term], [Term]) -> Bool) -> (RA.Set [Term], [Maybe Var])
-           -> (RA.Set [Term], [Maybe Var]) -> (RA.Set [Term], [Maybe Var])
-joinHelper initPred (tbl1, ts1) (tbl2, ts2) = 
-    (mergeSetPairs $ RA.join pred tbl1 tbl2, ts1 ++ ts2)
-    where pred = RA.Pred $ varJoinPredicates initPred ts1 ts2
-                 -- Construct a predicate for joining the two sets.
-
--- Helpers
-{- Creates a map from the variables in a relation to the positions in which 
-they occur. -}
-{- Merges a pair of tables (wrapped inside one RA.Set) into one table. This 
-kind of pairs are usually constructed by the join operation in Henglein's 
-library. -}
-mergeSetPairs :: RA.Set ([a], [a]) -> RA.Set [a]
-mergeSetPairs tbl = mergeFunc <$> tbl
-    where mergeFunc = \(a, b) -> (a ++ b)
-
-createVarMap :: [Term] -> Map.Map Var [Int]
-createVarMap ts = fst $ foldl foldFunc (Map.empty, 0) ts
-    where foldFunc (m, i) t = 
-              case t of
-                Var t'    -> (Map.insertWith (++) t' [i] m, i + 1)
-                othewrise -> (m, i + 1)
-
-createVarMap' :: [Maybe Var] -> Map.Map Var [Int]
-createVarMap' ts = fst $ foldl foldFunc (Map.empty, 0) ts
-    where foldFunc (m, i) t = 
-              case t of
-                Just t'    -> (Map.insertWith (++) t' [i] m, i + 1)
-                Nothing    -> (m, i + 1)
 
 {- Reorders the data in a table according to a given pattern. -}
 reordList :: [Int] -> [a] -> [a]
@@ -300,37 +406,16 @@ reordList _  []     = []
 reordList [] _      = []
 reordList (p:ps) xs = xs !! p: reordList ps xs
 
-indProjList :: [Int] -> [a] -> [a]
-indProjList ps xs = [xs !! p | p <- ps]
-
-{- The next two functions are helpers for varPredicates and varJoinPredicates
-respectively. -} 
-varPred :: [Int] -> ([Term] -> Bool)
-varPred ps = 
-    \x -> allTheSame $ ($x) <$> fns
-    where fns = (\p x -> x !! p) <$> ps
-
-
-varJoinPred :: Int -> Int -> (([Term], [Term]) -> Bool)
-varJoinPred lp rp = \(x,y) -> x !! lp == y !! rp
-
-
-{- Returns true if all the elements of a list are the same. Otherwise, returns
-false. -}
-allTheSame :: Eq a => [a] -> Bool
-allTheSame (x:xs) = and $ map (== x) xs
-
-createSubs :: [Maybe Var] -> RA.Set [Term] -> [Sub]
+createSubs :: Labels -> RA.Set [Term] -> [Sub]
 createSubs vars (RA.Set [])  = []
 createSubs vars (RA.Set set) = Map.fromList.subList <$> set
     where subList ts = [(fromJust v, t) | (v, t) <- zip vars ts, isJust v]
 
-remDupVars :: [Maybe Var] -> [Maybe Var]
+remDupVars :: Labels -> Labels
 remDupVars vs = foldr foldFunc [] vs
     where foldFunc v vs' = if   v `elem` vs'
                            then Nothing:vs'
                            else v:vs'
-
 --------------------------------------------------------------------------------
 -- TEST
 mkTable :: [[String]] -> RA.Set [Term]
@@ -354,8 +439,8 @@ mkTable strs = RA.Set $ ((parseTerm <$>) <$>) strs
 
 setA = RA.Set [[Elm "c1"]]
 setB = RA.Set [[Elm "c2"]]
-setP = RA.Set [[Elm "c1", Elm "c2"]]
-setF = RA.Set []
+setP = RA.Set [[Elm "c1", Elm "c2"], [Elm "c2", Elm "c3"]]
+setF = RA.Set [[Elm "c1", Elm "c2"]]
 setG = RA.Set []
 tables = Map.fromList [("a", setA), ("b", setB)
                       ,("P", setP)

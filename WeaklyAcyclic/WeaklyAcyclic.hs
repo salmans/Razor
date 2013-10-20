@@ -23,8 +23,8 @@ import Data.Graph
 
 -- Logic modules:
 import Formula.SyntaxGeo
-import Utils.GeoUtilities (Sub, fv)
-import Tools.Equality
+import Utils.GeoUtilities (Sub, freeVars)
+--import Tools.Equality
 import Data.Tree
 
 -- Data Types:
@@ -225,14 +225,14 @@ univVarPositions (Atm (R sym terms)) =
               Data.Map.union 
                   (Data.Map.singleton x [Pos s i])
                   (positionInRelation (i + 1) s ts)
-          -- TODO: for now, we don't have function symbols
-          positionInRelation i s (t:ts) = positionInRelation (i+1) s ts
+          positionInRelation i s (Fn _ []:ts) = 
+              positionInRelation (i+1) s ts
+          positionInRelation i s (Fn _ _:ts) = 
+              error "WeaklyAcyclic.WeaklyAcyclic: terms must be function-free!"
 
 
 -- Returns a map of existentially quantified variables in a given 
--- formula to the posisitons in which they appear. Also, we consider
--- free variables inside functions as existential variables because
--- they enforce special edges in the dependency graph.
+-- formula to the posisitons in which they appear.
 exisVarPositions :: Formula -> [Position]
 exisVarPositions p = exisVarPositionsHelper [] p
 
@@ -252,8 +252,6 @@ exisVarPositionsHelper varList (Atm (R sym terms)) =
 
 -- Returns the positions in a tuple in which existential variables 
 -- appear.
--- Note: that we treat free varibles that appear inside a function
--- just like existential variables.
 -- Parameters:
 --   a list of existential variables
 --   an index determining the position (starts from 1)
@@ -265,12 +263,10 @@ exisPositionInRelation varList i s ((Var x):ts) =
     if x `elem` varList
     then (Pos s i):(exisPositionInRelation varList (i + 1) s ts)
     else exisPositionInRelation varList (i+1) s ts
-exisPositionInRelation varList i s ((Fn f ts'):ts) =
-    if hasVars -- If the function has any variable as subterms
-    then (Pos s i):applyRest -- then, add the current position
-    else applyRest
-    where hasVars = not $ null $ concatMap fv ts'
-          applyRest = exisPositionInRelation varList (i + 1) s ts
+exisPositionInRelation varList i s ((Fn f []):ts) =
+    exisPositionInRelation varList (i+1) s ts
+exisPositionInRelation varList i s ((Fn f _):ts) =
+    error "WeaklyAcyclic.WeaklyAcyclic.hs: terms must be function-free!"
 ------------------------------
 -- Cycle Detection
 ------------------------------

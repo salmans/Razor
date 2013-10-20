@@ -38,7 +38,8 @@ chase :: Theory -> [Model]
 chase thy = 
 --    (trace.show) log
     map problemModel $ probs
-    where problem           = buildProblem thy -- create the initial problem
+    where problem           = buildProblem (relConvert thy) 
+          -- Create the initial problem (get rid of function symbols)
           writer            = State.runStateT run [] 
                               -- the wrapper Writer monad for logging
           ((probs, _), log) = Writer.runWriter writer
@@ -56,25 +57,25 @@ chase' thy = Maybe.listToMaybe $ chase thy
    The models of the processed problems are the models that the chase 
    is looking for.
 -}
-process :: ProbPool [Problem]
-process = do
-      prob <- selectProblem -- select a problem from the pool
-      case prob of
-        Nothing   -> return [] -- no problems
-        Just p -> 
-            do
-              let newProbs = mapProblem p -- map the problem (in MapReduce)
-              let (processed, unprocessed) = 
-                      partition (null.problemQueue) newProbs
-                  -- If any of the mapped problems have something in their
-                  -- queue, they must be reduced. Mapped problems with empty
-                  -- queues are done!
-              let reduced = map reduceProblem unprocessed                  
-                  -- Reduce the problems that are not done processing yet.
-              mapM scheduleProblem reduced
-                  -- Schedule the reduced problems in the pool.
-              ps <- process -- Recursive call for furhter processing
-              return $ processed ++ ps
+-- process :: ProbPool [Problem]
+-- process = do
+--       prob <- selectProblem -- select a problem from the pool
+--       case prob of
+--         Nothing   -> return [] -- no problems
+--         Just p -> 
+--             do
+--               let newProbs = mapProblem p -- map the problem (in MapReduce)
+--               let (processed, unprocessed) = 
+--                       partition (null.problemQueue) newProbs
+--                   -- If any of the mapped problems have something in their
+--                   -- queue, they must be reduced. Mapped problems with empty
+--                   -- queues are done!
+--               let reduced = map reduceProblem unprocessed                  
+--                   -- Reduce the problems that are not done processing yet.
+--               mapM scheduleProblem reduced
+--                   -- Schedule the reduced problems in the pool.
+--               ps <- process -- Recursive call for furhter processing
+--               return $ processed ++ ps
 
 {- Maps a problem to another problem (possibly a list of problems) by
    branching over the right of the frames whose bodies are empty. For each
@@ -89,22 +90,22 @@ process = do
    empty queues. Otherwise, the initial queue has to be added to the queues of 
    each branch
 -}
-mapProblem :: Problem -> [Problem]
-mapProblem p@(Problem frames model queue syms lastID lastConst) =
-    if any' (\f -> (null . frameBody) f && (null . frameHead) f) frames
-    -- if the theory has a contradictory sequent
-    then [] -- then don't continue this branch
-    else map (\(m, q, c) -> 
-              (Problem nonEmptyFrs m q syms lastID c)) queues
-    where queues = foldr mapModels [(model, [], lastConst)] emptyFrs
-              -- Constructs the queue of rewrite rules and corresponding models
-              -- for each model mapping.
-          (emptyFrs, nonEmptyFrs) = partition (null.frameBody) frames
-              -- get rid of frames that we have already pushed into the model
-          any' pred = foldr (\e r -> pred e || r) False
-              -- Since we extend the frames of a problem by adding new
-              -- frames to the end, a more efficient version of any,
-              -- i.e. eny', starts from the end of the list.
+-- mapProblem :: Problem -> [Problem]
+-- mapProblem p@(Problem frames model queue syms lastID lastConst) =
+--     if any' (\f -> (null . frameBody) f && (null . frameHead) f) frames
+--     -- if the theory has a contradictory sequent
+--     then [] -- then don't continue this branch
+--     else map (\(m, q, c) -> 
+--               (Problem nonEmptyFrs m q syms lastID c)) queues
+--     where queues = foldr mapModels [(model, [], lastConst)] emptyFrs
+--               -- Constructs the queue of rewrite rules and corresponding models
+--               -- for each model mapping.
+--           (emptyFrs, nonEmptyFrs) = partition (null.frameBody) frames
+--               -- get rid of frames that we have already pushed into the model
+--           any' pred = foldr (\e r -> pred e || r) False
+--               -- Since we extend the frames of a problem by adding new
+--               -- frames to the end, a more efficient version of any,
+--               -- i.e. eny', starts from the end of the list.
 
 {- Given an input frame and a list of models together with new rewrite rules 
    being added to each model (as the result of applying this function on 
@@ -129,17 +130,17 @@ mapModels f ms =
 {- Reduces a problem by instantiating the frames of the problem with the obs
    in the queue of the problem.
 -}
-reduceProblem :: Problem -> Problem
-reduceProblem (Problem frames model queue symMap lastID lastConst) =
-    let tempProb = Problem normalFrames model
-                     [] symMap lastID lastConst
-    in extendProblem tempProb newFrames
-    where newFrames = concatMap (\f -> instFrame model symMap f queue)
-                      normalFrames
-                      -- a list of newly instantiated frames          
-          normalFrames = map (normalizeFrame model) frames
-                      -- We normalize old frames as we do for new frames in
-                      -- every instFrame call.
+-- reduceProblem :: Problem -> Problem
+-- reduceProblem (Problem frames model queue symMap lastID lastConst) =
+--     let tempProb = Problem normalFrames model
+--                      [] symMap lastID lastConst
+--     in extendProblem tempProb newFrames
+--     where newFrames = concatMap (\f -> instFrame model symMap f queue)
+--                       normalFrames
+--                       -- a list of newly instantiated frames          
+--           normalFrames = map (normalizeFrame model) frames
+--                       -- We normalize old frames as we do for new frames in
+--                       -- every instFrame call.
 
 
 {- For a frame whose body is empty, returns a pair containing a list of list of 
@@ -213,37 +214,37 @@ deduceHelper counter model@(Model trs domain) vars allObs@(obs:rest)
    of instantiated frames. This function uses matchFrame to match the frame with
    left of the rules based on narrowing.   
 -}
-instFrame :: Model -> SymbolMap -> Frame -> [CC.RWRule]  -> [Frame]
-instFrame model symMap frame newRules = 
-    let frames = map (\ss -> applySubList model frame ss) subLists
-    in  map (normalizeFrame model) frames 
-        -- Instantiate the input frame with all lists of substitutions
-        -- and normalize the results.
-    where subLists = filter (not.null) $ allCombinations (nub subs)
-                     -- Create a list of all the possible combinations of 
-                     -- substitutions resulted from matching with each rule
-          subs     = matchFrame model symMap frame newRules
-                     -- Match the input frame with the new rules using narrowing
-                     -- and create a list of substitutions.
+-- instFrame :: Model -> SymbolMap -> Frame -> [CC.RWRule]  -> [Frame]
+-- instFrame model symMap frame newRules = 
+--     let frames = map (\ss -> applySubList model frame ss) subLists
+--     in  map (normalizeFrame model) frames 
+--         -- Instantiate the input frame with all lists of substitutions
+--         -- and normalize the results.
+--     where subLists = filter (not.null) $ allCombinations (nub subs)
+--                      -- Create a list of all the possible combinations of 
+--                      -- substitutions resulted from matching with each rule
+--           subs     = matchFrame model symMap frame newRules
+--                      -- Match the input frame with the new rules using narrowing
+--                      -- and create a list of substitutions.
 
 {- Normalizes a frame: it replaces every observation in the frame with its 
    normal form in the model. Also, it removes the obs that are observed 
    (rewrite to truth) in the model from the frame's body.
 -}
-normalizeFrame :: Model -> Frame -> Frame   
-normalizeFrame model frame@(Frame id body head vars orig) = 
-    Frame { frameID   = id 
-          , frameBody = (filter (not.Model.isTrue model) normalizedBody)
-          , frameHead = head
-          , frameVars = vars
-          , frameOrig = orig}
-    where normalizedBody = map (Model.denotes model) body
+-- normalizeFrame :: Model -> Frame -> Frame   
+-- normalizeFrame model frame@(Frame id body head vars orig) = 
+--     Frame { frameID   = id 
+--           , frameBody = (filter (not.Model.isTrue model) normalizedBody)
+--           , frameHead = head
+--           , frameVars = vars
+--           , frameOrig = orig}
+--     where normalizedBody = map (Model.denotes model) body
           
 {- Instantiates the input frame by applying all the given substitutions on it.
 -}
-applySubList :: Model -> Frame -> [Sub] -> Frame
-applySubList model frame subs =
-    foldr (\s f -> liftFrame model s f) frame subs
+-- applySubList :: Model -> Frame -> [Sub] -> Frame
+-- applySubList model frame subs =
+--     foldr (\s f -> liftFrame model s f) frame subs
 
 {- Returns a list of substitutions that match any of the Obs in the body of the
    input frame to the left of the rewrite rules. The underlying matching 
@@ -252,9 +253,9 @@ applySubList model frame subs =
    REMARK: a more efficient version of this function may use the input SymbolMap
    to apply narrowing on a list of candidate frames.
 -}
-matchFrame :: Model -> SymbolMap -> Frame -> [CC.RWRule] -> [[Sub]]
-matchFrame mdl _ frame newRules =
-    map (narrowObs mdl newRules) (frameBody frame)
+-- matchFrame :: Model -> SymbolMap -> Frame -> [CC.RWRule] -> [[Sub]]
+-- matchFrame mdl _ frame newRules =
+--     map (narrowObs mdl newRules) (frameBody frame)
 
 {- Lifts a frame with a substitution and returns a new frame. It also updates
    the list of free variables of the frame accordingly.
@@ -270,10 +271,6 @@ makeFreshConstant :: Int -> Term
 makeFreshConstant counter = Fn ("a" ++ (show counter)) []
 --Elm ("a" ++ show counter)
 
-doChase thy = chase $ map parseSequent thy
-doChase' thy = chase' $ map parseSequent thy
-
-
 -- Relational Algebra
 processRA :: ProbPool [Problem]
 processRA = do
@@ -283,7 +280,7 @@ processRA = do
         Just p  -> 
             do
               let newProbs = newProblems p -- map the problem (in MapReduce)
-              State.lift $ logM "Problems" newProbs
+              --State.lift $ logM "Problems" newProbs
               case newProbs of
                 Nothing -> processRA
                 Just [] -> do
@@ -318,8 +315,6 @@ newModels (frame:frames) model counter =
 newModelsForFrame :: Frame -> Model -> Int -> 
                      Maybe [(Model, [CC.RWRule], Int)]
 newModelsForFrame frame model counter = 
-    -- (trace.show) (newFacts counter model frame)
-    -- $
     case newFacts counter model frame of
       Nothing      -> Nothing
       Just ([], _) -> Just []
@@ -328,8 +323,6 @@ newModelsForFrame frame model counter =
 
 newFacts :: Int -> Model -> Frame -> Maybe ([[Obs]], Int)
 newFacts counter model frame = 
-    -- (trace.show) model
-    -- $
     if   null subs
          -- It sucks that we have to check this here!
     then Just $ ([], counter)
@@ -343,5 +336,10 @@ newFacts counter model frame =
           -- For now just use the first sub and drop the rest!
           -- Also, let's just lift the body for now!
 
-testThy = ["exists x. exists y.P(x,y)",
-           "P(x,y) => f(x) = g(f(y))"]
+
+doChase thy = chase $ map parseSequent thy
+doChase' thy = chase' $ map parseSequent thy
+
+
+testThy = ["(src = dest) => Refuse(src,dest)",
+           "exists x. exists y. Toll(x,y)"]

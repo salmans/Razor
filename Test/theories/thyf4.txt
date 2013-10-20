@@ -11,4 +11,3 @@ B(x) & D(y) => x = y  --  b  = d
 --A(u) & D(v) => f(v) = u  -- f(d) = a
 
 -- so should get a=b from above
-
