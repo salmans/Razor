@@ -10,6 +10,7 @@ module Chase.Problem.Operations (buildProblem,
                                  holds,
                                  formulaHolds,
                                  sequentHolds,
-                                 narrowObs) where
+                                 matchFrame
+                                ) where
 
 import Chase.Problem.IOperations

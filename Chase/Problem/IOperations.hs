@@ -12,20 +12,22 @@ import qualified Data.Map as Map
 import Data.Maybe
 import qualified Control.Monad.State as State
 import qualified Control.Monad.Writer as Writer
+import Control.Applicative
 
 -- Logic Modules
 import Formula.SyntaxGeo
 import Utils.GeoUtilities
 import Tools.GeoUnification
-import Tools.Narrowing
+--import Tools.Narrowing
 
 -- Chase Modeuls:
 import Chase.Problem.Observation
 import Chase.Problem.Structures
-import Chase.Problem.Model (Model(..))
+import Chase.Problem.Model (Model(..), modelDomain)
 import qualified Chase.Problem.Model as Model
-import qualified CC.CC as CC
-import Chase.Problem.IRelAlg
+import Chase.Problem.RelAlg.RelAlg
+import qualified Chase.Problem.RelAlg.Operations as OP
+import qualified RelAlg.DB as DB -- Salman: Do not import this here!
 -- Other Modules
 import Debug.Trace
 
@@ -58,8 +60,6 @@ buildProblem thy = problem
           -- convert sequents to frames and assign IDs to them.
           problem =     Problem { problemFrames       = frms 
                                 , problemModel        = Model.empty 
-                                , problemQueue        = [] 
-                                , problemSymbols      = framesSymbolMap frms
                                 , problemLastID       = length thy 
                                 , problemLastConstant = 0}
 
@@ -67,12 +67,10 @@ buildProblem thy = problem
 {-| Updates a problem by adding new frames to its theory. It updates problem's symbol map accordingly.
 -}
 extendProblem :: Problem -> [Frame] -> Problem
-extendProblem (Problem oldFrames model queue symMap last lastConst) 
+extendProblem (Problem oldFrames model last lastConst) 
               frames =
     Problem { problemFrames       = (union oldFrames newFrames) 
             , problemModel        = model 
-            , problemQueue        = queue 
-            , problemSymbols      = newSymMap
             , problemLastID       = newLastID
             , problemLastConstant = lastConst}
         -- REMARK: the two set of frames have to be unined; otherwise, the chase may
@@ -81,7 +79,6 @@ extendProblem (Problem oldFrames model queue symMap last lastConst)
                                    (Frame id body head vars seq))
                       frames [(last + 1)..]
           newLastID = last + (length newFrames)
-          newSymMap = Map.unionWith (++) symMap $ framesSymbolMap newFrames
 
 {-| Selects a problem from a pool of problems and returns the selected problem. The function changes the current state of the pool of problems.
 If the pool is empty, the function returns Nothing. Otherwise, returns the problem wrapped in Just.
@@ -102,32 +99,17 @@ scheduleProblem = \p -> State.get  >>= (\ps ->
                   return ()))
 
 
-{- Builds a symbol map for a list of frames. -}
-framesSymbolMap :: [Frame] -> SymbolMap
-framesSymbolMap [] = Map.empty
-framesSymbolMap frms =
-    foldr1 (\f res -> Map.unionWith (++) res f) mapList
-    -- Let's fold the SymbolMap of all frames to construct a SymbolMap for all
-    where mapList = map symMap frms
-          -- mapListis a list of SymbolMaps for all of the input frames.
-          symMap f = Map.fromListWith (++) [(s, [(frameID f, n)])| 
-                                            (n, ss) <- syms f,
-                                            s <- ss]
-          -- (symMap f) constructs a SymbolMap for f
-          syms f   = zip [0..] $ map obsFuncSyms $frameBody f
-          -- (syms f) is a list of symbols in every obs of f's body together
-          -- with the ordinal of the body in f.
-
 {-| Creates a Frame from a given sequent. 
 -}
 buildFrame :: ID -> Sequent -> Frame
 buildFrame id sequent@(Sequent body head) = 
-    Frame { frameID = id
-          , frameBody = (processBody body) 
-          , frameHead = (processHead head) 
-          , frameVars = (union (freeVars head) (freeVars body))
-          , frameOrig = sequent}
-
+    Frame { frameID      = id
+          , frameBody    = (processBody body) 
+          , frameHead    = (processHead head) 
+          , frameVars    = (union (freeVars head) (freeVars body))
+          , frameRelInfo = RelInfo bodyExp headExp}
+    where bodyExp = bodyRelExp body
+          headExp = headRelExp head
 
 {- Constructs the head of a frame from the head of a sequent. Here, we assume 
 that the sequent is in the standard form, i.e. disjunctions appear only at 
@@ -167,10 +149,31 @@ processBody (Atm (R "=" _)) = error err_ChaseProblemOperations_EqTwoParam
 processBody (Atm atm) = [Fct atm] -- atoms other than equality
 processBody _ = error err_ChaseProblemOperations_InvldSeq
 
-{-| Returns True if the input set of observations are true in the given mode, otherwise False. Vars is the set of universally quantified variables in the observations while the other variables in the formula are existentially quantified (the same contract as for Frame). -}
+{-| Given relational information about a sequent and a set of tables in a model,
+ returns a set of substituions corresponding to a chase step for the sequent. -}
+matchFrame :: RelInfo -> Tables -> [Sub]
+matchFrame relInfo@(RelInfo bodyInfo headInfo) tbls = 
+    let bdySet      = evaluateRelExp tbls bdyExp
+        hdSetLabels = (\(e, l) -> (evaluateRelExp tbls e, l)) <$> headInfo
+        facts       = diff (bdySet, bdyLbls) hdSetLabels
+    in  createSubs bdyLbls facts
+    where (bdyExp, bdyLbls) = bodyInfo
+          noFVars lbls  = all (\l -> ((not.isJust) l) ||
+                                           not(l `elem` bdyLbls)) lbls
+
+{- A helper for matchRA -}
+createSubs :: Labels -> Table -> [Sub]
+createSubs vars (DB.Set [])  = []
+createSubs vars (DB.Set set) = Map.fromList.subList <$> set
+    where subList ts = [(fromJust v, t) | (v, t) <- zip vars ts, isJust v]
+
+{-| Returns True if the input set of observations are true in the given mode, 
+  otherwise False. Vars is the set of universally quantified variables in the 
+  observations while the other variables in the formula are existentially 
+  quantified (the same contract as for Frame). -}
 holds :: Model -> Vars -> [Obs] -> Bool
 holds _ _ [] = True
-holds model@(Model _ domain) vars allObs@(obs:rest)
+holds model vars allObs@(obs:rest)
       | null fvars = Model.isTrue model obs && (holds model vars rest)
       -- if the formula is closed, check if it is true in the model
       | null (fvars `intersect` vars) =
@@ -180,7 +183,8 @@ holds model@(Model _ domain) vars allObs@(obs:rest)
       -- If the formula is not closed, instantiate the first for one of the
       -- instantiations of the first existential variable, it has to be true.
       | otherwise = error err_ChaseProblemOperations_OpenFmla
-    where fvars = freeVars obs
+    where fvars  = freeVars obs
+          domain = modelDomain model
 
 {-| Returns true if the sequent is true under the given model.
 -}
@@ -200,22 +204,8 @@ formulaHolds model (Or p q) = fmlaHolds p || fmlaHolds q
     where fmlaHolds = formulaHolds model
 formulaHolds model (And p q) = fmlaHolds p && fmlaHolds q
     where fmlaHolds = formulaHolds model
-formulaHolds model@(Model trs domain) (Exists x p) = 
+formulaHolds model@(Model trs) (Exists x p) = 
     let makeSub    = Map.singleton x
         liftWith e = (liftTerm.lift) (makeSub e) p
     in or $ map ((formulaHolds model).liftWith) domain
-
-{-| Applies narrowing on a given observation to with respect to a set of rewrite rules
-  and returns a set of substitutions.
--}
-narrowObs :: Model -> [CC.RWRule] -> Obs -> [Sub]
-narrowObs mdl@(Model trs _) rules (Den t) =
-    error err_ChaseProblemOperations_NarrowDen
-narrowObs mdl@(Model trs _) rules (Eql t1 t2) =
-    if null subs
-       then narrowEquation False trs rules t2 t1
-       else subs
-    where subs = narrowEquation False trs rules t1 t2
-narrowObs mdl@(Model trs _) rules f@(Fct a) =
-    map snd $ narrowTerm True trs rules t
-    where t = fromJust $ toTerm a
+    where domain = modelDomain model

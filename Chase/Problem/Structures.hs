@@ -21,7 +21,8 @@ import Utils.GeoUtilities(TermBased(..))
 -- Chase Modeuls:
 import Chase.Problem.Observation
 import Chase.Problem.Model
-import qualified CC.CC as CC
+import Chase.Problem.RelAlg.RelAlg
+import qualified Chase.Problem.RelAlg.Operations as OP
 import qualified RelAlg.DB as RA
 
 import Debug.Trace
@@ -29,18 +30,38 @@ import Debug.Trace
 {- A unique ID for every frame in the problem -}
 type ID = Int
 
-{-| Frame is a data structure corresponding to a geometric sequent in a problem. A Frame structure consists of the following parts:
+{-| Relational information for a sequent, correspoinding to a frame:
+  - bodyExp: a relational expression corresponding to the body of a sequent.
+  - bodyLbls: the labels (column headers) for the expression, corresponding to
+  the body.
+  - headExp: a relational expression corresponding to the head of a sequent.
+  - headLbls: the labels (column headers) for the expression, corresponding to
+  the head.
+ -}
+data RelInfo = RelInfo {
+      bodyExp :: (RelExp, Labels),
+      headExp :: [(RelExp, Labels)]
+}
+
+{-| Frame is a data structure corresponding to a geometric sequent in a problem.
+  A Frame structure consists of the following parts:
   - frameID: a unique ID for every Frame
-  - frameBody: a list of obs corresponding to the formula on left of a sequent. Every obs is equivalent to an atomic formula as a conjunct on the left of the sequent.
-  - frameHead: a list of list of obs corresponding to the formula on right of a sequent. The obs in the top level list are assumed to be disjuncted while the sobs within every inner list are conjuncted.
-  - frameVars: a list of free variables (universally quantified) that appear in the sequent.
+  - frameBody: a list of obs corresponding to the formula on left of a sequent.
+  Every obs is equivalent to an atomic formula as a conjunct on the left of the 
+  sequent.
+  - frameHead: a list of list of obs corresponding to the formula on right of a 
+  sequent. The obs in the top level list are assumed to be disjuncted while the 
+  obs within every inner list are conjuncted.
+  - frameVars: a list of free variables (universally quantified) that appear in 
+  the sequent.
+  - frameRelInfo: relational information for the frame.  
 -}
 data Frame = Frame {
-      frameID :: ID,
-      frameBody :: [Obs],
-      frameHead :: [[Obs]],
-      frameVars :: Vars,
-      frameOrig :: Sequent
+      frameID      :: ID,
+      frameBody    :: [Obs],
+      frameHead    :: [[Obs]],
+      frameVars    :: Vars,
+      frameRelInfo :: RelInfo
 }
 
 
@@ -56,47 +77,40 @@ instance Eq Frame where
 
 
 instance TermBased Frame where
-    liftTerm f (Frame id body head vars seq) = 
-        Frame { frameID = id
-              , frameBody = map (liftTerm f) body
-              , frameHead = map (liftTerm f) head
-              , frameVars = vars
-              , frameOrig = seq
+    liftTerm f (Frame id body head vars relInfo) = 
+        Frame { frameID      = id
+              , frameBody    = map (liftTerm f) body
+              , frameHead    = map (liftTerm f) head
+              , frameVars    = vars
+              , frameRelInfo = relInfo
               }
 
     freeVars = frameVars
 
-{-| SymbolMap is a map from every symbol (relation symbol or function symbol) to the IDs of frames in whose body they appear and the ordinal of the term in the body.
--}
-type SymbolMap = Map.Map Sym [(ID, Int)]
-
-{-| The new rewrite rules that are added to the model will be queued in a queue until their impact is pushed back to the list of frames.
--}
-type Queue = [CC.RWRule]
-
-{-| A problem represents keeps track of a branch of computation, which contains a geometric theory (a set of sequents) and a model. It also has a queue of deduced facts that are waiting to be processed.
-  - problemFrames: a list of frames corresponding to the sequents of the problem.
+{-| A problem represents keeps track of a branch of computation, which contains 
+  a geometric theory (a set of sequents) and a model. It also has a queue of 
+  deduced facts that are waiting to be processed.
+  - problemFrames: a list of frames corresponding to the sequents of the 
+  problem.
   - problemModel: a model corresponding to the problem.
   - problemQueue: a queue of the deduced facts to be processed.
   - problemSymbols: a list of symbols that appear in the left of frames.
-  - problemLastID: a convenient way of keeping track of the last ID assigned to the frames. This is used when new frames get instantiated.
-  - probelmLastConstant: keeps track of an index used to create a new element for satisfying an existential quantifier.
+  - problemLastID: a convenient way of keeping track of the last ID assigned to 
+  the frames. This is used when new frames get instantiated.
+  - probelmLastConstant: keeps track of an index used to create a new element 
+  for satisfying an existential quantifier.
 -}
 data Problem = Problem {
       problemFrames       :: [Frame],
       problemModel        :: Model,
-      problemQueue        :: Queue,
-      problemSymbols      :: SymbolMap,
       problemLastID       :: ID,
       problemLastConstant :: Int -- We may remove this later
 }
 
 instance Show Problem where
-    show (Problem frames model queue symbols _ _) =
+    show (Problem frames model _ _) =
         "-- FRAMES:\n" ++ (show frames) ++ "\n" ++
-        "-- MODEL: \n" ++ (show model) ++ "\n" ++
-        "-- QUEUE: \n" ++ (show queue) ++ "\n" ++
-        "-- SYMBOLS: \n" ++ (show symbols) ++ "\n"
+        "-- MODEL: \n" ++ (show model) ++ "\n"
 
 {-| ProbPool keeps track of the pool of problems. -}
 -- Currently, ProbPool is a Writer monad, as a logger, on top of

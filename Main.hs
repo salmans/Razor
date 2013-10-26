@@ -22,7 +22,6 @@ import Tools.GeoUnification
 import Chase.Problem.Model
 import Chase.Problem.Operations (sequentHolds)
 import Chase.Chase
-import CC.CC as CC
 -- ============================
 -- Main
 -- ============================
@@ -58,9 +57,9 @@ main = do
   -- Verify that every formula in the theory is true:
   let verifyMsg = 
           if Maybe.isJust model
-          then (let (Model trs domain) = Maybe.fromJust model 
-                    maps f = Utils.Utils.allMaps (freeVars f)
-                             $ filter (\e -> CC.normalForm trs e /= truth) domain
+          then (let mdl@(Model trs) = Maybe.fromJust model 
+                    domain = modelDomain mdl
+                    maps f = Utils.Utils.allMaps (freeVars f) domain
                     fmlas = concatMap insts inputFmlas'
                     insts = (\f -> map 
                                    (\s -> (liftTerm.lift) s f) 

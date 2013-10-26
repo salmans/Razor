@@ -73,8 +73,22 @@ Version 2.2
      for the formula not to be instantiated.
      
 
+Version 3.0
+     This version is a completely redesigned implementation of the chase based 
+     on relational algebra:
+     - Every formula is flattened in a preprocessing step and all function 
+     symbols are removed.
+     - For every sequent, a pair of relational expression corresponding to views
+     on left and right of the sequent are created. A chase step is then the 
+     process of pushing the tuples in the view on left, which do not exist in 
+     the view on right, to the view on right.
+     - The congruence closure algorithm is completely removed. In the absence
+     of function symbols, equality updates can be simply done by replacing an
+     element in the model with another element.
+     - Automatic testing (based on QuickCheck) is restored.
+
 
 Coming next:
-     - Modifying automatic testing to work with the new version.
-     - WeaklyAcyclic implementaiton.
-     - Improve the code and the algorithm for showing models.
+     - More efficient chase steps by implementing incremental view maintenance
+     - Bug fixes (for theories thyphone1_1.txt and thyphone1_2.txt)
+     - Rewriting Main.hs

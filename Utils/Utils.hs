@@ -279,3 +279,7 @@ listPower list 0 = [[]]
 listPower list 1 = [list]
 listPower list 2 = [x:[y]| x <- list, y <- list]
 listPower list n = [x:y| x <- list, y <- listPower list (n - 1)]
+
+maybeHead :: [a] -> Maybe a
+maybeHead []     = Nothing
+maybeHead (x:xs) = Just x
