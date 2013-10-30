@@ -6,7 +6,7 @@
 
 
 module Main where
-import System
+import System.Environment
 import System.FilePath
 import Debug.Trace
 import Control.Exception 

@@ -9,8 +9,9 @@ module Chase.Problem.IModel where
 import Data.List
 import qualified Data.Map as Map
 import Data.Maybe
-import Control.Applicative
 
+import Control.Applicative
+import qualified Control.Monad.State as State
 -- Logic Modules
 import Formula.SyntaxGeo
 import Utils.GeoUtilities
@@ -70,13 +71,14 @@ empty = Model emptyTables
 --empty = Model [] [truth]
 
 {-| Adds a list of new observations to the given model. It also returns a set 
-  of tables corresponding to the changes made in the database.
+  of tables corresponding to the changes made in the database. It needs a 
+  counter value to initialize new constants.
 -}
-add :: Model -> [Obs] -> (Model, Tables)
-add model@(Model tbls) obs =     
-    (Model newTables, changes)
-    where (newTables, changes) = OP.buildTables eqs tbls
-          eqs                 = map obsToEquation obs
+add :: Model -> Int -> [Obs] -> (Model, Tables, Int)
+add model@(Model tbls) c obs =
+    let ((newTables, deltas), c') = State.runState (OP.buildTables eqs tbls) c
+    in (Model newTables, deltas, c')
+    where eqs = map obsToEquation obs
 
 {- Convert an obs to a Equation -}
 obsToEquation :: Obs -> Equation

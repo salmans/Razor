@@ -6,6 +6,7 @@ import Data.List
 import qualified Data.Map as Map
 import Data.Maybe
 import Control.Applicative
+import Control.Monad
 
 -- Logic Modules
 import Formula.SyntaxGeo
@@ -31,6 +32,8 @@ type Table = DB.Set Record
 data TableRef  = RelTable Sym -- A table for a relation
                | FunTable Sym -- A table for a function
                | DomTable -- A table containing elements of the domain
+               | TmpTable -- A temporary table denoting equality between 
+                          -- elements (C-rules in Bachmair et al. definitions)
                  deriving (Eq, Ord, Show)
     
 
@@ -55,13 +58,21 @@ data RelExp = TblEmpty
 data Equation = Equ Term Term
               deriving (Show, Eq)
 
--- THIS HAS TO BE MOVED SOMEWHERE ELSE!
+instance TermBased Equation where
+    liftTerm f (Equ t1 t2) = 
+        Equ (liftTerm f t1) (liftTerm f t2)
+    freeVars (Equ t1 t2)   = union (freeVars t1) (freeVars t2)
+
 instance Functor DB.Set where
     fmap f (DB.Set x) = DB.Set (map f x)
 
 instance Applicative DB.Set where
     pure x                = DB.Set (pure x)
     DB.Set f <*> DB.Set x = DB.Set (f <*> x)
+
+-- instance Monad DB.Set where
+--     return x         = DB.Set (return x)
+--     (DB.Set x) >>= f = f x
 
 {- A column label is either a variable or Nothing -}
 type Label  = Maybe Var
@@ -369,10 +380,36 @@ unionSets (DB.Set s1) (DB.Set s2) = DB.Set $ union s1 s2
 
 {- Merges two sets of tables. The tables with the same key will be unioned. -}
 mergeSets :: Tables -> Tables -> Tables
-mergeSets t1 t2 =  Map.unionWith unionSets t1 t2
+mergeSets s1 s2 =  Map.unionWith unionSets s1 s2
+
+{- The same as Map.unionWith but limited to DB.Set elements. -}
+mergeSetsWith :: (DB.Set [Term] -> DB.Set [Term] -> DB.Set [Term]) 
+              -> Tables -> Tables -> Tables
+mergeSetsWith = Map.unionWith
+
+{- The same as Map.unionWithKey but limited to DB.Set elements. -}
+mergeSetsWithKey :: (TableRef -> DB.Set [Term] 
+                              -> DB.Set [Term] -> DB.Set [Term]) 
+                 -> Tables -> Tables -> Tables
+mergeSetsWithKey = Map.unionWithKey
 
 {- Merges a list of tables. The tables with the same key will be unioned. -}
 mergeAllSets :: [Tables] -> Tables
-mergeAllSets ts = Map.unionsWith unionSets ts
+mergeAllSets ss = Map.unionsWith unionSets ss
 
+{- The same as Map.unionsWith but limited to DB.Set elements. -}
+mergeAllSetsWith :: (DB.Set [Term] -> DB.Set [Term] -> DB.Set [Term]) 
+                 -> [Tables] -> Tables
+mergeAllSetsWith  = Map.unionsWith
+
+{- Implements Map.unionsWithKey (the method actually does not exist in Map) 
+   but limited to DB.Set elements. -}
+mergeAllSetsWithKey :: (TableRef -> DB.Set [Term] -> DB.Set [Term] 
+                              -> DB.Set [Term]) -> [Tables] -> Tables
+mergeAllSetsWithKey _ [] = Map.empty
+mergeAllSetsWithKey f ss = foldr1 (mergeSetsWithKey f) ss
+
+{- Merges a list of tables. The tables with the same key will be unioned. -}
+nubSet :: Eq a => DB.Set a -> DB.Set a
+nubSet (DB.Set xs) = DB.Set $ nub xs
 --------------------------------------------------------------------------------

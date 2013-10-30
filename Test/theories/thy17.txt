@@ -1,0 +1,3 @@
+-- An example for situations where applying concurrent substitutions on a sequent may result in non-minimal models.
+P(a()) & P(b()) & f(a()) = b() & f(b()) = a()
+P(x) => Q(b()) | Q(f(x))

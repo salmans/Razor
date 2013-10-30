@@ -23,13 +23,11 @@ module Utils.GeoUtilities (isVar,
                           subterms,
 --                          subtermPos,
 --                          replaceSubterms,
-                          Counter,
+                          Counter, freshVar, freshElement,
                           relConvert) where
 {- Salman: Unexported functions may be removed! -}
 -- 
-import Prelude 
-import List 
-import qualified Char 
+import qualified Data.List as List
 import qualified Data.Map as Map
 import Data.Map(Map)
 import qualified Tools.ListSet
@@ -279,10 +277,6 @@ replaceSubterms t1 t2 t3@(Fn f terms) =
     then t2
     else Fn f $ map (replaceSubterms t1 t2) terms
 
-
--- Convert for Relational Algebra
-type Counter = State.State Int
-
 {- Eliminates all function symbols in the sequents of a theory and replaces 
   them with relational symbols. -}
 relConvert :: Theory -> Theory
@@ -350,8 +344,8 @@ termRelConvert (Var v)   = return Nothing
 termRelConvert (Fn _ []) = return Nothing
 termRelConvert (Fn f ts) = do
   (fs', ts', vs') <- foldM foldFunc ([], [], []) ts
-  v         <- freshVar
-  let var   =  Var v
+  v               <- freshVar
+  let var         =  Var v
   return $ Just (andFmlas fs' (Atm (R f (ts' ++ [var]))), var, v:vs')
     where andFmlas  = \fmlas fmla -> foldr (\f1 f2 -> And f1 f2) fmla fmlas
           foldFunc  = \(ffs, fts, fvs) t -> -- for each subterm
@@ -370,10 +364,10 @@ termRelConvert (Fn f ts) = do
 
 -- Create additional sequents to enforce function integrity constraints.
 sequentFuncs :: Sequent -> [(Sym, Int)]
-sequentFuncs (Sequent bdy hd) = (functions bdy) `union` (functions hd)
+sequentFuncs (Sequent bdy hd) = (functions bdy) `List.union` (functions hd)
 
 theoryFuncs :: Theory -> [(Sym, Int)]
-theoryFuncs thy = filter (\(_, a) -> a /= 0) $ nub $ concatMap sequentFuncs thy
+theoryFuncs thy = filter (\(_, a) -> a /= 0) $ List.nub $ concatMap sequentFuncs thy
 
 integritySequents :: [(Sym, Int)] -> [Sequent]
 integritySequents fs = seq <$> fs
@@ -381,10 +375,18 @@ integritySequents fs = seq <$> fs
           lft (f, a) = parseFormula (f ++ "(" ++ (vars a) ++ ",y ) & "
                                        ++
                                      f ++ "(" ++ (vars a) ++ ",y')")
-          vars  a    = concat $ intersperse "," (vs a)
+          vars  a    = concat $ List.intersperse "," (vs a)
           vs a       = (\i -> ("x" ++ show i)) <$> [1.. a]
 ---------------------------------------------
+-- Convert for Relational Algebra
+type Counter = State.State Int
+
 freshVar :: Counter Var
 freshVar = get >>= 
            (\c -> put (c + 1) >> 
            (return $ "x#" ++ (show c)))
+
+freshElement :: Counter Term
+freshElement = get >>=
+               (\c -> put (c + 1) >>
+               (return $ Elm $ "e#" ++ (show c)))

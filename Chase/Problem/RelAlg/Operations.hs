@@ -2,6 +2,7 @@
   A wrapper around IOperations.
 -}
 module Chase.Problem.RelAlg.Operations 
-    (lookupConstant,
+    (initConstant,
+     lookupConstant,
      buildTables) where
 import Chase.Problem.RelAlg.IOperations

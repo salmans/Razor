@@ -37,7 +37,7 @@ import Tools.Logger
 -}
 chase :: Theory -> [Model]
 chase thy = 
---    (trace.show) log
+    -- (trace.show) log
     map problemModel $ probs
     where problem           = buildProblem (relConvert thy) 
           -- Create the initial problem (get rid of function symbols)
@@ -69,9 +69,9 @@ mapModels f ms =
               let (os, c') = deduceForFrame c m f
               in if null os                                            
                  then (m, rs, c):res
-                 else let ms' = map (Model.add m) os
-                      in (map (\(m', rs') -> 
-                                   (m', mergeSets rs rs', c')) ms') ++ res
+                 else let ms' = map (Model.add m c') os
+                      in  (map (\(m', rs', c'') -> 
+                                    (m', mergeSets rs rs', c'')) ms') ++ res
 
 {- For a frame whose body is empty, returns a pair containing a list of list of 
    obs, which are deduced from the right of the frame. Every item in an inner 
@@ -181,13 +181,13 @@ process = do
 newProblems :: Problem -> Maybe [Problem]
 newProblems problem@(Problem frames model lastID lastConst) =
     case newModels frames model lastConst of
-      Nothing      -> Nothing
-      Just []      -> Just []
-      Just models  -> Just $ map (\(m, _, c) -> 
-                               Problem { problemFrames       = frames
-                                       , problemModel        = m
-                                       , problemLastID       = lastID
-                                       , problemLastConstant = c}) models
+      Nothing     -> Nothing
+      Just []     -> Just []
+      Just models -> Just $ map (\(m, _, c) -> 
+                                 Problem { problemFrames       = frames
+                                         , problemModel        = m
+                                         , problemLastID       = lastID
+                                         , problemLastConstant = c}) models
 
 -- Three helpers for newProblems:
 -- Salman: add more explanation.
@@ -205,11 +205,17 @@ newModelsForFrame frame model counter =
     case newFacts counter model frame of
       Nothing      -> Nothing
       Just ([], _) -> Just []
-      Just (os, c) -> let ms = map (Model.add model) os
-                      in Just $ map (\(m, rs) -> (m, rs, c)) ms
+      Just (os, c) -> let ms = map (Model.add model c) os
+                      in Just $ map (\(m, rs, c') -> (m, rs, c')) ms
 
 newFacts :: Int -> Model -> Frame -> Maybe ([[Obs]], Int)
 newFacts counter model frame = 
+    -- trace "--------------------"
+    -- (trace.show) model
+    -- (trace.show) frame
+    -- (trace.show) subs
+    -- trace "===================="
+    -- $
     if   null subs
          -- It sucks that we have to check this here!
     then Just $ ([], counter)
@@ -223,5 +229,10 @@ newFacts counter model frame =
           -- For now just use the first sub and drop the rest!
           -- Also, let's just lift the body for now!
 
-doChase thy = chase $ map parseSequent thy
+doChase thy  = chase  $ map parseSequent thy
 doChase' thy = chase' $ map parseSequent thy
+
+
+-- creates too many isomorphic modesl:
+-- testThy = ["P(a()) & P(b()) & f(a()) = b() & f(b()) = a()",
+--           "P(x) => Q(b()) | Q(f(x))"] 
