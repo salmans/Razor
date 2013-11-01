@@ -29,8 +29,9 @@ type Record = [Term]
 type Table = DB.Set Record
 
 {- Different types of tables: -}
-data TableRef  = RelTable Sym -- A table for a relation
-               | FunTable Sym -- A table for a function
+data TableRef  = ConTable Sym -- constant tables
+               | RelTable Sym -- relation tables
+               | FunTable Sym -- function tables
                | DomTable -- A table containing elements of the domain
                | TmpTable -- A temporary table denoting equality between 
                           -- elements (C-rules in Bachmair et al. definitions)
@@ -135,10 +136,16 @@ atomRelExp a@(R "=" [t1, t2]) =
     let res1 = termRelExp t1
         res2 = termRelExp t2
     in  equalityRelExp res1 res2
-atomRelExp a@(R sym ts)       = 
+atomRelExp a@(F sym ts)       = atomTable (FunTable sym) ts
+atomRelExp a@(R sym ts)       = atomTable (RelTable sym) ts
+
+{- A helper for atomRelExp that can be used for constructing both relation and
+   function tables. -}
+atomTable :: TableRef -> [Term] -> (RelExp, Labels)
+atomTable ref ts = 
     let exp = if vPairs == [] && ePairs == []
-              then Tbl (RelTable sym)
-              else Slct (Tbl (RelTable sym)) vPairs ePairs
+              then Tbl ref
+              else Slct (Tbl ref) vPairs ePairs
     in  foldl foldFunc (exp, lbls) $ zip ts [0..]
                   -- Select the records that match the terms of the relation
     where ePairs = elmPreds ts 
@@ -156,10 +163,10 @@ atomRelExp a@(R sym ts)       =
                      -- dealt with in varPreds
                      Elm _     -> (exp, ls)
                      -- dealt with in elmPreds
-                     Fn c []   -> (Join exp (Tbl (FunTable c)) [(i, 0)]
+                     Fn c []   -> (Join exp (Tbl (ConTable c)) [(i, 0)]
                                   , ls ++ [Nothing])
                      -- nothing left but constants
-                     otherwise -> error $ "Chase.Problem.IRelAlg.atomRelExp: " ++
+                     otherwise -> error $ "Chase.Problem.IRelAlg.atomTable: " ++
                                   "function symbols are not permitted!"
 
 {- Creates a join expression for two input relational expressions and their
@@ -182,7 +189,7 @@ equalityRelExp (exp1, lbls1) (exp2, lbls2) =
 {- Creates a relational expression and a set of labels for a given term -}
 termRelExp :: Term -> (RelExp, Labels)
 termRelExp (Var v)   = (Tbl DomTable, [Just v])
-termRelExp (Fn c []) = (Tbl (FunTable c), [Nothing])
+termRelExp (Fn c []) = (Tbl (ConTable c), [Nothing])
 termRelExp _         = error $ "Chase.Problem.IRelAlg.termRelExp: function " ++
                        "symbols are not permitted!"
 

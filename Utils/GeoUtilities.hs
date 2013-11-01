@@ -75,17 +75,23 @@ instance TermBased Term where
 --
 instance TermBased Atom where
     liftTerm f (R sym terms) = R sym (map f terms)
+    liftTerm f (F sym terms) = F sym (map f terms)
 
     freeVars (R _ args) = Tools.ListSet.unions (map freeVars args)
+    freeVars (F _ args) = Tools.ListSet.unions (map freeVars args)
     
-    toTerm (R sym terms) = Just $ Fn sym terms
+    toTerm (R sym terms) = Just $ Rn sym terms
+    toTerm (F sym terms) = Just $ Fn sym terms
 
     fromTerm (Var _) = Nothing
-    fromTerm (Fn sym ts) = Just $ R sym ts
+    fromTerm (Rn sym ts) = Just $ R sym ts
+    fromTerm (Fn sym ts) = Just $ F sym ts
     fromTerm (Elm elm) = Just $ R elm []
 --
 instance TermBased Formula where
-    liftTerm f = onAtoms(\(R p a) -> Atm(R p (map f a)))
+    liftTerm f = onAtoms (\atm -> case atm of
+                                    (R p a) -> Atm(R p (map f a))
+                                    (F p a) -> Atm(F p (map f a)))
 
     freeVars fm = case fm of
                     Tru -> []
@@ -346,7 +352,7 @@ termRelConvert (Fn f ts) = do
   (fs', ts', vs') <- foldM foldFunc ([], [], []) ts
   v               <- freshVar
   let var         =  Var v
-  return $ Just (andFmlas fs' (Atm (R f (ts' ++ [var]))), var, v:vs')
+  return $ Just (andFmlas fs' (Atm (F f (ts' ++ [var]))), var, v:vs')
     where andFmlas  = \fmlas fmla -> foldr (\f1 f2 -> And f1 f2) fmla fmlas
           foldFunc  = \(ffs, fts, fvs) t -> -- for each subterm
               do
@@ -372,11 +378,9 @@ theoryFuncs thy = filter (\(_, a) -> a /= 0) $ List.nub $ concatMap sequentFuncs
 integritySequents :: [(Sym, Int)] -> [Sequent]
 integritySequents fs = seq <$> fs
     where seq fa     = Sequent (lft fa) (parseFormula "y = y'")
-          lft (f, a) = parseFormula (f ++ "(" ++ (vars a) ++ ",y ) & "
-                                       ++
-                                     f ++ "(" ++ (vars a) ++ ",y')")
-          vars  a    = concat $ List.intersperse "," (vs a)
-          vs a       = (\i -> ("x" ++ show i)) <$> [1.. a]
+          lft (f, a) = And (Atm (F f (vars a ++ [Var "y" ])))
+                           (Atm (F f (vars a ++ [Var "y'"])))
+          vars a     = (\i -> Var ("x" ++ show i)) <$> [1.. a]
 ---------------------------------------------
 -- Convert for Relational Algebra
 type Counter = State.State Int

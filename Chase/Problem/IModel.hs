@@ -50,6 +50,8 @@ instance Show Model where
                       (concat $ (\(tr, t) -> showTable tr t) <$> list)
 
 showTable  DomTable tbl      = []
+showTable (ConTable sym) tbl = show sym ++ " = "
+                               ++ show (DB.toList tbl) ++ "\n"
 showTable (RelTable sym) tbl = show sym ++ " = "
                                ++ show (DB.toList tbl) ++ "\n"
 showTable (FunTable sym) tbl = show sym ++ " = "
@@ -76,7 +78,8 @@ empty = Model emptyTables
 -}
 add :: Model -> Int -> [Obs] -> (Model, Tables, Int)
 add model@(Model tbls) c obs =
-    let ((newTables, deltas), c') = State.runState (OP.buildTables eqs tbls) c
+    let ((newTables, deltas), c') = 
+            State.runState (OP.buildTables eqs tbls emptyTables) c
     in (Model newTables, deltas, c')
     where eqs = map obsToEquation obs
 
@@ -95,15 +98,19 @@ isTrue (Model tbls) obs@(Den t) =
                        -- exceptional case.
       True -> True
       False -> error $ err_ChaseProblemModel_IsTruthDen
+isTrue (Model tbls) obs@(Fct (F s ts)) = 
+    ts' `elem` (DB.toList $ Map.findWithDefault (DB.Set []) (FunTable s) tbls)
+    where ts' = (\t -> case OP.lookupConstant t tbls of 
+                         Nothing -> t
+                         Just t' -> t') <$> ts
 isTrue (Model tbls) obs@(Fct (R s ts)) = 
     ts' `elem` (DB.toList $ Map.findWithDefault (DB.Set []) (RelTable s) tbls)
     where ts' = (\t -> case OP.lookupConstant t tbls of 
                          Nothing -> t
                          Just t' -> t') <$> ts
 isTrue (Model tbls) (Eql t1 t2) = 
-    if evaluate == Nothing then False else True
-    where constOf t = OP.lookupConstant t tbls
-          evaluate = do
-            c1 <- constOf t1
-            c2 <- constOf t2
-            return $ c1 == c2
+  let evaluate = do
+        c1 <- OP.lookupConstant t1 tbls
+        c2 <- OP.lookupConstant t2 tbls
+        return $ c1 == c2
+  in if evaluate == Nothing then False else fromJust evaluate

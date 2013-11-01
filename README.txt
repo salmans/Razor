@@ -92,3 +92,19 @@ Coming next:
      - More efficient chase steps by implementing incremental view maintenance
      - Bug fixes (for theories thyphone1_1.txt and thyphone1_2.txt)
      - Rewriting Main.hs
+
+
+Version 3.1
+    - This version includes major bug fixes: all of the test theories are 
+    passed.
+    - In order to implement a built-in congruence closure, new functions for
+    generating equations to enforce integrity among function symbols are added
+    added to Chase.Problem.RelAlg.Operations.
+    - Functions and relations are now distinguishable even when we are treating
+    functions as relations and relations as functions.
+
+Yet to come:
+    - More efficient chase steps through incremental view maintenance.
+    - Rewriting Main.hs.
+    - Efficient congruence closure implementation.
+    - Improving the efficiency of the code as indicated by comments.

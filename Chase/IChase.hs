@@ -231,8 +231,3 @@ newFacts counter model frame =
 
 doChase thy  = chase  $ map parseSequent thy
 doChase' thy = chase' $ map parseSequent thy
-
-
--- creates too many isomorphic modesl:
--- testThy = ["P(a()) & P(b()) & f(a()) = b() & f(b()) = a()",
---           "P(x) => Q(b()) | Q(f(x))"] 

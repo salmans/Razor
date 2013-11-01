@@ -25,10 +25,13 @@ import qualified RelAlg.DB as DB
 {-| Updates a set of tables with a list a new equations. Given an empty set of 
   equations, this function returns the input set of tables, together with a
   set of tables containing the changes made to the input tables. -}
-buildTables :: [Equation] -> Tables -> Counter (Tables, Tables)
-buildTables eqs tbls = do
-  (tbls', deltas', eqs') <- buildTables' eqs tbls emptyTables
-  return (tbls', deltas')
+buildTables :: [Equation] -> Tables -> Tables -> Counter (Tables, Tables)
+buildTables eqs tbls delts = do
+  (tbls', delts', eqs') <- buildTables' eqs tbls delts
+  let ints              =  integrities tbls'
+  if   null ints
+  then return (tbls', delts')
+  else buildTables ints tbls' delts'
 
 
 {- A helper for buildTables, which passes the input equations around in order
@@ -87,9 +90,15 @@ processEquation _ _ = error "CC.RelAlg.processEquation: invalid equation"
 -- Salman: do not convert relational facts to terms since we don't have 
 -- function symbols any more!
 insertRecord :: Term -> Tables -> Tables -> Counter (Tables, Tables)
-insertRecord (Fn f ts) tbls deltas = do
+insertRecord (Fn f ts) tbls delts = insertHelper (FunTable f) ts tbls delts
+insertRecord (Rn r ts) tbls delts = insertHelper (RelTable r) ts tbls delts
+ 
+{- A helper for insert record to deal with both function and relation tables. -}
+insertHelper :: TableRef -> [Term] -> Tables -> Tables -> 
+                Counter (Tables, Tables)
+insertHelper ref ts tbls deltas = do
   (rs, cs)     <- foldM (foldFunc) (tbls,[]) ts
-  let r        =  Map.singleton (RelTable f) (DB.Set [cs])
+  let r        =  Map.singleton ref (DB.Set [cs])
   let deltas'  =  mergeSets r rs
   let tbls'    =  mergeSets tbls deltas'
   return (tbls', mergeSets deltas deltas')
@@ -99,7 +108,6 @@ insertRecord (Fn f ts) tbls deltas = do
         unionFunc k = if k == DomTable then unionSets else const 
         -- Maintain the elements of the domain table but replace the elements
         -- of FunTables in order to assige every constant to only one value.
-
           
 {- Given an input constant, returns the element in the model denoted by the 
    constant. If such an element does not exist, creates a new element and 
@@ -109,7 +117,7 @@ initConstant :: Tables -> Term -> Counter (Tables, Term)
 initConstant tbls t@(Fn s []) = do
   fresh    <- freshElement
   let recs = Map.fromList [(DomTable, DB.Set [[fresh]]),
-                                   (FunTable s, DB.Set [[fresh]])]
+                                   (ConTable s, DB.Set [[fresh]])]
   case t' of
     Just t'' -> return (Map.empty, t'')
     Nothing  -> return (recs, fresh)
@@ -122,7 +130,7 @@ initConstant tbls t@(Elm _) = return (tbls, t)
  element denoted by that constant (or element) if it exists. -}
 lookupConstant :: Term -> Tables -> Maybe Term
 lookupConstant (Fn c []) tbls =
-    case Map.lookup (FunTable c) tbls of
+    case Map.lookup (ConTable c) tbls of
       Nothing -> Nothing
       Just t  -> let set = DB.toList t
                  in  if   null set 
@@ -164,6 +172,25 @@ updateTerm t1 t2 t@(Fn f ts) =
     then t2 
     else Fn f (updateTerm t1 t2 <$> ts)
 
--- -- Creates a fresh constant
--- freshConstant :: Int -> Term
--- freshConstant counter = Elm $ "const" ++ (show counter)
+
+{- Returns all the equations that enforce integrity constraints in the current
+   state of the model. -}
+integrities :: Tables -> [Equation]
+integrities tbls = concatMap integrity sets
+    where sets = Map.elems $ Map.filterWithKey (\k _ -> isFunTable k) tbls
+          -- filter only function tables
+
+
+isFunTable :: TableRef -> Bool
+isFunTable (FunTable _) = True
+isFunTable _            = False
+
+{- Assuming that the input set is a FunTable, creates new equations to enforce
+   integrity constraints over the function corresponding to the table. -}
+integrity :: DB.Set [Term] -> [Equation]
+integrity set = [Equ c1 c2 | ts1 <- list, ts2 <- list
+                , let c1   =  last ts1
+                , let c2   =  last ts2
+                , init ts1 == init ts2
+                , last ts1 /= last ts2]
+    where list = DB.toList set

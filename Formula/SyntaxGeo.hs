@@ -38,10 +38,15 @@ type Sym = String
 data Term = Var Var
           | Elm Sym -- reserved for elements of domains
           | Fn Sym [Term]
+          | Rn Sym [Term] -- Just like Fn but for cases where we treat relations
+                          -- like functions.
+            -- Salman: this is not idea!
             deriving (Eq, Ord)
             --deriving (Eq, Ord, Show)
 
 data Atom = R Sym [Term]
+          | F Sym [Term] -- Just like R but for cases where we treat functions
+                         -- like relations.
            deriving (Eq, Ord)
            --deriving (Eq, Ord, Show)
 
@@ -75,12 +80,13 @@ prettyFormula fmla = case fmla of
 prettyTerm :: Term -> String
 prettyTerm t = case t of
      (Fn f ts) -> f ++ "(" ++ (intercalate "," (map prettyTerm ts)) ++ ")"
+     (Rn f ts) -> f ++ "(" ++ (intercalate "," (map prettyTerm ts)) ++ ")"
      (Var v) -> v
      (Elm e) -> e
 
 prettyAtom :: Atom -> String
 prettyAtom (R sym ts) = sym ++ "(" ++ (intercalate "," (map prettyTerm ts)) ++ ")"
-
+prettyAtom (F sym ts) = sym ++ "(" ++ (intercalate "," (map prettyTerm ts)) ++ ")"
 --
 -- Some pretty-printing tools
 --

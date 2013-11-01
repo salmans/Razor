@@ -1,5 +1,6 @@
 {-|
-  An observation defines a data structure that denotes an element in the model as well as the equality between to elements.
+  An observation defines a data structure that denotes an element in the model 
+  as well as the equality between to elements.
 -}
 module Chase.Problem.Observation where
 
@@ -49,19 +50,23 @@ instance TermBased Obs where
 obsFuncSyms :: Obs -> [Sym]
 obsFuncSyms obs = termFuncSyms $ obsToTerm obs
                   
-{-| Converts an Obs to a Term. This function is primarily used to make it possible to use Term matching functions over Obs.
+{-| Converts an Obs to a Term. This function is primarily used to make it 
+  possible to use Term matching functions over Obs.
 -}
 obsToTerm :: Obs -> Term
 obsToTerm (Den t) = t
 obsToTerm (Eql t1 t2) = Fn "=" [t1, t2]
 obsToTerm (Fct a) = fromJust $ toTerm a
 
-{-| Converts a Term to a Obs. The purpose of this function is to convert terms that have been produced using obsToTerm back to their Obs form.
-  NOTE: determining whether a term represents a fact or a denotaion is not possible. For now, the caller passes an extra parameter to determine whether the output has to be a fact or a denotation.
+{-| Converts a Term to a Obs. The purpose of this function is to convert terms 
+  that have been produced using obsToTerm back to their Obs form.
+  NOTE: determining whether a term represents a fact or a denotaion is not 
+  possible. For now, the caller passes an extra parameter to determine whether 
+  the output has to be a fact or a denotation.
 -}
 termToObs :: Bool -> Term -> Obs
-termToObs _ (Fn "=" [t1, t2]) = Eql t1 t2
-termToObs _ (Fn "=" _) = error $ "Chase.Problem.Operations.termToObs: " ++
+termToObs _ (Rn "=" [t1, t2]) = Eql t1 t2
+termToObs _ (Rn "=" _) = error $ "Chase.Problem.Operations.termToObs: " ++
                          "equality must have only two parameters!"
 termToObs isFact t = 
       case isFact of 

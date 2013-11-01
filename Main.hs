@@ -65,7 +65,6 @@ main = do
                                    (\s -> (liftTerm.lift) s f) 
                                    (maps f)) 
                 in
---                  (trace (show (filter (\s -> (sequentHolds (Maybe.fromJust model) s)) fmlas)))
                 (case all (\s -> (sequentHolds (Maybe.fromJust model) s)) 
                           fmlas of
                 True -> "Verified!"

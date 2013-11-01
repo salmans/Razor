@@ -197,15 +197,20 @@ sequentHolds model (Sequent b h) =
 formulaHolds :: Model -> Formula -> Bool
 formulaHolds _ Fls = False
 formulaHolds _ Tru = True
+formulaHolds model atom@(Atm atm@(F sym terms)) =
+    Model.isTrue model obs
+    where obs = termToObs True $ (fromJust.toTerm) atm --not great!!
 formulaHolds model atom@(Atm atm@(R sym terms)) =
     Model.isTrue model obs
     where obs = termToObs True $ (fromJust.toTerm) atm --not great!!
 formulaHolds model (Or p q) = fmlaHolds p || fmlaHolds q
     where fmlaHolds = formulaHolds model
-formulaHolds model (And p q) = fmlaHolds p && fmlaHolds q
+formulaHolds model (And p q) = 
+    fmlaHolds p && fmlaHolds q
     where fmlaHolds = formulaHolds model
 formulaHolds model@(Model trs) (Exists x p) = 
     let makeSub    = Map.singleton x
         liftWith e = (liftTerm.lift) (makeSub e) p
-    in or $ map ((formulaHolds model).liftWith) domain
+    in
+      or $ map ((formulaHolds model).liftWith) domain
     where domain = modelDomain model
