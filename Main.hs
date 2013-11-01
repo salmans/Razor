@@ -8,6 +8,7 @@
 module Main where
 import System.Environment
 import System.FilePath
+import System.Time
 import Debug.Trace
 import Control.Exception 
 import Data.List
@@ -48,8 +49,14 @@ main = do
       realLines =  filter Utils.Utils.isRealLine inputLines     :: [String]
       inputFmlas =  map parseSequent realLines     :: [Sequent]
 
+  time1 <- getClockTime
   -- get the answer
   let model  = chase' inputFmlas
+  time2 <- getClockTime
+
+  let diffTime = diffClockTimes time2 time1
+
+  putStrLn $ "Execution time:" ++ (show diffTime)
 
   -- Remove functions from the input sequents, like what the chase does:
   let inputFmlas' = relConvert inputFmlas

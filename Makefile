@@ -8,7 +8,7 @@ clean:
 	-rm *.hi *.o
 
 realclean: clean
-	-rm go
+	-rm Main.hs
 
 rc: realclean
 
