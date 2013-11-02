@@ -53,6 +53,6 @@ main = do
   let model  = chase' inputFmlas
   time2 <- getClockTime
 
-  let diffTime = diffClockTimes time2 time1
+  let diffTime = tdPicosec $ diffClockTimes time2 time1
 
-  putStrLn $ "Execution time:" ++ (show diffTime)
+  putStrLn $ inputFileName ++ "\t" ++ (show diffTime)

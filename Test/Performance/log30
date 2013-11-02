@@ -3,10 +3,11 @@
 # Executable name is Main
 #
 
+
 for i in {1..30}
 do
     for file in ../theories/thy*.txt; 
     do echo $file;
-	./PerformanceLogger "$file" >> test_results_`date +%m-%d-%y-%Hh:%Mm_$i`;
+	./PerformanceLogger "$file" >> test_results_`date +%m-%d-%y-%Hh:%Mm_$i`.txt;
     done
 done
