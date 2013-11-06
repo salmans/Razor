@@ -32,14 +32,35 @@ import Utils.Utils (allMaps, prodList, allSublists, allCombinations)
 import Debug.Trace
 import Tools.Logger
 
-{-| This is the main chase function, which tries to find the set of all the 
-  models for a given geometric theory.
+
+{-| Runs the chase for a given input theory, starting from an empty model.
 -}
 chase :: Theory -> [Model]
-chase thy = 
+chase thy = runChase Nothing thy
+
+{-| Like chase, but returns only the first model found.
+-}
+chase' :: Theory -> Maybe Model
+chase' thy = Maybe.listToMaybe $ chase thy
+
+{-| Runs the chase for a set of input theories over an input (partial) model. -}
+chaseWithModel :: Model -> Theory -> [Model]
+chaseWithModel mdl thy = runChase (Just mdl) thy 
+
+{-| This is the main chase function, which tries to find the set of all the 
+  models for a given geometric theory.
+  Parameters:
+  - A geometric theory, thy
+  - Possibly a starting (partial) model, mdl
+-}
+runChase :: Maybe Model -> Theory -> [Model]
+runChase mdl thy =
     -- (trace.show) log
     map problemModel $ probs
-    where problem           = buildProblem (relConvert thy) 
+    where initialProblem    = buildProblem (relConvert thy) 
+          problem           = case mdl of
+                                Nothing -> initialProblem
+                                Just m  -> initialProblem {problemModel = m}
           -- Create the initial problem (get rid of function symbols)
           writer            = State.runStateT run [] 
                               -- the wrapper Writer monad for logging
@@ -48,10 +69,6 @@ chase thy =
           run               = scheduleProblem problem >>= (\_ -> 
                               process) -- schedule the problem, then process it
 
-{-| Like chase, but returns only the first model found.
--}
-chase' :: Theory -> Maybe Model
-chase' thy = Maybe.listToMaybe $ chase thy
 
 {- Given an input frame and a list of models together with new records being 
    added to each model (as the result of applying this function on previous 
