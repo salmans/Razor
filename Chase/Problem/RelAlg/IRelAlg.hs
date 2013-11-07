@@ -49,10 +49,18 @@ emptyTables = Map.singleton DomTable (DB.Set [])
    (without disjunction) -}
 data RelExp = TblEmpty
             | TblFull
-            | Tbl  TableRef
-            | Proj RelExp [Int]
-            | Slct RelExp [(Int, Int)] [(Int, Term)]
-            | Join RelExp RelExp [(Int, Int)]
+            | Tbl   TableRef
+            | Proj  RelExp [Int]
+            | Slct  RelExp [(Int, Int)] [(Int, Term)]
+            | Join  RelExp RelExp [(Int, Int)]
+            | Delt  RelExp
+            | Union RelExp RelExp RelExp RelExp [(Int, Int)] 
+              -- A union expression represents a union of three components of
+              -- a diffrential formula corresponding to a join expression:
+              -- P |X| Q = P |X| dQ + dQ |X| dP + dP |X| Q
+              -- The parameters of Union are respectively:
+              -- Expression P, expression dP, expression Q, expression dQ, and
+              -- the join pair (which works for all three join expressions).
             deriving (Show, Eq)
 
 {- An equation is a pair of terms -}
@@ -215,34 +223,63 @@ varPreds ts =
               else pairs
           pairsOf pos        = (\t -> (head pos, t)) <$> (tail pos)
 
-{-| Evaluates a relational expression in a set of tables as the database. -}
-evaluateRelExp :: Tables -> RelExp -> DB.Set [Term]
-evaluateRelExp _ TblEmpty = DB.Set []
-evaluateRelExp _ TblFull  = DB.Set [[Elm "True"]]
-evaluateRelExp tbls (Tbl t) = 
-    case Map.lookup t tbls of      
-      Just t' -> t'
-      Nothing -> DB.Set []
-evaluateRelExp tbls (Proj exp inds) = 
+{-| Computes a differential relational expression for an input relational 
+  expression. The differential expression is used for incremental view 
+  maintenance. -}
+delta :: RelExp -> RelExp
+delta TblEmpty             = TblEmpty
+delta TblFull              = TblFull -- This assumes sequents with TblFull on
+  -- their left are processed once at the beginning and will be never processed
+  -- again.
+delta exp@(Tbl tbl)        = Delt exp
+delta (Proj exp inds)      = Proj (delta exp) inds
+delta (Slct exp vPs ePs)   = Slct (delta exp) vPs ePs
+delta (Join exp1 exp2 ps)  = Union exp1 dlt1 exp2 dlt2 ps
+    where dlt1 = delta exp1
+          dlt2 = delta exp2
+delta _                    = error $ "Chase.Problem.RelAlg.delta: invalid"
+                             ++ " relational expression"
+
+{-| Evaluates a relational expression in a set of tables as the database and a 
+  set of tables corresponding to the last changes in those tables. -}
+evaluateRelExp :: Tables -> Tables -> RelExp -> DB.Set [Term]
+evaluateRelExp _ _ TblEmpty = DB.Set []
+evaluateRelExp _ _ TblFull  = DB.Set [[Elm "True"]]
+evaluateRelExp tbls _ (Tbl t) = 
+    fromMaybe (DB.Set []) (Map.lookup t tbls)
+evaluateRelExp _ delts (Delt (Tbl t)) = 
+    fromMaybe (DB.Set []) (Map.lookup t delts)
+evaluateRelExp tbls delts (Proj exp inds) =
     if    null (DB.toList projected)
     then  if   (not.null) (DB.toList set)
-          then evaluateRelExp tbls TblFull
-          else evaluateRelExp tbls TblEmpty
+          then evaluateRelExp tbls delts TblFull
+          else evaluateRelExp tbls delts TblEmpty
     else  projected
-    where set       = evaluateRelExp tbls exp
+    where set       = evaluateRelExp tbls delts exp
           projected = DB.project (buildProjPred inds) set
-evaluateRelExp tbls (Slct exp vPairs ePairs) =
+evaluateRelExp tbls delts (Slct exp vPairs ePairs) =
     DB.select pred set
-    where set   = evaluateRelExp tbls exp
+    where set   = evaluateRelExp tbls delts exp
           pred  = DB.Pred $ \x -> vPred x && ePred x
           vPred = \x -> and $ (\(p1, p2) -> x !! p1 == x !! p2) <$> vPairs
           ePred = \x -> and $ (\(p,  t ) -> x !! p  == t      ) <$> ePairs
-evaluateRelExp tbls (Join exp1 exp2 pairs) = 
+evaluateRelExp tbls delts (Join exp1 exp2 ps) = 
     mergeSetPairs $ DB.join pred set1 set2
-    where set1  = evaluateRelExp tbls exp1
-          set2  = evaluateRelExp tbls exp2
+    where set1  = evaluateRelExp tbls delts exp1
+          set2  = evaluateRelExp tbls delts exp2
           pred  = DB.Pred $ \(x,y) -> 
-                  and $ (\(p1, p2) -> x !! p1 == y !! p2) <$> pairs
+                  and $ (\(p1, p2) -> x !! p1 == y !! p2) <$> ps
+evaluateRelExp tbls delts (Union exp1 dlt1 exp2 dlt2 ps) = 
+    let set1 = mergeSetPairs $ DB.join pred sExp1 sDlt2
+        set2 = mergeSetPairs $ DB.join pred sDlt1 sExp2
+        set3 = mergeSetPairs $ DB.join pred sDlt1 sDlt2
+    in  unionSets set1 $ unionSets set1 set2
+    where sExp1 = evaluateRelExp tbls delts exp1
+          sExp2 = evaluateRelExp tbls delts exp2
+          sDlt1 = evaluateRelExp tbls delts dlt1
+          sDlt2 = evaluateRelExp tbls delts dlt2
+          pred  = DB.Pred $ \(x,y) -> 
+                  and $ (\(p1, p2) -> x !! p1 == y !! p2) <$> ps
 
 -- Helper
 {- Returns a list of labels (as needed by _RelExp functions) for a given set
@@ -315,7 +352,7 @@ diff bdy@(DB.Set set, _) hds = -- if hds is empty
           conds = foldr1 (zipWith (&&)) diffs
 
 {- A helper for diff that evaluates the left against only one of the tables on
- right. -}
+   right. -}
 diffHelper :: (Table, Labels) -> (Table, Labels) -> [Bool]
 diffHelper (bdySet, bdyLbls) (hdSet, hdLbls) = 
     (\t -> not (t `elem` hdSet')) <$> bdySet'

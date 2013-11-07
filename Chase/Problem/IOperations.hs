@@ -51,27 +51,28 @@ err_ChaseProblemOperations_OpenFmla =
 err_ChaseProblemOperations_NarrowDen = 
     "Chase.Problem.Operations.narrowObs: narrowing " ++
     "is not defined for denotation observations."
-{-| Creates a problem corresponding to a given geometric theory.
--}
+
+{-| Creates a problem corresponding to a given geometric theory. -}
 buildProblem :: Theory -> Problem
 buildProblem thy = problem
-    -- State.put [problem] >>= \_ -> return ()
     where frms = zipWith (\x y -> buildFrame x y) [1..] thy
           -- convert sequents to frames and assign IDs to them.
           problem =     Problem { problemFrames       = frms 
                                 , problemModel        = Model.empty 
+                                , problemQueue        = []
                                 , problemLastID       = length thy 
                                 , problemLastConstant = 0}
 
-
-{-| Updates a problem by adding new frames to its theory. It updates problem's symbol map accordingly.
+{-| Updates a problem by adding new frames to its theory. It updates problem's 
+  symbol map accordingly.
 -}
 extendProblem :: Problem -> [Frame] -> Problem
-extendProblem (Problem oldFrames model last lastConst) 
+extendProblem (Problem oldFrames model queue last lastConst) 
               frames =
     Problem { problemFrames       = (union oldFrames newFrames) 
-            , problemModel        = model 
-            , problemLastID       = newLastID
+            , problemModel        = model
+            , problemQueue        = queue
+            , problemLastID       = newLastID              
             , problemLastConstant = lastConst}
         -- REMARK: the two set of frames have to be unined; otherwise, the chase may
         -- never terminate (as for thyphone1_2)
@@ -80,8 +81,10 @@ extendProblem (Problem oldFrames model last lastConst)
                       frames [(last + 1)..]
           newLastID = last + (length newFrames)
 
-{-| Selects a problem from a pool of problems and returns the selected problem. The function changes the current state of the pool of problems.
-If the pool is empty, the function returns Nothing. Otherwise, returns the problem wrapped in Just.
+{-| Selects a problem from a pool of problems and returns the selected problem. 
+  The function changes the current state of the pool of problems.
+  If the pool is empty, the function returns Nothing. Otherwise, returns the 
+  problem wrapped in Just.
 -}
 selectProblem :: ProbPool (Maybe Problem)
 selectProblem =
@@ -107,9 +110,10 @@ buildFrame id sequent@(Sequent body head) =
           , frameBody    = (processBody body) 
           , frameHead    = (processHead head) 
           , frameVars    = (union (freeVars head) (freeVars body))
-          , frameRelInfo = RelInfo bodyExp headExp}
-    where bodyExp = bodyRelExp body
-          headExp = headRelExp head
+          , frameRelInfo = RelInfo bdyInf (bdyDlt, bdyLbls) hdInf}
+    where bdyInf@(bdyExp, bdyLbls) = bodyRelExp body
+          hdInf                    = headRelExp head
+          bdyDlt                   = delta bdyExp
 
 {- Constructs the head of a frame from the head of a sequent. Here, we assume 
 that the sequent is in the standard form, i.e. disjunctions appear only at 
@@ -141,27 +145,30 @@ processHead _ = error err_ChaseProblemOperations_InvldSeq
 that the sequent is in the standard form, i.e. the body does not have 
 disjunctions or existential quantifiers.
 -}
+-- Probably we don't need to keep frames for body. Get rid of them!
 processBody :: Formula -> [Obs]
 processBody Tru = []
 processBody (And p q) = processBody p ++ processBody q
 processBody (Atm (R "=" [t1, t2])) = [Eql t1 t2] -- dealing with equality
 processBody (Atm (R "=" _)) = error err_ChaseProblemOperations_EqTwoParam
 processBody (Atm atm) = [Fct atm] -- atoms other than equality
-processBody _ = error err_ChaseProblemOperations_InvldSeq
+processBody (Exists x p) = processBody p
+processBody fmla = (error.show) fmla -- error err_ChaseProblemOperations_InvldSeq
 
 {-| Given relational information about a sequent and a set of tables in a model,
  returns a set of substituions corresponding to a chase step for the sequent. -}
-matchFrame :: RelInfo -> Tables -> [Sub]
-matchFrame relInfo@(RelInfo bodyInfo headInfo) tbls = 
-    let bdySet      = evaluateRelExp tbls bdyExp
-        hdSetLabels = (\(e, l) -> (evaluateRelExp tbls e, l)) <$> headInfo
+matchFrame :: Tables -> Tables -> RelInfo -> [Sub]
+matchFrame tbls delts relInfo@(RelInfo bodyInfo bodyDiffInfo headInfo) =
+    let bdySet      = evaluateRelExp tbls delts bdyExp
+        hdSetLabels = (\(e, l) -> (evaluateRelExp tbls emptyTables e, l)) 
+                      <$> headInfo
         facts       = diff (bdySet, bdyLbls) hdSetLabels
     in  createSubs bdyLbls facts
-    where (bdyExp, bdyLbls) = bodyInfo
+    where (bdyExp, bdyLbls) = bodyDiffInfo
           noFVars lbls  = all (\l -> ((not.isJust) l) ||
                                            not(l `elem` bdyLbls)) lbls
 
-{- A helper for matchRA -}
+{- A helper for matchFrame -}
 createSubs :: Labels -> Table -> [Sub]
 createSubs vars (DB.Set [])  = []
 createSubs vars (DB.Set set) = Map.fromList.subList <$> set

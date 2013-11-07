@@ -7,6 +7,6 @@ module Chase.Problem.RelAlg.RelAlg
      mergeSets, mergeAllSets, mergeSetsWith, mergeAllSetsWith,
      mergeSetsWithKey, mergeAllSetsWithKey,
      unionSets, nubSet,
-     headRelExp, bodyRelExp, emptyTables,
+     headRelExp, bodyRelExp, emptyTables, delta,
      evaluateRelExp, diff) where
 import Chase.Problem.RelAlg.IRelAlg

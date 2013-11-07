@@ -12,6 +12,7 @@ import qualified Data.Maybe as Maybe
 import qualified Control.Monad.State as State
 import qualified Control.Monad.Writer as Writer
 import Control.Applicative
+import Control.Monad
 
 -- Logic Modules
 import Formula.SyntaxGeo
@@ -61,34 +62,59 @@ runChase mdl thy =
           problem           = case mdl of
                                 Nothing -> initialProblem
                                 Just m  -> initialProblem {problemModel = m}
+          problems          = Maybe.fromMaybe [] $ initiateProblem problem
           -- Create the initial problem (get rid of function symbols)
           writer            = State.runStateT run [] 
                               -- the wrapper Writer monad for logging
           ((probs, _), log) = Writer.runWriter writer
                               -- use the log information when needed
-          run               = scheduleProblem problem >>= (\_ -> 
+          run               =  (mapM scheduleProblem problems) >>= (\_ -> 
                               process) -- schedule the problem, then process it
 
 
-{- Given an input frame and a list of models together with new records being 
-   added to each model (as the result of applying this function on previous 
-   frames, returns a list of models together with new records that are just 
-   added to them.
-   Algorithmically, the function deduces *a list of list of new facts* for the
-   frame, then if the list is not empty, it creates a list of new models by
-   adding each list of facts to the original model.
--}
-mapModels :: Frame -> [(Model, Tables, Int)] -> [(Model, Tables, Int)]
-mapModels f [] = []
-mapModels f ms = 
-    foldr combine [] ms
-    where combine (m, rs, c) res = 
-              let (os, c') = deduceForFrame c m f
-              in if null os                                            
-                 then (m, rs, c):res
-                 else let ms' = map (Model.add m c') os
-                      in  (map (\(m', rs', c'') -> 
-                                    (m', mergeSets rs rs', c'')) ms') ++ res
+{- Processes the frames with Truth on their lefts and initiates the queue of
+   the problem accordingly. It removes the processed frames from the problem. -}
+initiateProblem :: Problem -> Maybe [Problem]
+initiateProblem problem@(Problem frames model [] lastID lastConst) =
+    case newModels' model emptyTables initiatingFrames lastConst of
+      Nothing     -> Nothing
+      Just []     -> Just $ [Problem { problemFrames       = otherFrames
+                                     , problemModel        = model
+                                     , problemQueue        = []
+                                     , problemLastID       = lastID
+                                     , problemLastConstant = lastConst}]
+      Just models -> Just $ map (\(m, q, c) -> 
+                                 Problem { problemFrames       = otherFrames
+                                         , problemModel        = m
+                                         , problemQueue        = [q]
+                                         , problemLastID       = lastID
+                                         , problemLastConstant = c}) models
+    where (initiatingFrames, otherFrames) = partition (null.frameBody) frames
+initiateProblem _ = error $ "Chase.IChase.initateProblem: the problem is has "
+                    ++ "already been initialized!"
+
+newModels' :: Model -> Tables -> [Frame] -> Int -> Maybe [(Model, Tables, Int)]
+newModels' _ _ [] _ = Just []
+newModels' model queue (frame:frames) counter = 
+    do
+      currentFrame <- newModelsForFrame model queue frame counter
+      otherFrames  <- newModels model queue frames counter
+      return (combine currentFrame otherFrames)
+
+
+{- Combines the outputs of newModels -}
+combine :: [(Model, Tables, Int)] -> [(Model, Tables, Int)]
+           -> [(Model, Tables, Int)]
+combine new old = 
+    if null old
+    then new
+    else [(mergeModels nm om, mergeSets nq oq, max nc oc)
+          | (nm, nq, nc) <- new
+         , (om, oq, oc) <- old]
+    where mergeModels (Model tbls1) (Model tbls2) = 
+              Model $ mergeSets tbls1 tbls2
+
+
 
 {- For a frame whose body is empty, returns a pair containing a list of list of 
    obs, which are deduced from the right of the frame. Every item in an inner 
@@ -179,11 +205,12 @@ makeFreshConstant counter = Fn ("a" ++ (show counter)) []
 process :: ProbPool [Problem]
 process = do
       prob <- selectProblem -- select a problem from the pool
+      State.lift $ logM "prob" prob
       case prob of
-        Nothing -> return [] -- no problems
+        Nothing -> return [] -- no more problems
         Just p  -> 
             do
-              let newProbs = newProblems p -- map the problem (in MapReduce)
+              let newProbs = newProblems p
               --State.lift $ logM "Problems" newProbs
               case newProbs of
                 Nothing -> process
@@ -196,50 +223,47 @@ process = do
 
 {- Applies a chase step to the input problem. -}
 newProblems :: Problem -> Maybe [Problem]
-newProblems problem@(Problem frames model lastID lastConst) =
-    case newModels frames model lastConst of
+newProblems (Problem _ _ [] _ _) = Just []
+newProblems problem@(Problem frames model (queue:queues) lastID lastConst) =
+    case newModels model queue frames lastConst of
       Nothing     -> Nothing
       Just []     -> Just []
-      Just models -> Just $ map (\(m, _, c) -> 
+      Just models -> Just $ map (\(m, q, c) -> 
                                  Problem { problemFrames       = frames
                                          , problemModel        = m
+                                         , problemQueue        = queues ++ [q]
                                          , problemLastID       = lastID
                                          , problemLastConstant = c}) models
 
+
 -- Three helpers for newProblems:
--- Salman: add more explanation.
-newModels :: [Frame] -> Model -> Int -> Maybe [(Model, Tables, Int)]
-newModels [] _ _ = Just []
-newModels (frame:frames) model counter = 
+-- Salman: add comments!
+newModels :: Model -> Tables -> [Frame] -> Int -> Maybe [(Model, Tables, Int)]
+newModels _ _ [] _ = Just []
+newModels model queue (frame:frames) counter = 
     do
-      currentFrame <- newModelsForFrame frame model counter
-      otherFrames  <- newModels frames model counter
+      currentFrame <- newModelsForFrame model queue frame counter
+      otherFrames  <- newModels model queue frames counter
       return (currentFrame <|> otherFrames)
 
-newModelsForFrame :: Frame -> Model -> Int -> 
+newModelsForFrame :: Model -> Tables -> Frame -> Int -> 
                      Maybe [(Model, Tables, Int)]
-newModelsForFrame frame model counter = 
-    case newFacts counter model frame of
+newModelsForFrame model queue frame counter = 
+    case newFacts counter model queue frame of
       Nothing      -> Nothing
       Just ([], _) -> Just []
-      Just (os, c) -> let ms = map (Model.add model c) os
-                      in Just $ map (\(m, rs, c') -> (m, rs, c')) ms
+      Just (os, c) -> Just $ Model.add model c <$> os
+                      
 
-newFacts :: Int -> Model -> Frame -> Maybe ([[Obs]], Int)
-newFacts counter model frame = 
-    -- trace "--------------------"
-    -- (trace.show) model
-    -- (trace.show) frame
-    -- (trace.show) subs
-    -- trace "===================="
-    -- $
+newFacts :: Int -> Model -> Tables -> Frame -> Maybe ([[Obs]], Int)
+newFacts counter model queue frame = 
     if   null subs
          -- It sucks that we have to check this here!
     then Just $ ([], counter)
     else if (null.frameHead) frame 
          then Nothing
          else Just $ deduceForFrameHelper counter model vars heads
-    where subs    = matchFrame (frameRelInfo frame) (modelTables model)
+    where subs    = matchFrame (modelTables model) queue (frameRelInfo frame)
           lifted  = liftFrame model (head subs) frame
           heads   = frameHead lifted
           vars    = frameVars lifted
@@ -248,3 +272,34 @@ newFacts counter model frame =
 
 doChase thy  = chase  $ map parseSequent thy
 doChase' thy = chase' $ map parseSequent thy
+
+
+testThy = ["GetExchange(x,y) => Number(x) & Exchange(y)",
+           "Toll(x,y) => Number(x) & Number(y)",
+--           "GetExchange(src, e2) & GetExchange(dest, e3) & NE(e2,e3) & Number(src) & Number(dest) & Exchange(e2) & Exchange(e3) => Toll(src, dest)",
+           "Number(src) & Number(dest) & Exchange(e2) & Exchange(e3) => Toll(src, dest)",
+           "Toll(src,dest) & Number(src) & Number(dest) => exists e1. exists e2. GetExchange(src,e1) & GetExchange(dest,e2) & NE(e1,e2)",
+           "exists x. exists y. Toll(x,y)"]
+
+
+
+-- Proj (Union 
+--       (Join 
+--        (Join 
+--         (Tbl (RelTable "Number")) 
+--         (Tbl (RelTable "Number")) []) 
+--        (Tbl (RelTable "Exchange")) [])
+--       (Union 
+--        (Join 
+--         (Tbl (RelTable "Number")) 
+--         (Tbl (RelTable "Number")) [])
+--        (Union 
+--         (Tbl (RelTable "Number")) 
+--         (Delt (Tbl (RelTable "Number")))
+--         (Tbl (RelTable "Number")) 
+--         (Delt (Tbl (RelTable "Number"))) []) 
+--        (Tbl (RelTable "Exchange")) 
+--        (Delt (Tbl (RelTable "Exchange"))) [])
+--       (Tbl (RelTable "Exchange")) 
+--       (Delt (Tbl (RelTable "Exchange"))) []) [0,1,2,3]
+

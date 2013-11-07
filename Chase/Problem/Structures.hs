@@ -39,8 +39,9 @@ type ID = Int
   the head.
  -}
 data RelInfo = RelInfo {
-      bodyExp :: (RelExp, Labels),
-      headExp :: [(RelExp, Labels)]
+      bodyExp      :: (RelExp, Labels),
+      bodyDeltaExp :: (RelExp, Labels),
+      headExp      :: [(RelExp, Labels)]
 }
 
 {-| Frame is a data structure corresponding to a geometric sequent in a problem.
@@ -93,7 +94,8 @@ instance TermBased Frame where
   - problemFrames: a list of frames corresponding to the sequents of the 
   problem.
   - problemModel: a model corresponding to the problem.
-  - problemQueue: a queue of the deduced facts to be processed.
+  - problemQueue: a queue of deduced facts in form of a set of delta tables to
+  be processed.
   - problemSymbols: a list of symbols that appear in the left of frames.
   - problemLastID: a convenient way of keeping track of the last ID assigned to 
   the frames. This is used when new frames get instantiated.
@@ -103,12 +105,13 @@ instance TermBased Frame where
 data Problem = Problem {
       problemFrames       :: [Frame],
       problemModel        :: Model,
+      problemQueue        :: [Tables],
       problemLastID       :: ID,
       problemLastConstant :: Int -- We may remove this later
 }
 
 instance Show Problem where
-    show (Problem frames model _ _) =
+    show (Problem frames model _ _ _) =
         "-- FRAMES:\n" ++ (show frames) ++ "\n" ++
         "-- MODEL: \n" ++ (show model) ++ "\n"
 
