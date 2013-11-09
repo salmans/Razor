@@ -10,6 +10,7 @@ import System.FilePath
 import System.Time
 import Debug.Trace
 import Control.Exception 
+import Control.DeepSeq
 import Data.List
 import qualified Data.Either as Either
 import qualified Data.Maybe as Maybe
@@ -51,7 +52,8 @@ main = do
   time1 <- getClockTime
   -- get the answer
   let model  = chase' inputFmlas
-  time2 <- getClockTime
+  
+  time2 <- model`deepseq` getClockTime
 
   let diffTime = tdPicosec $ diffClockTimes time2 time1
 

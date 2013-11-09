@@ -1,0 +1,6 @@
+../theories/thyf8.txt	663000000
+../theories/thyf9.txt	2096000000
+../theories/thylab_1.txt	3395000000
+../theories/thyphone1_1.txt	12675000000
+../theories/thyphone1_2.txt	56057000000
+../theories/thytriv.txt	351000000

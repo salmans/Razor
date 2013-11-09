@@ -12,6 +12,8 @@ import Data.Maybe
 
 import Control.Applicative
 import qualified Control.Monad.State as State
+import Control.DeepSeq
+
 -- Logic Modules
 import Formula.SyntaxGeo
 import Utils.GeoUtilities
@@ -40,7 +42,10 @@ err_ChaseProblemModel_EqlDenotes =
 -}
 data Model = Model{
       modelTables    :: Tables
-}
+} 
+
+instance NFData Model where -- enable strict evaluation for performance analysis
+    rnf m = m `seq` ()
 
 instance Show Model where
     show mdl@(Model tbls) = 
