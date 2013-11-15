@@ -33,11 +33,12 @@ import Utils.Utils (allMaps, prodList, allSublists, allCombinations)
 import Debug.Trace
 import Tools.Logger
 
+import qualified Codec.TPTP as TPTP
 
 {-| Runs the chase for a given input theory, starting from an empty model.
 -}
 chase :: Theory -> [Model]
-chase thy = runChase Nothing thy
+chase thy = problemModel <$> runChase Nothing thy
 
 {-| Like chase, but returns only the first model found.
 -}
@@ -46,7 +47,7 @@ chase' thy = Maybe.listToMaybe $ chase thy
 
 {-| Runs the chase for a set of input theories over an input (partial) model. -}
 chaseWithModel :: Model -> Theory -> [Model]
-chaseWithModel mdl thy = runChase (Just mdl) thy 
+chaseWithModel mdl thy = problemModel <$> runChase (Just mdl) thy 
 
 {-| This is the main chase function, which tries to find the set of all the 
   models for a given geometric theory.
@@ -54,10 +55,12 @@ chaseWithModel mdl thy = runChase (Just mdl) thy
   - A geometric theory, thy
   - Possibly a starting (partial) model, mdl
 -}
-runChase :: Maybe Model -> Theory -> [Model]
+runChase :: Maybe Model -> Theory -> [Problem]
 runChase mdl thy =
+    let ((probs, _), log) = Writer.runWriter writer in
+    -- use the log information when needed
     -- (trace.show) log
-    map problemModel $ probs
+    probs
     where initialProblem    = buildProblem (relConvert thy) 
           problem           = case mdl of
                                 Nothing -> initialProblem
@@ -66,8 +69,6 @@ runChase mdl thy =
           -- Create the initial problem (get rid of function symbols)
           writer            = State.runStateT run [] 
                               -- the wrapper Writer monad for logging
-          ((probs, _), log) = Writer.runWriter writer
-                              -- use the log information when needed
           run               =  (mapM scheduleProblem problems) >>= (\_ -> 
                               process) -- schedule the problem, then process it
 
@@ -272,34 +273,3 @@ newFacts counter model queue frame =
 
 doChase thy  = chase  $ map parseSequent thy
 doChase' thy = chase' $ map parseSequent thy
-
-
-testThy = ["GetExchange(x,y) => Number(x) & Exchange(y)",
-           "Toll(x,y) => Number(x) & Number(y)",
---           "GetExchange(src, e2) & GetExchange(dest, e3) & NE(e2,e3) & Number(src) & Number(dest) & Exchange(e2) & Exchange(e3) => Toll(src, dest)",
-           "Number(src) & Number(dest) & Exchange(e2) & Exchange(e3) => Toll(src, dest)",
-           "Toll(src,dest) & Number(src) & Number(dest) => exists e1. exists e2. GetExchange(src,e1) & GetExchange(dest,e2) & NE(e1,e2)",
-           "exists x. exists y. Toll(x,y)"]
-
-
-
--- Proj (Union 
---       (Join 
---        (Join 
---         (Tbl (RelTable "Number")) 
---         (Tbl (RelTable "Number")) []) 
---        (Tbl (RelTable "Exchange")) [])
---       (Union 
---        (Join 
---         (Tbl (RelTable "Number")) 
---         (Tbl (RelTable "Number")) [])
---        (Union 
---         (Tbl (RelTable "Number")) 
---         (Delt (Tbl (RelTable "Number")))
---         (Tbl (RelTable "Number")) 
---         (Delt (Tbl (RelTable "Number"))) []) 
---        (Tbl (RelTable "Exchange")) 
---        (Delt (Tbl (RelTable "Exchange"))) [])
---       (Tbl (RelTable "Exchange")) 
---       (Delt (Tbl (RelTable "Exchange"))) []) [0,1,2,3]
-
