@@ -21,6 +21,7 @@ import Tools.GeoUnification
 --import Tools.Narrowing
 
 -- Chase Modeuls:
+import Chase.Problem.BaseTypes
 import Chase.Problem.Observation
 import Chase.Problem.Structures
 import Chase.Problem.Model (Model(..), modelDomain)
@@ -215,7 +216,7 @@ formulaHolds model (Or p q) = fmlaHolds p || fmlaHolds q
 formulaHolds model (And p q) = 
     fmlaHolds p && fmlaHolds q
     where fmlaHolds = formulaHolds model
-formulaHolds model@(Model trs) (Exists x p) = 
+formulaHolds model@(Model trs _) (Exists x p) = 
     let makeSub    = Map.singleton x
         liftWith e = (liftTerm.lift) (makeSub e) p
     in

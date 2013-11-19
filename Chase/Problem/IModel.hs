@@ -19,13 +19,11 @@ import Formula.SyntaxGeo
 import Utils.GeoUtilities
 
 -- Chase Modules:
+import Chase.Problem.BaseTypes
 import Chase.Problem.Observation
 import Chase.Problem.RelAlg.RelAlg
 import qualified Chase.Problem.RelAlg.Operations as OP
 import qualified RelAlg.DB as DB
-
--- Other Modules
-import Debug.Trace
 
 {- Errors raised by this modeule -}
 err_ChaseProblemModel_IsTruthDen =
@@ -37,18 +35,22 @@ err_ChaseProblemModel_DelDenotes =
 err_ChaseProblemModel_EqlDenotes =
     "Chase.Problem.Model.denotes: Not applicable on Eql"
 
+{-| Provenance information for models maps every observation to a provenance 
+  list. -}
+type ProvInfo = Map.Map Obs [Prov]
 
 {-| A modle is a set of tables.
 -}
 data Model = Model{
-      modelTables    :: Tables
+      modelTables   :: Tables,
+      modelProvInfo :: ProvInfo
 } 
 
 instance NFData Model where -- enable strict evaluation for performance analysis
     rnf m = m `seq` ()
 
 instance Show Model where
-    show mdl@(Model tbls) = 
+    show mdl@(Model tbls _) = 
         let list = filter (\(tr, _) -> tr /= DomTable) $ Map.toList tbls
         in
         "Domain: " ++ show (modelDomain mdl) ++ "\n" ++
@@ -65,7 +67,7 @@ showTable (FunTable sym) tbl = show sym ++ " = "
 {-| The domain of a model is a table with key ("*", DomTable)
 -}
 modelDomain :: Model -> [Term]
-modelDomain (Model m) = 
+modelDomain (Model m _) = 
     concat $ DB.toList $ Map.findWithDefault (DB.Set []) DomTable m
 
 {-| truth is an special element represented by "True" in models. -}
@@ -74,19 +76,26 @@ truth = Elm "True"
 
 {-| A shorthand for an empty model. -}
 empty :: Model
-empty = Model emptyTables
+empty = Model emptyTables Map.empty
 --empty = Model [] [truth]
 
 {-| Adds a list of new observations to the given model. It also returns a set 
   of tables corresponding to the changes made in the database. It needs a 
-  counter value to initialize new constants.
+  counter value to initialize new constants. Also, it updates the provenance 
+  information of the model if it is provided (it is a Just value). That is, the
+  function assumes that all of the added observations have the same provenance
+  information.
 -}
-add :: Model -> Int -> [Obs] -> (Model, Tables, Int)
-add model@(Model tbls) c obs =
+add :: Model -> Int -> [Obs] -> Maybe Prov -> (Model, Tables, Int)
+add model@(Model tbls provs) c obs prov =
     let ((newTables, deltas), c') = 
             State.runState (OP.buildTables eqs tbls emptyTables) c
-    in (Model newTables, deltas, c')
-    where eqs = map obsToEquation obs
+    in (Model newTables newProvs, deltas, c')
+    where eqs       = map obsToEquation obs
+          newProvs  = case prov of
+                        Nothing -> provs
+                        Just p  -> Map.unionWith (++) provs (provDelta p)
+          provDelta = \p -> Map.fromList $ (\o -> (o, [p])) <$> obs 
 
 {- Convert an obs to a Equation -}
 obsToEquation :: Obs -> Equation
@@ -98,22 +107,22 @@ obsToEquation (Fct a)     = Equ (fromJust (toTerm a)) truth
   "Fct a", it verifies whether t is true in the model. If the Obs is 
   "Eql t1 t2", it verifies whether t1 and t2 are equal in the model. -} 
 isTrue :: Model -> Obs -> Bool
-isTrue (Model tbls) obs@(Den t) = 
+isTrue (Model tbls _) obs@(Den t) = 
     case t == truth of -- Since we treat truth as a denotation, truth is an 
                        -- exceptional case.
       True -> True
       False -> error $ err_ChaseProblemModel_IsTruthDen
-isTrue (Model tbls) obs@(Fct (F s ts)) = 
+isTrue (Model tbls _) obs@(Fct (F s ts)) = 
     ts' `elem` (DB.toList $ Map.findWithDefault (DB.Set []) (FunTable s) tbls)
     where ts' = (\t -> case OP.lookupConstant t tbls of 
                          Nothing -> t
                          Just t' -> t') <$> ts
-isTrue (Model tbls) obs@(Fct (R s ts)) = 
+isTrue (Model tbls _) obs@(Fct (R s ts)) = 
     ts' `elem` (DB.toList $ Map.findWithDefault (DB.Set []) (RelTable s) tbls)
     where ts' = (\t -> case OP.lookupConstant t tbls of 
                          Nothing -> t
                          Just t' -> t') <$> ts
-isTrue (Model tbls) (Eql t1 t2) = 
+isTrue (Model tbls _) (Eql t1 t2) = 
   let evaluate = do
         c1 <- OP.lookupConstant t1 tbls
         c2 <- OP.lookupConstant t2 tbls

@@ -20,6 +20,7 @@ import Utils.GeoUtilities
 import Tools.GeoUnification
 
 -- Chase Modules
+import Chase.Problem.BaseTypes
 import Chase.Problem.Observation
 import Chase.Problem.Structures
 import Chase.Problem.Operations
@@ -112,8 +113,8 @@ combine new old =
     else [(mergeModels nm om, mergeSets nq oq, max nc oc)
           | (nm, nq, nc) <- new
          , (om, oq, oc) <- old]
-    where mergeModels (Model tbls1) (Model tbls2) = 
-              Model $ mergeSets tbls1 tbls2
+    where mergeModels (Model tbls1 provs1) (Model tbls2 provs2) = 
+              Model (mergeSets tbls1 tbls2) (Map.unionWith (++) provs1 provs2)
 
 
 
@@ -251,25 +252,30 @@ newModelsForFrame :: Model -> Tables -> Frame -> Int ->
                      Maybe [(Model, Tables, Int)]
 newModelsForFrame model queue frame counter = 
     case newFacts counter model queue frame of
-      Nothing      -> Nothing
-      Just ([], _) -> Just []
-      Just (os, c) -> Just $ Model.add model c <$> os
+      Nothing         -> Nothing
+      Just ([], _, _) -> Just []
+      Just (os, c, p) -> Just $ (\o -> Model.add model c o p) <$> os
                       
 
-newFacts :: Int -> Model -> Tables -> Frame -> Maybe ([[Obs]], Int)
+newFacts :: Int -> Model -> Tables -> Frame -> Maybe ([[Obs]], Int, Maybe Prov)
 newFacts counter model queue frame = 
     if   null subs
          -- It sucks that we have to check this here!
-    then Just $ ([], counter)
+    then Just $ ([], counter, Nothing)
     else if (null.frameHead) frame 
          then Nothing
-         else Just $ deduceForFrameHelper counter model vars heads
+         else Just $ glue (deduceForFrameHelper counter model vars heads)
+                          (Just prov)
     where subs    = matchFrame (modelTables model) queue (frameRelInfo frame)
-          lifted  = liftFrame model (head subs) frame
+          theSub  = head subs
+          lifted  = liftFrame model theSub frame
           heads   = frameHead lifted
           vars    = frameVars lifted
+          prov    = (frameID frame, theSub)
+          glue    = \(x, y) z -> (x, y, z)
           -- For now just use the first sub and drop the rest!
           -- Also, let's just lift the body for now!
+          -- Salman: Separate provenance computation from the main computation.
 
 doChase thy  = chase  $ map parseSequent thy
 doChase' thy = chase' $ map parseSequent thy

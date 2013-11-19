@@ -64,7 +64,7 @@ main = do
   -- Verify that every formula in the theory is true:
   let verifyMsg = 
           if Maybe.isJust model
-          then (let mdl@(Model trs) = Maybe.fromJust model 
+          then (let mdl@(Model trs _) = Maybe.fromJust model 
                     domain = modelDomain mdl
                     maps f = Utils.Utils.allMaps (freeVars f) domain
                     fmlas = concatMap insts inputFmlas'

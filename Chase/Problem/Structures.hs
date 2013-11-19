@@ -1,9 +1,8 @@
 {-|
-
-   This module defines the underlying data-structures that form for a chase problem. Conceptually, a problem is a branch of chase execution with its own result (whether it has a model or it is unsatisfiable).
-
+  This module defines the underlying data-structures that form for a chase 
+  problem. Conceptually, a problem is a branch of chase execution with its 
+  own result (whether it has a model or it is unsatisfiable).
 -}
-{-# LANGUAGE GADTs #-}
 
 module Chase.Problem.Structures where
 
@@ -19,6 +18,7 @@ import Formula.SyntaxGeo
 import Utils.GeoUtilities(TermBased(..))
 
 -- Chase Modeuls:
+import Chase.Problem.BaseTypes
 import Chase.Problem.Observation
 import Chase.Problem.Model
 import Chase.Problem.RelAlg.RelAlg
@@ -26,9 +26,6 @@ import qualified Chase.Problem.RelAlg.Operations as OP
 import qualified RelAlg.DB as RA
 
 import Debug.Trace
-
-{- A unique ID for every frame in the problem -}
-type ID = Int
 
 {-| Relational information for a sequent, correspoinding to a frame:
   - bodyExp: a relational expression corresponding to the body of a sequent.
