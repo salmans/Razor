@@ -21,6 +21,7 @@ import Tools.GeoUnification
 
 -- Chase Modules
 import Chase.Problem.BaseTypes
+import Chase.Problem.Provenance
 import Chase.Problem.Observation
 import Chase.Problem.Structures
 import Chase.Problem.Operations

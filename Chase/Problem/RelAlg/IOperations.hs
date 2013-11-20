@@ -5,6 +5,7 @@ module Chase.Problem.RelAlg.IOperations where
 
 import Control.Applicative
 import Control.Monad
+import qualified Control.Monad.State as State
 
 import Data.List
 import qualified Data.Map as Map
@@ -19,13 +20,21 @@ import Formula.SyntaxGeo
 import Utils.GeoUtilities
 import Tools.GeoUnification
 
+import Chase.Problem.Provenance
+import Chase.Problem.Observation
 import Chase.Problem.RelAlg.RelAlg
 import qualified RelAlg.DB as DB
+
+
+{-| ProvCounter is the context of computation for building a model, including
+ a state monad for a counter wrapped inside a state monad transformer for 
+ provenance construction. -}
+type ProvCounter = State.StateT ProvInfo Counter
 
 {-| Updates a set of tables with a list a new equations. Given an empty set of 
   equations, this function returns the input set of tables, together with a
   set of tables containing the changes made to the input tables. -}
-buildTables :: [Equation] -> Tables -> Tables -> Counter (Tables, Tables)
+buildTables :: [Equation] -> Tables -> Tables -> ProvCounter (Tables, Tables)
 buildTables eqs tbls delts = do
   (tbls', delts', eqs') <- buildTables' eqs tbls delts
   let ints              =  integrities tbls'
@@ -38,7 +47,7 @@ buildTables eqs tbls delts = do
    to keep them in the reduced form with respect to the previously processed 
    equations. -}
 buildTables' :: [Equation] -> Tables -> Tables -> 
-                Counter (Tables, Tables, [Equation])
+                ProvCounter (Tables, Tables, [Equation])
 buildTables' [] tbls  deltas       = return (tbls, deltas, [])
 buildTables' (eq:eqs) tbls  deltas = do
     (tbls', deltas', eqs') <- processEquation eq (tbls, deltas, eqs)
@@ -46,7 +55,7 @@ buildTables' (eq:eqs) tbls  deltas = do
 
 {- Processes a set of equations as a helper function to buildTables. -}
 processEquation :: Equation -> (Tables, Tables, [Equation]) 
-                -> Counter (Tables, Tables, [Equation])
+                -> ProvCounter (Tables, Tables, [Equation])
 processEquation (Equ (Elm "True") (Elm "True")) _ = 
     error "CC.RelAlg.processEquation: invalid equation"
 processEquation (Equ t (Elm "True")) (tbls, deltas, eqs) = do
@@ -57,7 +66,9 @@ processEquation (Equ t (Elm "True")) (tbls, deltas, eqs) = do
 processEquation (Equ (Elm "True") t) currentState = 
     processEquation (Equ t (Elm "True")) currentState
     -- orient the equation
-processEquation (Equ c1@(Elm _) c2@(Elm _)) (tbls, deltas, eqs) = 
+processEquation (Equ c1@(Elm _) c2@(Elm _)) (tbls, deltas, eqs) = do
+    provs <- State.get
+    State.put provs
     return (tbls', deltas', eqs')  -- making two constants equal in the 
                                    -- database.
     where tbls'   = updateTables c1 c2 tbls
@@ -89,13 +100,13 @@ processEquation _ _ = error "CC.RelAlg.processEquation: invalid equation"
  we are treating relational facts as terms. -}
 -- Salman: do not convert relational facts to terms since we don't have 
 -- function symbols any more!
-insertRecord :: Term -> Tables -> Tables -> Counter (Tables, Tables)
+insertRecord :: Term -> Tables -> Tables -> ProvCounter (Tables, Tables)
 insertRecord (Fn f ts) tbls delts = insertHelper (FunTable f) ts tbls delts
 insertRecord (Rn r ts) tbls delts = insertHelper (RelTable r) ts tbls delts
  
 {- A helper for insert record to deal with both function and relation tables. -}
 insertHelper :: TableRef -> [Term] -> Tables -> Tables -> 
-                Counter (Tables, Tables)
+                ProvCounter (Tables, Tables)
 insertHelper ref ts tbls deltas = do
   (rs, cs)     <- foldM (foldFunc) (tbls,[]) ts
   let r        =  Map.singleton ref (DB.Set [cs])
@@ -113,9 +124,9 @@ insertHelper ref ts tbls deltas = do
    constant. If such an element does not exist, creates a new element and 
    returns a set of tables containing the inserted records for adding the new 
    element. -}
-initConstant :: Tables -> Term -> Counter (Tables, Term)
+initConstant :: Tables -> Term -> ProvCounter (Tables, Term)
 initConstant tbls t@(Fn s []) = do
-  fresh    <- freshElement
+  fresh    <- State.lift freshElement
   let recs = Map.fromList [(DomTable, DB.Set [[fresh]]),
                                    (ConTable s, DB.Set [[fresh]])]
   case t' of
@@ -153,17 +164,31 @@ lookupConstant _ _ = error "CC.RelAlg.lookupConstant: invalid element!"
 -- able to reduce the cost by using references (pointers) or indices.
 updateTables :: Term -> Term -> Tables -> Tables
 updateTables c1@(Elm _) c2@(Elm _) tbls =
-    nubSet.((updateFunction <$>) <$>) <$> tbls
+    nubSet.((updateFunc <$>) <$>) <$> tbls
     -- Salman: this can be done more efficiently
-    where updateFunction = (\x -> if x == c1 then c2 else x) 
+    where updateFunc = (\x -> if x == c1 then c2 else x) 
 updateTables _ _ _ = error "CC.RelAlg.updateTables: invalid update"    
+
+updateProvInfo :: Term -> Term -> ProvInfo -> ProvInfo
+updateProvInfo c1@(Elm _) c2@(Elm _) provInfo = 
+    (updateProv <$>) <$> updateKeys provInfo
+    where updateKeys = \m -> Map.fromListWith (++) -- union
+                       $ (\(o, ss) -> (updateObs c1 c2 o, ss)) 
+                             <$> (Map.toList m)
+          updateProv = (\(id,s) -> (id, updateSub s))
+          updateSub  = \s -> (Map.map updateFunc s)
+          updateFunc = (\x -> if x == c1 then c2 else x)
+updateProvInfo _ _ _ = error "CC.RelAlg.updateTables: invalid update"
 
 updateEquation :: Term -> Term -> Equation -> Equation
 updateEquation t1 t2 (Equ l r) = 
-    -- (trace.show) t1
-    -- (trace.show) t2
-    -- (trace.show) (Equ l r)
     Equ (updateTerm t1 t2 l) (updateTerm t1 t2 r)
+
+updateObs :: Term -> Term -> Obs -> Obs
+updateObs c1@(Elm _) c2@(Elm _) (Eql t1 t2) =
+    Eql (updateTerm c1 c2 t1) (updateTerm c1 c2 t2)
+updateObs c1@(Elm _) c2@(Elm _) (Fct (R sym ts)) =
+    Fct (R sym (updateTerm c1 c2 <$> ts))
 
 updateTerm :: Term -> Term -> Term -> Term
 updateTerm t1 t2 t@(Elm _)   = if t == t1 then t2 else t

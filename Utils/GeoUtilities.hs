@@ -22,7 +22,7 @@ module Utils.GeoUtilities (isVar,
                           closedTerm,
                           subterms,
 --                          subtermPos,
---                          replaceSubterms,
+                          replaceSubterms,
                           Counter, freshVar, freshElement,
                           relConvert) where
 {- Salman: Unexported functions may be removed! -}

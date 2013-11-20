@@ -1,7 +1,7 @@
 {-|
   This module defines a Model structure that will be used inside a Problem 
-  structure. This module can be redefined based on the underlying implementation 
-  for models.
+  structure. This module can be redefined based on the underlying 
+  implementation for models.
 -}
 module Chase.Problem.IModel where
 
@@ -20,6 +20,7 @@ import Utils.GeoUtilities
 
 -- Chase Modules:
 import Chase.Problem.BaseTypes
+import Chase.Problem.Provenance
 import Chase.Problem.Observation
 import Chase.Problem.RelAlg.RelAlg
 import qualified Chase.Problem.RelAlg.Operations as OP
@@ -34,10 +35,6 @@ err_ChaseProblemModel_DelDenotes =
     "Chase.Problem.Model.denotes: Not applicable on Den"
 err_ChaseProblemModel_EqlDenotes =
     "Chase.Problem.Model.denotes: Not applicable on Eql"
-
-{-| Provenance information for models maps every observation to a provenance 
-  list. -}
-type ProvInfo = Map.Map Obs [Prov]
 
 {-| A modle is a set of tables.
 -}
@@ -88,11 +85,13 @@ empty = Model emptyTables Map.empty
 -}
 add :: Model -> Int -> [Obs] -> Maybe Prov -> (Model, Tables, Int)
 add model@(Model tbls provs) c obs prov =
-    let ((newTables, deltas), c') = 
-            State.runState (OP.buildTables eqs tbls emptyTables) c
+    -- run a counter monad inside a state monad transformer for provenance
+    let (((newTables, deltas), newProvs), c') =
+            State.runState st c
+        st = State.runStateT (OP.buildTables eqs tbls emptyTables) tempProvs
     in (Model newTables newProvs, deltas, c')
     where eqs       = map obsToEquation obs
-          newProvs  = case prov of
+          tempProvs = case prov of
                         Nothing -> provs
                         Just p  -> Map.unionWith (++) provs (provDelta p)
           provDelta = \p -> Map.fromList $ (\o -> (o, [p])) <$> obs 
