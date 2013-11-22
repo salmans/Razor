@@ -74,6 +74,21 @@ runChase mdl thy =
           run               =  (mapM scheduleProblem problems) >>= (\_ -> 
                               process) -- schedule the problem, then process it
 
+{-| Given an input problem, runs the chase and returns a set of final problems,
+  which contain the models for the input problem.
+-}
+runChaseWithProblem :: Problem -> [Problem]
+runChaseWithProblem problem =
+    let ((probs, _), log) = Writer.runWriter writer in
+    -- use the log information when needed
+    -- (trace.show) log
+    probs
+    where -- Create the initial problem (get rid of function symbols)
+          writer            = State.runStateT run [] 
+                              -- the wrapper Writer monad for logging
+          run               =  (mapM scheduleProblem [problem]) >>= (\_ -> 
+                              process) -- schedule the problem, then process it
+
 
 {- Processes the frames with Truth on their lefts and initiates the queue of
    the problem accordingly. It removes the processed frames from the problem. -}
