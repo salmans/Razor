@@ -272,7 +272,7 @@ newFacts counter model queue frame =
           lifted  = liftFrame model theSub frame
           heads   = frameHead lifted
           vars    = frameVars lifted
-          prov    = (frameID frame, theSub)
+          prov    = ChaseProv (frameID frame, theSub)
           glue    = \(x, y) z -> (x, y, z)
           -- For now just use the first sub and drop the rest!
           -- Also, let's just lift the body for now!

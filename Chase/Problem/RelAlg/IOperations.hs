@@ -175,7 +175,10 @@ updateProvInfo c1@(Elm _) c2@(Elm _) provInfo =
     where updateKeys = \m -> Map.fromListWith (++) -- union
                        $ (\(o, ss) -> (updateObs c1 c2 o, ss)) 
                              <$> (Map.toList m)
-          updateProv = (\(id,s) -> (id, updateSub s))
+          updateProv = (\p -> case p of
+                                ChaseProv (id, s) -> ChaseProv (id, updateSub s)
+                                UserProv  -> UserProv)
+                       -- Salman: Prov may instantiate Control.Applicative
           updateSub  = \s -> (Map.map updateFunc s)
           updateFunc = (\x -> if x == c1 then c2 else x)
 updateProvInfo _ _ _ = error "CC.RelAlg.updateTables: invalid update"
