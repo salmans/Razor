@@ -146,12 +146,12 @@ combine new old =
    The parameters are (1) problemLastConstant of the problem to which the frame 
    belongs to, (2) the problemModel of the problem, and (3) finally the frame.
 -}
-deduceForFrame :: Int -> Model -> Frame -> ([[Obs]], Int)
-deduceForFrame counter model frame@(Frame _ body head vars _)
-    -- Salman: this may break!
-   | null body && not (any (holds model vars) head) = 
-       deduceForFrameHelper counter model vars head
-   | otherwise = ([], counter)
+-- deduceForFrame :: Int -> Model -> Frame -> ([[Obs]], Int)
+-- deduceForFrame counter model frame@(Frame _ body head vars _)
+--     -- Salman: this may break!
+--    | null body && not (any (holds model vars) head) = 
+--        deduceForFrameHelper counter model vars head
+--    | otherwise = ([], counter)
 
 {- This is a helper for deduceForFrame. It handles the recursive calls over the
    disjuncts on the right of the frame.
@@ -214,7 +214,7 @@ liftFrame model sub frame =
 {- Helper Functions -}
 {- make a new constant (special element starting with "a") -}
 makeFreshConstant :: Int -> Term
-makeFreshConstant counter = Fn ("a" ++ (show counter)) []
+makeFreshConstant counter = Fn ("a@" ++ (show counter)) []
 --Elm ("a" ++ show counter)
 
 {- Processes the problems in the pool. Applies a chase step to the problem 

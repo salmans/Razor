@@ -127,6 +127,12 @@ insertHelper ref ts tbls deltas = do
 initConstant :: Tables -> Term -> ProvCounter (Tables, Term)
 initConstant tbls t@(Fn s []) = do
   fresh    <- State.lift freshElement
+  -- let recs =  case s of -- discreminate skolemized constants for existentials
+  --               ('a':'@': _) -> 
+  --                   Map.singleton DomTable $ DB.Set [[fresh]]
+  --               otherwise    -> 
+  --                   Map.fromList [(DomTable, DB.Set [[fresh]]),
+  --                                 (ConTable s, DB.Set [[fresh]])]
   let recs = Map.fromList [(DomTable, DB.Set [[fresh]]),
                                    (ConTable s, DB.Set [[fresh]])]
   case t' of

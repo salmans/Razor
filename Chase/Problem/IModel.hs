@@ -47,19 +47,34 @@ instance NFData Model where -- enable strict evaluation for performance analysis
     rnf m = m `seq` ()
 
 instance Show Model where
-    show mdl@(Model tbls _) = 
+    show = prettyModel
+
+prettyModel :: Model -> String
+prettyModel mdl@(Model tbls _) =
         let list = filter (\(tr, _) -> tr /= DomTable) $ Map.toList tbls
         in
         "Domain: " ++ show (modelDomain mdl) ++ "\n" ++
-                      (concat $ (\(tr, t) -> showTable tr t) <$> list)
+                      (concat $ (\(tr, t) -> prettyTable tr t) <$> list)
 
-showTable  DomTable tbl      = []
-showTable (ConTable sym) tbl = show sym ++ " = "
-                               ++ show (DB.toList tbl) ++ "\n"
-showTable (RelTable sym) tbl = show sym ++ " = "
-                               ++ show (DB.toList tbl) ++ "\n"
-showTable (FunTable sym) tbl = show sym ++ " = "
-                               ++ show (DB.toList tbl) ++ "\n"
+
+prettyTable :: TableRef -> Table -> String
+prettyTable DomTable _             = ""
+prettyTable ref@(ConTable sym) tbl = 
+    case sym of -- discreminate skolem constants for existential quantifiers
+      ('a':'@':_) -> ""
+      otherwise   -> show sym ++ " = " ++ show (DB.toList tbl) ++ "\n"
+      -- Salman: don't create skolem constants in the first place
+prettyTable ref@(FunTable sym) tbl = 
+    show sym ++ " :: " ++ concatMap (prettyRecord ref) (DB.toList tbl) ++ "\n"
+prettyTable ref@(RelTable sym) tbl = 
+    show sym ++ " :: " ++ concatMap (prettyRecord ref) (DB.toList tbl) ++ "\n"
+
+prettyRecord :: TableRef -> Record -> String
+prettyRecord DomTable _   = ""
+prettyRecord (FunTable sym) rec = 
+    show (init rec) ++ " -> " ++ show (last rec) ++ " , "
+prettyRecord (RelTable sym) rec = show rec ++ " , "
+
 
 {-| The domain of a model is a table with key ("*", DomTable)
 -}
