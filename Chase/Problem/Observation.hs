@@ -29,7 +29,7 @@ err_ChaseProblemObservation_RepWithFct =
 data Obs = Den Term -- Term denotes an element
          | Eql Term Term -- Two terms are equal
          | Fct Atom -- Atm is true as a fact
-           deriving (Eq, Ord)
+           deriving (Eq, Ord, Read) -- read for user input
 
 instance Show Obs where
     show (Den t) = "|" ++ (show t) ++ "|"

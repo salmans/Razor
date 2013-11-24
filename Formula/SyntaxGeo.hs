@@ -41,13 +41,13 @@ data Term = Var Var
           | Rn Sym [Term] -- Just like Fn but for cases where we treat relations
                           -- like functions.
             -- Salman: this is not idea!
-            deriving (Eq, Ord)
+            deriving (Eq, Ord, Read) -- read for user input
             --deriving (Eq, Ord, Show)
 
 data Atom = R Sym [Term]
           | F Sym [Term] -- Just like R but for cases where we treat functions
                          -- like relations.
-           deriving (Eq, Ord)
+           deriving (Eq, Ord, Read) -- read for user input
            --deriving (Eq, Ord, Show)
 
 data Formula = Tru
