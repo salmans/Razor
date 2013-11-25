@@ -35,8 +35,6 @@ import Utils.Utils (allMaps, prodList, allSublists, allCombinations)
 import Debug.Trace
 import Tools.Logger
 
-import qualified Codec.TPTP as TPTP
-
 {-| Runs the chase for a given input theory, starting from an empty model.
 -}
 chase :: Theory -> [Model]
@@ -115,9 +113,11 @@ newModels' :: Model -> Tables -> [Frame] -> Int -> Maybe [(Model, Tables, Int)]
 newModels' _ _ [] _ = Just []
 newModels' model queue (frame:frames) counter = 
     do
-      currentFrame <- newModelsForFrame model queue frame counter
-      otherFrames  <- newModels model queue frames counter
-      return (combine currentFrame otherFrames)
+      this   <- newModelsForFrame model queue frame counter
+      let c  = maximum $ (\(_, _, c') -> c') <$> this
+      others <- newModels model queue frames c
+      return (combine this others)
+    where 
 
 
 {- Combines the outputs of newModels -}
@@ -295,3 +295,6 @@ newFacts counter model queue frame =
 
 doChase thy  = chase  $ map parseSequent thy
 doChase' thy = chase' $ map parseSequent thy
+
+testThy = ["exists x.P(x)",
+           "exists y.Q(y)"]
