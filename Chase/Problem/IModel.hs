@@ -61,7 +61,7 @@ prettyTable :: TableRef -> Table -> String
 prettyTable DomTable _             = ""
 prettyTable ref@(ConTable sym) tbl = 
     case sym of -- discreminate skolem constants for existential quantifiers
-      ('a':'@':_) -> ""
+      -- ('a':'@':_) -> ""
       otherwise   -> show sym ++ " = " ++ show (DB.toList tbl) ++ "\n"
       -- Salman: don't create skolem constants in the first place
 prettyTable ref@(FunTable sym) tbl = 
@@ -89,7 +89,6 @@ truth = Elm "True"
 {-| A shorthand for an empty model. -}
 empty :: Model
 empty = Model emptyTables Map.empty
---empty = Model [] [truth]
 
 {-| Adds a list of new observations to the given model. It also returns a set 
   of tables corresponding to the changes made in the database. It needs a 
@@ -98,18 +97,17 @@ empty = Model emptyTables Map.empty
   function assumes that all of the added observations have the same provenance
   information.
 -}
-add :: Model -> Int -> [Obs] -> Maybe Prov -> (Model, Tables, Int)
+add :: Model -> Int -> [Obs] -> Prov -> (Model, Tables, Int)
 add model@(Model tbls provs) c obs prov =
     -- run a counter monad inside a state monad transformer for provenance
-    let (((newTables, deltas), newProvs), c') =
-            State.runState st c
-        st = State.runStateT (OP.buildTables eqs tbls emptyTables) tempProvs
+    let (((newTables, deltas), (_, newProvs)), c') = State.runState st c
+        st = State.runStateT (OP.buildTables eqs tbls emptyTables) 
+             (prov, provs)
     in (Model newTables newProvs, deltas, c')
-    where eqs       = map obsToEquation obs
-          tempProvs = case prov of
-                        Nothing -> provs
-                        Just p  -> Map.unionWith (++) provs (provDelta p)
-          provDelta = \p -> Map.fromList $ (\o -> (o, [p])) <$> obs 
+    where eqs      = map obsToEquation obs
+          isFact o = case o of 
+                       Fct _ -> True 
+                       otherwise -> False
 
 {- Convert an obs to a Equation -}
 obsToEquation :: Obs -> Equation

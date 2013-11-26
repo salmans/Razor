@@ -72,3 +72,5 @@ termToObs isFact t =
       case isFact of 
         True -> Fct $ fromJust $ fromTerm t
         False -> Den t
+
+-- Salman: Do not convert observations to terms anymore!

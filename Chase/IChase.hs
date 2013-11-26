@@ -180,7 +180,7 @@ deduce counter model vars hs =
    to add to the input model in which the observations are not true.
 -}
 deduceHelper counter _ _ [] = ([], counter)
-deduceHelper counter model vars allObs@(obs:rest)             
+deduceHelper counter model vars allObs@(obs:rest)
     | null existVars = 
         let (restObs, restCounter) = deduceHelper counter model vars rest 
         in (obs: restObs, restCounter)
@@ -270,13 +270,13 @@ newModelsForFrame model queue frame counter =
     case newFacts counter model queue frame of
       Nothing         -> Nothing
       Just ([], _, _) -> Just []
-      Just (os, c, p) -> Just $ (\o -> Model.add model c o p) <$> os
+      Just (os, c, p) -> Just $ (\o -> 
+                                 Model.add model c o (Maybe.fromJust p)) <$> os
                       
 
 newFacts :: Int -> Model -> Tables -> Frame -> Maybe ([[Obs]], Int, Maybe Prov)
 newFacts counter model queue frame = 
     if   null subs
-         -- It sucks that we have to check this here!
     then Just $ ([], counter, Nothing)
     else if (null.frameHead) frame 
          then Nothing
@@ -295,6 +295,3 @@ newFacts counter model queue frame =
 
 doChase thy  = chase  $ map parseSequent thy
 doChase' thy = chase' $ map parseSequent thy
-
-testThy = ["exists x.P(x)",
-           "exists y.Q(y)"]

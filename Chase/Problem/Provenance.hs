@@ -15,6 +15,7 @@ type ID = Int
  -}
 data Prov = ChaseProv (ID, Sub)
           | UserProv
+  deriving Show
 
 {-| Provenance information for models maps every observation to a provenance 
   list. -}

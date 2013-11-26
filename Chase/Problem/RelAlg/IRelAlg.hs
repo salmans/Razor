@@ -36,7 +36,13 @@ data TableRef  = ConTable Sym -- constant tables
                | TmpTable -- A temporary table denoting equality between 
                           -- elements (C-rules in Bachmair et al. definitions)
                  deriving (Eq, Ord, Show)
-    
+
+tableName :: TableRef -> Maybe Sym
+tableName (ConTable s) = Just s
+tableName (RelTable s) = Just s
+tableName (FunTable s) = Just s
+tableName _            = Nothing
+
 
 {- A map from relational symbols to tables -}
 type Tables = Map.Map TableRef Table
