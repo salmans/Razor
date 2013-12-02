@@ -115,9 +115,8 @@ newModels' model queue (frame:frames) counter =
     do
       this   <- newModelsForFrame model queue frame counter
       let c  = maximum $ (\(_, _, c') -> c') <$> this
-      others <- newModels model queue frames c
+      others <- newModels' model queue frames c
       return (combine this others)
-    where 
 
 
 {- Combines the outputs of newModels -}
@@ -295,3 +294,34 @@ newFacts counter model queue frame =
 
 doChase thy  = chase  $ map parseSequent thy
 doChase' thy = chase' $ map parseSequent thy
+
+tt = ["P(a())", "P(b())", "P(c())"]
+
+testThy = [--"(((line_equal(A,A) & incident(bc(),A)) & incident(ac(),A)) & incident(ab(),A)) => goal()",
+           "Truth => incident(a1(),a1b1())",
+           "Truth => incident(b1(),a1b1())",
+           "Truth => incident(a2(),a2b2())"]
+           -- "Truth => incident(b2(),a2b2())",
+           -- "Truth => incident(a1(),a1c1())"]
+           -- "Truth => incident(c1(),a1c1())",
+           -- "Truth => incident(a2(),a2c2())",
+           -- "Truth => incident(c2(),a2c2())",
+           -- "Truth => incident(c1(),b1c1())",
+           -- "Truth => incident(b1(),b1c1())",
+           -- "Truth => incident(c2(),b2c2())",
+           -- "Truth => incident(b2(),b2c2())",
+           -- "Truth => incident(o(),oa())",
+           -- "Truth => incident(o(),ob())",
+           -- "Truth => incident(o(),oc())",
+           -- "Truth => incident(a1(),oa())",
+           -- "Truth => incident(a2(),oa())",
+           -- "Truth => incident(b1(),ob())",
+           -- "Truth => incident(b2(),ob())",
+           -- "Truth => incident(c1(),oc())",
+           -- "Truth => incident(c2(),oc())",
+           -- "Truth => incident(bc(),b1c1())",
+           -- "Truth => incident(bc(),b2c2())",
+           -- "Truth => incident(ac(),a1c1())",
+           -- "Truth => incident(ac(),a2c2())",
+           -- "Truth => incident(ab(),a1b1())",
+           -- "Truth => incident(ab(),a2b2())"]
