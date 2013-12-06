@@ -39,7 +39,7 @@ data RelInfo = RelInfo {
       bodyExp      :: (RelExp, Labels),
       bodyDeltaExp :: (RelExp, Labels),
       headExp      :: [(RelExp, Labels)]
-}
+} deriving Show
 
 {-| Frame is a data structure corresponding to a geometric sequent in a problem.
   A Frame structure consists of the following parts:

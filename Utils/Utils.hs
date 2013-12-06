@@ -283,3 +283,12 @@ listPower list n = [x:y| x <- list, y <- listPower list (n - 1)]
 maybeHead :: [a] -> Maybe a
 maybeHead []     = Nothing
 maybeHead (x:xs) = Just x
+
+traceList :: (Show a) => [a] -> b -> b
+traceList itms b = foldr (trace.show) b itms
+
+traceEval :: Show a => a -> a
+traceEval x =  (trace.show) x x
+
+traceEvalWith :: Show b => (a -> b) -> a -> a
+traceEvalWith f x = (trace.show) (f x) x

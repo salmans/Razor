@@ -106,10 +106,20 @@ processEquation (Equ t1@(Fn f1 []) t2@(Fn f2 [])) (tbls, deltas, eqs) = do
   (recs1, t1') <- initConstant tbls t1
   (recs2, t2') <- initConstant tbls t2
   tbls'        <- updateTables t1' t2' $ mergeAllSets [tbls,recs1,recs2]
-  tmpDeltas    <- updateTables t1' t2' deltas
-  let deltas'  = mergeAllSets [tmpDeltas, recs1,recs2]
+  deltas'      <- updateTables t1' t2' deltas
+  -- Since the two constants are changing, add both of them to deltas:
+  let t1Tbl    = Map.lookup (ConTable f1) tbls'
+  let t2Tbl    = Map.lookup (ConTable f2) tbls'
+  let deltas'' = case (t1Tbl, t2Tbl) of
+                   (Nothing, Nothing)   -> deltas'
+                   (Just tt1, Nothing)  -> Map.insert (ConTable f1) tt1 deltas'
+                   (Nothing, Just tt2)  -> Map.insert (ConTable f2) tt2 deltas'
+                   (Just tt1, Just tt2) -> 
+                       let tmp = Map.insert (ConTable f1) tt1 deltas'
+                       in  Map.insert (ConTable f2) tt2 tmp
+  let deltas'''= mergeAllSets [deltas'', recs1,recs2]
   let eqs'     = updateEquation t1' t2' <$> eqs
-  return (tbls', deltas', eqs') 
+  return (tbls', deltas''', eqs') 
     -- initiating two constants and make them equal.
           
 
@@ -190,7 +200,7 @@ updateTables c1@(Elm _) c2@(Elm _) tbls = do
   State.put (p, updateProvInfo c1 c2 ps)
   return $ nubSet.((updateFunc <$>) <$>) <$> tbls
     -- Salman: this can be done more efficiently
-    where updateFunc = (\x -> if x == c1 then c2 else x) 
+    where updateFunc = (\x -> if x == c1 then c2 else x)
 updateTables _ _ _ = error "CC.RelAlg.updateTables: invalid update"    
 
 updateProvInfo :: Term -> Term -> ProvInfo -> ProvInfo
@@ -223,7 +233,10 @@ updateTerm t1 t2 t@(Fn f ts) =
     if   t == t1 
     then t2 
     else Fn f (updateTerm t1 t2 <$> ts)
-
+updateTerm t1 t2 t@(Rn f ts) = 
+    if   t == t1 
+    then t2 
+    else Rn f (updateTerm t1 t2 <$> ts)
 
 {- Returns all the equations that enforce integrity constraints in the current
    state of the model. -}

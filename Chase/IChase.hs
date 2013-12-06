@@ -31,7 +31,9 @@ import qualified Chase.Problem.RelAlg.Operations as OP -- remove this
 import Chase.Problem.RelAlg.RelAlg as RA
 
 -- Other Modules
-import Utils.Utils (allMaps, prodList, allSublists, allCombinations)
+import Utils.Utils (allMaps, prodList, allSublists, 
+                    allCombinations)
+import Utils.Utils (traceList, traceEval, traceEvalWith)
 import Debug.Trace
 import Tools.Logger
 
@@ -59,17 +61,16 @@ runChase :: Maybe Model -> Theory -> [Problem]
 runChase mdl thy =
     let ((probs, _), log) = Writer.runWriter writer in
     -- use the log information when needed
-    -- (trace.show) log
+    traceList log
     probs
     where initialProblem    = buildProblem (relConvert thy) 
           problem           = case mdl of
                                 Nothing -> initialProblem
                                 Just m  -> initialProblem {problemModel = m}
-          problems          = Maybe.fromMaybe [] $ initiateProblem problem
           -- Create the initial problem (get rid of function symbols)
           writer            = State.runStateT run [] 
                               -- the wrapper Writer monad for logging
-          run               =  (mapM scheduleProblem problems) >>= (\_ -> 
+          run               = scheduleProblem problem >>= (\_ -> 
                               process) -- schedule the problem, then process it
 
 {-| Given an input problem, runs the chase and returns a set of final problems,
@@ -86,37 +87,6 @@ runChaseWithProblem problem =
                               -- the wrapper Writer monad for logging
           run               =  (mapM scheduleProblem [problem]) >>= (\_ -> 
                               process) -- schedule the problem, then process it
-
-
-{- Processes the frames with Truth on their lefts and initiates the queue of
-   the problem accordingly. It removes the processed frames from the problem. -}
-initiateProblem :: Problem -> Maybe [Problem]
-initiateProblem problem@(Problem frames model [] lastID lastConst) =
-    case newModels' model emptyTables initiatingFrames lastConst of
-      Nothing     -> Nothing
-      Just []     -> Just $ [Problem { problemFrames       = otherFrames
-                                     , problemModel        = model
-                                     , problemQueue        = []
-                                     , problemLastID       = lastID
-                                     , problemLastConstant = lastConst}]
-      Just models -> Just $ map (\(m, q, c) -> 
-                                 Problem { problemFrames       = otherFrames
-                                         , problemModel        = m
-                                         , problemQueue        = [q]
-                                         , problemLastID       = lastID
-                                         , problemLastConstant = c}) models
-    where (initiatingFrames, otherFrames) = partition (null.frameBody) frames
-initiateProblem _ = error $ "Chase.IChase.initateProblem: the problem is has "
-                    ++ "already been initialized!"
-
-newModels' :: Model -> Tables -> [Frame] -> Int -> Maybe [(Model, Tables, Int)]
-newModels' _ _ [] _ = Just []
-newModels' model queue (frame:frames) counter = 
-    do
-      this   <- newModelsForFrame model queue frame counter
-      let c  = maximum $ (\(_, _, c') -> c') <$> this
-      others <- newModels' model queue frames c
-      return (combine this others)
 
 
 {- Combines the outputs of newModels -}
@@ -222,13 +192,12 @@ makeFreshConstant counter = Fn ("a@" ++ (show counter)) []
 process :: ProbPool [Problem]
 process = do
       prob <- selectProblem -- select a problem from the pool
-      State.lift $ logM "prob" prob
+      -- State.lift $ logM "prob" prob
       case prob of
         Nothing -> return [] -- no more problems
         Just p  -> 
             do
               let newProbs = newProblems p
-              --State.lift $ logM "Problems" newProbs
               case newProbs of
                 Nothing -> process
                 Just [] -> do
@@ -237,10 +206,21 @@ process = do
                 Just ps -> do 
                   mapM scheduleProblem ps
                   process
+              
 
 {- Applies a chase step to the input problem. -}
 newProblems :: Problem -> Maybe [Problem]
-newProblems (Problem _ _ [] _ _) = Just []
+--newProblems (Problem _ _ [] _ _) = Just []
+newProblems problem@(Problem frames model [] lastID lastConst) =
+    case newModels model emptyTables frames lastConst of
+      Nothing     -> Nothing
+      Just []     -> Just []
+      Just models -> Just $ map (\(m, q, c) -> 
+                                 Problem { problemFrames       = frames
+                                         , problemModel        = m
+                                         , problemQueue        = [q]
+                                         , problemLastID       = lastID
+                                         , problemLastConstant = c}) models
 newProblems problem@(Problem frames model (queue:queues) lastID lastConst) =
     case newModels model queue frames lastConst of
       Nothing     -> Nothing
@@ -261,7 +241,7 @@ newModels model queue (frame:frames) counter =
     do
       currentFrame <- newModelsForFrame model queue frame counter
       otherFrames  <- newModels model queue frames counter
-      return (currentFrame <|> otherFrames)
+      return (if null currentFrame then otherFrames else currentFrame)
 
 newModelsForFrame :: Model -> Tables -> Frame -> Int -> 
                      Maybe [(Model, Tables, Int)]
@@ -272,7 +252,6 @@ newModelsForFrame model queue frame counter =
       Just (os, c, p) -> Just $ (\o -> 
                                  Model.add model c o (Maybe.fromJust p)) <$> os
                       
-
 newFacts :: Int -> Model -> Tables -> Frame -> Maybe ([[Obs]], Int, Maybe Prov)
 newFacts counter model queue frame = 
     if   null subs
