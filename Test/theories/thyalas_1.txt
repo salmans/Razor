@@ -1,0 +1,71 @@
+Lab(ALAS())
+Lab(PEDS())
+
+RoomOf(ALAS(), B17()) & RoomOf(PEDS(), B17())
+
+MemberOf(x, ALAS()) => KeyOpens(key(x), B17()) | CardOpens(card(x), B17())
+MemberOf(x, PEDS()) => KeyOpens(key(x), B17()) | CardOpens(card(x), B17())
+
+KeyOpens(key(x), y) => Enters(x, y)
+CardOpens(card(x), y) => Enters(x, y)
+
+-- # VARIATIONS
+
+-----------------------------------------------------
+
+
+-----------------------------------------------------
+-- ALAS has a member
+
+-- Truth => exists x. MemberOf(x, ALAS())
+
+
+-----------------------------------------------------
+-- ALAS members always enter B17?
+
+-- exists x. MemberOf(x, ALAS()) & NotEnter(x, B17())
+-- NotEnter(x, y) & Enters(x, y) => Falsehood
+
+-----------------------------------------------------
+-- ALAS members' cards open B17?
+
+-- Go through every scenario:
+-- exists x.MemberOf(x, ALAS())
+
+-- Like the previous example:
+-- exists x.MemberOf(x, ALAS()) & NotOpens(card(x), B17())
+-- exists x. exists y. MemberOf(x, ALAS()) & card(x) = y & NotOpens(y, B17())
+-- CardOpens(x, y) & NotOpens(x, y) => Falsehood
+
+
+-----------------------------------------------------
+-- Exists someone who can enter B17?
+
+-- exists x. Enters(x, B17())
+
+-----------------------------------------------------
+-- Someone who is not either a member of ALAS nor PEDS can enter B17
+
+-- exists x. Enters(x, B17())
+-- Enters(x, y) => CardOpens(card(x), y) | KeyOpens(key(x), y)
+-- CardOpens(card(x), y) => exists z. MemberOf(x, z) & RoomOf(z, y)
+-- KeyOpens(key(x), y) => exists z. MemberOf(x, z) & RoomOf(z, y)
+
+-----------------------------------------------------
+-- B17 is only room of ALAS and PEDS
+
+-- exists x. Enters(x, B17())
+-- Enters(x, y) => CardOpens(card(x), y) | KeyOpens(key(x), y)
+-- CardOpens(card(x), y) => exists z. MemberOf(x, z) & RoomOf(z, y)
+-- KeyOpens(key(x), y) => exists z. MemberOf(x, z) & RoomOf(z, y)
+-- RoomOf(x, B17()) => x = ALAS() | x = PEDS()
+
+-----------------------------------------------------
+-- Now, can anybody else enter B17?
+exists x. Enters(x, B17()) & NotALASNorPEDS(x)
+NotALASNorPEDS(x) & MemberOf(x, ALAS()) => Falsehood
+NotALASNorPEDS(x) & MemberOf(x, PEDS()) => Falsehood
+Enters(x, y) => CardOpens(card(x), y) | KeyOpens(key(x), y)
+CardOpens(card(x), y) => exists z. MemberOf(x, z) & RoomOf(z, y)
+KeyOpens(key(x), y) => exists z. MemberOf(x, z) & RoomOf(z, y)
+RoomOf(x, B17()) => x = ALAS() | x = PEDS()

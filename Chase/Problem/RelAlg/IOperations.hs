@@ -91,34 +91,38 @@ processEquation (Equ c1@(Elm _) c2@(Elm _)) (tbls, deltas, eqs) = do
                                    -- database.
     where eqs'    = updateEquation c1 c2 <$> eqs
 processEquation (Equ t@(Fn f []) c@(Elm _)) (tbls, deltas, eqs) = do
-  (recs, t')  <- initConstant tbls t
-  tbls'       <- updateTables t' c tbls
-  deltas'     <- updateTables t' c deltas
-  let tbls''   =  mergeSets tbls' recs
-  let deltas'' =  mergeSets deltas' recs
-  let eqs''    =  updateEquation t' c <$> eqs
-  return (tbls'', deltas'', eqs'')
+  (recs, t')    <- initConstant tbls t
+  tbls'         <- updateTables t' c tbls
+  deltas'       <- updateTables t' c deltas
+  let tTbl      = Map.lookup (ConTable f) tbls'
+  let deltas''  = case tTbl of
+                    Nothing -> deltas'
+                    Just tt -> Map.insert (ConTable f) tt deltas'
+  let tbls''    =  mergeSets tbls' recs
+  let deltas''' =  mergeSets deltas'' recs
+  let eqs''     =  updateEquation t' c <$> eqs
+  return (tbls'', deltas''', eqs'')
     -- making a new element in the database for a given constant.
     -- Salman: use state monad.        
 processEquation (Equ c@(Elm _) t@(Fn f [])) inputState = 
     processEquation (Equ t c) inputState -- orient the equation    
 processEquation (Equ t1@(Fn f1 []) t2@(Fn f2 [])) (tbls, deltas, eqs) = do
-  (recs1, t1') <- initConstant tbls t1
-  (recs2, t2') <- initConstant tbls t2
-  tbls'        <- updateTables t1' t2' $ mergeAllSets [tbls,recs1,recs2]
-  deltas'      <- updateTables t1' t2' deltas
+  (recs1, t1')  <- initConstant tbls t1
+  (recs2, t2')  <- initConstant tbls t2
+  tbls'         <- updateTables t1' t2' $ mergeAllSets [tbls,recs1,recs2]
+  deltas'       <- updateTables t1' t2' deltas
   -- Since the two constants are changing, add both of them to deltas:
-  let t1Tbl    = Map.lookup (ConTable f1) tbls'
-  let t2Tbl    = Map.lookup (ConTable f2) tbls'
-  let deltas'' = case (t1Tbl, t2Tbl) of
-                   (Nothing, Nothing)   -> deltas'
-                   (Just tt1, Nothing)  -> Map.insert (ConTable f1) tt1 deltas'
-                   (Nothing, Just tt2)  -> Map.insert (ConTable f2) tt2 deltas'
-                   (Just tt1, Just tt2) -> 
-                       let tmp = Map.insert (ConTable f1) tt1 deltas'
-                       in  Map.insert (ConTable f2) tt2 tmp
-  let deltas'''= mergeAllSets [deltas'', recs1,recs2]
-  let eqs'     = updateEquation t1' t2' <$> eqs
+  let t1Tbl     = Map.lookup (ConTable f1) tbls'
+  let t2Tbl     = Map.lookup (ConTable f2) tbls'
+  let deltas''  = case (t1Tbl, t2Tbl) of
+                    (Nothing, Nothing)   -> deltas'
+                    (Just tt1, Nothing)  -> Map.insert (ConTable f1) tt1 deltas'
+                    (Nothing, Just tt2)  -> Map.insert (ConTable f2) tt2 deltas'
+                    (Just tt1, Just tt2) -> 
+                        let tmp = Map.insert (ConTable f1) tt1 deltas'
+                        in  Map.insert (ConTable f2) tt2 tmp
+  let deltas''' = mergeAllSets [deltas'', recs1,recs2]
+  let eqs'      = updateEquation t1' t2' <$> eqs
   return (tbls', deltas''', eqs') 
     -- initiating two constants and make them equal.
           

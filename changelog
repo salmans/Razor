@@ -109,9 +109,11 @@ Version 3.2
 Version 3.2.1
     - Incremental view maintenance is temporarily disabled.
     - A binary for users (bin/chase) can now be created.
+
+Version 3.2.2
+    - Incremental view maintenance is now enabled.
 	
 Yet to come:
-    - Enable incremental view maintenance.
     - Restore fairness when processing sequents.
     - Efficient congruence closure implementation.
     - Improving the efficiency of the code as indicated by comments.
