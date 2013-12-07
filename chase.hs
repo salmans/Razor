@@ -11,6 +11,7 @@ import System.FilePath
 
 import Formula.SyntaxGeo (Sequent, parseSequent)
 import Utils.Utils (isRealLine)
+import Tools.Config
 import Chase.Problem.Model
 import Chase.Chase (chase, chase')
 -- ============================
@@ -26,9 +27,10 @@ main = do
           if null args then error "need an input file"
           else head args
       inputFileName = inputFileBaseName
-
+  
   let allModels = "-all" `elem` (tail args)
-
+      debug     = "-debug" `elem` (tail args)
+      config    = defaultConfig { configDebug = debug }
   -- do input file reading
   src <- readFile inputFileName                    
 
@@ -49,9 +51,9 @@ main = do
 
   putStrLn "Models: \n"
 
-  if allModels
-  then printModels $ chase inputFmlas
-  else putStrLn $ case chase' inputFmlas of
+  if   allModels
+  then printModels $ chase config inputFmlas
+  else putStrLn $ case chase' config inputFmlas of
                     Nothing -> "No models found!"
                     Just m  -> show m
   putStrLn ""

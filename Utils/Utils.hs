@@ -285,10 +285,13 @@ maybeHead []     = Nothing
 maybeHead (x:xs) = Just x
 
 traceList :: (Show a) => [a] -> b -> b
-traceList itms b = foldr (trace.show) b itms
+traceList itms b = foldr traceShow b itms
 
 traceEval :: Show a => a -> a
-traceEval x =  (trace.show) x x
+traceEval x =  traceShow x x
 
 traceEvalWith :: Show b => (a -> b) -> a -> a
-traceEvalWith f x = (trace.show) (f x) x
+traceEvalWith f x = traceShow (f x) x
+
+traceIf :: Show a => Bool -> a -> b -> b
+traceIf cond x y = if cond then (traceShow x) y else y

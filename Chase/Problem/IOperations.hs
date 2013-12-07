@@ -102,6 +102,16 @@ scheduleProblem = \p -> State.get  >>= (\ps ->
                   State.put (p:ps) >>= (\_ -> 
                   return ()))
 
+{-| Selects a frame from a set of frames and returns the selected frame as well 
+  as the remaining frames. -}
+{- Salman: at the moment, the only reason that we kept frames inside problems
+   is because we want to maintain a different schedule for each problem. -}
+selectFrame :: [Frame] -> (Frame, [Frame])
+selectFrame = undefined
+
+{-| Schedules a frame inside a set of frames. -}
+scheduleFrame :: (Frame, [Frame]) -> [Frame]
+scheduleFrame = undefined
 
 {-| Creates a Frame from a given sequent. 
 -}

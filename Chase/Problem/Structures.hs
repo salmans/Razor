@@ -9,13 +9,13 @@ module Chase.Problem.Structures where
 -- General Modules
 import Data.List
 import qualified Data.Map as Map
-import qualified Control.Monad.State as State
-import qualified Control.Monad.Writer as Writer
+import qualified Control.Monad.RWS as RWS
 import Control.Applicative
 
 -- Logic Modules
 import Formula.SyntaxGeo
 import Utils.GeoUtilities(TermBased(..))
+import Tools.Config
 
 -- Chase Modeuls:
 import Chase.Problem.BaseTypes
@@ -112,9 +112,6 @@ instance Show Problem where
         "-- FRAMES:\n" ++ (show frames) ++ "\n" ++
         "-- MODEL: \n" ++ (show model) ++ "\n"
 
-{-| ProbPool keeps track of the pool of problems. -}
--- Currently, ProbPool is a Writer monad, as a logger, on top of
--- a State monad, for the list of problems.
-type ProbPool = State.StateT [Problem] (Writer.Writer [String])
-
-type Logger   = Writer.Writer [String]
+{-| ProbPool keeps track of the pool of problems. It contains a list of problems
+-}
+type ProbPool = RWS.RWST [String] [String] [Problem] ConfigMonad

@@ -1,6 +1,8 @@
 module Tools.Logger where
 
-import Control.Monad.Writer
+import Control.Monad.RWS
+import Chase.Problem.Structures
 
-logM :: (Show a) => String -> a -> Writer [String] a
+-- Salman: consider moving this insider Chase module
+logM :: (Show a) => String -> a -> ProbPool a
 logM t x = writer (x, [t ++ " ==> " ++ (show x)])

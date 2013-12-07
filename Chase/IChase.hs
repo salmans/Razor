@@ -9,15 +9,17 @@ module Chase.IChase where
 import Data.List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
+import qualified Control.Monad.RWS as RWS
 import qualified Control.Monad.State as State
-import qualified Control.Monad.Writer as Writer
 import Control.Applicative
 import Control.Monad
 
 -- Logic Modules
 import Formula.SyntaxGeo
 import Utils.GeoUtilities
+import Tools.Logger
 import Tools.GeoUnification
+import Tools.Config
 
 -- Chase Modules
 import Chase.Problem.BaseTypes
@@ -33,23 +35,22 @@ import Chase.Problem.RelAlg.RelAlg as RA
 -- Other Modules
 import Utils.Utils (allMaps, prodList, allSublists, 
                     allCombinations)
-import Utils.Utils (traceList, traceEval, traceEvalWith)
+import Utils.Utils (traceList, traceEval, traceEvalWith, traceIf)
 import Debug.Trace
-import Tools.Logger
 
 {-| Runs the chase for a given input theory, starting from an empty model.
 -}
-chase :: Theory -> [Model]
-chase thy = problemModel <$> runChase Nothing thy
+chase :: Config -> Theory -> [Model]
+chase cfg thy = problemModel <$> runChase cfg Nothing thy
 
 {-| Like chase, but returns only the first model found.
 -}
-chase' :: Theory -> Maybe Model
-chase' thy = Maybe.listToMaybe $ chase thy
+chase' :: Config -> Theory -> Maybe Model
+chase' cfg thy = Maybe.listToMaybe $ chase cfg thy
 
 {-| Runs the chase for a set of input theories over an input (partial) model. -}
 chaseWithModel :: Model -> Theory -> [Model]
-chaseWithModel mdl thy = problemModel <$> runChase (Just mdl) thy 
+chaseWithModel mdl thy = problemModel <$> runChase defaultConfig (Just mdl) thy 
 
 {-| This is the main chase function, which tries to find the set of all the 
   models for a given geometric theory.
@@ -57,36 +58,32 @@ chaseWithModel mdl thy = problemModel <$> runChase (Just mdl) thy
   - A geometric theory, thy
   - Possibly a starting (partial) model, mdl
 -}
-runChase :: Maybe Model -> Theory -> [Problem]
-runChase mdl thy =
-    let ((probs, _), log) = Writer.runWriter writer in
+runChase :: Config -> Maybe Model -> Theory -> [Problem]
+runChase cfg mdl thy = 
+    let (probs, log) = State.evalState config cfg
     -- use the log information when needed
-    traceList log
-    probs
-    where initialProblem    = buildProblem (relConvert thy) 
-          problem           = case mdl of
-                                Nothing -> initialProblem
-                                Just m  -> initialProblem {problemModel = m}
+    in traceList log
+       probs
+    where initialProblem = buildProblem (relConvert thy) 
           -- Create the initial problem (get rid of function symbols)
-          writer            = State.runStateT run [] 
-                              -- the wrapper Writer monad for logging
-          run               = scheduleProblem problem >>= (\_ -> 
-                              process) -- schedule the problem, then process it
+          problem        = case mdl of
+                             Nothing -> initialProblem
+                             Just m  -> initialProblem {problemModel = m}
+          config         = RWS.evalRWST run [] []
+          run            = scheduleProblem problem >>= (\_ -> process)          
+          -- schedule the problem, then process it
 
 {-| Given an input problem, runs the chase and returns a set of final problems,
   which contain the models for the input problem.
 -}
-runChaseWithProblem :: Problem -> [Problem]
-runChaseWithProblem problem =
-    let ((probs, _), log) = Writer.runWriter writer in
-    -- use the log information when needed
-    -- (trace.show) log
-    probs
-    where -- Create the initial problem (get rid of function symbols)
-          writer            = State.runStateT run [] 
-                              -- the wrapper Writer monad for logging
-          run               =  (mapM scheduleProblem [problem]) >>= (\_ -> 
-                              process) -- schedule the problem, then process it
+runChaseWithProblem :: Config -> Problem -> [Problem]
+runChaseWithProblem cfg problem =
+    let (probs, log) = State.evalState config cfg
+    in traceList log
+       probs
+    where run    =  (mapM scheduleProblem [problem]) >>= (\_ -> process)
+          config = RWS.evalRWST run [] []
+          -- schedule the problem, then process it
 
 
 {- Combines the outputs of newModels -}
@@ -192,12 +189,12 @@ makeFreshConstant counter = Fn ("a@" ++ (show counter)) []
 process :: ProbPool [Problem]
 process = do
       prob <- selectProblem -- select a problem from the pool
-      -- State.lift $ logM "prob" prob
+      cfg  <- State.lift State.get
       case prob of
         Nothing -> return [] -- no more problems
         Just p  -> 
             do
-              let newProbs = newProblems p
+              let newProbs = newProblems cfg p
               case newProbs of
                 Nothing -> process
                 Just [] -> do
@@ -209,9 +206,12 @@ process = do
               
 
 {- Applies a chase step to the input problem. -}
-newProblems :: Problem -> Maybe [Problem]
+newProblems :: Config -> Problem -> Maybe [Problem]
 --newProblems (Problem _ _ [] _ _) = Just []
-newProblems problem@(Problem frames model [] lastID lastConst) =
+newProblems cfg problem@(Problem frames model [] lastID lastConst) =
+    -- trace models
+    traceIf (configDebug cfg) model
+    $
     case newModels model emptyTables frames lastConst of
       Nothing     -> Nothing
       Just []     -> Just []
@@ -221,7 +221,10 @@ newProblems problem@(Problem frames model [] lastID lastConst) =
                                          , problemQueue        = [q]
                                          , problemLastID       = lastID
                                          , problemLastConstant = c}) models
-newProblems problem@(Problem frames model (queue:queues) lastID lastConst) =
+newProblems cfg problem@(Problem frames model (queue:queues) lastID lastConst) =    
+    -- trace models
+    traceIf (configDebug cfg) model
+    $
     case newModels model queue frames lastConst of
       Nothing     -> Nothing
       Just []     -> Just []
@@ -271,5 +274,7 @@ newFacts counter model queue frame =
           -- Also, let's just lift the body for now!
           -- Salman: Separate provenance computation from the main computation.
 
-doChase thy  = chase  $ map parseSequent thy
-doChase' thy = chase' $ map parseSequent thy
+-- Run the chase for local tests:
+debugConf = defaultConfig { configDebug = True }
+doChase thy  = chase  debugConf $ map parseSequent thy
+doChase' thy = chase' debugConf $ map parseSequent thy

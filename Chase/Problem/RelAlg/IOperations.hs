@@ -112,6 +112,7 @@ processEquation (Equ t1@(Fn f1 []) t2@(Fn f2 [])) (tbls, deltas, eqs) = do
   tbls'         <- updateTables t1' t2' $ mergeAllSets [tbls,recs1,recs2]
   deltas'       <- updateTables t1' t2' deltas
   -- Since the two constants are changing, add both of them to deltas:
+  -- Salman: it should be enough to do this only for t2
   let t1Tbl     = Map.lookup (ConTable f1) tbls'
   let t2Tbl     = Map.lookup (ConTable f2) tbls'
   let deltas''  = case (t1Tbl, t2Tbl) of
@@ -198,13 +199,15 @@ lookupConstant _ _ = error "CC.RelAlg.lookupConstant: invalid element!"
 -- Salamn: this operation is probably the most constly operation. We may be 
 -- able to reduce the cost by using references (pointers) or indices.
 updateTables :: Term -> Term -> Tables -> ProvCounter Tables
-updateTables c1@(Elm _) c2@(Elm _) tbls = do
+updateTables c1@(Elm ('e':'#':n1)) c2@(Elm ('e':'#':n2)) tbls = do
   -- Also update provenance information for the elements being collapsed:
   (p, ps) <- State.get
   State.put (p, updateProvInfo c1 c2 ps)
   return $ nubSet.((updateFunc <$>) <$>) <$> tbls
     -- Salman: this can be done more efficiently
-    where updateFunc = (\x -> if x == c1 then c2 else x)
+    where updateFunc = if   n1 > n2
+                       then (\x -> if x == c1 then c2 else x)
+                       else (\x -> if x == c2 then c1 else x)
 updateTables _ _ _ = error "CC.RelAlg.updateTables: invalid update"    
 
 updateProvInfo :: Term -> Term -> ProvInfo -> ProvInfo
