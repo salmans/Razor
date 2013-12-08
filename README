@@ -7,4 +7,7 @@ Chase is a model-finder for geometric theories.
 
 # Run
 
-  - Run bin/chase <InputFile> from terminal.
+  > bin/chase <InputFile> [-all] [-debug]
+
+  -all: display all models
+  -debug: show debug information

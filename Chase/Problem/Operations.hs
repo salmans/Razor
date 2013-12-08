@@ -5,8 +5,8 @@
 -}
 module Chase.Problem.Operations (buildProblem,
                                  extendProblem,
-                                 selectProblem, 
-                                 scheduleProblem,
+                                 selectProblem, scheduleProblem,
+                                 selectFrame, scheduleFrame,
                                  holds,
                                  formulaHolds,
                                  sequentHolds,

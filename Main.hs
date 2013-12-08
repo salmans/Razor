@@ -20,6 +20,7 @@ import Formula.SyntaxGeo
 import Utils.GeoUtilities
 import qualified Utils.Utils
 import Tools.GeoUnification
+import Tools.Config
 import Chase.Problem.Model
 import Chase.Problem.Operations (sequentHolds)
 import Chase.Chase
@@ -51,7 +52,7 @@ main = do
 
   time1 <- getClockTime
   -- get the answer
-  let model  = chase' inputFmlas
+  let model  = chase' defaultConfig inputFmlas
   time2 <- getClockTime
 
   let diffTime = diffClockTimes time2 time1

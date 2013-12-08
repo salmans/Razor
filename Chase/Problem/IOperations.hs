@@ -106,12 +106,13 @@ scheduleProblem = \p -> State.get  >>= (\ps ->
   as the remaining frames. -}
 {- Salman: at the moment, the only reason that we kept frames inside problems
    is because we want to maintain a different schedule for each problem. -}
-selectFrame :: [Frame] -> (Frame, [Frame])
-selectFrame = undefined
+selectFrame :: [Frame] -> (Maybe Frame, [Frame])
+selectFrame []     = (Nothing, [])
+selectFrame (f:fs) = (Just f , fs)
 
 {-| Schedules a frame inside a set of frames. -}
-scheduleFrame :: (Frame, [Frame]) -> [Frame]
-scheduleFrame = undefined
+scheduleFrame :: Frame -> [Frame] -> [Frame]
+scheduleFrame f fs = fs ++ [f]
 
 {-| Creates a Frame from a given sequent. 
 -}

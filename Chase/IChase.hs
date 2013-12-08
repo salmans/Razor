@@ -207,44 +207,47 @@ process = do
 
 {- Applies a chase step to the input problem. -}
 newProblems :: Config -> Problem -> Maybe [Problem]
---newProblems (Problem _ _ [] _ _) = Just []
 newProblems cfg problem@(Problem frames model [] lastID lastConst) =
-    -- trace models
     traceIf (configDebug cfg) model
     $
     case newModels model emptyTables frames lastConst of
-      Nothing     -> Nothing
-      Just []     -> Just []
-      Just models -> Just $ map (\(m, q, c) -> 
-                                 Problem { problemFrames       = frames
-                                         , problemModel        = m
-                                         , problemQueue        = [q]
-                                         , problemLastID       = lastID
-                                         , problemLastConstant = c}) models
+      Nothing                -> Nothing
+      Just ([],     _      ) -> Just []
+      Just (frames', models) -> 
+          Just $ map (\(m, q, c) -> 
+                      Problem { problemFrames       = frames'
+                              , problemModel        = m
+                              , problemQueue        = [q]
+                              , problemLastID       = lastID
+                              , problemLastConstant = c}) models
 newProblems cfg problem@(Problem frames model (queue:queues) lastID lastConst) =    
-    -- trace models
     traceIf (configDebug cfg) model
     $
     case newModels model queue frames lastConst of
-      Nothing     -> Nothing
-      Just []     -> Just []
-      Just models -> Just $ map (\(m, q, c) -> 
-                                 Problem { problemFrames       = frames
-                                         , problemModel        = m
-                                         , problemQueue        = queues ++ [q]
-                                         , problemLastID       = lastID
-                                         , problemLastConstant = c}) models
+      Nothing                -> Nothing
+      Just ([]    , _      ) -> Just []
+      Just (frames', models) -> 
+          Just $ map (\(m, q, c) -> 
+                      Problem { problemFrames       = frames'
+                              , problemModel        = m
+                              , problemQueue        = queues ++ [q]
+                              , problemLastID       = lastID
+                              , problemLastConstant = c}) models
 
 
 -- Three helpers for newProblems:
 -- Salman: add comments!
-newModels :: Model -> Tables -> [Frame] -> Int -> Maybe [(Model, Tables, Int)]
-newModels _ _ [] _ = Just []
-newModels model queue (frame:frames) counter = 
+newModels :: Model -> Tables -> [Frame] -> Int -> 
+             Maybe ([Frame], [(Model, Tables, Int)])
+newModels _ _ [] _ = Just ([], [])
+newModels model queue frames counter = 
     do
-      currentFrame <- newModelsForFrame model queue frame counter
-      otherFrames  <- newModels model queue frames counter
-      return (if null currentFrame then otherFrames else currentFrame)
+      let (Just f, fs)  = selectFrame frames
+      curr         <- newModelsForFrame model queue f counter
+      (fs', oth)   <- newModels model queue fs counter
+      if   null curr
+      then return (scheduleFrame f fs', oth)
+      else return (scheduleFrame f fs , curr)
 
 newModelsForFrame :: Model -> Tables -> Frame -> Int -> 
                      Maybe [(Model, Tables, Int)]
@@ -275,6 +278,6 @@ newFacts counter model queue frame =
           -- Salman: Separate provenance computation from the main computation.
 
 -- Run the chase for local tests:
-debugConf = defaultConfig { configDebug = True }
+debugConf = defaultConfig { configDebug = False }
 doChase thy  = chase  debugConf $ map parseSequent thy
 doChase' thy = chase' debugConf $ map parseSequent thy
