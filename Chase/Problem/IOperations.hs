@@ -178,7 +178,7 @@ matchFrame tbls delts relInfo@(RelInfo bodyInfo bodyDiffInfo headInfo) =
                       <$> headInfo
         facts       = diff (bdySet, bdyLbls) hdSetLabels
     in  createSubs bdyLbls facts
-    where (bdyExp, bdyLbls) = bodyDiffInfo
+    where (bdyExp, bdyLbls) = bodyInfo
           noFVars lbls  = all (\l -> ((not.isJust) l) ||
                                            not(l `elem` bdyLbls)) lbls
 
