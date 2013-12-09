@@ -7,7 +7,9 @@ Chase is a model-finder for geometric theories.
 
 # Run
 
-  > bin/chase <InputFile> [-all] [-debug]
+  > bin/chase <InputFile> [-all] [-debug] [-fifo/-filo]
 
   -all: display all models
   -debug: show debug information
+  -fifo: schedule problems in a first-in-first-out manner (default)
+  -filo: schedule problems in a first-in-last-out manner

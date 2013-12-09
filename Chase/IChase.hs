@@ -17,7 +17,7 @@ import Control.Monad
 -- Logic Modules
 import Formula.SyntaxGeo
 import Utils.GeoUtilities
-import Tools.Logger
+import qualified Tools.Logger as Logger
 import Tools.GeoUnification
 import Tools.Config
 
@@ -35,7 +35,7 @@ import Chase.Problem.RelAlg.RelAlg as RA
 -- Other Modules
 import Utils.Utils (allMaps, prodList, allSublists, 
                     allCombinations)
-import Utils.Utils (traceList, traceEval, traceEvalWith, traceIf)
+import Utils.Trace
 import Debug.Trace
 
 {-| Runs the chase for a given input theory, starting from an empty model.
@@ -62,7 +62,7 @@ runChase :: Config -> Maybe Model -> Theory -> [Problem]
 runChase cfg mdl thy = 
     let (probs, log) = State.evalState config cfg
     -- use the log information when needed
-    in traceList log
+    in traceStringListIf (configDebug cfg) log
        probs
     where initialProblem = buildProblem (relConvert thy) 
           -- Create the initial problem (get rid of function symbols)
@@ -70,7 +70,8 @@ runChase cfg mdl thy =
                              Nothing -> initialProblem
                              Just m  -> initialProblem {problemModel = m}
           config         = RWS.evalRWST run [] []
-          run            = scheduleProblem problem >>= (\_ -> process)          
+          run            = scheduleProblem (configSchedule cfg) problem >>= 
+                           (\_ -> process)          
           -- schedule the problem, then process it
 
 {-| Given an input problem, runs the chase and returns a set of final problems,
@@ -81,7 +82,8 @@ runChaseWithProblem cfg problem =
     let (probs, log) = State.evalState config cfg
     in traceList log
        probs
-    where run    =  (mapM scheduleProblem [problem]) >>= (\_ -> process)
+    where run    =  mapM (scheduleProblem (configSchedule cfg)) [problem] >>= 
+                    (\_ -> process)
           config = RWS.evalRWST run [] []
           -- schedule the problem, then process it
 
@@ -188,8 +190,9 @@ makeFreshConstant counter = Fn ("a@" ++ (show counter)) []
    step. -}
 process :: ProbPool [Problem]
 process = do
-      prob <- selectProblem -- select a problem from the pool
       cfg  <- State.lift State.get
+      prob <- selectProblem (configSchedule cfg) -- pick a problem
+      Logger.logIf (Maybe.isJust prob) ((problemModel.Maybe.fromJust) prob)
       case prob of
         Nothing -> return [] -- no more problems
         Just p  -> 
@@ -201,15 +204,13 @@ process = do
                   rest <- process
                   return (p:rest)
                 Just ps -> do 
-                  mapM scheduleProblem ps
+                  mapM (scheduleProblem (configSchedule cfg)) ps
                   process
               
 
 {- Applies a chase step to the input problem. -}
 newProblems :: Config -> Problem -> Maybe [Problem]
 newProblems cfg problem@(Problem frames model [] lastID lastConst) =
-    traceIf (configDebug cfg) model
-    $
     case newModels model emptyTables frames lastConst of
       Nothing                -> Nothing
       Just ([],     _      ) -> Just []
@@ -221,8 +222,6 @@ newProblems cfg problem@(Problem frames model [] lastID lastConst) =
                               , problemLastID       = lastID
                               , problemLastConstant = c}) models
 newProblems cfg problem@(Problem frames model (queue:queues) lastID lastConst) =    
-    traceIf (configDebug cfg) model
-    $
     case newModels model queue frames lastConst of
       Nothing                -> Nothing
       Just ([]    , _      ) -> Just []

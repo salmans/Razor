@@ -18,7 +18,7 @@ import Control.Applicative
 import Formula.SyntaxGeo
 import Utils.GeoUtilities
 import Tools.GeoUnification
---import Tools.Narrowing
+import Tools.Config
 
 -- Chase Modeuls:
 import Chase.Problem.BaseTypes
@@ -29,8 +29,6 @@ import qualified Chase.Problem.Model as Model
 import Chase.Problem.RelAlg.RelAlg
 import qualified Chase.Problem.RelAlg.Operations as OP
 import qualified RelAlg.DB as DB -- Salman: Do not import this here!
--- Other Modules
-import Debug.Trace
 
 
 {- A list of errors raised by this module -}
@@ -82,28 +80,32 @@ extendProblem (Problem oldFrames model queue last lastConst)
                       frames [(last + 1)..]
           newLastID = last + (length newFrames)
 
-{-| Selects a problem from a pool of problems and returns the selected problem. 
-  The function changes the current state of the pool of problems.
-  If the pool is empty, the function returns Nothing. Otherwise, returns the 
-  problem wrapped in Just.
+{-| Selects a problem from a pool of problems based on the given scheduling type
+  and returns the selected problem. The function changes the current state of 
+  the pool of problems. If the pool is empty, the function returns Nothing. 
+  Otherwise, returns the problem wrapped in Just.
 -}
-selectProblem :: ProbPool (Maybe Problem)
-selectProblem =
+selectProblem :: ScheduleType -> ProbPool (Maybe Problem)
+selectProblem _ =
     State.get >>= (\probs ->
     case probs of
       []   -> return Nothing
       p:ps -> State.put ps >>= (\_ -> 
               return $ Just p))
 
-{-| Inserts a problem into the problem pool. -}
-scheduleProblem :: Problem -> ProbPool ()
-scheduleProblem = \p -> State.get  >>= (\ps ->
-                  -- Reschedule the problem at the head of the pool
-                  State.put (p:ps) >>= (\_ -> 
-                  return ()))
+{-| Inserts a problem into the problem pool based on the given scheduling 
+  type. -}
+scheduleProblem :: ScheduleType -> Problem -> ProbPool ()
+scheduleProblem SchedFIFO = 
+    \p -> State.get  >>= (\ps ->
+    State.put (ps ++ [p]) >>= (\_ -> return ()))
+scheduleProblem SchedFILO = 
+    \p -> State.get  >>= (\ps ->
+    State.put (p:ps) >>= (\_ -> return ()))
 
 {-| Selects a frame from a set of frames and returns the selected frame as well 
-  as the remaining frames. -}
+  as the remaining frames. The scheduling algorithm is always fifo to maintain
+  fairness. -}
 {- Salman: at the moment, the only reason that we kept frames inside problems
    is because we want to maintain a different schedule for each problem. -}
 selectFrame :: [Frame] -> (Maybe Frame, [Frame])

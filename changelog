@@ -115,6 +115,8 @@ Version 3.2.2
 
 Version 3.2.3
     - Now, the chase is fair to sequents of theory.
+    - Logging is performed through a Writer monad.
+    - Option -fifo/-filo for scheduling problems has been added to the chase.
 	
 Yet to come:
     - Efficient congruence closure implementation.

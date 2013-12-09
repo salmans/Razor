@@ -30,7 +30,10 @@ main = do
   
   let allModels = "-all" `elem` (tail args)
       debug     = "-debug" `elem` (tail args)
-      config    = defaultConfig { configDebug = debug }
+      schedType = if   "-filo" `elem` (tail args)
+                  then SchedFILO else SchedFIFO
+      config    = defaultConfig { configDebug = debug
+                                , configSchedule = schedType}
   -- do input file reading
   src <- readFile inputFileName                    
 

@@ -1,14 +1,16 @@
 module Tools.Config 
-    (ConfigMonad, Config, defaultConfig, configDebug) where
+    (ScheduleType(..), 
+     ConfigMonad, 
+     Config, 
+     defaultConfig, configDebug, configSchedule) where
 
 import Control.Monad.State
 
--- Salman: Debugging ideas:
--- add verbosity level
--- use the writer monad in ProbPool
+data ScheduleType = SchedFIFO
+                  | SchedFILO
+data Config = Config { configDebug :: Bool
+                     , configSchedule :: ScheduleType}
 
-data Config = Config { configDebug :: Bool}
-
-defaultConfig = Config False
+defaultConfig = Config False SchedFIFO
 
 type ConfigMonad = State Config
