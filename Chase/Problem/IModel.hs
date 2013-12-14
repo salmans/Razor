@@ -50,11 +50,12 @@ instance Show Model where
     show = prettyModel
 
 prettyModel :: Model -> String
-prettyModel mdl@(Model tbls _) =
+prettyModel mdl@(Model tbls prov) =
         let list = filter (\(tr, _) -> tr /= DomTable) $ Map.toList tbls
         in
         "Domain: " ++ show (modelDomain mdl) ++ "\n" ++
                       (concat $ (\(tr, t) -> prettyTable tr t) <$> list)
+                   ++ show prov ++ "\n"
 
 
 prettyTable :: TableRef -> Table -> String

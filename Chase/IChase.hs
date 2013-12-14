@@ -40,12 +40,12 @@ import Debug.Trace
 
 {-| Runs the chase for a given input theory, starting from an empty model.
 -}
-chase :: Config -> Theory -> [Model]
-chase cfg thy = problemModel <$> runChase cfg Nothing thy
+chase :: Config -> Theory -> [Problem]
+chase cfg thy = runChase cfg Nothing thy
 
 {-| Like chase, but returns only the first model found.
 -}
-chase' :: Config -> Theory -> Maybe Model
+chase' :: Config -> Theory -> Maybe Problem
 chase' cfg thy = Maybe.listToMaybe $ chase cfg thy
 
 {-| Runs the chase for a set of input theories over an input (partial) model. -}

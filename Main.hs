@@ -30,7 +30,7 @@ import Chase.Chase
 
 
 main :: IO ()
-main = do
+main1 = do
   -- get the arguments
   args <- getArgs                                        :: IO [String]
   let inputFileBaseName =  

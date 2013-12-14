@@ -6,7 +6,7 @@ chase:  .PHONY chase.hs
 all: .PHONY main chase
 
 main:   Main.hs
-	ghc -odir binaries -hidir binaries --make Main.hs -optl-w
+	ghc -odir binaries -hidir binaries --make Main.hs -optl-w -o Main
 
 .PHONY: directories
 

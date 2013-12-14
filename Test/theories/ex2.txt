@@ -1,0 +1,7 @@
+exists x. Q(x)
+exists x. P(x)
+P(x) => Q(x)
+Q(x) => exists y. R(x, y)
+R(x, y) => S(y)
+S(u) => exists v. T(v, u)
+exists i. exists j. A(i) & B(j, i)
