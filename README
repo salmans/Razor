@@ -3,13 +3,21 @@ Chase is a model-finder for geometric theories.
 
 # Build
 
-  - Run make from terminal.
+  * Run make from terminal.
 
 # Run
 
-  > bin/chase <InputFile> [-all] [-debug] [-fifo/-filo]
+  > bin/chase <InputFile> [-one] [-debug] [-bfs/-dfs] [-incremental]
 
-  -all: display all models
-  -debug: show debug information
-  -fifo: schedule problems in a first-in-first-out manner (default)
-  -filo: schedule problems in a first-in-last-out manner
+  -one         : display only one models (by default, the chase builds all models)
+  -debug       : show debug information
+  -bfs         : schedule problems in a breadth-first-search manner (default)
+  -dfs         : schedule problems in a depth-first-search manner
+  -incremental : enable incremental view maintenance
+
+
+# Remarks
+
+  * -incremental is expected to improve the efficiency of the chase for non-equational
+  theories. It significantly hurts the efficiency as the number of equations in the
+  theory increases.

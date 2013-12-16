@@ -11,6 +11,8 @@ import System.FilePath
 import System.Time
 import Debug.Trace
 import Control.Exception 
+import Control.Applicative
+import Control.Monad
 import Data.List
 import qualified Data.Either as Either
 import qualified Data.Maybe as Maybe
@@ -61,6 +63,8 @@ main = do
 
   -- Remove functions from the input sequents, like what the chase does:
   let inputFmlas' = relConvert inputFmlas
+
+  -- verifyAll model inputFmlas'
 
   -- Verify that every formula in the theory is true:
   let verifyMsg = 
@@ -135,3 +139,26 @@ main = do
 
 -- -- Helper function for xmlRW to write an argument in the XML format
 -- xmlArg (Elm arg) = "\t\t\t<Argument>" ++ arg ++ "</Argument>\n"
+
+verifyAll mdls inputFmlas = 
+    case mdls of
+      []    -> print "Nothing to verify!"
+      mdls' -> mapM_ (verify inputFmlas) mdls'
+
+-- mapM_ $ verify inputFmlas <$> mdls'
+
+verify inputFmlas mdl@(Model trs _) = 
+    traceShow "."
+    $
+    let domain = modelDomain mdl
+        maps f = Utils.Utils.allMaps (freeVars f) domain
+        fmlas = concatMap insts inputFmlas
+        insts = (\f -> map 
+                       (\s -> (liftTerm.lift) s f) 
+                       (maps f)) 
+    in (case all (\s -> (sequentHolds mdl s)) fmlas of
+          True  -> print "Verified!"
+          False -> print $ 
+                   "Oops! The model does not satisfy the theory." ++
+                  (show (filter (\s -> (not(sequentHolds mdl s))) 
+                         fmlas)))

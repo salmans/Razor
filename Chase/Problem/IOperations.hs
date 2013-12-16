@@ -14,6 +14,8 @@ import qualified Control.Monad.State as State
 import qualified Control.Monad.Writer as Writer
 import Control.Applicative
 
+import Utils.Trace
+import Debug.Trace
 -- Logic Modules
 import Formula.SyntaxGeo
 import Utils.GeoUtilities
@@ -75,8 +77,7 @@ extendProblem (Problem oldFrames model queue last lastConst)
             , problemLastConstant = lastConst}
         -- REMARK: the two set of frames have to be unined; otherwise, the chase may
         -- never terminate (as for thyphone1_2)
-    where newFrames = zipWith (\(Frame _ body head vars seq) id -> 
-                                   (Frame id body head vars seq))
+    where newFrames = zipWith (\frame id -> frame {frameID = id})
                       frames [(last + 1)..]
           newLastID = last + (length newFrames)
 
@@ -110,7 +111,11 @@ scheduleProblem SchedFILO =
    is because we want to maintain a different schedule for each problem. -}
 selectFrame :: [Frame] -> (Maybe Frame, [Frame])
 selectFrame []     = (Nothing, [])
-selectFrame (f:fs) = (Just f , fs)
+selectFrame frames = 
+    let f  = find (not.frameProcessed) frames
+        fs = if isJust f then delete (fromJust f) frames else frames
+    in  (f, fs)
+          -- Find the first frame that needs to be processed.
 
 {-| Schedules a frame inside a set of frames. -}
 scheduleFrame :: Frame -> [Frame] -> [Frame]
@@ -120,39 +125,54 @@ scheduleFrame f fs = fs ++ [f]
 -}
 buildFrame :: ID -> Sequent -> Frame
 buildFrame id sequent@(Sequent body head) = 
-    Frame { frameID      = id
-          , frameBody    = (processBody body) 
-          , frameHead    = (processHead head) 
-          , frameVars    = (union (freeVars head) (freeVars body))
-          , frameRelInfo = RelInfo bdyInf (bdyDlt, bdyLbls) hdInf}
-    where bdyInf@(bdyExp, bdyLbls) = bodyRelExp body
-          hdInf                    = headRelExp head
-          bdyDlt                   = delta bdyExp
-
+    Frame { frameID        = id
+          , frameBody      = bodies
+          , frameHead      = heads
+          , frameVars      = (union (freeVars head) (freeVars body))
+          , frameRelInfo   = RelInfo bdyInf (bdyDlt, bdyLbls) hdInf
+          , frameType      = fType { ftInitial   = null bodies 
+                                   , ftUniversal = universals }
+          , frameProcessed = False }
+    where bdyInf@(bdyExp, bdyLbls) 
+                         = bodyRelExp body
+          hdInf          = headRelExp head
+          bdyDlt         = delta bdyExp
+          bodies         = processBody body
+          (heads, fType) = processHead head
+          universals     = (not.null) $ (freeVars head) \\ (freeVars body)
 {- Constructs the head of a frame from the head of a sequent. Here, we assume 
 that the sequent is in the standard form, i.e. disjunctions appear only at 
 the top level of the head.
 -}
-processHead :: Formula -> [[Obs]]
-processHead Fls = []
+processHead :: Formula -> ([[Obs]], FrameType)
+processHead Fls = ([], untypedFrame)
 processHead (And p q) = 
-    let p' = processHead p
-        q' = processHead q        
+    let (p', ft1) = processHead p
+        (q', ft2) = processHead q
+        ft        = unionFrameTypes ft1 ft2
     in case (p',q') of
          -- Because disjunction appears only at the top level, the result of
          -- applying this function to a conjunct must be a list with only one
          -- element:
-         ([], []) -> []
-         ([p''], [q'']) -> [p'' ++ q'']
-         ([p''], []) -> [] -- [p'']
-         ([], [q'']) -> [] -- [q'']
+         ([], []) -> ([], ft)
+         ([p''], [q'']) -> ([p'' ++ q''], ft)
+         ([p''], []) -> ([], ft)
+         ([], [q'']) -> ([], ft)
          otherwise -> error err_ChaseProblemOperations_DisjTop 
-processHead (Or p q) = filter (not.null) $ processHead p ++ processHead q
-processHead (Exists x p) = processHead p
-processHead (Atm (R "=" [t1, t2])) = [[Eql t1 t2]] -- dealing with equality
+processHead (Or p q) = 
+    let (p', ft1) = processHead p
+        (q', ft2) = processHead q
+        ft        = unionFrameTypes ft1 ft2
+    in  (filter (not.null) $ p' ++ q', ft {ftDisjunction = True})
+processHead (Exists x p) = 
+    let (p', ft) = processHead p
+    in  (p', ft { ftExistential = True})
+processHead (Atm (R "=" [t1, t2])) = 
+    ([[Eql t1 t2]], untypedFrame) -- dealing with equality
 -- The following would never happen unless something is wrong with the parser:
 processHead (Atm (R "=" _)) = error err_ChaseProblemOperations_EqTwoParam
-processHead (Atm atm) = [[Fct atm]] -- atoms other than equality
+processHead (Atm atm) = ([[Fct atm]], untypedFrame)
+    -- atoms other than equality
 processHead _ = error err_ChaseProblemOperations_InvldSeq
 
 {- Constructs the body of a frame from the body of a sequent. Here, we assume 
@@ -171,22 +191,27 @@ processBody fmla = (error.show) fmla -- error err_ChaseProblemOperations_InvldSe
 
 {-| Given relational information about a sequent and a set of tables in a model,
  returns a set of substituions corresponding to a chase step for the sequent. -}
-matchFrame :: Tables -> Tables -> RelInfo -> [Sub]
-matchFrame tbls delts relInfo@(RelInfo bodyInfo bodyDiffInfo headInfo) =
+matchFrame :: Tables -> Tables -> RelInfo -> Bool -> [Sub]
+matchFrame tbls 
+           delts 
+           relInfo@(RelInfo bodyInfo bodyDiffInfo headInfo) 
+           incremental =
     let bdySet      = evaluateRelExp tbls delts bdyExp
-        hdSetLabels = (\(e, l) -> (evaluateRelExp tbls emptyTables e, l)) 
-                      <$> headInfo
         facts       = diff (bdySet, bdyLbls) hdSetLabels
     in  createSubs bdyLbls facts
-    where (bdyExp, bdyLbls) = bodyInfo
+    where (bdyExp, bdyLbls) = if incremental then bodyDiffInfo else bodyInfo
           noFVars lbls  = all (\l -> ((not.isJust) l) ||
                                            not(l `elem` bdyLbls)) lbls
+          hdSetLabels = (\(e, l) -> (evaluateRelExp tbls emptyTables e, l)) 
+                        <$> headInfo
+
 
 {- A helper for matchFrame -}
 createSubs :: Labels -> Table -> [Sub]
-createSubs vars (DB.Set [])  = []
-createSubs vars (DB.Set set) = Map.fromList.subList <$> set
-    where subList ts = [(fromJust v, t) | (v, t) <- zip vars ts, isJust v]
+createSubs _ (DB.Set [])  = []
+createSubs bdyVars (DB.Set set) = 
+    Map.fromList.bdySubs <$> set
+    where bdySubs ts = [(fromJust v, t) | (v, t) <- zip bdyVars ts, isJust v]
 
 {-| Returns True if the input set of observations are true in the given mode, 
   otherwise False. Vars is the set of universally quantified variables in the 

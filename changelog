@@ -117,7 +117,14 @@ Version 3.2.3
     - Now, the chase is fair to sequents of theory.
     - Logging is performed through a Writer monad.
     - Option -fifo/-filo for scheduling problems has been added to the chase.
+
+Version 3.3
+    - Options -bfs and -dfs replace -fifo and -filo.
+    - Options -batch and -incremental have been added.
+    - Now the views are recomputed in incremental model-finding when an equality
+    update is performed.
 	
 Yet to come:
     - Efficient congruence closure implementation.
     - Improving the efficiency of the code as indicated by comments.
+    - Fixing a bug where batch processing produces too many models.

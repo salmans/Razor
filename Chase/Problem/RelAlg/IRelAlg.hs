@@ -18,7 +18,7 @@ import qualified RelAlg.DB as DB
 
 -- Other Modules
 import Debug.Trace
-
+import Utils.Trace
 
 {- Data Types -}
 
@@ -109,8 +109,12 @@ bodyRelExp = relExp
 
 {- Given a disjunctions-free geometric formula, returns a relational expression 
  and a set of labels for variables as the attributes of the formula. -}
-relExp :: Formula -> (RelExp, Labels)    
-relExp fmla =
+relExp :: Formula -> (RelExp, Labels)
+relExp Tru =
+    (exp, [Nothing])  -- for truth on left, we want to keep a label
+    where (exp, lbls) = formulaRelExp Tru
+          newLbls     = nub $ filter (/= Nothing) lbls
+relExp fmla  =
     (projectVars exp lbls, newLbls)
     where (exp, lbls) = formulaRelExp fmla
           newLbls     = nub $ filter (/= Nothing) lbls
@@ -384,8 +388,7 @@ sequentProjections bdyLbls hdLbls =
  the labels that do not show up in the reference set. -}
 filterLabels :: Labels -> Labels -> Labels
 filterLabels lbls refLbls = 
-    filter ((flip elem) refLbls) varLbls
-    where varLbls = filter (/= Nothing) lbls
+    filter ((flip elem) refLbls) lbls
 
 {- Maps every variable in a list of tables to a position corresponding to the 
    variable in a sorted list of variables. -}
@@ -393,7 +396,7 @@ sortedReference :: Labels -> Map.Map Var Int
 sortedReference lbls =     
     fst $ foldl foldFunc (Map.empty, 0) lbls
     where foldFunc (m, i) (Just v)
-                     = (Map.insert v i m, i + 1)
+              = (Map.insert v i m, i + 1)
           foldFunc (m, i) Nothing
                      = (m, i + 1)
 

@@ -25,7 +25,26 @@ import Chase.Problem.RelAlg.RelAlg
 import qualified Chase.Problem.RelAlg.Operations as OP
 import qualified RelAlg.DB as RA
 
-import Debug.Trace
+{-| Additional information about frames are stored as frame type instances. -}
+data FrameType = FrameType { ftInitial      :: Bool
+                           -- has empty left
+                           , ftExistential  :: Bool 
+                           -- contains existential on right
+                           , ftDisjunction  :: Bool
+                           -- contains disjunction on right
+                           , ftUniversal    :: Bool
+                           -- contains free variables on right
+                           } deriving Show
+
+untypedFrame :: FrameType
+untypedFrame =  FrameType False False False False
+
+unionFrameTypes :: FrameType -> FrameType -> FrameType
+unionFrameTypes ft1@(FrameType i1 e1 d1 u1) ft2@(FrameType i2 e2 d2 u2) =
+    FrameType (i1 || i2) (e1 || e2) (d1 || d2) (u1 || u2)
+
+hasFrameType :: Frame -> [FrameType -> Bool] -> Bool
+hasFrameType frame types = and $ (flip ($)) (frameType frame) <$> types
 
 {-| Relational information for a sequent, correspoinding to a frame:
   - bodyExp: a relational expression corresponding to the body of a sequent.
@@ -53,36 +72,39 @@ data RelInfo = RelInfo {
   - frameVars: a list of free variables (universally quantified) that appear in 
   the sequent.
   - frameRelInfo: relational information for the frame.  
+  - frameType: contains additional information about the right of the sequent.
+  - frameProcessed: if it is true, the frame does not need to be processed by 
+  the chase.
 -}
-data Frame = Frame {
-      frameID      :: ID,
-      frameBody    :: [Obs],
-      frameHead    :: [[Obs]],
-      frameVars    :: Vars,
-      frameRelInfo :: RelInfo
-}
-
+data Frame = Frame { 
+      frameID        :: ID
+    , frameBody      :: [Obs]
+    , frameHead      :: [[Obs]]
+    , frameVars      :: Vars
+    , frameRelInfo   :: RelInfo
+    , frameType      :: FrameType
+    , frameProcessed :: Bool }
 
 instance Show Frame where
-    show (Frame id body head vars _) = 
+    show (Frame id body head vars _ _ _) = 
         (show id) ++ ": " ++ (show body) ++ " => " ++ (show head) ++ "(" 
                       ++ (show vars) ++ ")"
 
 
 instance Eq Frame where
-    (Frame _ b1 h1 _ _) == (Frame _ b2 h2 _ _) =
+    (Frame _ b1 h1 _ _ _ _) == (Frame _ b2 h2 _ _ _ _) =
         b1 == b2 && h1 == h2
 
 
 instance TermBased Frame where
-    liftTerm f (Frame id body head vars relInfo) = 
-        Frame { frameID      = id
-              , frameBody    = map (liftTerm f) body
-              , frameHead    = map (liftTerm f) head
-              , frameVars    = vars
-              , frameRelInfo = relInfo
-              }
-
+    liftTerm f (Frame id body head vars relInfo fType processed) = 
+        Frame { frameID        = id
+              , frameBody      = map (liftTerm f) body
+              , frameHead      = map (liftTerm f) head
+              , frameVars      = vars
+              , frameRelInfo   = relInfo
+              , frameType      = fType
+              , frameProcessed = processed }
     freeVars = frameVars
 
 {-| A problem represents keeps track of a branch of computation, which contains 
