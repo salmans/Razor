@@ -123,8 +123,17 @@ Version 3.3
     - Options -batch and -incremental have been added.
     - Now the views are recomputed in incremental model-finding when an equality
     update is performed.
-	
+    - Scheduling frames is now based on "frameProcessed" information for each
+    frame.
+    - Allows free variables on right. Although, there is a bug.
+    - Tag information has been added to provenance information.
+
 Yet to come:
     - Efficient congruence closure implementation.
     - Improving the efficiency of the code as indicated by comments.
     - Fixing a bug where batch processing produces too many models.
+    - Fix a bug where the chase does not produce the right model for the
+    following:
+	P(a())
+	Q(x)
+	P(b())
