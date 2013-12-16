@@ -128,12 +128,13 @@ Version 3.3
     - Allows free variables on right. Although, there is a bug.
     - Tag information has been added to provenance information.
 
+Version 3.3.1
+    - The changes to allow free variables on right are undone. Also, the scheduling
+    is back to what it was before introducing frameProcessed.
+
+	
 Yet to come:
     - Efficient congruence closure implementation.
     - Improving the efficiency of the code as indicated by comments.
     - Fixing a bug where batch processing produces too many models.
-    - Fix a bug where the chase does not produce the right model for the
-    following:
-	P(a())
-	Q(x)
-	P(b())
+    - Allow free variables on right after preprocessing the input.

@@ -111,10 +111,7 @@ scheduleProblem SchedFILO =
    is because we want to maintain a different schedule for each problem. -}
 selectFrame :: [Frame] -> (Maybe Frame, [Frame])
 selectFrame []     = (Nothing, [])
-selectFrame frames = 
-    let f  = find (not.frameProcessed) frames
-        fs = if isJust f then delete (fromJust f) frames else frames
-    in  (f, fs)
+selectFrame (f:fs) = (Just f, fs)
           -- Find the first frame that needs to be processed.
 
 {-| Schedules a frame inside a set of frames. -}
@@ -131,8 +128,7 @@ buildFrame id sequent@(Sequent body head) =
           , frameVars      = (union (freeVars head) (freeVars body))
           , frameRelInfo   = RelInfo bdyInf (bdyDlt, bdyLbls) hdInf
           , frameType      = fType { ftInitial   = null bodies 
-                                   , ftUniversal = universals }
-          , frameProcessed = False }
+                                   , ftUniversal = universals } }
     where bdyInf@(bdyExp, bdyLbls) 
                          = bodyRelExp body
           hdInf          = headRelExp head

@@ -146,35 +146,34 @@ deduce counter model vars hs = deduceHelper counter model vars hs
 -}
 deduceHelper counter _ _ [] = ([], counter)
 deduceHelper counter model vars allObs@(obs:rest)
-    | null obsVars = 
+    | null existVars = 
         let (restObs, restCounter) = deduceHelper counter model vars rest 
         in (obs: restObs, restCounter)
             -- The observation is a closed atom. Return it together with
             -- the observations corresponding to the rest of the facts.
-    | null domain && (not.null) univVars = ([], counter) 
-    | otherwise   =
+    | null $ existVars `intersect` vars =
         let freshConstants = map makeFreshConstant [(counter + 1)..]
-            existSubs      = zip existVars freshConstants
-            univSubs       = [zip univVars elems | elems <- permutations domain]
-            allSubs        = Map.fromList.((++) existSubs) <$> univSubs
-            liftedRest     = (\sub -> (liftTerm.lift) sub <$> allObs) 
-                             <$> allSubs
+            existSubs      = Map.fromList $ zip existVars freshConstants
+            liftedRest     = map ((liftTerm.lift) existSubs) allObs
             newCounter     = counter + length existVars
-        in foldr (\lifted (obs, _) -> 
-                  let (obs', c') = deduceHelper newCounter model vars lifted
-                  in  (obs ++ obs', c')) ([], counter) liftedRest
-    where obsVars   = freeVars obs
-          existVars = obsVars \\ vars -- existential variables in obs
-          univVars  = obsVars `intersect` vars
-          domain    = Model.modelDomain model -- for instantiating universals
+        in deduceHelper newCounter model vars liftedRest
+            -- In this case, all of the free variables in the observation 
+            -- are existentials: instantiate the variables with fresh constants; 
+            -- then, apply deduce on the instantiated observations.
+    | otherwise = error $ "Chase.Chase.deduceHelper: the input " ++
+                   "formula cannot have free variables."
+            -- There is a universally quantified variable in the obs. We don't
+            -- support universally quantified on right when they are not defined
+            -- on left of a sequent. So, there is something wrong!
+    where existVars = freeVars obs -- existentially quantified vars in obs
 
 {- Lifts a frame with a substitution and returns a new frame. It also updates
    the list of free variables of the frame accordingly.
 -}
 liftFrame :: Model -> Sub -> Frame -> Frame
 liftFrame model sub frame = 
-    let Frame id b h v o ft p = liftTerm (lift sub) frame
-    in  Frame id b h (v \\ Map.keys sub) o ft p
+    let Frame id b h v o ft = liftTerm (lift sub) frame
+    in  Frame id b h (v \\ Map.keys sub) o ft
 
 {- Helper Functions -}
 {- make a new constant (special element starting with "a") -}
@@ -198,26 +197,23 @@ process = do
             do
               let newProbs = newProblems cfg p
               case newProbs of
-                Left CSTFail -> process
-                Left CSTProcessed -> do -- continue untill all processed
+                Nothing -> process
+                Just [] -> do
                   rest <- process
                   return (p:rest)
-                Right [] -> do
-                  scheduleProblem (configSchedule cfg) p
-                  process
-                Right ps -> do 
+                Just ps -> do 
                   mapM (scheduleProblem (configSchedule cfg)) ps
                   process
               
 
 {- Applies a chase step to the input problem. -}
-newProblems :: Config -> Problem -> Either ChaseStopType [Problem]
+newProblems :: Config -> Problem -> Maybe [Problem]
 newProblems cfg problem@(Problem frames model [] lastID lastConst) =
     case newModels cfg model emptyTables frames lastConst of
-      Left x                  -> Left x
-      Right (_ ,     []     ) -> Right []
-      Right (frames', models) -> 
-          Right $ map (\(m, q, c) -> 
+      Nothing                 -> Nothing
+      Just (_ ,     []     )  -> Just []
+      Just (frames', models)  -> 
+          Just $ map (\(m, q, c) -> 
                       Problem { problemFrames       = frames'
                               , problemModel        = m
                               , problemQueue        = [q]
@@ -225,67 +221,40 @@ newProblems cfg problem@(Problem frames model [] lastID lastConst) =
                               , problemLastConstant = c}) models
 newProblems cfg problem@(Problem frames model (queue:queues) lastID lastConst) =
     case newModels cfg model queue frames lastConst of
-      Left x                  -> Left x
-      Right (_    , []      ) -> Right []
-      Right (frames', models) -> 
-          Right $ map (\(m, q, c) -> 
+      Nothing                 -> Nothing
+      Just (_    , []      )  -> Just []
+      Just (frames', models) -> 
+          Just $ map (\(m, q, c) -> 
                        Problem { problemFrames       = frames'
                                , problemModel        = m
                                , problemQueue        = queues ++ [q]
                                , problemLastID       = lastID
                                , problemLastConstant = c}) models
 
-data ChaseStopType = CSTProcessed 
-                   | CSTFail
-  deriving Show
 -- Helpers for newProblems:
 -- Salman: add comments!
 newModels :: Config -> Model -> Tables -> [Frame] -> Int ->
-             Either ChaseStopType ([Frame], [(Model, Tables, Int)])
-newModels _ _ _ [] _ = Right ([], [])
+             Maybe ([Frame], [(Model, Tables, Int)])
+newModels _ _ _ [] _ = Just ([], [])
 -- Salman: redo this:
-newModels cfg model queue frames counter = do
-  let (frame, fs)  = selectFrame frames
-  if  Maybe.isJust frame -- No more frames
-      then do        
-          let f           = Maybe.fromJust frame
-          let incremental = configIncremental cfg
-          -- let batch        = configBatch cfg
-          curr            <- newModelsForFrame model queue f counter incremental
-                             -- done processing this frame unless it gets reset
-
-          -- A hook to batch processing:
-          -- if   batch  -- if batch processing is enabled
-          -- then return (fs', curr <|> oth)
-          -- else 
-
-          -- Since we are not doing batch processing now, after getting the new
-          -- facts for the current sequent, we immediately return. That is, a 
-          -- call to newModels returns an updated model for the first set of 
-          -- facts that are constructed by the first applicable sequent. 
-          -- In order to make sure that there is no sequents is unprocessed, 
-          -- the function has to be called until no unprocessed sequent is left.
-          if   null curr
-          then do
-            let scheduled = scheduleFrame (f {frameProcessed = True }) fs
-            newModels cfg model queue scheduled counter
-          else return (scheduleFrame f (resetFrame <$> fs), curr)
-      else Left CSTProcessed
-
-resetFrame :: Frame -> Frame
-resetFrame frame           
-    | frame `hasFrameType` [(not.ftUniversal), ftInitial] = frame
-    | otherwise = frame { frameProcessed = False }
-
+newModels cfg model queue frames counter = 
+    do
+      let (Just f, fs)  = selectFrame frames
+      curr         <- newModelsForFrame model queue f counter 
+                      (configIncremental cfg)
+      (fs', oth)   <- newModels cfg model queue fs counter
+      if   null curr
+      then return (scheduleFrame f fs', oth)
+      else return (scheduleFrame f fs , curr)
 
 newModelsForFrame :: Model -> Tables -> Frame -> Int -> Bool
-                     -> Either ChaseStopType [(Model, Tables, Int)]
+                     -> Maybe [(Model, Tables, Int)]
 newModelsForFrame model queue frame counter incremental = 
     case newFacts counter model queue frame incremental of
-      Nothing         -> Left CSTFail
-      Just ([], _, _) -> Right []
-      Just (os, c, p) -> Right $ (\o -> 
-                                  Model.add model c o (Maybe.fromJust p)) <$> os
+      Nothing         -> Nothing
+      Just ([], _, _) -> Just []
+      Just (os, c, p) -> Just $ (\o -> 
+                                 Model.add model c o (Maybe.fromJust p)) <$> os
                       
 newFacts :: Int -> Model -> Tables -> Frame -> Bool -> 
             Maybe ([[Obs]], Int, Maybe Prov)
@@ -293,20 +262,6 @@ newFacts :: Int -> Model -> Tables -> Frame -> Bool ->
 newFacts counter model queue frame incremental 
     | null subs = Just ([], counter, Nothing)
     | (null.frameHead) frame = Nothing
-    -- The next two cases are artificial but they are required to deal with 
-    -- free variables on right when the model is empty. In cases like this, we
-    -- want to make sure that no substitutions are produced for the branches 
-    -- with free variables on right.
-    -- First, if the model is empty and every branch on right has free 
-    -- variables, immediately return no substitutions.
-    | null domain && null nonFreeHs =
-        Just ([], counter, Nothing)
-    -- Otherwise, if the model is empty but there are some branches on right
-    -- that don't have free variables, just apply deduce on those branches.
-    | null domain =
-        Just $ glue (deduceForFrameHelper counter model vars nonFreeHs)
-                    (Just prov)
-    -- And of course, treat the sequent normally if the model is not empty.
     | otherwise = Just $ 
                   glue (deduceForFrameHelper counter model vars heads)
                        (Just prov)
@@ -320,7 +275,6 @@ newFacts counter model queue frame incremental
           provTag   = (provInfoLastTag.Model.modelProvInfo) model
                       -- Construct the provenance information for the new facts
                       -- being deduced.
-          nonFreeHs = filter (\h -> null ((freeVars h) `intersect` vars)) heads
           glue      = \(x, y) z -> (x, y, z)
           -- For now just use the first sub and drop the rest!
           -- Also, let's just lift the body for now!

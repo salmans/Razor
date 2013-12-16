@@ -73,8 +73,6 @@ data RelInfo = RelInfo {
   the sequent.
   - frameRelInfo: relational information for the frame.  
   - frameType: contains additional information about the right of the sequent.
-  - frameProcessed: if it is true, the frame does not need to be processed by 
-  the chase.
 -}
 data Frame = Frame { 
       frameID        :: ID
@@ -82,29 +80,27 @@ data Frame = Frame {
     , frameHead      :: [[Obs]]
     , frameVars      :: Vars
     , frameRelInfo   :: RelInfo
-    , frameType      :: FrameType
-    , frameProcessed :: Bool }
+    , frameType      :: FrameType }
 
 instance Show Frame where
-    show (Frame id body head vars _ _ _) = 
+    show (Frame id body head vars _ _) = 
         (show id) ++ ": " ++ (show body) ++ " => " ++ (show head) ++ "(" 
                       ++ (show vars) ++ ")"
 
 
 instance Eq Frame where
-    (Frame _ b1 h1 _ _ _ _) == (Frame _ b2 h2 _ _ _ _) =
+    (Frame _ b1 h1 _ _ _) == (Frame _ b2 h2 _ _ _) =
         b1 == b2 && h1 == h2
 
 
 instance TermBased Frame where
-    liftTerm f (Frame id body head vars relInfo fType processed) = 
+    liftTerm f (Frame id body head vars relInfo fType) = 
         Frame { frameID        = id
               , frameBody      = map (liftTerm f) body
               , frameHead      = map (liftTerm f) head
               , frameVars      = vars
               , frameRelInfo   = relInfo
-              , frameType      = fType
-              , frameProcessed = processed }
+              , frameType      = fType }
     freeVars = frameVars
 
 {-| A problem represents keeps track of a branch of computation, which contains 
