@@ -38,13 +38,17 @@ main = do
           if null args then error "need an input file"
           else head args
       inputFileName = inputFileBaseName
+      configArgs    = tail args
   
-  let allModels = "-all" `elem` (tail args)
-      debug     = "-debug" `elem` (tail args)
-      schedType = if   "-filo" `elem` (tail args)
-                  then SchedFILO else SchedFIFO
-      config    = defaultConfig { configDebug = debug
-                                , configSchedule = schedType}
+  let single    = "-one" `elem` configArgs
+      debug     = "-debug" `elem` configArgs
+      increment = "-incremental" `elem` configArgs
+      batch     = "-batch" `elem` configArgs
+      schedType = if "-dfs" `elem` configArgs then SchedFILO else SchedFIFO
+      config    = defaultConfig { configDebug       = debug
+                                , configSchedule    = schedType
+                                , configBatch       = batch
+                                , configIncremental = increment}
   -- do input file reading
   src <- readFile inputFileName                    
 
@@ -66,11 +70,11 @@ main = do
 --  putStrLn "Models: \n"
 
   putStrLn "("
-  if   allModels
-  then putStrLn $ problemsSexp $ chase config inputFmlas
-  else putStrLn $ case chase' config inputFmlas of
+  if   single
+  then putStrLn $ case chase' config inputFmlas of
                     Nothing -> problemsSexp []
                     Just m  -> problemsSexp [m]
+  else putStrLn $ problemsSexp $ chase config inputFmlas
   putStrLn ")"
 
 

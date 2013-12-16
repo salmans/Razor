@@ -10,9 +10,8 @@ import qualified Control.Monad.State as State
 import Data.List
 import qualified Data.Map as Map
 import Data.Maybe
-import Debug.Trace (trace)
+import Debug.Trace
 import Control.Exception -- for assert
-import Data.Tree
 
 
 -- Logic modules:
@@ -83,24 +82,23 @@ processEquation (Equ (Elm "True") t) currentState =
     processEquation (Equ t (Elm "True")) currentState
     -- orient the equation
 processEquation (Equ c1@(Elm _) c2@(Elm _)) (tbls, deltas, eqs) = do
-    provs <- State.get
+    provs        <- State.get
     State.put provs
-    tbls' <- updateTables c1 c2 tbls
-    deltas' <- updateTables c1 c2 deltas
-    return (tbls', deltas', eqs')  -- making two constants equal in the 
-                                   -- database.
-    where eqs'    = updateEquation c1 c2 <$> eqs
+    (nt, tbls')  <- updateTables c1 c2 tbls
+    (_, deltas') <- updateTables c1 c2 deltas
+    let deltas'' =  mergeSets deltas' $ filterTables (elem nt) tbls'
+    let eqs'     =  updateEquation c1 c2 <$> eqs
+    return (tbls', deltas'', eqs')  -- making two constants equal in the 
+                                    -- database.
 processEquation (Equ t@(Fn f []) c@(Elm _)) (tbls, deltas, eqs) = do
   (recs, t')    <- initConstant tbls t
-  tbls'         <- updateTables t' c tbls
-  deltas'       <- updateTables t' c deltas
+  (nt, tbls')   <- updateTables t' c tbls
+  (_, deltas')  <- updateTables t' c deltas
   let tTbl      = Map.lookup (ConTable f) tbls'
-  let deltas''  = case tTbl of
-                    Nothing -> deltas'
-                    Just tt -> Map.insert (ConTable f) tt deltas'
-  let tbls''    =  mergeSets tbls' recs
-  let deltas''' =  mergeSets deltas'' recs
-  let eqs''     =  updateEquation t' c <$> eqs
+  let tbls''    = mergeSets tbls' recs
+  let deltas''  = mergeSets deltas' $ filterTables (elem nt) tbls''
+  let deltas''' = mergeSets deltas'' recs
+  let eqs''     = updateEquation t' c <$> eqs
   return (tbls'', deltas''', eqs'')
     -- making a new element in the database for a given constant.
     -- Salman: use state monad.        
@@ -109,20 +107,14 @@ processEquation (Equ c@(Elm _) t@(Fn f [])) inputState =
 processEquation (Equ t1@(Fn f1 []) t2@(Fn f2 [])) (tbls, deltas, eqs) = do
   (recs1, t1')  <- initConstant tbls t1
   (recs2, t2')  <- initConstant tbls t2
-  tbls'         <- updateTables t1' t2' $ mergeAllSets [tbls,recs1,recs2]
-  deltas'       <- updateTables t1' t2' deltas
+  (nt, tbls')   <- updateTables t1' t2' $ mergeAllSets [tbls,recs1,recs2]
+  (_, deltas')  <- updateTables t1' t2' deltas
   -- Since the two constants are changing, add both of them to deltas:
   -- Salman: it should be enough to do this only for t2
   let t1Tbl     = Map.lookup (ConTable f1) tbls'
   let t2Tbl     = Map.lookup (ConTable f2) tbls'
-  let deltas''  = case (t1Tbl, t2Tbl) of
-                    (Nothing, Nothing)   -> deltas'
-                    (Just tt1, Nothing)  -> Map.insert (ConTable f1) tt1 deltas'
-                    (Nothing, Just tt2)  -> Map.insert (ConTable f2) tt2 deltas'
-                    (Just tt1, Just tt2) -> 
-                        let tmp = Map.insert (ConTable f1) tt1 deltas'
-                        in  Map.insert (ConTable f2) tt2 tmp
-  let deltas''' = mergeAllSets [deltas'', recs1,recs2]
+  let deltas''  = mergeAllSets [deltas', recs1,recs2]
+  let deltas''' = mergeSets deltas'' $ filterTables (elem nt) tbls'
   let eqs'      = updateEquation t1' t2' <$> eqs
   return (tbls', deltas''', eqs') 
     -- initiating two constants and make them equal.
@@ -146,8 +138,8 @@ insertRecord t tbls deltas = do
   let obs      =  termToObs True (sym cs)
   -- Adding new provenance information but first, convert the constants in the
   -- observation being logged are converted to the elements they are pointing:
-  (prov, provs) <- State.get
-  State.put (prov, (Map.insertWith (++) obs [prov] provs))
+  (prov, ProvInfo provs lastTag) <- State.get
+  State.put (prov, ProvInfo (Map.insertWith (++) obs [prov] provs) lastTag)
   return (tbls', mergeSets deltas deltas')
   where foldFunc (rs, cs) t = do 
           (r', c') <- initConstant rs t
@@ -195,15 +187,17 @@ lookupConstant c@(Elm _) tbls =
 lookupConstant _ _ = error "CC.RelAlg.lookupConstant: invalid element!"
 
 {- Given two elements, replaces the first element with the second element in 
-   every cell of every table of the database. -}
+   every cell of every table of the database. The funciton rewrites the greater
+   term to the smaller term under the ordering of Term. The function also 
+   returns the smaller term, which is the term it rewrites to. -}
 -- Salamn: this operation is probably the most constly operation. We may be 
 -- able to reduce the cost by using references (pointers) or indices.
-updateTables :: Term -> Term -> Tables -> ProvCounter Tables
+updateTables :: Term -> Term -> Tables -> ProvCounter (Term, Tables)
 updateTables c1@(Elm ('e':'#':n1)) c2@(Elm ('e':'#':n2)) tbls = do
   -- Also update provenance information for the elements being collapsed:
   (p, ps) <- State.get
   State.put (p, updateProvInfo c1 c2 ps)
-  return $ nubSet.((updateFunc <$>) <$>) <$> tbls
+  return $ (if n1 > n2 then c2 else c1, nubSet.((updateFunc <$>) <$>) <$> tbls)
     -- Salman: this can be done more efficiently
     where updateFunc = if   n1 > n2
                        then (\x -> if x == c1 then c2 else x)
@@ -211,14 +205,16 @@ updateTables c1@(Elm ('e':'#':n1)) c2@(Elm ('e':'#':n2)) tbls = do
 updateTables _ _ _ = error "CC.RelAlg.updateTables: invalid update"    
 
 updateProvInfo :: Term -> Term -> ProvInfo -> ProvInfo
-updateProvInfo c1@(Elm _) c2@(Elm _) provInfo = 
-    (updateProv <$>) <$> updateKeys provInfo
+updateProvInfo c1@(Elm _) c2@(Elm _) (ProvInfo info tag) = 
+    ProvInfo ((updateProv <$>) <$> updateKeys info) tag
     where updateKeys = \m -> Map.fromListWith (++) -- union
                        $ (\(o, ss) -> (updateObs c1 c2 o, ss)) 
                              <$> (Map.toList m)
-          updateProv = (\p -> case p of
-                                ChaseProv (id, s) -> ChaseProv (id, updateSub s)
-                                UserProv  -> UserProv)
+          updateProv = (\p -> 
+                        case p of
+                          ChaseProv tag id s -> 
+                              ChaseProv tag id (updateSub s)
+                          UserProv           -> UserProv)
                        -- Salman: Prov may instantiate Control.Applicative
           updateSub  = \s -> (Map.map updateFunc s)
           updateFunc = (\x -> if x == c1 then c2 else x)
@@ -233,6 +229,8 @@ updateObs c1@(Elm _) c2@(Elm _) (Eql t1 t2) =
     Eql (updateTerm c1 c2 t1) (updateTerm c1 c2 t2)
 updateObs c1@(Elm _) c2@(Elm _) (Fct (R sym ts)) =
     Fct (R sym (updateTerm c1 c2 <$> ts))
+updateObs c1@(Elm _) c2@(Elm _) (Fct (F sym ts)) =
+    Fct (F sym (updateTerm c1 c2 <$> ts))
 
 updateTerm :: Term -> Term -> Term -> Term
 updateTerm t1 t2 t@(Elm _)   = if t == t1 then t2 else t
@@ -244,6 +242,18 @@ updateTerm t1 t2 t@(Rn f ts) =
     if   t == t1 
     then t2 
     else Rn f (updateTerm t1 t2 <$> ts)
+
+filterTables :: (Record -> Bool) -> Tables -> Tables
+filterTables f tbls =  
+    Map.foldWithKey foldFunc emptyTables tbls
+    where foldFunc k tbl acc = 
+              let filteredTbl = filterTable f tbl
+              in  if (null.DB.toList) filteredTbl
+                  then acc
+                  else Map.insert k filteredTbl acc
+
+filterTable :: (Record -> Bool) -> Table -> Table
+filterTable f (DB.Set tbl) = DB.Set (filter f tbl)
 
 {- Returns all the equations that enforce integrity constraints in the current
    state of the model. -}
