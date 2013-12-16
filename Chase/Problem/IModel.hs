@@ -88,7 +88,7 @@ truth = Elm "True"
 
 {-| A shorthand for an empty model. -}
 empty :: Model
-empty = Model emptyTables Map.empty
+empty = Model emptyTables (ProvInfo Map.empty 0)
 
 {-| Adds a list of new observations to the given model. It also returns a set 
   of tables corresponding to the changes made in the database. It needs a 
@@ -103,12 +103,16 @@ add model@(Model tbls provs) c obs prov =
     let (((newTables, deltas), (_, newProvs)), c') = State.runState st c
         st = State.runStateT (OP.buildTables eqs tbls emptyTables) 
              (prov, provs)
-    in (Model newTables newProvs, deltas, c')
-    where eqs      = map obsToEquation obs
-          isFact o = case o of 
+        newProvs' = case prov of
+                      ChaseProv tag _ _ -> newProvs {provInfoLastTag = tag + 1}
+                      UserProv          -> newProvs
+    in (Model newTables newProvs', deltas, c')
+       -- Since we just used the provenance tag, update the tag information.
+       -- Salman: make this procedure transparent using a monad.
+    where eqs       = map obsToEquation obs
+          isFact o  = case o of 
                        Fct _ -> True 
                        otherwise -> False
-
 {- Convert an obs to a Equation -}
 obsToEquation :: Obs -> Equation
 obsToEquation (Den t)     = error err_ChaseProblemModel_NoEqToDen
