@@ -100,7 +100,7 @@ modelSexp model = do
 provSexp :: ProvInfo -> String
 provSexp provs =
   "  ( ;; Provenance\n" ++
-  (List.intercalate "\n" $ List.map strFctProv (Map.assocs provs)) ++
+  (List.intercalate "\n" $ List.map strFctProv (Map.assocs (provInfoData provs))) ++
   "\n  )"
   where strFctProv ((Fct (R a b)), prov) = strFctProv2 a b prov
         strFctProv ((Fct (F a b)), prov) = strFctProv2 a b prov
@@ -109,8 +109,9 @@ provSexp provs =
           "   ((" ++ a ++ " " ++ (strArgs b) ++ ") " ++
           "(" ++ (strProv prov) ++ "))"
 
-        strProv prov = List.intercalate " " (List.map strp prov)
-        strp (ChaseProv (id, sub)) = (show id) ++ " (" ++ (strSub sub) ++ ")"
+        strProv prov = strp $ List.head prov -- List.intercalate " " (List.map strp prov)
+        strp (ChaseProv sid fid sub) =
+          (show sid) ++ " " ++ (show fid) ++ " (" ++ (strSub sub) ++ ")"
         strp UserProv = "?"
         strSub sub = List.intercalate " " $ List.map strSubEach (Map.assocs sub)
         strSubEach (a, (Elm b)) = "(" ++ a ++ " " ++ b ++ ")"
@@ -122,7 +123,7 @@ framesSexp frames =
   "  ( ;; Theory\n" ++
   (List.intercalate "\n" $ (List.map strFrame frames)) ++
   "\n  )"
-  where strFrame (Frame id body head _ _) =
+  where strFrame (Frame id body head _ _ _ _) =
           "   (" ++ (show id) ++ " (" ++ (list body) ++ ") (" ++ (list2 head) ++ "))"
 
         list2 obsll = "(" ++ (List.intercalate ") (" (List.map list obsll)) ++ ")"
