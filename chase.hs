@@ -59,10 +59,11 @@ main = do
   putStrLn "Models: \n"
 
   if   single
-  then putStrLn $ case chase' config inputFmlas of
+    then putStrLn $ case chase' config inputFmlas of
                     Nothing -> "No models found!"
                     Just m  -> show m
-  else printModels $ chase config inputFmlas
+    else printModels $ chase config inputFmlas
+
   putStrLn ""
 
 

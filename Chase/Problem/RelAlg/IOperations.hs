@@ -42,9 +42,9 @@ buildTables :: [Equation] -> Tables -> Tables -> ProvCounter (Tables, Tables)
 buildTables eqs tbls delts = do
   (tbls', delts', eqs') <- buildTables' eqs tbls delts
   let ints              =  integrities tbls'
-  if   null ints
-  then return (garbageCollect tbls', garbageCollect delts')
-  else buildTables ints tbls' delts'
+  if null ints
+    then return (garbageCollect tbls', garbageCollect delts')
+    else buildTables ints tbls' delts'
 -- Salman: Delta can be another state monad
 
 {- Garbage collection removes the intermediately generated skolem constants 

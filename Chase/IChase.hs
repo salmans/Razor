@@ -244,8 +244,8 @@ newModels cfg model queue frames counter =
                       (configIncremental cfg)
       (fs', oth)   <- newModels cfg model queue fs counter
       if   null curr
-      then return (scheduleFrame f fs', oth)
-      else return (scheduleFrame f fs , curr)
+        then return (scheduleFrame f fs', oth)
+        else return (scheduleFrame f fs , curr)
 
 newModelsForFrame :: Model -> Tables -> Frame -> Int -> Bool
                      -> Maybe [(Model, Tables, Int)]
