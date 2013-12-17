@@ -101,11 +101,10 @@ addElementPredToRight (Or fmla1 fmla2) = -- go inside disjunction
     Or (addElementPredToRight fmla1) (addElementPredToRight fmla2)
 addElementPredToRight (Exists x fmla)  = -- add predicate for existentials
     Exists x $ And (Atm (elementPred (Var x))) fmla
-addElementPredToRight fmla@(Atm atm@(R sym ts)) 
-    | null (freeVars atm) = let preds = elementPred <$> ts
-                            in  foldr (\p f -> And (Atm p) f) fmla preds
+addElementPredToRight fmla@(Atm atm@(R sym ts)) =
+    let preds = elementPred <$> ts
+    in  foldr (\p f -> And (Atm p) f) fmla preds
                             -- This assumes flattened terms
-    | otherwise           = fmla
 addElementPredToRight fmla = fmla -- Note that we assume normalized sequents
                              
 
