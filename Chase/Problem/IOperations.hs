@@ -55,31 +55,83 @@ err_ChaseProblemOperations_NarrowDen =
 
 {-| Creates a problem corresponding to a given geometric theory. -}
 buildProblem :: Theory -> Problem
-buildProblem thy = problem
-    where frms = zipWith (\x y -> buildFrame x y) [1..] thy
+buildProblem thy = 
+    Problem { problemFrames       = frms
+            , problemModel        = Model.empty 
+            , problemQueue        = []
+            , problemLastID       = length thy'
+            , problemLastConstant = 0}
+    where frms = zipWith (\x y -> buildFrame x y) [1..] thy'
+          thy' = if   any hasFreeVarOnRight thy  
+                      -- If any sequent has a free variable on its right
+                 then addElementPred <$> thy -- modify the theory
+                 else thy
           -- convert sequents to frames and assign IDs to them.
-          problem =     Problem { problemFrames       = frms 
-                                , problemModel        = Model.empty 
-                                , problemQueue        = []
-                                , problemLastID       = length thy 
-                                , problemLastConstant = 0}
 
-{-| Updates a problem by adding new frames to its theory. It updates problem's 
-  symbol map accordingly.
--}
-extendProblem :: Problem -> [Frame] -> Problem
-extendProblem (Problem oldFrames model queue last lastConst) 
-              frames =
-    Problem { problemFrames       = (union oldFrames newFrames) 
-            , problemModel        = model
-            , problemQueue        = queue
-            , problemLastID       = newLastID              
-            , problemLastConstant = lastConst}
-        -- REMARK: the two set of frames have to be unined; otherwise, the chase may
-        -- never terminate (as for thyphone1_2)
-    where newFrames = zipWith (\frame id -> frame {frameID = id})
-                      frames [(last + 1)..]
-          newLastID = last + (length newFrames)
+{- Returns true if the input sequent has any free variable on its RHS, which is 
+   not defined on its LHS. -}
+hasFreeVarOnRight :: Sequent -> Bool
+hasFreeVarOnRight seq = (not.null) $ hdVars \\ bdyVars
+    where hd      = sequentHead seq
+          bdy     = sequentBody seq
+          hdVars  = freeVars hd
+          bdyVars = freeVars bdy
+
+{- Since the current implementation of the chase requires every free variable
+   on RHS of a sequent be mentioned on its LHS, we add a @Element predicate
+   to the left of this kind of sequents. We also add @Element to the right of
+   every sequent with existential quantifiers. -}
+addElementPred :: Sequent -> Sequent
+addElementPred seq = 
+    let bdy' = foldr (\v b -> And (Atm (elementPred (Var v))) b) bdy hdFVars
+        hd'  = addElementPredToRight hd
+    in  seq { sequentBody = bdy' 
+            , sequentHead = hd' }
+    where hd      = sequentHead seq
+          bdy     = sequentBody seq
+          hdVars  = freeVars hd
+          bdyVars = freeVars bdy
+          hdFVars = hdVars \\ bdyVars
+          allVars = hdVars `union` bdyVars
+
+{- A helper for addElementPred, which adds @Element predicate to the right of 
+   a sequent. -}
+addElementPredToRight :: Formula -> Formula
+addElementPredToRight (Or fmla1 fmla2) = -- go inside disjunction
+    Or (addElementPredToRight fmla1) (addElementPredToRight fmla2)
+addElementPredToRight (Exists x fmla)  = -- add predicate for existentials
+    Exists x $ And (Atm (elementPred (Var x))) fmla
+addElementPredToRight fmla@(Atm atm@(R sym ts)) 
+    | null (freeVars atm) = let preds = elementPred <$> ts
+                            in  foldr (\p f -> And (Atm p) f) fmla preds
+                            -- This assumes flattened terms
+    | otherwise           = fmla
+addElementPredToRight fmla = fmla -- Note that we assume normalized sequents
+                             
+
+{- A helper for addElementPred. It constructs an @Element predicate for the 
+   input term. -}
+elementPred :: Term -> Atom
+elementPred =  \x -> R "@Element" [x]
+
+-- The following function is depricated since in the relational algebraic 
+-- solution the theory is not extended.
+-- {-| Updates a problem by adding new frames to its theory. It updates problem's 
+--   symbol map accordingly.
+-- -} 
+-- extendProblem :: Problem -> [Frame] -> Problem
+-- extendProblem (Problem oldFrames model queue last lastConst) 
+--               frames =
+--     Problem { problemFrames       = (union oldFrames newFrames) 
+--             , problemModel        = model
+--             , problemQueue        = queue
+--             , problemLastID       = newLastID              
+--             , problemLastConstant = lastConst}
+--         -- REMARK: the two set of frames have to be unined; otherwise, the chase may
+--         -- never terminate (as for thyphone1_2)
+--     where newFrames = zipWith (\frame id -> frame {frameID = id})
+--                       frames [(last + 1)..]
+--           newLastID = last + (length newFrames)
 
 {-| Selects a problem from a pool of problems based on the given scheduling type
   and returns the selected problem. The function changes the current state of 
@@ -118,8 +170,7 @@ selectFrame (f:fs) = (Just f, fs)
 scheduleFrame :: Frame -> [Frame] -> [Frame]
 scheduleFrame f fs = fs ++ [f]
 
-{-| Creates a Frame from a given sequent. 
--}
+{-| Creates a Frame from a given sequent. -}
 buildFrame :: ID -> Sequent -> Frame
 buildFrame id sequent@(Sequent body head) = 
     Frame { frameID        = id
@@ -136,6 +187,7 @@ buildFrame id sequent@(Sequent body head) =
           bodies         = processBody body
           (heads, fType) = processHead head
           universals     = (not.null) $ (freeVars head) \\ (freeVars body)
+
 {- Constructs the head of a frame from the head of a sequent. Here, we assume 
 that the sequent is in the standard form, i.e. disjunctions appear only at 
 the top level of the head.

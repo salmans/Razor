@@ -4,7 +4,6 @@
 
 -}
 module Chase.Problem.Operations (buildProblem,
-                                 extendProblem,
                                  selectProblem, scheduleProblem,
                                  selectFrame, scheduleFrame,
                                  holds,

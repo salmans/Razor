@@ -132,6 +132,10 @@ Version 3.3.1
     - The changes to allow free variables on right are undone. Also, the scheduling
     is back to what it was before introducing frameProcessed.
 
+Version 3.3.2
+    - Free variables on right of sequents are now allowed.
+    - Pretty printing of models is developed.
+
 	
 Yet to come:
     - Efficient congruence closure implementation.

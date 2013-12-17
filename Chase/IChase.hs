@@ -237,8 +237,7 @@ newModels :: Config -> Model -> Tables -> [Frame] -> Int ->
              Maybe ([Frame], [(Model, Tables, Int)])
 newModels _ _ _ [] _ = Just ([], [])
 -- Salman: redo this:
-newModels cfg model queue frames counter = 
-    do
+newModels cfg model queue frames counter = do
       let (Just f, fs)  = selectFrame frames
       curr         <- newModelsForFrame model queue f counter 
                       (configIncremental cfg)
