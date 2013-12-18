@@ -135,7 +135,7 @@ Version 3.3.1
 Version 3.3.2
     - Free variables on right of sequents are now allowed.
     - Pretty printing of models is developed.
-
+    - Uses GetOpt for command line input options. (run -h for help)
 	
 Yet to come:
     - Efficient congruence closure implementation.

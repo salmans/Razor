@@ -148,10 +148,10 @@ selectProblem _ =
 {-| Inserts a problem into the problem pool based on the given scheduling 
   type. -}
 scheduleProblem :: ScheduleType -> Problem -> ProbPool ()
-scheduleProblem SchedFIFO = 
+scheduleProblem SchedBFS = 
     \p -> State.get  >>= (\ps ->
     State.put (ps ++ [p]) >>= (\_ -> return ()))
-scheduleProblem SchedFILO = 
+scheduleProblem SchedDFS = 
     \p -> State.get  >>= (\ps ->
     State.put (p:ps) >>= (\_ -> return ()))
 

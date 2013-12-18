@@ -7,17 +7,22 @@ Chase is a model-finder for geometric theories.
 
 # Run
 
-  > bin/chase <InputFile> [-one] [-debug] [-bfs/-dfs] [-incremental]
+  chase
 
-  -one         : display only one models (by default, the chase builds all models)
-  -debug       : show debug information
-  -bfs         : schedule problems in a breadth-first-search manner (default)
-  -dfs         : schedule problems in a depth-first-search manner
-  -incremental : enable incremental view maintenance
+  -i FILE     --input=FILE, --file=FILE	Input theory file
+  -d true     --debug	    		Show debug information
+  -s bfs/dfs  --schedule=bfs/dfs	Use schedule type (dfs or bfs)
+  -b BATCH    --batch			Enable batch processing
+  -n true     --incremental		Enable incremental view maintenance
+  -1 true     --one			Display only one models (by default,
+     	      				the chase builds all models)
+  -h          --help			Show help
+  -v          --version			Print version
 
 
 # Remarks
 
-  * -incremental is expected to improve the efficiency of the chase for non-equational
+  * --incremental is expected to improve the efficiency of the chase for non-equational
   theories. It significantly hurts the efficiency as the number of equations in the
   theory increases.
+  * --batch is buggy.

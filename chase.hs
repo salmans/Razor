@@ -7,7 +7,10 @@
 
 module Main where
 import System.Environment
-import System.FilePath
+import System.Console.GetOpt
+import System.Exit (exitWith, ExitCode (..))
+import System.IO (hPutStrLn, stderr)
+import Data.Maybe
 
 import Formula.SyntaxGeo (Sequent, parseSequent)
 import Utils.Utils (isRealLine)
@@ -19,25 +22,75 @@ import Chase.Chase (chase, chase')
 -- ============================
 
 
+options :: [ OptDescr (Config -> IO Config) ]
+options =
+    [ Option "i" ["input", "file"]
+        (ReqArg
+            (\arg cfg -> return cfg { configInput = Just arg })
+            "FILE")
+        "Input theory file"
+
+    , Option "d" ["debug"]
+        (NoArg
+            (\cfg -> return cfg { configDebug = True }))
+        "Debug mode"
+
+    , Option "s" ["schedule"]
+        (ReqArg
+            (\arg cfg -> return cfg { 
+                           configSchedule = if   arg == "dfs"
+                                            then SchedDFS
+                                            else SchedBFS })
+            "bfs/dfs")
+        "Schedule type"
+
+    , Option "b" ["batch"]
+        (NoArg
+            (\cfg -> return cfg { configBatch = True }))
+        "Enable batch processing"
+
+    , Option "n" ["incremental"]
+        (NoArg
+            (\cfg -> return cfg { configIncremental = True }))
+        "Enable incremental view maintenance"
+ 
+    , Option "1" ["one"]
+        (NoArg
+            (\cfg -> return cfg { configAllModels = False }))
+        "Display one model"
+ 
+    , Option "h" ["help"]
+        (NoArg
+            (\_ -> do
+               prg <- getProgName
+               hPutStrLn stderr (usageInfo prg options)
+               exitWith ExitSuccess))
+        "Show help"
+
+    , Option "v" ["version"]
+        (NoArg
+            (\_ -> do
+               hPutStrLn stderr "Version 3.3.2"
+               exitWith ExitSuccess))
+        "Print version"
+    ]
+
+
 main :: IO ()
 main = do
   -- get the arguments
   args <- getArgs
-  let inputFileBaseName =  
-          if null args then error "need an input file"
-          else head args
-      inputFileName = inputFileBaseName
-      configArgs    = tail args
+
+  -- Parse options, getting a list of option actions
+  let (actions, nonOptions, errors) = getOpt RequireOrder options args
+ 
+  -- Here we thread startOptions through all supplied option actions
+  config <- foldl (>>=) (return defaultConfig) actions
+ 
+  let inputFileName = if   (isJust.configInput) config
+                      then (fromJust.configInput) config
+                      else error "No input theory is specified!"
   
-  let single    = "-one" `elem` configArgs
-      debug     = "-debug" `elem` configArgs
-      increment = "-incremental" `elem` configArgs
-      batch     = "-batch" `elem` configArgs
-      schedType = if "-dfs" `elem` configArgs then SchedFILO else SchedFIFO
-      config    = defaultConfig { configDebug       = debug
-                                , configSchedule    = schedType
-                                , configBatch       = batch
-                                , configIncremental = increment}
   -- do input file reading
   src <- readFile inputFileName                    
 
@@ -56,13 +109,17 @@ main = do
   mapM_ (putStrLn.show) inputFmlas
   putStrLn $ "\n" ++ "===================="
 
+  putStrLn "Input Options: "
+  putStrLn (show config)
+  putStrLn $ "\n" ++ "===================="
+
   putStrLn "Models: \n"
 
-  if   single
-    then putStrLn $ case chase' config inputFmlas of
+  if   configAllModels config
+    then printModels $ chase config inputFmlas
+    else putStrLn $ case chase' config inputFmlas of
                     Nothing -> "No models found!"
                     Just m  -> show m
-    else printModels $ chase config inputFmlas
 
   putStrLn ""
 
