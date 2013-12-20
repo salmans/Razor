@@ -36,6 +36,11 @@ import Utils.Utils (allMaps, prodList, allSublists,
 import Utils.Trace
 import Debug.Trace
 
+{- A small chase step does not process sequents with existentials, i.e., it 
+   does not grow the size of models. A big step only processes sequents with 
+   existentials, ignored by small step. -}
+data ChaseStepType = SmallStep | BigStep | BlindStep
+
 {-| Runs the chase for a given input theory, starting from an empty model.
 -}
 chase :: Config -> Theory -> [Model]
@@ -86,7 +91,7 @@ runChaseWithProblem cfg problem =
           -- schedule the problem, then process it
 
 
-{- Combines the outputs of newModels -}
+{- Combines the outputs of stepModels -}
 -- combine :: [(Model, Tables, Int)] -> [(Model, Tables, Int)]
 --            -> [(Model, Tables, Int)]
 -- combine new old = 
@@ -99,11 +104,144 @@ runChaseWithProblem cfg problem =
 --               Model (mergeSets tbls1 tbls2) (Map.unionWith (++) provs1 provs2)
 
 
+{- Processes the problems in the pool by applying chase steps to the problem 
+   chosen by selectProblem.It schedules the problems created by this chase
+   step. -}
+process :: ProbPool [Problem]
+process = do
+      cfg      <- State.lift State.get
+      prob     <- selectProblem (configSchedule cfg) -- pick a problem
+      allProbs <- RWS.get
+      Logger.logUnder (length allProbs) "# of branches"
+      Logger.logIf (Maybe.isJust prob) ((problemModel.Maybe.fromJust) prob)
+      case prob of
+        Nothing -> return [] -- no more problems
+        Just p  -> 
+            do              
+              newProbs <- chaseStep cfg SmallStep p
+                  -- apply a small step first
+              case newProbs of
+                Nothing -> process
+                Just [] -> do
+                  Logger.logUnder "BIG Step" "Chase Step"
+                  newProbs' <- chaseStep cfg BigStep p
+                  case newProbs' of
+                    Nothing -> process
+                    Just [] -> do
+                              rest <- process
+                              return (p:rest)
+                    Just ps -> do
+                              mapM (scheduleProblem (configSchedule cfg)) ps
+                              process
+                Just ps -> do
+                  Logger.logUnder "Small Step" "Chase Step"
+                  mapM (scheduleProblem (configSchedule cfg)) ps
+                  process
 
-{- For a frame whose body is empty, returns a pair containing a list of list of 
-   obs, which are deduced from the right of the frame. Every item in an inner 
-   list, corresponds to the deduced terms for a disjunct on right; thus, the 
-   outer list contains a list of all the Obs deduced from all the disjuncts 
+-- UNCOMMENT FOR BLIND STEP:
+            -- do
+            --   let newProbs = chaseStep cfg BlindStep p
+            --       -- apply a small step first
+            --   case newProbs of
+            --     Nothing -> process
+            --     Just [] -> do
+            --       rest <- process
+            --       return (p:rest)
+            --     Just ps -> do
+            --       mapM (scheduleProblem (configSchedule cfg)) ps
+            --       process
+
+
+{- Applies a chase step to the input problem. A big step can potentially 
+   increase the size of the model, i.e., it processes sequents with 
+   existentials. -}
+chaseStep :: Config -> ChaseStepType -> Problem -> ProbPool (Maybe [Problem])
+chaseStep cfg stpTp problem@(Problem frames model [] lastID lastConst) =
+    case stepModels cfg stpTp model emptyTables frames lastConst of
+      Nothing                 -> return Nothing
+      Just (_ ,     []     )  -> return $ Just []
+      Just (frames', models)  -> 
+          return $ 
+                 Just $ map (\(m, q, c) -> 
+                      Problem { problemFrames       = frames'
+                              , problemModel        = m
+                              , problemQueue        = [q]
+                              , problemLastID       = lastID
+                              , problemLastConstant = c}) models
+chaseStep cfg stpTp 
+          problem@(Problem frames model (queue:queues) lastID lastConst) =
+    case stepModels cfg stpTp model queue frames lastConst of
+      Nothing                 -> return Nothing
+      Just (_    , []      )  -> return $ Just []
+      Just (frames', models) -> 
+          return $
+                 Just $ map (\(m, q, c) -> 
+                       Problem { problemFrames       = frames'
+                               , problemModel        = m
+                               , problemQueue        = queues ++ [q]
+                               , problemLastID       = lastID
+                               , problemLastConstant = c}) models
+
+
+-- Salman: add comments!
+stepModels :: Config -> ChaseStepType -> Model -> Tables -> [Frame] -> Int ->
+             Maybe ([Frame], [(Model, Tables, Int)])
+stepModels _ _ _ _ [] _ = Just ([], [])
+-- Salman: redo this:
+stepModels cfg stpTp model queue frames counter = do
+      let (frm, fs)  = case stpTp of
+                         SmallStep -> selectFrame frames [not.ftExistential]
+                         BigStep   -> selectFrame frames [ftExistential]
+                         BlindStep -> selectFrame frames []
+      if Maybe.isJust frm
+        then do
+          let f = Maybe.fromJust frm                  
+          curr         <- newModelsForFrame model queue f counter 
+                              (configIncremental cfg)
+          (fs', oth)   <- stepModels cfg stpTp model queue fs counter
+          if   null curr
+            then return (scheduleFrame f fs', oth)
+            else return (scheduleFrame f fs , curr)
+        else return ([], [])
+
+newModelsForFrame :: Model -> Tables -> Frame -> Int -> Bool
+                     -> Maybe [(Model, Tables, Int)]
+newModelsForFrame model queue frame counter incremental = 
+    case newFacts counter model queue frame incremental of
+      Nothing         -> Nothing
+      Just ([], _, _) -> Just []
+      Just (os, c, p) -> Just $ (\o -> 
+                                 Model.add model c o (Maybe.fromJust p)) <$> os
+                      
+newFacts :: Int -> Model -> Tables -> Frame -> Bool -> 
+            Maybe ([[Obs]], Int, Maybe Prov)
+-- Salman: this is too complicated. Is it possible to make the code simpler?
+newFacts counter model queue frame incremental 
+    | null subs = Just ([], counter, Nothing)
+    | (null.frameHead) frame = Nothing
+    | otherwise = Just $ 
+                  glue (deduceForFrame counter model vars heads)
+                       (Just prov)
+    where subs      = matchFrame (modelTables model) queue 
+                               (frameRelInfo frame) incremental
+          theSub    = head subs
+          lifted    = liftFrame model theSub frame
+          heads     = frameHead lifted
+          vars      = frameVars lifted
+          prov      = ChaseProv provTag (frameID frame) theSub
+          provTag   = (provInfoLastTag.Model.modelProvInfo) model
+                      -- Construct the provenance information for the new facts
+                      -- being deduced.
+          glue      = \(x, y) z -> (x, y, z)
+          -- For now just use the first sub and drop the rest!
+          -- Also, let's just lift the body for now!
+          -- Salman: Separate provenance computation from the main computation.
+          domain    = Model.modelDomain model 
+
+{- For a frame (assumed to be triggered) returns a pair containing a list of 
+   list of obs, which are deduced from the right of the frame. Every item in an 
+   inner list, corresponds to the deduced terms for a disjunct on right; thus, 
+   the outer list contains a list of all the Obs deduced from all the disjuncts 
    on right. The list of deduced facts is empty if any of the disjuncts in the 
    head is true in the current model.
    It also returns a new value for problemLastConstant of the problem to which 
@@ -112,18 +250,8 @@ runChaseWithProblem cfg problem =
    The parameters are (1) problemLastConstant of the problem to which the frame 
    belongs to, (2) the problemModel of the problem, and (3) finally the frame.
 -}
--- deduceForFrame :: Int -> Model -> Frame -> ([[Obs]], Int)
--- deduceForFrame counter model frame@(Frame _ body head vars _)
---     -- Salman: this may break!
---    | null body && not (any (holds model vars) head) = 
---        deduceForFrameHelper counter model vars head
---    | otherwise = ([], counter)
-
-{- This is a helper for deduceForFrame. It handles the recursive calls over the
-   disjuncts on the right of the frame.
--}
-deduceForFrameHelper :: Int -> Model -> Vars -> [[Obs]] -> ([[Obs]], Int)
-deduceForFrameHelper counter model vars hs =
+deduceForFrame :: Int -> Model -> Vars -> [[Obs]] -> ([[Obs]], Int)
+deduceForFrame counter model vars hs =
     foldr (\h (rest, c) -> 
            let (result, newCounter) = deduce c model vars h
            in  (result:rest, newCounter)) ([], counter) hs
@@ -179,108 +307,12 @@ liftFrame model sub frame =
 {- make a new constant (special element starting with "a") -}
 makeFreshConstant :: Int -> Term
 makeFreshConstant counter = Fn ("a@" ++ (show counter)) []
---Elm ("a" ++ show counter)
 
-{- Processes the problems in the pool. Applies a chase step to the problem 
-   chosen by selectProblem.It schedules the problems created by this chase
-   step. -}
-process :: ProbPool [Problem]
-process = do
-      cfg  <- State.lift State.get
-      prob <- selectProblem (configSchedule cfg) -- pick a problem
-      allPs <- RWS.get
-      Logger.logUnder (length allPs) "# of branches"
-      Logger.logIf (Maybe.isJust prob) ((problemModel.Maybe.fromJust) prob)
-      case prob of
-        Nothing -> return [] -- no more problems
-        Just p  -> 
-            do
-              let newProbs = newProblems cfg p
-              case newProbs of
-                Nothing -> process
-                Just [] -> do
-                  rest <- process
-                  return (p:rest)
-                Just ps -> do 
-                  mapM (scheduleProblem (configSchedule cfg)) ps
-                  process
-              
-
-{- Applies a chase step to the input problem. -}
-newProblems :: Config -> Problem -> Maybe [Problem]
-newProblems cfg problem@(Problem frames model [] lastID lastConst) =
-    case newModels cfg model emptyTables frames lastConst of
-      Nothing                 -> Nothing
-      Just (_ ,     []     )  -> Just []
-      Just (frames', models)  -> 
-          Just $ map (\(m, q, c) -> 
-                      Problem { problemFrames       = frames'
-                              , problemModel        = m
-                              , problemQueue        = [q]
-                              , problemLastID       = lastID
-                              , problemLastConstant = c}) models
-newProblems cfg problem@(Problem frames model (queue:queues) lastID lastConst) =
-    case newModels cfg model queue frames lastConst of
-      Nothing                 -> Nothing
-      Just (_    , []      )  -> Just []
-      Just (frames', models) -> 
-          Just $ map (\(m, q, c) -> 
-                       Problem { problemFrames       = frames'
-                               , problemModel        = m
-                               , problemQueue        = queues ++ [q]
-                               , problemLastID       = lastID
-                               , problemLastConstant = c}) models
-
--- Helpers for newProblems:
--- Salman: add comments!
-newModels :: Config -> Model -> Tables -> [Frame] -> Int ->
-             Maybe ([Frame], [(Model, Tables, Int)])
-newModels _ _ _ [] _ = Just ([], [])
--- Salman: redo this:
-newModels cfg model queue frames counter = do
-      let (Just f, fs)  = selectFrame frames
-      curr         <- newModelsForFrame model queue f counter 
-                      (configIncremental cfg)
-      (fs', oth)   <- newModels cfg model queue fs counter
-      if   null curr
-        then return (scheduleFrame f fs', oth)
-        else return (scheduleFrame f fs , curr)
-
-newModelsForFrame :: Model -> Tables -> Frame -> Int -> Bool
-                     -> Maybe [(Model, Tables, Int)]
-newModelsForFrame model queue frame counter incremental = 
-    case newFacts counter model queue frame incremental of
-      Nothing         -> Nothing
-      Just ([], _, _) -> Just []
-      Just (os, c, p) -> Just $ (\o -> 
-                                 Model.add model c o (Maybe.fromJust p)) <$> os
-                      
-newFacts :: Int -> Model -> Tables -> Frame -> Bool -> 
-            Maybe ([[Obs]], Int, Maybe Prov)
--- Salman: this is too complicated. Is it possible to make the code simpler?
-newFacts counter model queue frame incremental 
-    | null subs = Just ([], counter, Nothing)
-    | (null.frameHead) frame = Nothing
-    | otherwise = Just $ 
-                  glue (deduceForFrameHelper counter model vars heads)
-                       (Just prov)
-    where subs      = matchFrame (modelTables model) queue 
-                               (frameRelInfo frame) incremental
-          theSub    = head subs
-          lifted    = liftFrame model theSub frame
-          heads     = frameHead lifted
-          vars      = frameVars lifted
-          prov      = ChaseProv provTag (frameID frame) theSub
-          provTag   = (provInfoLastTag.Model.modelProvInfo) model
-                      -- Construct the provenance information for the new facts
-                      -- being deduced.
-          glue      = \(x, y) z -> (x, y, z)
-          -- For now just use the first sub and drop the rest!
-          -- Also, let's just lift the body for now!
-          -- Salman: Separate provenance computation from the main computation.
-          domain    = Model.modelDomain model 
 
 -- Run the chase for local tests:
 debugConf = defaultConfig { configDebug = False }
 doChase thy  = chase  debugConf $ map parseSequent thy
 doChase' thy = chase' debugConf $ map parseSequent thy
+
+
+testThy = ["P(a())", "P(x) => Q(x)"]

@@ -160,10 +160,15 @@ scheduleProblem SchedDFS =
   fairness. -}
 {- Salman: at the moment, the only reason that we kept frames inside problems
    is because we want to maintain a different schedule for each problem. -}
-selectFrame :: [Frame] -> (Maybe Frame, [Frame])
-selectFrame []     = (Nothing, [])
-selectFrame (f:fs) = (Just f, fs)
-          -- Find the first frame that needs to be processed.
+selectFrame :: [Frame] -> [FrameType -> Bool] -> (Maybe Frame, [Frame])
+selectFrame [] _       = (Nothing, [])
+selectFrame (f:fs) []  = (Just f, fs)  -- No restriction on selected frame
+selectFrame fs tps     = 
+    case findIndex ((flip hasFrameType) tps) fs of
+      Nothing -> (Nothing, fs)
+      Just i  -> let (l1, l2) = splitAt i fs
+                 in  (Just (head l2), l1 ++ tail l2)
+
 
 {-| Schedules a frame inside a set of frames. -}
 scheduleFrame :: Frame -> [Frame] -> [Frame]
@@ -218,7 +223,19 @@ processHead (Atm (R "=" [t1, t2])) =
     ([[Eql t1 t2]], untypedFrame) -- dealing with equality
 -- The following would never happen unless something is wrong with the parser:
 processHead (Atm (R "=" _)) = error err_ChaseProblemOperations_EqTwoParam
-processHead (Atm atm) = ([[Fct atm]], untypedFrame)
+processHead (Atm atm@(R sym ts)) = 
+    ([[Fct atm]], fType)
+    where fType = if   all isVar ts -- Sequents with constants on right get the
+                                    -- ftExistential tag.
+                  then untypedFrame
+                  else untypedFrame { ftExistential = True }
+    -- atoms other than equality
+processHead (Atm atm@(F sym ts)) = 
+    ([[Fct atm]], fType)
+    where fType = if   all isVar ts -- Sequents with constants on right get the
+                                    -- ftExistential tag.
+                  then untypedFrame
+                  else untypedFrame { ftExistential = True }
     -- atoms other than equality
 processHead _ = error err_ChaseProblemOperations_InvldSeq
 
@@ -234,7 +251,7 @@ processBody (Atm (R "=" [t1, t2])) = [Eql t1 t2] -- dealing with equality
 processBody (Atm (R "=" _)) = error err_ChaseProblemOperations_EqTwoParam
 processBody (Atm atm) = [Fct atm] -- atoms other than equality
 processBody (Exists x p) = processBody p
-processBody fmla = (error.show) fmla -- error err_ChaseProblemOperations_InvldSeq
+processBody fmla = (error.show) fmla
 
 {-| Given relational information about a sequent and a set of tables in a model,
  returns a set of substituions corresponding to a chase step for the sequent. -}

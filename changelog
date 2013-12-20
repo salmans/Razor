@@ -136,6 +136,11 @@ Version 3.3.2
     - Free variables on right of sequents are now allowed.
     - Pretty printing of models is developed.
     - Uses GetOpt for command line input options. (run -h for help)
+
+Version 3.3.3
+    - Introduces Big chase steps and Small chase steps: sequents that may increase
+    the size of models are processed only if the sequents that preserves model 
+    sizes are not making progress.
 	
 Yet to come:
     - Efficient congruence closure implementation.
