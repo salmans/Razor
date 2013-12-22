@@ -36,11 +36,6 @@ import Utils.Utils (allMaps, prodList, allSublists,
 import Utils.Trace
 import Debug.Trace
 
-{- A small chase step does not process sequents with existentials, i.e., it 
-   does not grow the size of models. A big step only processes sequents with 
-   existentials, ignored by small step. -}
-data ChaseStepType = SmallStep | BigStep | BlindStep
-
 {-| Runs the chase for a given input theory, starting from an empty model.
 -}
 chase :: Config -> Theory -> [Model]
@@ -116,48 +111,39 @@ process = do
       Logger.logIf (Maybe.isJust prob) ((problemModel.Maybe.fromJust) prob)
       case prob of
         Nothing -> return [] -- no more problems
-        Just p  -> 
-            do              
-              newProbs <- chaseStep cfg SmallStep p
-                  -- apply a small step first
-              case newProbs of
-                Nothing -> process
-                Just [] -> do
-                  Logger.logUnder "BIG Step" "Chase Step"
-                  newProbs' <- chaseStep cfg BigStep p
-                  case newProbs' of
-                    Nothing -> process
-                    Just [] -> do
-                              rest <- process
-                              return (p:rest)
-                    Just ps -> do
-                              mapM (scheduleProblem (configSchedule cfg)) ps
-                              process
-                Just ps -> do
-                  Logger.logUnder "Small Step" "Chase Step"
-                  mapM (scheduleProblem (configSchedule cfg)) ps
-                  process
+        Just p  -> cascadeStep cfg p
 
--- UNCOMMENT FOR BLIND STEP:
-            -- do
-            --   let newProbs = chaseStep cfg BlindStep p
-            --       -- apply a small step first
-            --   case newProbs of
-            --     Nothing -> process
-            --     Just [] -> do
-            --       rest <- process
-            --       return (p:rest)
-            --     Just ps -> do
-            --       mapM (scheduleProblem (configSchedule cfg)) ps
-            --       process
-
+{- Runs chase steps on a problem according to problemScheduleInfo in the 
+   problem. The function runs the frames that satisfy the first list of frame 
+   type selectors. If the selected frames create new problems, the problems 
+   will be scheduled and processed using process function. Otherwise, if the 
+   selected frames lead to Nothing, then the current frame will be ignored and 
+   the control flow goes back to process. Finally, if the selected list of 
+   frames do not produce new problems (i.e., they do not add new facts to the 
+   model) cascadeStep will be called on the next set of frame selectors in 
+   problemScheduleInfo.-}
+cascadeStep :: Config -> Problem -> ProbPool [Problem]
+cascadeStep cfg prob 
+    | (null.problemScheduleInfo) prob = 
+        do { rest <- process
+           ; return (prob:rest) }
+    | otherwise = 
+        do { let (tps:restTps) = problemScheduleInfo prob
+           ; newProbs <- chaseStep cfg tps prob
+           ; case newProbs of
+               Nothing -> process
+               Just [] -> cascadeStep cfg prob { problemScheduleInfo = restTps }
+               Just ps -> do
+                 mapM (scheduleProblem (configSchedule cfg)) ps
+                 process }
 
 {- Applies a chase step to the input problem. A big step can potentially 
    increase the size of the model, i.e., it processes sequents with 
    existentials. -}
-chaseStep :: Config -> ChaseStepType -> Problem -> ProbPool (Maybe [Problem])
-chaseStep cfg stpTp problem@(Problem frames model [] lastID lastConst) =
-    case stepModels cfg stpTp model emptyTables frames lastConst of
+chaseStep :: Config -> [FrameTypeSelector] -> Problem -> 
+             ProbPool (Maybe [Problem])
+chaseStep cfg frmTps problem@(Problem frames model [] _ lastConst) =
+    case stepModels cfg frmTps model emptyTables frames lastConst of
       Nothing                 -> return Nothing
       Just (_ ,     []     )  -> return $ Just []
       Just (frames', models)  -> 
@@ -166,39 +152,36 @@ chaseStep cfg stpTp problem@(Problem frames model [] lastID lastConst) =
                       Problem { problemFrames       = frames'
                               , problemModel        = m
                               , problemQueue        = [q]
-                              , problemLastID       = lastID
+                              , problemScheduleInfo = allFrameTypeSelectors
                               , problemLastConstant = c}) models
-chaseStep cfg stpTp 
-          problem@(Problem frames model (queue:queues) lastID lastConst) =
-    case stepModels cfg stpTp model queue frames lastConst of
-      Nothing                 -> return Nothing
-      Just (_    , []      )  -> return $ Just []
+chaseStep cfg frmTps 
+          problem@(Problem frames model (queue:queues) _ lastConst) =
+    case stepModels cfg frmTps model queue frames lastConst of
+      Nothing                -> return Nothing
+      Just (_    , []      ) -> return $ Just []
       Just (frames', models) -> 
           return $
                  Just $ map (\(m, q, c) -> 
                        Problem { problemFrames       = frames'
                                , problemModel        = m
                                , problemQueue        = queues ++ [q]
-                               , problemLastID       = lastID
+                               , problemScheduleInfo = allFrameTypeSelectors
                                , problemLastConstant = c}) models
 
 
 -- Salman: add comments!
-stepModels :: Config -> ChaseStepType -> Model -> Tables -> [Frame] -> Int ->
-             Maybe ([Frame], [(Model, Tables, Int)])
+stepModels :: Config -> [FrameTypeSelector] -> Model -> Tables -> [Frame] -> 
+              Int -> Maybe ([Frame], [(Model, Tables, Int)])
 stepModels _ _ _ _ [] _ = Just ([], [])
 -- Salman: redo this:
-stepModels cfg stpTp model queue frames counter = do
-      let (frm, fs)  = case stpTp of
-                         SmallStep -> selectFrame frames [not.ftExistential]
-                         BigStep   -> selectFrame frames [ftExistential]
-                         BlindStep -> selectFrame frames []
+stepModels cfg frmTps model queue frames counter = do
+      let (frm, fs)  = selectFrame frames frmTps
       if Maybe.isJust frm
         then do
           let f = Maybe.fromJust frm                  
           curr         <- newModelsForFrame model queue f counter 
                               (configIncremental cfg)
-          (fs', oth)   <- stepModels cfg stpTp model queue fs counter
+          (fs', oth)   <- stepModels cfg frmTps model queue fs counter
           if   null curr
             then return (scheduleFrame f fs', oth)
             else return (scheduleFrame f fs , curr)
@@ -313,6 +296,3 @@ makeFreshConstant counter = Fn ("a@" ++ (show counter)) []
 debugConf = defaultConfig { configDebug = False }
 doChase thy  = chase  debugConf $ map parseSequent thy
 doChase' thy = chase' debugConf $ map parseSequent thy
-
-
-testThy = ["P(a())", "P(x) => Q(x)"]

@@ -141,6 +141,12 @@ Version 3.3.3
     - Introduces Big chase steps and Small chase steps: sequents that may increase
     the size of models are processed only if the sequents that preserves model 
     sizes are not making progress.
+
+Version 3.3.4
+    - Replaces the notion of big and small big steps with problem schedule info
+    and intorduces an order for processing frames on problems.
+    - logic-TPTP dependencies are build optionally in cabal when -ftptp is passed
+    as an extra parameter.
 	
 Yet to come:
     - Efficient congruence closure implementation.

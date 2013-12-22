@@ -60,7 +60,7 @@ buildProblem thy =
     Problem { problemFrames       = frms
             , problemModel        = Model.empty 
             , problemQueue        = []
-            , problemLastID       = length thy''
+            , problemScheduleInfo = allFrameTypeSelectors
             , problemLastConstant = 0}
     where frms  = zipWith (\x y -> buildFrame x y) [1..] thy''
           thy'  = addAllExistsPreds thy
@@ -200,7 +200,7 @@ scheduleProblem SchedDFS =
   fairness. -}
 {- Salman: at the moment, the only reason that we kept frames inside problems
    is because we want to maintain a different schedule for each problem. -}
-selectFrame :: [Frame] -> [FrameType -> Bool] -> (Maybe Frame, [Frame])
+selectFrame :: [Frame] -> [FrameTypeSelector] -> (Maybe Frame, [Frame])
 selectFrame [] _       = (Nothing, [])
 selectFrame (f:fs) []  = (Just f, fs)  -- No restriction on selected frame
 selectFrame fs tps     = 
@@ -237,7 +237,7 @@ that the sequent is in the standard form, i.e. disjunctions appear only at
 the top level of the head.
 -}
 processHead :: Formula -> ([[Obs]], FrameType)
-processHead Fls = ([], untypedFrame)
+processHead Fls = ([], untypedFrame {ftFail = True})
 processHead (And p q) = 
     let (p', ft1) = processHead p
         (q', ft2) = processHead q
