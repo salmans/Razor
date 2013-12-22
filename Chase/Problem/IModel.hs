@@ -41,7 +41,7 @@ err_ChaseProblemModel_EqlDenotes =
 data Model = Model{
       modelTables   :: Tables,
       modelProvInfo :: ProvInfo
-} 
+}
 
 instance NFData Model where -- enable strict evaluation for performance analysis
     rnf m = m `seq` ()

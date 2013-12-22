@@ -23,7 +23,7 @@ module Utils.GeoUtilities (isVar,
                           subterms,
 --                          subtermPos,
                           replaceSubterms,
-                          Counter, freshVar, freshElement,
+                          Counter, freshVar, freshElement, freshSymbol,
                           relConvert) where
 {- Salman: Unexported functions may be removed! -}
 -- 
@@ -394,3 +394,8 @@ freshElement :: Counter Term
 freshElement = get >>=
                (\c -> put (c + 1) >>
                (return $ Elm $ "e#" ++ (show c)))
+
+freshSymbol :: Sym -> Counter Sym
+freshSymbol sym = get >>=
+                  (\c -> put (c + 1) >>
+                  (return $ sym ++ (show c)))

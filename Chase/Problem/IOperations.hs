@@ -13,6 +13,7 @@ import Data.Maybe
 import qualified Control.Monad.State as State
 import qualified Control.Monad.Writer as Writer
 import Control.Applicative
+import Control.Monad
 
 import Utils.Trace
 import Debug.Trace
@@ -59,13 +60,15 @@ buildProblem thy =
     Problem { problemFrames       = frms
             , problemModel        = Model.empty 
             , problemQueue        = []
-            , problemLastID       = length thy'
+            , problemLastID       = length thy''
             , problemLastConstant = 0}
-    where frms = zipWith (\x y -> buildFrame x y) [1..] thy'
-          thy' = if   any hasFreeVarOnRight thy  
-                      -- If any sequent has a free variable on its right
-                 then addElementPred <$> thy -- modify the theory
-                 else thy
+    where frms  = zipWith (\x y -> buildFrame x y) [1..] thy''
+          thy'  = addAllExistsPreds thy
+                  -- Take existential formulas on right out of disjunctions
+          thy'' = if   any hasFreeVarOnRight thy'
+                       -- If any sequent has a free variable on its right
+                  then addElementPred <$> thy' -- modify the theory
+                  else thy'
           -- convert sequents to frames and assign IDs to them.
 
 {- Returns true if the input sequent has any free variable on its RHS, which is 
@@ -93,6 +96,43 @@ addElementPred seq =
           bdyVars = freeVars bdy
           hdFVars = hdVars \\ bdyVars
           allVars = hdVars `union` bdyVars
+
+{- Applies addExistsPred on a theory of sequents. -}
+addAllExistsPreds :: [Sequent] -> [Sequent]
+addAllExistsPreds seqs = 
+    State.evalState (run seqs) 0
+    where run = foldM foldFunc []
+          foldFunc res (Sequent b h) = do
+            (h', seqs) <- addExistsPred h
+            return $ res ++ (Sequent b h':seqs)
+
+{- Uses addExistsPredHelper to relpace existential formulas, corresponding to 
+   the head of a sequent, with fresh atomic formulas. As a consequence, new 
+   sequents will be induced with the fresh atomic formula on left and 
+   existential formula on right. The function returns the replaced head, from 
+   the initial sequent, and the set of induced sequents. 
+   The function requires a Counter to generate fresh relation symbols for the
+   fresh atomic formulas. -}
+addExistsPred :: Formula -> Counter (Formula, [Sequent])
+addExistsPred fmla@(Or _ _) = addExistsPredHelper fmla
+    -- Only apply the transformation if the head has disjunctions. That is, if
+    -- the head is an existential formula, it is already in the form we want.
+addExistsPred fmla          = return (fmla, [])
+
+addExistsPredHelper :: Formula -> Counter (Formula, [Sequent])
+addExistsPredHelper (Or f1 f2) = do
+  (f1', seqs1) <- addExistsPredHelper f1
+  (f2', seqs2) <- addExistsPredHelper f2
+  return (Or f1' f2', seqs1 ++ seqs2)
+addExistsPredHelper fmla@(Exists x f) = do
+  let vs      = freeVars fmla
+  sym         <- freshSymbol "@Exists"
+  let atm     = R sym (map Var vs)
+  let fmla'   = Atm atm
+  (f', fSeqs) <- addExistsPredHelper f
+  let seq     = Sequent fmla' (Exists x f')
+  return (fmla', seq:fSeqs)
+addExistsPredHelper f = return (f, []) -- Assumes normalized sequents
 
 {- A helper for addElementPred, which adds @Element predicate to the right of 
    a sequent. -}
@@ -324,3 +364,29 @@ formulaHolds model@(Model trs _) (Exists x p) =
     in
       or $ map ((formulaHolds model).liftWith) domain
     where domain = modelDomain model
+
+
+-- testThy = ["Truth => (exists x . P(x))",
+--            "P(x) =>  (exists x . P1(x) ) | (exists x . P2(x))",
+--            "P1(x) =>  (exists x . P11(x) ) | (exists x . P12(x))",
+--            "P11(x) =>  (exists x . P111(x) ) | (exists x . P112(x))",
+--            "P111(x) =>  (exists x . P1111(x) ) | (exists x . P1112(x))"]
+
+-- testThy = ["Truth => @Exists0()",
+--            "@Exists0() => exists x. P(x)",
+
+--            "P(x) => (@Exists1() | @Exists2())",
+--            "@Exists1() => exists x. P1(x)",
+--            "@Exists2() => exists x. P2(x)",
+
+--            "P1(x) => (@Exists3() | @Exists4())",
+--            "@Exists3() => exists x. P11(x)",
+--            "@Exists4() => exists x. P12(x)",
+
+--            "P11(x) => (@Exists5() | @Exists6())",
+--            "@Exists5() => exists x. P111(x)",
+--            "@Exists6() => exists x. P112(x)",
+
+--            "P111(x) => (@Exists7() | @Exists8())",
+--            "@Exists7() => exists x. P1111(x)",
+--            "@Exists8() => exists x. P1112(x)"]

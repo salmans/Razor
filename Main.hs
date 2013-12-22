@@ -13,6 +13,7 @@ import Debug.Trace
 import Control.Exception 
 import Control.Applicative
 import Control.Monad
+import qualified Control.Monad.State as State
 import Data.List
 import qualified Data.Either as Either
 import qualified Data.Maybe as Maybe
@@ -62,7 +63,7 @@ main = do
   putStrLn $ "Execution time:" ++ (show diffTime)
 
   -- Remove functions from the input sequents, like what the chase does:
-  let inputFmlas' = relConvert inputFmlas
+  let inputFmlas' = renameVars <$> relConvert inputFmlas
 
   -- verifyAll model inputFmlas'
 
@@ -72,10 +73,10 @@ main = do
           then (let mdl@(Model trs _) = Maybe.fromJust model 
                     domain = modelDomain mdl
                     maps f = Utils.Utils.allMaps (freeVars f) domain
-                    fmlas = concatMap insts inputFmlas'
                     insts = (\f -> map 
                                    (\s -> (liftTerm.lift) s f) 
                                    (maps f)) 
+                    fmlas = concatMap insts inputFmlas'
                 in
                 (case all (\s -> (sequentHolds (Maybe.fromJust model) s)) 
                           fmlas of
@@ -102,44 +103,34 @@ main = do
   putStrLn ""
 
 
-  --putStrLn  ("Found " ++ (show $ length model) ++  " models ")
+-- QUICK FIX
+-- If a variable name is both free and bound in a sequent, rename the bound
+-- variables. For the sake of simplicity, we rename all bound variables 
+-- (i.e., existential vairables on right)
+-- REMARK: This functions assumes normalized sequents:
+renameVars :: Sequent -> Sequent
+renameVars seq@(Sequent bdy hd) = 
+    Sequent bdy (State.evalState (renameHeadVars hd) 0)
 
-  --saveXMLJustModel model
+-- Salman: all inductions on formula can be done only once.
+renameHeadVars :: Formula -> Counter Formula
+renameHeadVars (Or f1 f2) = do
+  f1' <- renameHeadVars f1
+  f2' <- renameHeadVars f2
+  return $ Or f1' f2'
+renameHeadVars (And f1 f2) = do
+  f1' <- renameHeadVars f1
+  f2' <- renameHeadVars f2
+  return $ And f1' f2'
+renameHeadVars (Exists x f) = do
+  x' <- freshSymbol "@bv"
+  f' <- renameHeadVars f
+  let sub = Map.singleton x (Var x')
+  return $ Exists x' ((liftTerm.lift) sub f')
+renameHeadVars f = return f  --otherwise
 
--- end main
 
-
--- Save a model in "model.xml" if it is just; otherwise, the file becomes empty
--- saveXMLJustModel model =
---     let outs = if (Maybe.isJust model) then
---                  "<?xml version=\"1.0\"?>\n" ++
---                  "<TRS>\n" ++
---                  (concatMap xmlRW (modelTRS (Maybe.fromJust model))) ++
---                  "</TRS>"
---                else
---                  ""
---                in
---     do
---         outh <- openFile "model.xml" WriteMode
---         hPutStrLn outh outs
---         hClose outh
-
--- -- Helper function for saveJustModel to write a rule in the XML format
--- xmlRW (RW (Elm _) _) = ""
--- xmlRW (RW (Fn f args) (Elm e)) =
---     "\t<RW>\n" ++
---     "\t\t<LHSName>" ++ f ++ "</LHSName>\n" ++
---     "\t\t<LHSArguments>\n" ++
-
---     (concatMap xmlArg args) ++
-
---     "\t\t</LHSArguments>\n" ++
---     "\t\t<RHS>" ++ e ++ "</RHS>\n" ++
---     "\t</RW>\n"
-
--- -- Helper function for xmlRW to write an argument in the XML format
--- xmlArg (Elm arg) = "\t\t\t<Argument>" ++ arg ++ "</Argument>\n"
-
+-- TO BE USED!
 verifyAll mdls inputFmlas = 
     case mdls of
       []    -> print "Nothing to verify!"
