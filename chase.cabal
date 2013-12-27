@@ -2,7 +2,7 @@
 --  see http://haskell.org/cabal/users-guide/
 
 name:                chase
-version:             3.3.3
+version:             3.4
 synopsis:            chase is a model-finder for geometric theories.
 -- description:         
 homepage:            https://github.com/salmans/chase

@@ -27,7 +27,6 @@ import Chase.Problem.Structures
 import Chase.Problem.Operations
 import Chase.Problem.Model(Model (..))
 import qualified Chase.Problem.Model as Model
-import qualified Chase.Problem.RelAlg.Operations as OP -- remove this
 import Chase.Problem.RelAlg.RelAlg as RA
 
 -- Other Modules
@@ -35,6 +34,9 @@ import Utils.Utils (allMaps, prodList, allSublists,
                     allCombinations)
 import Utils.Trace
 import Debug.Trace
+
+
+data ChaseStop = ChaseFail | ChaseAged
 
 {-| Runs the chase for a given input theory, starting from an empty model.
 -}
@@ -68,8 +70,7 @@ runChase cfg mdl thy =
                              Nothing -> initialProblem
                              Just m  -> initialProblem {problemModel = m}
           config         = RWS.evalRWST run [] []
-          run            = scheduleProblem (configSchedule cfg) problem >>= 
-                           (\_ -> process)          
+          run            = scheduleProblem cfg problem >>= (\_ -> process)          
           -- schedule the problem, then process it
 
 {-| Given an input problem, runs the chase and returns a set of final problems,
@@ -80,8 +81,7 @@ runChaseWithProblem cfg problem =
     let (probs, log) = State.evalState config cfg
     in traceList log
        probs
-    where run    =  mapM (scheduleProblem (configSchedule cfg)) [problem] >>= 
-                    (\_ -> process)
+    where run    =  mapM (scheduleProblem cfg) [problem] >>= (\_ -> process)
           config = RWS.evalRWST run [] []
           -- schedule the problem, then process it
 
@@ -124,55 +124,60 @@ process = do
    problemScheduleInfo.-}
 cascadeStep :: Config -> Problem -> ProbPool [Problem]
 cascadeStep cfg prob 
-    | (null.problemScheduleInfo) prob = 
+    | null selectors = 
         do { rest <- process
            ; return (prob:rest) }
     | otherwise = 
-        do { let (tps:restTps) = problemScheduleInfo prob
+        do { let (tps:restTps) = selectors
            ; newProbs <- chaseStep cfg tps prob
+           ; let age' = if null restTps then age + 1 else age
+             -- add to age if a big step is applied, i.e., restTps is empty.
+           ; let schedInfo' = ScheduleInfo { problemFrameSelector = restTps
+                                           , problemBigStepAge    = age'}
            ; case newProbs of
-               Nothing -> process
-               Just [] -> cascadeStep cfg prob { problemScheduleInfo = restTps }
-               Just ps -> do
-                 mapM (scheduleProblem (configSchedule cfg)) ps
+               Left _   -> process
+               Right [] -> 
+                   cascadeStep cfg prob { problemScheduleInfo = schedInfo' }
+               Right ps -> do
+                 mapM (scheduleProblem cfg) ps
                  process }
+    where ScheduleInfo { problemFrameSelector = selectors
+                       , problemBigStepAge    = age } = 
+                                                  problemScheduleInfo prob
 
 {- Applies a chase step to the input problem. A big step can potentially 
    increase the size of the model, i.e., it processes sequents with 
    existentials. -}
 chaseStep :: Config -> [FrameTypeSelector] -> Problem -> 
-             ProbPool (Maybe [Problem])
-chaseStep cfg frmTps problem@(Problem frames model [] _ lastConst) =
-    case stepModels cfg frmTps model emptyTables frames lastConst of
-      Nothing                 -> return Nothing
-      Just (_ ,     []     )  -> return $ Just []
-      Just (frames', models)  -> 
-          return $ 
-                 Just $ map (\(m, q, c) -> 
-                      Problem { problemFrames       = frames'
-                              , problemModel        = m
-                              , problemQueue        = [q]
-                              , problemScheduleInfo = allFrameTypeSelectors
-                              , problemLastConstant = c}) models
+             ProbPool (Either ChaseStop [Problem])
+chaseStep cfg frmTps problem@(Problem frames model [] schedInfo lastConst) =
+    return $ do 
+      let schedInfo' = 
+              schedInfo { problemFrameSelector = allFrameTypeSelectors }
+              -- reset frame selectors
+      (frms, mdls) <- stepModels cfg frmTps model emptyTables frames lastConst
+      return $ map (\(m, q, c) -> Problem { problemFrames       = frms
+                                          , problemModel        = m
+                                          , problemQueue        = [q]
+                                          , problemScheduleInfo = schedInfo'
+                                          , problemLastConstant = c }) mdls
 chaseStep cfg frmTps 
-          problem@(Problem frames model (queue:queues) _ lastConst) =
-    case stepModels cfg frmTps model queue frames lastConst of
-      Nothing                -> return Nothing
-      Just (_    , []      ) -> return $ Just []
-      Just (frames', models) -> 
-          return $
-                 Just $ map (\(m, q, c) -> 
-                       Problem { problemFrames       = frames'
-                               , problemModel        = m
-                               , problemQueue        = queues ++ [q]
-                               , problemScheduleInfo = allFrameTypeSelectors
-                               , problemLastConstant = c}) models
-
+          problem@(Problem frames model (queue:queues) schedInfo lastConst) =
+    return $ do 
+      let schedInfo' = 
+             schedInfo { problemFrameSelector = allFrameTypeSelectors }
+             -- reset frame selectors
+      (frms, mdls) <- stepModels cfg frmTps model queue frames lastConst
+      return $ map (\(m, q, c) -> Problem { problemFrames       = frms
+                                          , problemModel        = m
+                                          , problemQueue        = queues ++ [q]
+                                          , problemScheduleInfo = schedInfo'
+                                          , problemLastConstant = c }) mdls
 
 -- Salman: add comments!
 stepModels :: Config -> [FrameTypeSelector] -> Model -> Tables -> [Frame] -> 
-              Int -> Maybe ([Frame], [(Model, Tables, Int)])
-stepModels _ _ _ _ [] _ = Just ([], [])
+              Int -> Either ChaseStop ([Frame], [(Model, Tables, Int)])
+stepModels _ _ _ _ [] _ = Right ([], [])
 -- Salman: redo this:
 stepModels cfg frmTps model queue frames counter = do
       let (frm, fs)  = selectFrame frames frmTps
@@ -188,21 +193,19 @@ stepModels cfg frmTps model queue frames counter = do
         else return ([], [])
 
 newModelsForFrame :: Model -> Tables -> Frame -> Int -> Bool
-                     -> Maybe [(Model, Tables, Int)]
-newModelsForFrame model queue frame counter incremental = 
-    case newFacts counter model queue frame incremental of
-      Nothing         -> Nothing
-      Just ([], _, _) -> Just []
-      Just (os, c, p) -> Just $ (\o -> 
-                                 Model.add model c o (Maybe.fromJust p)) <$> os
+                     -> Either ChaseStop [(Model, Tables, Int)]
+newModelsForFrame model queue frame counter incremental = do
+  (os, c, p) <- newFacts counter model queue frame incremental
+  return $ map (\o -> Model.add model c o (Maybe.fromJust p)) os
+
                       
 newFacts :: Int -> Model -> Tables -> Frame -> Bool -> 
-            Maybe ([[Obs]], Int, Maybe Prov)
+            Either ChaseStop ([[Obs]], Int, Maybe Prov)
 -- Salman: this is too complicated. Is it possible to make the code simpler?
 newFacts counter model queue frame incremental 
-    | null subs = Just ([], counter, Nothing)
-    | (null.frameHead) frame = Nothing
-    | otherwise = Just $ 
+    | null subs = Right ([], counter, Nothing)
+    | (null.frameHead) frame = Left ChaseFail
+    | otherwise = Right $ 
                   glue (deduceForFrame counter model vars heads)
                        (Just prov)
     where subs      = matchFrame (modelTables model) queue 
@@ -269,7 +272,7 @@ deduceHelper counter model vars allObs@(obs:rest)
             newCounter     = counter + length existVars
         in deduceHelper newCounter model vars liftedRest
             -- In this case, all of the free variables in the observation 
-            -- are existentials: instantiate the variables with fresh constants; 
+            -- are existentials: instantiate variables with fresh constants; 
             -- then, apply deduce on the instantiated observations.
     | otherwise = error $ "Chase.Chase.deduceHelper: the input " ++
                    "formula cannot have free variables."

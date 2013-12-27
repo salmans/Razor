@@ -56,14 +56,15 @@ type FrameTypeSelector = FrameType -> Bool
 {- FrameScheduleInfo keeps the information required to schedule frames for a 
    problem. Every element of such list is a list of selectors to describe the
    frames that need to be scheduled next. -}
-type FrameScheduleInfo = [[FrameTypeSelector]]
+data ScheduleInfo = ScheduleInfo { problemFrameSelector :: [[FrameTypeSelector]]
+                                 , problemBigStepAge    :: Int }
 
 {- A shorthand for a systematic way of scheduling frames in the following order:
    1- Process frames with empty right
    2- Process frames with no disjunctions and no existential qunatifiers 
    3- Process frames with disjunctions 
    4- Process framed with existential quantifiers -}
-allFrameTypeSelectors :: FrameScheduleInfo
+allFrameTypeSelectors :: [[FrameTypeSelector]]
 allFrameTypeSelectors = 
     [failFrames, regularFrames, disjunctFrames, existFrames]
     where failFrames      = [ftFail]
@@ -147,7 +148,7 @@ data Problem = Problem {
       problemFrames       :: [Frame],
       problemModel        :: Model,
       problemQueue        :: [Tables],
-      problemScheduleInfo :: FrameScheduleInfo,
+      problemScheduleInfo :: ScheduleInfo,
       problemLastConstant :: Int -- We may remove this later
 }
 

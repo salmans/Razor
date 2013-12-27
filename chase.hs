@@ -10,6 +10,7 @@ import System.Environment
 import System.Console.GetOpt
 import System.Exit (exitWith, ExitCode (..))
 import System.IO (hPutStrLn, stderr)
+import Text.Read (readMaybe)
 import Data.Maybe
 
 import Formula.SyntaxGeo (Sequent, parseSequent)
@@ -38,10 +39,11 @@ options =
     , Option "s" ["schedule"]
         (ReqArg
             (\arg cfg -> return cfg { 
-                           configSchedule = if   arg == "dfs"
-                                            then SchedDFS
-                                            else SchedBFS })
-            "bfs/dfs")
+                           configSchedule = case arg of
+                                              "dfs" -> SchedDFS
+                                              "rr"  -> SchedRR
+                                              _     -> SchedBFS })
+            "bfs/dfs/rr")
         "Schedule type"
 
     , Option "b" ["batch"]
@@ -58,7 +60,19 @@ options =
         (NoArg
             (\cfg -> return cfg { configAllModels = False }))
         "Display one model"
- 
+
+    , Option "" ["process-unit"]
+        (OptArg
+            (\arg cfg -> return $
+                         case arg of
+                           Nothing -> cfg
+                           Just pu ->
+                               case readMaybe pu of
+                                 Nothing  -> cfg
+                                 Just pu' -> cfg { configProcessUnit = pu'})
+            "# OF BIG STEPS")
+        "Process unit for round robing scheduling"
+
     , Option "h" ["help"]
         (NoArg
             (\_ -> do
@@ -70,7 +84,7 @@ options =
     , Option "v" ["version"]
         (NoArg
             (\_ -> do
-               hPutStrLn stderr "Version 3.3.3"
+               hPutStrLn stderr "Version 3.4"
                exitWith ExitSuccess))
         "Print version"
     ]

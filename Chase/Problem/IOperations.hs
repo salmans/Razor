@@ -60,7 +60,9 @@ buildProblem thy =
     Problem { problemFrames       = frms
             , problemModel        = Model.empty 
             , problemQueue        = []
-            , problemScheduleInfo = allFrameTypeSelectors
+            , problemScheduleInfo = 
+                ScheduleInfo { problemFrameSelector = allFrameTypeSelectors
+                             , problemBigStepAge    = 0 }
             , problemLastConstant = 0}
     where frms  = zipWith (\x y -> buildFrame x y) [1..] thy''
           thy'  = addAllExistsPreds thy
@@ -187,13 +189,23 @@ selectProblem _ =
 
 {-| Inserts a problem into the problem pool based on the given scheduling 
   type. -}
-scheduleProblem :: ScheduleType -> Problem -> ProbPool ()
-scheduleProblem SchedBFS = 
-    \p -> State.get  >>= (\ps ->
-    State.put (ps ++ [p]) >>= (\_ -> return ()))
-scheduleProblem SchedDFS = 
-    \p -> State.get  >>= (\ps ->
-    State.put (p:ps) >>= (\_ -> return ()))
+scheduleProblem :: Config -> Problem -> ProbPool ()
+scheduleProblem cfg p = 
+        State.get  >>= (\ps ->
+        State.put (scheduleProblemHelper cfg p ps) >>= (\_ -> return ()))
+
+{- A helper for scheduleProblem -}
+scheduleProblemHelper :: Config -> Problem -> [Problem] -> [Problem]
+scheduleProblemHelper cfg p ps 
+    | schedType == SchedBFS = ps ++ [p]
+    | schedType == SchedDFS = p:ps
+    | schedType == SchedRR  = if age `mod` unit == 0
+                              then ps ++ [p]
+                              else p:ps
+    where schedType = configSchedule cfg
+          unit      = configProcessUnit cfg
+          age       = (problemBigStepAge.problemScheduleInfo) p
+                        
 
 {-| Selects a frame from a set of frames and returns the selected frame as well 
   as the remaining frames. The scheduling algorithm is always fifo to maintain
