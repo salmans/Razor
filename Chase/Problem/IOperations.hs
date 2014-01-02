@@ -13,6 +13,7 @@ import Data.Maybe
 import qualified Control.Monad.State as State
 import qualified Control.Monad.Writer as Writer
 import Control.Applicative
+import Control.Monad
 
 import Utils.Trace
 import Debug.Trace
@@ -55,31 +56,123 @@ err_ChaseProblemOperations_NarrowDen =
 
 {-| Creates a problem corresponding to a given geometric theory. -}
 buildProblem :: Theory -> Problem
-buildProblem thy = problem
-    where frms = zipWith (\x y -> buildFrame x y) [1..] thy
+buildProblem thy = 
+    Problem { problemFrames       = frms
+            , problemModel        = Model.empty 
+            , problemQueue        = []
+            , problemScheduleInfo = 
+                ScheduleInfo { problemFrameSelector = allFrameTypeSelectors
+                             , problemBigStepAge    = 0 }
+            , problemLastConstant = 0}
+    where frms  = zipWith (\x y -> buildFrame x y) [1..] thy''
+          thy'  = addAllExistsPreds thy
+                  -- Take existential formulas on right out of disjunctions
+          thy'' = if   any hasFreeVarOnRight thy'
+                       -- If any sequent has a free variable on its right
+                  then addElementPred <$> thy' -- modify the theory
+                  else thy'
           -- convert sequents to frames and assign IDs to them.
-          problem =     Problem { problemFrames       = frms 
-                                , problemModel        = Model.empty 
-                                , problemQueue        = []
-                                , problemLastID       = length thy 
-                                , problemLastConstant = 0}
 
-{-| Updates a problem by adding new frames to its theory. It updates problem's 
-  symbol map accordingly.
--}
-extendProblem :: Problem -> [Frame] -> Problem
-extendProblem (Problem oldFrames model queue last lastConst) 
-              frames =
-    Problem { problemFrames       = (union oldFrames newFrames) 
-            , problemModel        = model
-            , problemQueue        = queue
-            , problemLastID       = newLastID              
-            , problemLastConstant = lastConst}
-        -- REMARK: the two set of frames have to be unined; otherwise, the chase may
-        -- never terminate (as for thyphone1_2)
-    where newFrames = zipWith (\frame id -> frame {frameID = id})
-                      frames [(last + 1)..]
-          newLastID = last + (length newFrames)
+{- Returns true if the input sequent has any free variable on its RHS, which is 
+   not defined on its LHS. -}
+hasFreeVarOnRight :: Sequent -> Bool
+hasFreeVarOnRight seq = (not.null) $ hdVars \\ bdyVars
+    where hd      = sequentHead seq
+          bdy     = sequentBody seq
+          hdVars  = freeVars hd
+          bdyVars = freeVars bdy
+
+{- Since the current implementation of the chase requires every free variable
+   on RHS of a sequent be mentioned on its LHS, we add a @Element predicate
+   to the left of this kind of sequents. We also add @Element to the right of
+   every sequent with existential quantifiers. -}
+addElementPred :: Sequent -> Sequent
+addElementPred seq = 
+    let bdy' = foldr (\v b -> And (Atm (elementPred (Var v))) b) bdy hdFVars
+        hd'  = addElementPredToRight hd
+    in  seq { sequentBody = bdy' 
+            , sequentHead = hd' }
+    where hd      = sequentHead seq
+          bdy     = sequentBody seq
+          hdVars  = freeVars hd
+          bdyVars = freeVars bdy
+          hdFVars = hdVars \\ bdyVars
+          allVars = hdVars `union` bdyVars
+
+{- Applies addExistsPred on a theory of sequents. -}
+addAllExistsPreds :: [Sequent] -> [Sequent]
+addAllExistsPreds seqs = 
+    State.evalState (run seqs) 0
+    where run = foldM foldFunc []
+          foldFunc res (Sequent b h) = do
+            (h', seqs) <- addExistsPred h
+            return $ res ++ (Sequent b h':seqs)
+
+{- Uses addExistsPredHelper to relpace existential formulas, corresponding to 
+   the head of a sequent, with fresh atomic formulas. As a consequence, new 
+   sequents will be induced with the fresh atomic formula on left and 
+   existential formula on right. The function returns the replaced head, from 
+   the initial sequent, and the set of induced sequents. 
+   The function requires a Counter to generate fresh relation symbols for the
+   fresh atomic formulas. -}
+addExistsPred :: Formula -> Counter (Formula, [Sequent])
+addExistsPred fmla@(Or _ _) = addExistsPredHelper fmla
+    -- Only apply the transformation if the head has disjunctions. That is, if
+    -- the head is an existential formula, it is already in the form we want.
+addExistsPred fmla          = return (fmla, [])
+
+addExistsPredHelper :: Formula -> Counter (Formula, [Sequent])
+addExistsPredHelper (Or f1 f2) = do
+  (f1', seqs1) <- addExistsPredHelper f1
+  (f2', seqs2) <- addExistsPredHelper f2
+  return (Or f1' f2', seqs1 ++ seqs2)
+addExistsPredHelper fmla@(Exists x f) = do
+  let vs      = freeVars fmla
+  sym         <- freshSymbol "@Exists"
+  let atm     = R sym (map Var vs)
+  let fmla'   = Atm atm
+  (f', fSeqs) <- addExistsPredHelper f
+  let seq     = Sequent fmla' (Exists x f')
+  return (fmla', seq:fSeqs)
+addExistsPredHelper f = return (f, []) -- Assumes normalized sequents
+
+{- A helper for addElementPred, which adds @Element predicate to the right of 
+   a sequent. -}
+addElementPredToRight :: Formula -> Formula
+addElementPredToRight (Or fmla1 fmla2) = -- go inside disjunction
+    Or (addElementPredToRight fmla1) (addElementPredToRight fmla2)
+addElementPredToRight (Exists x fmla)  = -- add predicate for existentials
+    Exists x $ And (Atm (elementPred (Var x))) fmla
+addElementPredToRight fmla@(Atm atm@(R sym ts)) =
+    let preds = elementPred <$> ts
+    in  foldr (\p f -> And (Atm p) f) fmla preds
+                            -- This assumes flattened terms
+addElementPredToRight fmla = fmla -- Note that we assume normalized sequents
+                             
+
+{- A helper for addElementPred. It constructs an @Element predicate for the 
+   input term. -}
+elementPred :: Term -> Atom
+elementPred =  \x -> R "@Element" [x]
+
+-- The following function is depricated since in the relational algebraic 
+-- solution the theory is not extended.
+-- {-| Updates a problem by adding new frames to its theory. It updates problem's 
+--   symbol map accordingly.
+-- -} 
+-- extendProblem :: Problem -> [Frame] -> Problem
+-- extendProblem (Problem oldFrames model queue last lastConst) 
+--               frames =
+--     Problem { problemFrames       = (union oldFrames newFrames) 
+--             , problemModel        = model
+--             , problemQueue        = queue
+--             , problemLastID       = newLastID              
+--             , problemLastConstant = lastConst}
+--         -- REMARK: the two set of frames have to be unined; otherwise, the chase may
+--         -- never terminate (as for thyphone1_2)
+--     where newFrames = zipWith (\frame id -> frame {frameID = id})
+--                       frames [(last + 1)..]
+--           newLastID = last + (length newFrames)
 
 {-| Selects a problem from a pool of problems based on the given scheduling type
   and returns the selected problem. The function changes the current state of 
@@ -96,30 +189,44 @@ selectProblem _ =
 
 {-| Inserts a problem into the problem pool based on the given scheduling 
   type. -}
-scheduleProblem :: ScheduleType -> Problem -> ProbPool ()
-scheduleProblem SchedFIFO = 
-    \p -> State.get  >>= (\ps ->
-    State.put (ps ++ [p]) >>= (\_ -> return ()))
-scheduleProblem SchedFILO = 
-    \p -> State.get  >>= (\ps ->
-    State.put (p:ps) >>= (\_ -> return ()))
+scheduleProblem :: Config -> Problem -> ProbPool ()
+scheduleProblem cfg p = 
+        State.get  >>= (\ps ->
+        State.put (scheduleProblemHelper cfg p ps) >>= (\_ -> return ()))
+
+{- A helper for scheduleProblem -}
+scheduleProblemHelper :: Config -> Problem -> [Problem] -> [Problem]
+scheduleProblemHelper cfg p ps 
+    | schedType == SchedBFS = ps ++ [p]
+    | schedType == SchedDFS = p:ps
+    | schedType == SchedRR  = if age `mod` unit == 0
+                              then ps ++ [p]
+                              else p:ps
+    where schedType = configSchedule cfg
+          unit      = configProcessUnit cfg
+          age       = (problemBigStepAge.problemScheduleInfo) p
+                        
 
 {-| Selects a frame from a set of frames and returns the selected frame as well 
   as the remaining frames. The scheduling algorithm is always fifo to maintain
   fairness. -}
 {- Salman: at the moment, the only reason that we kept frames inside problems
    is because we want to maintain a different schedule for each problem. -}
-selectFrame :: [Frame] -> (Maybe Frame, [Frame])
-selectFrame []     = (Nothing, [])
-selectFrame (f:fs) = (Just f, fs)
-          -- Find the first frame that needs to be processed.
+selectFrame :: [Frame] -> [FrameTypeSelector] -> (Maybe Frame, [Frame])
+selectFrame [] _       = (Nothing, [])
+selectFrame (f:fs) []  = (Just f, fs)  -- No restriction on selected frame
+selectFrame fs tps     = 
+    case findIndex ((flip hasFrameType) tps) fs of
+      Nothing -> (Nothing, fs)
+      Just i  -> let (l1, l2) = splitAt i fs
+                 in  (Just (head l2), l1 ++ tail l2)
+
 
 {-| Schedules a frame inside a set of frames. -}
 scheduleFrame :: Frame -> [Frame] -> [Frame]
 scheduleFrame f fs = fs ++ [f]
 
-{-| Creates a Frame from a given sequent. 
--}
+{-| Creates a Frame from a given sequent. -}
 buildFrame :: ID -> Sequent -> Frame
 buildFrame id sequent@(Sequent body head) = 
     Frame { frameID        = id
@@ -136,12 +243,13 @@ buildFrame id sequent@(Sequent body head) =
           bodies         = processBody body
           (heads, fType) = processHead head
           universals     = (not.null) $ (freeVars head) \\ (freeVars body)
+
 {- Constructs the head of a frame from the head of a sequent. Here, we assume 
 that the sequent is in the standard form, i.e. disjunctions appear only at 
 the top level of the head.
 -}
 processHead :: Formula -> ([[Obs]], FrameType)
-processHead Fls = ([], untypedFrame)
+processHead Fls = ([], untypedFrame {ftFail = True})
 processHead (And p q) = 
     let (p', ft1) = processHead p
         (q', ft2) = processHead q
@@ -167,7 +275,19 @@ processHead (Atm (R "=" [t1, t2])) =
     ([[Eql t1 t2]], untypedFrame) -- dealing with equality
 -- The following would never happen unless something is wrong with the parser:
 processHead (Atm (R "=" _)) = error err_ChaseProblemOperations_EqTwoParam
-processHead (Atm atm) = ([[Fct atm]], untypedFrame)
+processHead (Atm atm@(R sym ts)) = 
+    ([[Fct atm]], fType)
+    where fType = if   all isVar ts -- Sequents with constants on right get the
+                                    -- ftExistential tag.
+                  then untypedFrame
+                  else untypedFrame { ftExistential = True }
+    -- atoms other than equality
+processHead (Atm atm@(F sym ts)) = 
+    ([[Fct atm]], fType)
+    where fType = if   all isVar ts -- Sequents with constants on right get the
+                                    -- ftExistential tag.
+                  then untypedFrame
+                  else untypedFrame { ftExistential = True }
     -- atoms other than equality
 processHead _ = error err_ChaseProblemOperations_InvldSeq
 
@@ -183,7 +303,7 @@ processBody (Atm (R "=" [t1, t2])) = [Eql t1 t2] -- dealing with equality
 processBody (Atm (R "=" _)) = error err_ChaseProblemOperations_EqTwoParam
 processBody (Atm atm) = [Fct atm] -- atoms other than equality
 processBody (Exists x p) = processBody p
-processBody fmla = (error.show) fmla -- error err_ChaseProblemOperations_InvldSeq
+processBody fmla = (error.show) fmla
 
 {-| Given relational information about a sequent and a set of tables in a model,
  returns a set of substituions corresponding to a chase step for the sequent. -}
@@ -256,3 +376,29 @@ formulaHolds model@(Model trs _) (Exists x p) =
     in
       or $ map ((formulaHolds model).liftWith) domain
     where domain = modelDomain model
+
+
+-- testThy = ["Truth => (exists x . P(x))",
+--            "P(x) =>  (exists x . P1(x) ) | (exists x . P2(x))",
+--            "P1(x) =>  (exists x . P11(x) ) | (exists x . P12(x))",
+--            "P11(x) =>  (exists x . P111(x) ) | (exists x . P112(x))",
+--            "P111(x) =>  (exists x . P1111(x) ) | (exists x . P1112(x))"]
+
+-- testThy = ["Truth => @Exists0()",
+--            "@Exists0() => exists x. P(x)",
+
+--            "P(x) => (@Exists1() | @Exists2())",
+--            "@Exists1() => exists x. P1(x)",
+--            "@Exists2() => exists x. P2(x)",
+
+--            "P1(x) => (@Exists3() | @Exists4())",
+--            "@Exists3() => exists x. P11(x)",
+--            "@Exists4() => exists x. P12(x)",
+
+--            "P11(x) => (@Exists5() | @Exists6())",
+--            "@Exists5() => exists x. P111(x)",
+--            "@Exists6() => exists x. P112(x)",
+
+--            "P111(x) => (@Exists7() | @Exists8())",
+--            "@Exists7() => exists x. P1111(x)",
+--            "@Exists8() => exists x. P1112(x)"]

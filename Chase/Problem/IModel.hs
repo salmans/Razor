@@ -41,7 +41,7 @@ err_ChaseProblemModel_EqlDenotes =
 data Model = Model{
       modelTables   :: Tables,
       modelProvInfo :: ProvInfo
-} 
+}
 
 instance NFData Model where -- enable strict evaluation for performance analysis
     rnf m = m `seq` ()
@@ -61,21 +61,24 @@ prettyModel mdl@(Model tbls prov) =
 prettyTable :: TableRef -> Table -> String
 prettyTable DomTable _             = ""
 prettyTable ref@(ConTable sym) tbl = 
-    case sym of -- discreminate skolem constants for existential quantifiers
-      -- ('a':'@':_) -> ""
-      otherwise   -> show sym ++ " = " ++ show (DB.toList tbl) ++ "\n"
+    sym ++ " = " ++ (show.head.head) (DB.toList tbl) ++ "\n"
       -- Salman: don't create skolem constants in the first place
 prettyTable ref@(FunTable sym) tbl = 
-    show sym ++ " :: " ++ concatMap (prettyRecord ref) (DB.toList tbl) ++ "\n"
+    sym ++ " = " ++ concatMap (prettyRecord ref) (DB.toList tbl) ++ "\n"
+prettyTable (RelTable ('@':_)) _   = "" -- internal table (e.g. @Element)
 prettyTable ref@(RelTable sym) tbl = 
-    show sym ++ " :: " ++ concatMap (prettyRecord ref) (DB.toList tbl) ++ "\n"
+    sym ++ " = " ++ concatMap (prettyRecord ref) (DB.toList tbl) ++ "\n"
 
 prettyRecord :: TableRef -> Record -> String
 prettyRecord DomTable _   = ""
 prettyRecord (FunTable sym) rec = 
-    show (init rec) ++ " -> " ++ show (last rec) ++ " , "
-prettyRecord (RelTable sym) rec = show rec ++ " , "
+    prettyTuple (init rec) ++ " -> " ++ show (last rec) ++ " , "
+prettyRecord (RelTable sym) rec = prettyTuple rec ++ " , "
 
+
+prettyTuple :: [Term] -> String
+prettyTuple tuple = "(" ++ concat tuple' ++ ")"
+    where tuple' = intersperse "," (show <$> tuple)
 
 {-| The domain of a model is a table with key ("*", DomTable)
 -}

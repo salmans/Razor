@@ -28,6 +28,8 @@ import qualified RelAlg.DB as RA
 {-| Additional information about frames are stored as frame type instances. -}
 data FrameType = FrameType { ftInitial      :: Bool
                            -- has empty left
+                           , ftFail         :: Bool
+                           -- has empty right
                            , ftExistential  :: Bool 
                            -- contains existential on right
                            , ftDisjunction  :: Bool
@@ -37,14 +39,38 @@ data FrameType = FrameType { ftInitial      :: Bool
                            } deriving Show
 
 untypedFrame :: FrameType
-untypedFrame =  FrameType False False False False
+untypedFrame =  FrameType False False False False False
 
 unionFrameTypes :: FrameType -> FrameType -> FrameType
-unionFrameTypes ft1@(FrameType i1 e1 d1 u1) ft2@(FrameType i2 e2 d2 u2) =
-    FrameType (i1 || i2) (e1 || e2) (d1 || d2) (u1 || u2)
+unionFrameTypes ft1@(FrameType i1 f1 e1 d1 u1) ft2@(FrameType i2 f2 e2 d2 u2) =
+    FrameType (i1 || i2) (f1 || f2) (e1 || e2) (d1 || d2) (u1 || u2)
 
 hasFrameType :: Frame -> [FrameType -> Bool] -> Bool
 hasFrameType frame types = and $ (flip ($)) (frameType frame) <$> types
+
+
+{- Since field selectors of FrameType are frequently used to identify frames 
+   for scheduling, it is convenient to define them as a type. -}
+type FrameTypeSelector = FrameType -> Bool
+
+{- FrameScheduleInfo keeps the information required to schedule frames for a 
+   problem. Every element of such list is a list of selectors to describe the
+   frames that need to be scheduled next. -}
+data ScheduleInfo = ScheduleInfo { problemFrameSelector :: [[FrameTypeSelector]]
+                                 , problemBigStepAge    :: Int }
+
+{- A shorthand for a systematic way of scheduling frames in the following order:
+   1- Process frames with empty right
+   2- Process frames with no disjunctions and no existential qunatifiers 
+   3- Process frames with disjunctions 
+   4- Process framed with existential quantifiers -}
+allFrameTypeSelectors :: [[FrameTypeSelector]]
+allFrameTypeSelectors = 
+    [failFrames, regularFrames, disjunctFrames, existFrames]
+    where failFrames      = [ftFail]
+          regularFrames   = [not.ftFail, not.ftDisjunction, not.ftExistential]
+          disjunctFrames  = [ftDisjunction]
+          existFrames     = [ftExistential]
 
 {-| Relational information for a sequent, correspoinding to a frame:
   - bodyExp: a relational expression corresponding to the body of a sequent.
@@ -112,8 +138,9 @@ instance TermBased Frame where
   - problemQueue: a queue of deduced facts in form of a set of delta tables to
   be processed.
   - problemSymbols: a list of symbols that appear in the left of frames.
-  - problemLastID: a convenient way of keeping track of the last ID assigned to 
-  the frames. This is used when new frames get instantiated.
+  - problemScheduleInfo: keeps track of information that is required to 
+  schedule frames for the problem. This field keeps track of a list of frame 
+  type selectors to determine the type of frames that can be scheduled next.
   - probelmLastConstant: keeps track of an index used to create a new element 
   for satisfying an existential quantifier.
 -}
@@ -121,7 +148,7 @@ data Problem = Problem {
       problemFrames       :: [Frame],
       problemModel        :: Model,
       problemQueue        :: [Tables],
-      problemLastID       :: ID,
+      problemScheduleInfo :: ScheduleInfo,
       problemLastConstant :: Int -- We may remove this later
 }
 
