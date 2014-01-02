@@ -100,26 +100,29 @@ modelSexp model = do
 provSexp :: ProvInfo -> String
 provSexp provs =
   "  ( ;; Provenance\n" ++
-  (List.intercalate "\n" $ List.map strFctProv (List.sortBy compareProv (Map.assocs (provInfoData provs)))) ++
+  (List.intercalate "\n" $
+   List.map snd $
+   List.sortBy compareFst $
+   List.concatMap strFctProv (Map.assocs (provInfoData provs))) ++
   "\n  )"
-  where strFctProv ((Fct (R a b)), prov) = strFctProv2 a b prov
-        strFctProv ((Fct (F a b)), prov) = strFctProv2 a b prov
-        strFctProv _ = ""
-        strFctProv2 a b prov =
-          "   ((" ++ a ++ " " ++ (strArgs b) ++ ") " ++
-          "(" ++ (strProv prov) ++ "))"
+  where strFctProv ((Fct (R a b)), provl) = strFctProv2 a b provl
+        strFctProv ((Fct (F a b)), provl) = strFctProv2 a b provl
+        strFctProv _ = []
 
-        strProv prov = --if List.length prov /= 1 then error "a" else
-            --strp $ List.head prov
-            List.intercalate " " (List.map strp prov)
+        strFctProv2 a b provl = List.map (strProv ("   ((" ++ a ++ " " ++ (strArgs b) ++ ") (")) (List.nubBy eq provl)
+        eq p1 p2 = (provKey p1) == (provKey p2)
+
+        strProv str1 prov = (provKey prov, str1 ++ (strp prov) ++ "))")
+
         strp (ChaseProv sid fid sub) =
           (show sid) ++ " " ++ (show fid) ++ " (" ++ (strSub sub) ++ ")"
         strp UserProv = "?"
+
         strSub sub = List.intercalate " " $ List.map strSubEach (Map.assocs sub)
         strSubEach (a, (Elm b)) = "(" ++ a ++ " " ++ b ++ ")"
         strSubEach _ = "(_ _)"
 
-        compareProv (_, prova:_) (_, provb:_) = compare (provKey prova) (provKey provb)
+        compareFst (key1,_) (key2,_) = compare key1 key2
         provKey (ChaseProv sid _ _) = sid
         provKey UserProv = -1
 
@@ -127,7 +130,7 @@ provSexp provs =
 framesSexp :: [Frame] -> String
 framesSexp frames =
   "  ( ;; Theory\n" ++
-  (List.intercalate "\n" $ (List.map strFrame frames)) ++
+  (List.intercalate "\n" $ List.map strFrame $ List.sortBy compareByID frames) ++
   "\n  )"
   where strFrame (Frame id body head _ _ _) =
           "   (" ++ (show id) ++ " (" ++ (list body) ++ ") (" ++ (list2 head) ++ "))"
@@ -138,6 +141,8 @@ framesSexp frames =
         strObs (Fct (F a b)) = [strObs2 a b]
         strObs _ = []
         strObs2 a b = "(" ++ a ++ " " ++ (strArgs b) ++ ")"
+
+        compareByID f1 f2 = compare (frameID f1) (frameID f2)
 
 
 strArgs args = List.intercalate " " (List.map strArg args)
