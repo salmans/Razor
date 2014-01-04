@@ -10,7 +10,11 @@ import qualified Control.Monad.State as State
 import Data.List
 import qualified Data.Map as Map
 import Data.Maybe
+
+
 import Debug.Trace
+import Utils.Trace
+
 import Control.Exception -- for assert
 
 
@@ -82,8 +86,6 @@ processEquation (Equ (Elm "True") t) currentState =
     processEquation (Equ t (Elm "True")) currentState
     -- orient the equation
 processEquation (Equ c1@(Elm _) c2@(Elm _)) (tbls, deltas, eqs) = do
-    provs        <- State.get
-    State.put provs
     (nt, tbls')  <- updateTables c1 c2 tbls
     (_, deltas') <- updateTables c1 c2 deltas
     let deltas'' =  mergeSets deltas' $ filterTables (elem nt) tbls'
@@ -197,11 +199,21 @@ updateTables c1@(Elm ('e':'#':n1)) c2@(Elm ('e':'#':n2)) tbls = do
   -- Also update provenance information for the elements being collapsed:
   (p, ps) <- State.get
   State.put (p, updateProvInfo c1 c2 ps)
-  return $ (if n1 > n2 then c2 else c1, nubSet.((updateFunc <$>) <$>) <$> tbls)
+  -- return $ (if n1 > n2 then c2 else c1, 
+  --           nubSet.((updateFunc <$>) <$>) <$> tbls)
+  return (c2, nubSet.((updateFunc <$>) <$>) <$> tbls)
     -- Salman: this can be done more efficiently
-    where updateFunc = if   n1 > n2
-                       then (\x -> if x == c1 then c2 else x)
-                       else (\x -> if x == c2 then c1 else x)
+    where updateFunc = \x -> if x == c1 then c2 else x
+              -- if   n1 > n2
+              --          then (\x -> if x == c1 then c2 else x)
+              --          else (\x -> if x == c2 then c1 else x)
+
+  -- Salman: if you want to rewrite to the smallest element, you need to orient
+  -- the remaining equations in the queue. Consider the following as a test 
+  -- case:
+  -- "exists x. exists y. exists z. R(x, y, z)"
+  -- "R(x, y, z) => f(z) = x"
+  -- "R(x, y, z) => f(z) = y"
 updateTables _ _ _ = error "CC.RelAlg.updateTables: invalid update"    
 
 updateProvInfo :: Term -> Term -> ProvInfo -> ProvInfo
