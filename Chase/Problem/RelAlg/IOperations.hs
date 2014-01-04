@@ -157,6 +157,12 @@ insertRecord t tbls deltas = do
 initConstant :: Tables -> Term -> ProvCounter (Tables, Term)
 initConstant tbls t@(Fn s []) = do
   fresh    <- State.lift freshElement
+  let obs  = termToObs False t
+  (prov, ProvInfo provs lastTag) <- State.get
+  State.put (prov, ProvInfo (Map.insertWith (++) obs [prov] provs) lastTag)
+  -- This adds provenance for the constant whether the constant is being 
+  -- initialized for the first time or it is just being referenced. Perhaps, 
+  -- this is the desired behavior.
   let recs = Map.fromList [(DomTable, DB.Set [[fresh]]),
                                    (ConTable s, DB.Set [[fresh]])]
   case t' of
