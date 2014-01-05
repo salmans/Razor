@@ -154,6 +154,7 @@ Version 3.4
     - Sequents with existential quantifiers and disjunctions are transformed to
     sequents with either disjunctions or sequents with existentials.
     - A round-robin scheduling mode is introduced.
+    - Minor bug fixes and performance improvements.
 
 
 Yet to come:

@@ -64,25 +64,25 @@ runChase cfg mdl thy =
     -- use the log information when needed
     in traceStringListIf (configDebug cfg) log
        probs
-    where initialProblem = buildProblem (relConvert thy) 
+    where (frms, initialProblem) = buildProblem (relConvert thy) 
           -- Create the initial problem (get rid of function symbols)
           problem        = case mdl of
                              Nothing -> initialProblem
                              Just m  -> initialProblem {problemModel = m}
-          config         = RWS.evalRWST run [] []
+          config         = RWS.evalRWST run [] (frms, [])
           run            = scheduleProblem cfg problem >>= (\_ -> process)          
           -- schedule the problem, then process it
 
 {-| Given an input problem, runs the chase and returns a set of final problems,
   which contain the models for the input problem.
 -}
-runChaseWithProblem :: Config -> Problem -> [Problem]
-runChaseWithProblem cfg problem =
+runChaseWithProblem :: Config -> FrameMap -> Problem -> [Problem]
+runChaseWithProblem cfg frms problem =
     let (probs, log) = State.evalState config cfg
     in traceList log
        probs
     where run    =  mapM (scheduleProblem cfg) [problem] >>= (\_ -> process)
-          config = RWS.evalRWST run [] []
+          config = RWS.evalRWST run [] (frms, [])
           -- schedule the problem, then process it
 
 
@@ -106,12 +106,13 @@ process :: ProbPool [Problem]
 process = do
       cfg      <- State.lift State.get
       prob     <- selectProblem (configSchedule cfg) -- pick a problem
-      allProbs <- RWS.get
+      (fMap, allProbs) 
+               <- RWS.get
       Logger.logUnder (length allProbs) "# of branches"
       Logger.logIf (Maybe.isJust prob) ((problemModel.Maybe.fromJust) prob)
       case prob of
         Nothing -> return [] -- no more problems
-        Just p  -> cascadeStep cfg p
+        Just p  -> cascadeStep cfg fMap p
 
 {- Runs chase steps on a problem according to problemScheduleInfo in the 
    problem. The function runs the frames that satisfy the first list of frame 
@@ -122,14 +123,14 @@ process = do
    frames do not produce new problems (i.e., they do not add new facts to the 
    model) cascadeStep will be called on the next set of frame selectors in 
    problemScheduleInfo.-}
-cascadeStep :: Config -> Problem -> ProbPool [Problem]
-cascadeStep cfg prob 
+cascadeStep :: Config -> FrameMap -> Problem -> ProbPool [Problem]
+cascadeStep cfg fMap prob 
     | null selectors = 
         do { rest <- process
            ; return (prob:rest) }
     | otherwise = 
         do { let (tps:restTps) = selectors
-           ; newProbs <- chaseStep cfg tps prob
+           ; newProbs <- chaseStep cfg fMap tps prob
            ; let age' = if null restTps then age + 1 else age
              -- add to age if a big step is applied, i.e., restTps is empty.
            ; let schedInfo' = ScheduleInfo { problemFrameSelector = restTps
@@ -137,7 +138,8 @@ cascadeStep cfg prob
            ; case newProbs of
                Left _   -> process
                Right [] -> 
-                   cascadeStep cfg prob { problemScheduleInfo = schedInfo' }
+                   cascadeStep cfg fMap prob 
+                                   { problemScheduleInfo = schedInfo' }
                Right ps -> do
                  mapM (scheduleProblem cfg) ps
                  process }
@@ -148,48 +150,51 @@ cascadeStep cfg prob
 {- Applies a chase step to the input problem. A big step can potentially 
    increase the size of the model, i.e., it processes sequents with 
    existentials. -}
-chaseStep :: Config -> [FrameTypeSelector] -> Problem -> 
+chaseStep :: Config -> FrameMap -> [FrameTypeSelector] -> Problem -> 
              ProbPool (Either ChaseStop [Problem])
-chaseStep cfg frmTps problem@(Problem frames model [] schedInfo lastConst) =
+chaseStep cfg fMap frmTps 
+          problem@(Problem frmIDs model [] schedInfo lastConst) =
     return $ do 
       let schedInfo' = 
               schedInfo { problemFrameSelector = allFrameTypeSelectors }
               -- reset frame selectors
-      (frms, mdls) <- stepModels cfg frmTps model emptyTables frames lastConst
+      (frms, mdls) <- stepModels cfg fMap frmIDs 
+                        frmTps model emptyTables lastConst
       return $ map (\(m, q, c) -> Problem { problemFrames       = frms
                                           , problemModel        = m
                                           , problemQueue        = [q]
                                           , problemScheduleInfo = schedInfo'
                                           , problemLastConstant = c }) mdls
-chaseStep cfg frmTps 
-          problem@(Problem frames model (queue:queues) schedInfo lastConst) =
+chaseStep cfg fMap frmTps
+          problem@(Problem frmIDs model (queue:queues) schedInfo lastConst) =
     return $ do 
       let schedInfo' = 
              schedInfo { problemFrameSelector = allFrameTypeSelectors }
              -- reset frame selectors
-      (frms, mdls) <- stepModels cfg frmTps model queue frames lastConst
+      (frms, mdls) <- stepModels cfg fMap frmIDs frmTps model queue lastConst
       return $ map (\(m, q, c) -> Problem { problemFrames       = frms
                                           , problemModel        = m
                                           , problemQueue        = queues ++ [q]
                                           , problemScheduleInfo = schedInfo'
                                           , problemLastConstant = c }) mdls
 
--- Salman: add comments!
-stepModels :: Config -> [FrameTypeSelector] -> Model -> Tables -> [Frame] -> 
-              Int -> Either ChaseStop ([Frame], [(Model, Tables, Int)])
-stepModels _ _ _ _ [] _ = Right ([], [])
+-- Salman: add comments! See if it is possible to simplify the input
+stepModels :: Config -> FrameMap -> [ID] -> [FrameTypeSelector] -> Model -> 
+              Tables -> Int -> Either ChaseStop ([ID], [(Model, Tables, Int)])
+stepModels _ _ [] _ _ _ _ = Right ([], [])
 -- Salman: redo this:
-stepModels cfg frmTps model queue frames counter = do
-      let (frm, fs)  = selectFrame frames frmTps
+stepModels cfg fMap frmIDs frmTps model queue counter = do
+      let (frm, fs)  = selectFrame fMap frmIDs frmTps
       if Maybe.isJust frm
         then do
-          let f = Maybe.fromJust frm                  
+          let id = Maybe.fromJust frm
+          let f  = Maybe.fromJust $ Map.lookup id fMap
           curr         <- newModelsForFrame model queue f counter 
                               (configIncremental cfg)
-          (fs', oth)   <- stepModels cfg frmTps model queue fs counter
+          (fs', oth)   <- stepModels cfg fMap fs frmTps model queue counter
           if   null curr
-            then return (scheduleFrame f fs', oth)
-            else return (scheduleFrame f fs , curr)
+            then return (scheduleFrame fMap id fs', oth)
+            else return (scheduleFrame fMap id fs , curr)
         else return ([], [])
 
 newModelsForFrame :: Model -> Tables -> Frame -> Int -> Bool

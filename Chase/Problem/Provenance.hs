@@ -5,12 +5,7 @@ import Control.Applicative
 
 import Utils.GeoUtilities
 import Chase.Problem.Observation
-
-{-| Unique identifier -}
-type ID      = Int
--- Salman: move ID to another module
-
-type ProvTag = Int
+import Chase.Problem.BaseTypes
 
 {-| A provenance is either a pair of (id, sub) where id is an identifier for 
   the sequent for which a chase step added the fact, and sub is the 
