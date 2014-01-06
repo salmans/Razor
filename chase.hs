@@ -157,8 +157,8 @@ problemsSexp probs = List.intercalate "\n\n" (List.map strProblem probs)
           " ( ;; Model\n" ++
 --          (show model) ++ "\n\n" ++
 --          (modelSexp model) ++ "\n\n" ++
-          (provSexp (modelProvInfo model)) ++ "\n" ++
-          (framesSexp (problemFrames p)) ++
+          (provSexp (modelProvInfo model)) ++
+--        "\n" ++ (framesSexp (problemFrames p)) ++
           "\n )"
 
 
