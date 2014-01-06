@@ -132,7 +132,7 @@ instance TermBased Frame where
 {-| A problem represents keeps track of a branch of computation, which contains 
   a geometric theory (a set of sequents) and a model. It also has a queue of 
   deduced facts that are waiting to be processed.
-  - problemFrames: a list of frames corresponding to the sequents of the 
+  - problemFrames: a list of frame IDs corresponding to the sequents of the 
   problem.
   - problemModel: a model corresponding to the problem.
   - problemQueue: a queue of deduced facts in form of a set of delta tables to
@@ -145,7 +145,7 @@ instance TermBased Frame where
   for satisfying an existential quantifier.
 -}
 data Problem = Problem {
-      problemFrames       :: [Frame],
+      problemFrames       :: [ID],
       problemModel        :: Model,
       problemQueue        :: [Tables],
       problemScheduleInfo :: ScheduleInfo,
@@ -157,6 +157,9 @@ instance Show Problem where
         "-- FRAMES:\n" ++ (show frames) ++ "\n" ++
         "-- MODEL: \n" ++ (show model) ++ "\n"
 
-{-| ProbPool keeps track of the pool of problems. It contains a list of problems
+{-| A map from frame IDs to frames. -}
+type FrameMap = Map.Map Int Frame
+
+{-| ProbPool keeps track of the theory and the pool of problems.
 -}
-type ProbPool = RWS.RWST [String] [String] [Problem] ConfigMonad
+type ProbPool = RWS.RWST [String] [String] (FrameMap, [Problem]) ConfigMonad

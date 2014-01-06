@@ -54,16 +54,18 @@ err_ChaseProblemOperations_NarrowDen =
     "Chase.Problem.Operations.narrowObs: narrowing " ++
     "is not defined for denotation observations."
 
-{-| Creates a problem corresponding to a given geometric theory. -}
-buildProblem :: Theory -> Problem
+{-| Creates an initial problem and a set of frames for a given geometric 
+  theory. -}
+buildProblem :: Theory -> (FrameMap, Problem)
 buildProblem thy = 
-    Problem { problemFrames       = frms
-            , problemModel        = Model.empty 
-            , problemQueue        = []
-            , problemScheduleInfo = 
-                ScheduleInfo { problemFrameSelector = allFrameTypeSelectors
-                             , problemBigStepAge    = 0 }
-            , problemLastConstant = 0}
+    ( Map.fromList $ (\f -> (frameID f, f)) <$> frms
+    , Problem { problemFrames       = frameID <$> frms
+              , problemModel        = Model.empty 
+              , problemQueue        = []
+              , problemScheduleInfo = 
+                  ScheduleInfo { problemFrameSelector = allFrameTypeSelectors
+                               , problemBigStepAge    = 0 }
+              , problemLastConstant = 0})
     where frms  = zipWith (\x y -> buildFrame x y) [1..] thy''
           thy'  = addAllExistsPreds thy
                   -- Take existential formulas on right out of disjunctions
@@ -181,18 +183,18 @@ elementPred =  \x -> R "@Element" [x]
 -}
 selectProblem :: ScheduleType -> ProbPool (Maybe Problem)
 selectProblem _ =
-    State.get >>= (\probs ->
+    State.get >>= (\(fs, probs) ->
     case probs of
       []   -> return Nothing
-      p:ps -> State.put ps >>= (\_ -> 
+      p:ps -> State.put (fs, ps) >>= (\_ -> 
               return $ Just p))
 
 {-| Inserts a problem into the problem pool based on the given scheduling 
   type. -}
 scheduleProblem :: Config -> Problem -> ProbPool ()
 scheduleProblem cfg p = 
-        State.get  >>= (\ps ->
-        State.put (scheduleProblemHelper cfg p ps) >>= (\_ -> return ()))
+        State.get  >>= (\(fs, ps) ->
+        State.put (fs, scheduleProblemHelper cfg p ps) >>= (\_ -> return ()))
 
 {- A helper for scheduleProblem -}
 scheduleProblemHelper :: Config -> Problem -> [Problem] -> [Problem]
@@ -209,22 +211,27 @@ scheduleProblemHelper cfg p ps
 
 {-| Selects a frame from a set of frames and returns the selected frame as well 
   as the remaining frames. The scheduling algorithm is always fifo to maintain
-  fairness. -}
-{- Salman: at the moment, the only reason that we kept frames inside problems
-   is because we want to maintain a different schedule for each problem. -}
-selectFrame :: [Frame] -> [FrameTypeSelector] -> (Maybe Frame, [Frame])
-selectFrame [] _       = (Nothing, [])
-selectFrame (f:fs) []  = (Just f, fs)  -- No restriction on selected frame
-selectFrame fs tps     = 
-    case findIndex ((flip hasFrameType) tps) fs of
+  fairness. 
+  The first parameter is a FrameMap, containing all the frames in the theory. 
+  The second parameter is frameIDs from a problem, which contains scheduling 
+  information for the problem. The third parameter is a set of selectors as 
+  selecting conditions. -}
+selectFrame :: FrameMap -> [ID] -> [FrameTypeSelector] -> 
+               (Maybe ID, [ID])
+selectFrame _ [] _      = (Nothing, [])
+selectFrame _ (f:fs) [] = (Just f, fs)  -- No restriction on selected frame
+selectFrame fMap fs tps = 
+    case findIndex ((flip hasFrameType) tps) frames of
       Nothing -> (Nothing, fs)
       Just i  -> let (l1, l2) = splitAt i fs
                  in  (Just (head l2), l1 ++ tail l2)
+    where frames = (\id -> case Map.lookup id fMap of
+                             Just f -> f) <$> fs
 
 
 {-| Schedules a frame inside a set of frames. -}
-scheduleFrame :: Frame -> [Frame] -> [Frame]
-scheduleFrame f fs = fs ++ [f]
+scheduleFrame :: FrameMap -> ID -> [ID] -> [ID]
+scheduleFrame _ f fs = fs ++ [f]
 
 {-| Creates a Frame from a given sequent. -}
 buildFrame :: ID -> Sequent -> Frame
