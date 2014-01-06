@@ -249,6 +249,16 @@ updateObs c1@(Elm _) c2@(Elm _) (Fct (R sym ts)) =
     Fct (R sym (updateTerm c1 c2 <$> ts))
 updateObs c1@(Elm _) c2@(Elm _) (Fct (F sym ts)) =
     Fct (F sym (updateTerm c1 c2 <$> ts))
+updateObs c1@(Elm _) c2@(Elm _) (Den (Fn f [])) = Den (Fn f [])
+--updateObs c1@(Elm _) c2@(Elm _) (Den (Fn ('a':'@':num) [])) =
+--    updateObs c1 c2 (Den (Fn ('e':'#':num) []))
+--updateObs c1@(Elm cn1) c2@(Elm cn2) (Den (Fn f [])) =
+--    if f == cn1 then Den (Fn cn1 [c1]) else Den (Fn f [])
+--    Den (Fn f [])
+--    Den (Fn (if f == cn1 then cn2 else f) [c2])
+--    Den (Fn (if f == cn1 then cn2 else f) [c2])
+--updateObs c1 c2 o =
+--    error ((show c1) ++ " : " ++ (show c2) ++ " : " ++ (show o))
 
 updateTerm :: Term -> Term -> Term -> Term
 updateTerm t1 t2 t@(Elm _)   = if t == t1 then t2 else t

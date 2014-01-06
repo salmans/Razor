@@ -155,7 +155,7 @@ problemsSexp probs = List.intercalate "\n\n" (List.map strProblem probs)
   where strProblem p =
           let model = problemModel p in
           " ( ;; Model\n" ++
---          (show model) ++ "\n\n" ++
+          (show model) ++ "\n\n" ++
 --          (modelSexp model) ++ "\n\n" ++
           (provSexp (modelProvInfo model)) ++
 --        "\n" ++ (framesSexp (problemFrames p)) ++
@@ -178,9 +178,10 @@ provSexp provs =
   "\n  )"
   where strFctProv ((Fct (R a b)), provl) = strFctProv2 a b provl
         strFctProv ((Fct (F a b)), provl) = strFctProv2 a b provl
-        strFctProv _ = []
+        strFctProv ((Den (Fn a [])), provl) = strFctProv2 a [] provl
+        --strFctProv _ = []
 
-        strFctProv2 a b provl = List.map (strProv ("   ((" ++ a ++ " " ++ (strArgs b) ++ ") (")) (List.nubBy eq provl)
+        strFctProv2 a b provl = List.map (strProv ("   ((" ++ a ++ (strArgs b) ++ ") (")) (List.nubBy eq provl)
         eq p1 p2 = (provKey p1) == (provKey p2)
 
         strProv str1 prov = (provKey prov, str1 ++ (strp prov) ++ "))")
@@ -216,7 +217,7 @@ framesSexp frames =
         compareByID f1 f2 = compare (frameID f1) (frameID f2)
 
 
-strArgs args = List.intercalate " " (List.map strArg args)
+strArgs args = List.concatMap ((++) " ") (List.map strArg args)
 strArg (Elm e) = e
 strArg (Var x) = x
 --strArg x = show x
