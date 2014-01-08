@@ -155,7 +155,7 @@ problemsSexp probs = List.intercalate "\n\n" (List.map strProblem probs)
   where strProblem p =
           let model = problemModel p in
           " ( ;; Model\n" ++
-          (show model) ++ "\n\n" ++
+--          (show model) ++ "\n\n" ++
 --          (modelSexp model) ++ "\n\n" ++
           (provSexp (modelProvInfo model)) ++
 --        "\n" ++ (framesSexp (problemFrames p)) ++
@@ -178,7 +178,9 @@ provSexp provs =
   "\n  )"
   where strFctProv ((Fct (R a b)), provl) = strFctProv2 a b provl
         strFctProv ((Fct (F a b)), provl) = strFctProv2 a b provl
-        strFctProv ((Den (Fn a [])), provl) = strFctProv2 a [] provl
+        strFctProv ((Eql (Fn a []) e@(Elm _)), prov1) = strFctProv2 a [e] prov1
+        --strFctProv ((Den (Fn a [])), provl) = strFctProv2 a [] provl
+        --strFctProv a = error (show a)
         --strFctProv _ = []
 
         strFctProv2 a b provl = List.map (strProv ("   ((" ++ a ++ (strArgs b) ++ ") (")) (List.nubBy eq provl)
