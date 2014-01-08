@@ -2,3 +2,5 @@ exists x. P(x)
 exists y. Q(y)
 P(x) => Q(x)
 Q(x) => exists y. R(x, y)
+
+-- core: {P(a), R(a, b)}
