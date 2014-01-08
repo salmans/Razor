@@ -305,4 +305,5 @@ debugConf = defaultConfig { configDebug = False }
 doChase thy  = chase  debugConf $ map parseSequent thy
 doChase' thy = chase' debugConf $ map parseSequent thy
 
-testThy = ["exists x.P(x)"]
+testThy = ["exists x.exists y. exists z. R(x, y, z)"
+          , "a = b"]

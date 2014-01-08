@@ -1,0 +1,3 @@
+-- Test free variables on right
+exists x. exists y. exists z. R(x,y,z)
+a = b
