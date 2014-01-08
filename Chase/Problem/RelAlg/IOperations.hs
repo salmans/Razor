@@ -157,17 +157,24 @@ insertRecord t tbls deltas = do
 initConstant :: Tables -> Term -> ProvCounter (Tables, Term)
 initConstant tbls t@(Fn s []) = do
   fresh    <- State.lift freshElement
-  let obs  = termToObs False t
+  let recs = Map.fromList [(DomTable, DB.Set [[fresh]]),
+                                   (ConTable s, DB.Set [[fresh]])]
+  let (delts, finalVal) = case t' of
+                           Just t'' -> (Map.empty, t'')
+                           Nothing  -> (recs, fresh)
+
+  let obs  = Eql t finalVal
   (prov, ProvInfo provs lastTag) <- State.get
-  State.put (prov, ProvInfo (Map.insertWith (++) obs [prov] provs) lastTag)
+
+  if "a@" `isPrefixOf` s
+     then return (delts, finalVal)
+     else do
+       State.put ( prov
+                 , ProvInfo (Map.insertWith (++) obs [prov] provs) lastTag)       
+       return (delts, finalVal)
   -- This adds provenance for the constant whether the constant is being 
   -- initialized for the first time or it is just being referenced. Perhaps, 
   -- this is the desired behavior.
-  let recs = Map.fromList [(DomTable, DB.Set [[fresh]]),
-                                   (ConTable s, DB.Set [[fresh]])]
-  case t' of
-    Just t'' -> return (Map.empty, t'')
-    Nothing  -> return (recs, fresh)
   where t'         = lookupConstant t tbls
           -- Salman: use counter monad.
           -- Salman: FunTable is in fact ConstTable

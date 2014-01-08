@@ -304,3 +304,5 @@ makeFreshConstant counter = Fn ("a@" ++ (show counter)) []
 debugConf = defaultConfig { configDebug = False }
 doChase thy  = chase  debugConf $ map parseSequent thy
 doChase' thy = chase' debugConf $ map parseSequent thy
+
+testThy = ["exists x.P(x)"]
