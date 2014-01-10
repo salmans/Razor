@@ -91,7 +91,7 @@ hasFreeVarOnRight seq = (not.null) $ hdVars \\ bdyVars
 addElementPred :: Sequent -> Sequent
 addElementPred seq = 
     let bdy' = foldr (\v b -> And (Atm (elementPred (Var v))) b) bdy hdFVars
-        hd'  = addElementPredToRight hd
+        hd'  = addElementPredToRight [] hd
     in  seq { sequentBody = bdy' 
             , sequentHead = hd' }
     where hd      = sequentHead seq
@@ -139,18 +139,24 @@ addExistsPredHelper fmla@(Exists x f) = do
 addExistsPredHelper f = return (f, []) -- Assumes normalized sequents
 
 {- A helper for addElementPred, which adds @Element predicate to the right of 
-   a sequent. -}
-addElementPredToRight :: Formula -> Formula
-addElementPredToRight (Or fmla1 fmla2) = -- go inside disjunction
-    Or (addElementPredToRight fmla1) (addElementPredToRight fmla2)
-addElementPredToRight (Exists x fmla)  = -- add predicate for existentials
-    Exists x $ And (Atm (elementPred (Var x))) fmla
-addElementPredToRight fmla@(Atm atm@(R sym ts)) =
-    let preds = elementPred <$> ts
+   a sequent. The initial parameter of a list of variables is used to stack up
+   all existentially quantified variables and add them in the most-inner level
+   of the formula when the inductive steps are over. -}
+addElementPredToRight :: Vars -> Formula -> Formula
+addElementPredToRight _ (Or fmla1 fmla2) = -- go inside disjunction
+    Or (addElementPredToRight [] fmla1) (addElementPredToRight [] fmla2)
+    -- assuming normalized sequents
+addElementPredToRight vs (And fmla1 fmla2) = 
+    And (addElementPredToRight [] fmla1) (addElementPredToRight vs fmla2)
+addElementPredToRight vs (Exists x fmla)  = -- add predicate for existentials
+    Exists x (addElementPredToRight (x:vs) fmla)
+addElementPredToRight vs fmla@(Atm atm@(R sym ts)) =
+    let preds = (elementPred <$> ts') ++ ((elementPred.Var) <$> vs)
     in  foldr (\p f -> And (Atm p) f) fmla preds
                             -- This assumes flattened terms
-addElementPredToRight fmla = fmla -- Note that we assume normalized sequents
-                             
+    where ts' = filter (not.isVar) ts
+addElementPredToRight _ fmla = fmla -- Note that we assume normalized sequents
+                   
 
 {- A helper for addElementPred. It constructs an @Element predicate for the 
    input term. -}
