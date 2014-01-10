@@ -347,7 +347,7 @@ formulaRelConvert (Exists v fmla)    = do
    process. -}
 termRelConvert :: Term -> Counter (Maybe (Formula, Term, [Var]))
 termRelConvert (Var v)   = return Nothing
-termRelConvert (Fn _ []) = return Nothing
+--termRelConvert (Fn _ []) = return Nothing
 termRelConvert (Fn f ts) = do
   (fs', ts', vs') <- foldM foldFunc ([], [], []) ts
   v               <- freshVar
