@@ -66,7 +66,7 @@ buildProblem thy =
                   ScheduleInfo { problemFrameSelector = allFrameTypeSelectors
                                , problemBigStepAge    = 0 }
               , problemLastConstant = 0})
-    where frms  = zipWith (\x y -> buildFrame x y) [1..] thy''
+    where frms  = zipWith (\x y -> buildFrame x y) [1..] (relConvert thy'')
           thy'  = addAllExistsPreds thy
                   -- Take existential formulas on right out of disjunctions
           thy'' = if   any hasFreeVarOnRight thy'
@@ -389,29 +389,3 @@ formulaHolds model@(Model trs _) (Exists x p) =
     in
       or $ map ((formulaHolds model).liftWith) domain
     where domain = modelDomain model
-
-
--- testThy = ["Truth => (exists x . P(x))",
---            "P(x) =>  (exists x . P1(x) ) | (exists x . P2(x))",
---            "P1(x) =>  (exists x . P11(x) ) | (exists x . P12(x))",
---            "P11(x) =>  (exists x . P111(x) ) | (exists x . P112(x))",
---            "P111(x) =>  (exists x . P1111(x) ) | (exists x . P1112(x))"]
-
--- testThy = ["Truth => @Exists0()",
---            "@Exists0() => exists x. P(x)",
-
---            "P(x) => (@Exists1() | @Exists2())",
---            "@Exists1() => exists x. P1(x)",
---            "@Exists2() => exists x. P2(x)",
-
---            "P1(x) => (@Exists3() | @Exists4())",
---            "@Exists3() => exists x. P11(x)",
---            "@Exists4() => exists x. P12(x)",
-
---            "P11(x) => (@Exists5() | @Exists6())",
---            "@Exists5() => exists x. P111(x)",
---            "@Exists6() => exists x. P112(x)",
-
---            "P111(x) => (@Exists7() | @Exists8())",
---            "@Exists7() => exists x. P1111(x)",
---            "@Exists8() => exists x. P1112(x)"]

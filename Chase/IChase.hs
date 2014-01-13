@@ -36,7 +36,7 @@ import Utils.Trace
 import Debug.Trace
 
 
-data ChaseStop = ChaseFail | ChaseAged
+data ChaseStop = Fail | MaxSize
 
 {-| Runs the chase for a given input theory, starting from an empty model.
 -}
@@ -64,7 +64,7 @@ runChase cfg mdl thy =
     -- use the log information when needed
     in traceStringListIf (configDebug cfg) log
        probs
-    where (frms, initialProblem) = buildProblem (relConvert thy) 
+    where (frms, initialProblem) = buildProblem thy
           -- Create the initial problem (get rid of function symbols)
           problem        = case mdl of
                              Nothing -> initialProblem
@@ -104,12 +104,12 @@ runChaseWithProblem cfg frms problem =
    step. -}
 process :: ProbPool [Problem]
 process = do
-      cfg      <- State.lift State.get
-      prob     <- selectProblem (configSchedule cfg) -- pick a problem
-      (fMap, allProbs) 
-               <- RWS.get
-      Logger.logUnder (length allProbs) "# of branches"
-      Logger.logIf (Maybe.isJust prob) ((problemModel.Maybe.fromJust) prob)
+      cfg              <- State.lift State.get
+      prob             <- selectProblem (configSchedule cfg) -- pick a problem
+      (fMap, allProbs) <- RWS.get
+      Logger.log (problemModel <$> allProbs)
+      -- Logger.logUnder (length allProbs) "# of branches"
+      -- Logger.logIf (Maybe.isJust prob) ((problemModel.Maybe.fromJust) prob)
       case prob of
         Nothing -> return [] -- no more problems
         Just p  -> cascadeStep cfg fMap p
@@ -145,7 +145,7 @@ cascadeStep cfg fMap prob
                  process }
     where ScheduleInfo { problemFrameSelector = selectors
                        , problemBigStepAge    = age } = 
-                                                  problemScheduleInfo prob
+                                                  problemScheduleInfo prob          
 
 {- Applies a chase step to the input problem. A big step can potentially 
    increase the size of the model, i.e., it processes sequents with 
@@ -168,6 +168,12 @@ chaseStep cfg fMap frmTps
 chaseStep cfg fMap frmTps
           problem@(Problem frmIDs model (queue:queues) schedInfo lastConst) =
     return $ do 
+      let bound = configBound cfg
+      when (Maybe.isJust bound &&
+                 length (Model.modelDomain model) > Maybe.fromJust bound) 
+               (Left MaxSize)
+               -- When a bound is given, if the model size is greater than the 
+               -- bounds then stop
       let schedInfo' = 
              schedInfo { problemFrameSelector = allFrameTypeSelectors }
              -- reset frame selectors
@@ -209,7 +215,7 @@ newFacts :: Int -> Model -> Tables -> Frame -> Bool ->
 -- Salman: this is too complicated. Is it possible to make the code simpler?
 newFacts counter model queue frame incremental 
     | null subs = Right ([], counter, Nothing)
-    | (null.frameHead) frame = Left ChaseFail
+    | (null.frameHead) frame = Left Fail
     | otherwise = Right $ 
                   glue (deduceForFrame counter model vars heads)
                        (Just prov)
@@ -301,6 +307,8 @@ makeFreshConstant counter = Fn ("a@" ++ (show counter)) []
 
 
 -- Run the chase for local tests:
-debugConf = defaultConfig { configDebug = False }
+debugConf = defaultConfig { configDebug = False
+                          , configBound = Just 4
+                          , configSchedule = SchedDFS}
 doChase thy  = chase  debugConf $ map parseSequent thy
 doChase' thy = chase' debugConf $ map parseSequent thy

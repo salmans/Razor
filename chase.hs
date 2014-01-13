@@ -30,7 +30,17 @@ options =
             (\arg cfg -> return cfg { configInput = Just arg })
             "FILE")
         "Input theory file"
-
+    , Option "b" ["bound"]
+        (OptArg
+            (\arg cfg -> return $
+                         case arg of
+                           Nothing -> cfg
+                           Just b  ->
+                               case readMaybe b of
+                                 Nothing  -> cfg
+                                 Just b'  -> cfg { configBound = Just b'})
+            "#")
+        "Maximum for bounded model-finding"
     , Option "d" ["debug"]
         (NoArg
             (\cfg -> return cfg { configDebug = True }))
@@ -46,7 +56,7 @@ options =
             "bfs/dfs/rr")
         "Schedule type"
 
-    , Option "b" ["batch"]
+    , Option "t" ["batch"]
         (NoArg
             (\cfg -> return cfg { configBatch = True }))
         "Enable batch processing"
@@ -70,9 +80,8 @@ options =
                                case readMaybe pu of
                                  Nothing  -> cfg
                                  Just pu' -> cfg { configProcessUnit = pu'})
-            "# OF BIG STEPS")
+            "#")
         "Process unit for round robing scheduling"
-
     , Option "h" ["help"]
         (NoArg
             (\_ -> do

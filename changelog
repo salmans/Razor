@@ -155,7 +155,7 @@ Version 3.4
     sequents with either disjunctions or sequents with existentials.
     - A round-robin scheduling mode is introduced.
     - Minor bug fixes and performance improvements.
-
+    - Bounded model-finding added
 
 Yet to come:
     - Efficient congruence closure implementation.

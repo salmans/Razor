@@ -27,6 +27,8 @@ data Config = Config { configInput       :: Maybe String
                        -- return all models
                      , configProcessUnit :: Int
                        -- processing unit when scheduling mode is round robin
+                     , configBound       :: Maybe Int
+                       -- maximum size of models
                      }
 
 instance Show Config where
@@ -36,9 +38,12 @@ instance Show Config where
                "--batch=" ++ show (configBatch cfg) ++ "\n" ++
                "--incremental=" ++ show (configIncremental cfg) ++ "\n" ++
                "--one=" ++ show ((not.configAllModels) cfg) ++ "\n" ++
-               "--process-unit=" ++ show ((configProcessUnit) cfg) ++ "\n"
+               "--process-unit=" ++ show ((configProcessUnit) cfg) ++ "\n" ++
+               "--bound=" ++ 
+                              (case configBound cfg of
+                                 Nothing -> "unbounded"
+                                 Just b  -> show b) ++ "\n"
 
-
-defaultConfig = Config Nothing False SchedBFS False False True 20
+defaultConfig = Config Nothing False SchedBFS False False True 20 Nothing
 
 type ConfigMonad = State Config

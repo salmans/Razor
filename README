@@ -10,14 +10,15 @@ Chase is a model-finder for geometric theories.
   chase
 
   -i FILE     --input=FILE, --file=FILE	Input theory file
+  -b #	      --bound=#	    		Bound for bounded model-finding
   -d          --debug	    		Show debug information
   -s bfs/dfs  --schedule=bfs/dfs	Use schedule type (depth-first-search,
      /rr      /rr			breadth-first-search, or round-robing)
-  -b 	      --batch			Enable batch processing
+  -t 	      --batch			Enable batch processing
   -n 	      --incremental		Enable incremental view maintenance
   -1 	      --one			Display only one models (by default,
      	      				the chase builds all models)
-  	      --process-unit		Process unit for round-robin scheduling
+  	      --process-unit=#		Process unit for round-robin scheduling
   -h          --help			Show help
   -v          --version			Print version
 
