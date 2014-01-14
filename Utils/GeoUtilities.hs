@@ -286,7 +286,9 @@ replaceSubterms t1 t2 t3@(Fn f terms) =
 {- Eliminates all function symbols in the sequents of a theory and replaces 
   them with relational symbols. -}
 relConvert :: Theory -> Theory
-relConvert thy  = orig ++ integ
+relConvert thy  = orig -- ++ integ
+                  -- Salman: Because we have congruence closure, we don't need
+                  -- the integrity sequents.
     where orig  = fst $ State.runState (theoryRelConvert thy) 0
           integ = integritySequents $ theoryFuncs thy
           

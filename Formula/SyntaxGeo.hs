@@ -48,7 +48,7 @@ data Atom = R Sym [Term]
           | F Sym [Term] -- Just like R but for cases where we treat functions
                          -- like relations.
            deriving (Eq, Ord)
-           --deriving (Eq, Ord, Show)
+           -- deriving (Eq, Ord, Show)
 
 data Formula = Tru
              | Fls
@@ -57,7 +57,7 @@ data Formula = Tru
              | Or Formula Formula
              | Exists Var Formula
              deriving (Ord, Eq)
-             --deriving (Ord, Eq, Show)
+             -- deriving (Ord, Eq, Show)
 
 instance Show Atom where show = prettyAtom
 
@@ -66,7 +66,6 @@ instance Show Formula where show = prettyFormula
 instance Show Term where show = prettyTerm
 
 
---prettyFormula :: Formula Fol -> String
 prettyFormula :: Formula -> String
 prettyFormula fmla = case fmla of
      Tru ->  "Truth"
@@ -85,6 +84,8 @@ prettyTerm t = case t of
      (Elm e) -> e
 
 prettyAtom :: Atom -> String
+prettyAtom (R "=" [t1,t2]) = "(" ++ (prettyTerm t1) ++ 
+                             " = " ++ (prettyTerm t2) ++ ")"
 prettyAtom (R sym ts) = sym ++ "(" ++ (intercalate "," (map prettyTerm ts)) ++ ")"
 prettyAtom (F sym ts) = sym ++ "(" ++ (intercalate "," (map prettyTerm ts)) ++ ")"
 --

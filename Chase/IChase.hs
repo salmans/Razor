@@ -308,7 +308,7 @@ makeFreshConstant counter = Fn ("a@" ++ (show counter)) []
 
 -- Run the chase for local tests:
 debugConf = defaultConfig { configDebug = False
-                          , configBound = Just 4
-                          , configSchedule = SchedDFS}
-doChase thy  = chase  debugConf $ map parseSequent thy
+                          , configBound = Just 3
+                          , configSchedule = SchedBFS}
+doChase  thy = chase  debugConf $ map parseSequent thy
 doChase' thy = chase' debugConf $ map parseSequent thy

@@ -66,8 +66,9 @@ buildProblem thy =
                   ScheduleInfo { problemFrameSelector = allFrameTypeSelectors
                                , problemBigStepAge    = 0 }
               , problemLastConstant = 0})
-    where frms  = zipWith (\x y -> buildFrame x y) [1..] (relConvert thy'')
-          thy'  = addAllExistsPreds thy
+    where frms  = zipWith (\x y -> buildFrame x y) [1..] thy''
+          temp  = relConvert thy
+          thy'  = addAllExistsPreds temp
                   -- Take existential formulas on right out of disjunctions
           thy'' = if   any hasFreeVarOnRight thy'
                        -- If any sequent has a free variable on its right

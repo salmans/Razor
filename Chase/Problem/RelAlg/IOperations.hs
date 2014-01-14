@@ -94,14 +94,11 @@ processEquation (Equ c1@(Elm _) c2@(Elm _)) (tbls, deltas, eqs) = do
                                     -- database.
 processEquation (Equ t@(Fn f []) c@(Elm _)) (tbls, deltas, eqs) = do
   (recs, t')    <- initConstant tbls t
-  (nt, tbls')   <- updateTables t' c tbls
-  (_, deltas')  <- updateTables t' c deltas
-  let tTbl      = Map.lookup (ConTable f) tbls'
-  let tbls''    = mergeSets tbls' recs
-  let deltas''  = mergeSets deltas' $ filterTables (elem nt) tbls''
-  let deltas''' = mergeSets deltas'' recs
+  (nt, tbls')   <- updateTables t' c (mergeSets tbls recs)
+  (_, deltas')  <- updateTables t' c (mergeSets deltas recs)
+  let deltas''  = mergeSets deltas' $ filterTables (elem nt) tbls'
   let eqs''     = updateEquation t' c <$> eqs
-  return (tbls'', deltas''', eqs'')
+  return (tbls', deltas'', eqs'')
     -- making a new element in the database for a given constant.
     -- Salman: use state monad.        
 processEquation (Equ c@(Elm _) t@(Fn f [])) inputState = 
