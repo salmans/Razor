@@ -156,6 +156,9 @@ Version 3.4
     - A round-robin scheduling mode is introduced.
     - Minor bug fixes and performance improvements.
 
+Version 3.5
+    - The chase can now process syntactically more relaxed input formulas. The input
+    theory can be a set of first-order formulas, equivalent to a geometric theory.
 
 Yet to come:
     - Efficient congruence closure implementation.
