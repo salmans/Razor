@@ -21,6 +21,7 @@ import qualified Data.Map as Map
 
 import Formula.SyntaxGeo
 import Utils.GeoUtilities
+import Tools.FolToGeo
 import qualified Utils.Utils
 import Tools.GeoUnification
 import Tools.Config
@@ -51,7 +52,9 @@ main = do
   -- get a list of sequents from the input file
   let inputLines = lines src :: [String]
       realLines =  filter Utils.Utils.isRealLine inputLines     :: [String]
-      inputFmlas =  map parseSequent realLines     :: [Sequent]
+      inputFmlas = case mapM parseFolToSequent realLines of
+                     Nothing    -> error "The input is not geometric!" 
+                     Just fmlas -> concat fmlas
 
   time1 <- getClockTime
   -- get the answer

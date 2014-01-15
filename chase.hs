@@ -16,6 +16,7 @@ import Data.Maybe
 import Formula.SyntaxGeo (Sequent, parseSequent)
 import Utils.Utils (isRealLine)
 import Tools.Config
+import Tools.FolToGeo
 import Chase.Problem.Model
 import Chase.Chase (chase, chase')
 -- ============================
@@ -93,7 +94,7 @@ options =
     , Option "v" ["version"]
         (NoArg
             (\_ -> do
-               hPutStrLn stderr "Version 3.4"
+               hPutStrLn stderr "Version 3.5"
                exitWith ExitSuccess))
         "Print version"
     ]
@@ -120,7 +121,9 @@ main = do
   -- get a list of sequents from the input file
   let inputLines = lines src
       realLines =  filter isRealLine inputLines
-      inputFmlas =  map parseSequent realLines
+      inputFmlas = case mapM parseFolToSequent realLines of
+                     Nothing    -> error "The input is not geometric!" 
+                     Just fmlas -> concat fmlas
 
   -- report result
   --
