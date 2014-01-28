@@ -1,4 +1,4 @@
-Chase is a model-finder for geometric theories.
+Atlas is a model-finder for geometric theories.
 
 
 # Build
@@ -7,7 +7,7 @@ Chase is a model-finder for geometric theories.
 
 # Run
 
-  chase
+  atlas
 
   -i FILE     --input=FILE, --file=FILE	Input theory file
   -b #	      --bound=#	    		Bound for bounded model-finding
@@ -17,8 +17,11 @@ Chase is a model-finder for geometric theories.
   -t 	      --batch			Enable batch processing
   -n 	      --incremental		Enable incremental view maintenance
   -1 	      --one			Display only one models (by default,
-     	      				the chase builds all models)
+     	      				Atlas builds all models)
   	      --process-unit=#		Process unit for round-robin scheduling
+	      --tptp-path		Path to TPTP library
+  -f geo/fof  --formula-type=geo/fof    The input type (geometric formula, TPTP
+     /cnf     /cnf			FOF or TPTP CNF)
   -h          --help			Show help
   -v          --version			Print version
 

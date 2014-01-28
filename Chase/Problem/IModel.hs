@@ -90,8 +90,20 @@ truth :: Term
 truth = Elm "True"
 
 {-| A shorthand for an empty model. -}
-empty :: Model
-empty = Model emptyTables (ProvInfo Map.empty 0)
+emptyModel :: Model
+emptyModel = Model emptyTables (ProvInfo Map.empty 0)
+
+emptyModelWithElems :: [Term] -> Model
+emptyModelWithElems ts = 
+    let tbls = Map.fromList ([ (DomTable, es)
+                             , (RelTable "@Element", es)] ++ consts)
+    in  emptyModel { modelTables = tbls }
+    where es = DB.Set $ [[Elm s] | (Fn s _) <- ts']
+          consts = [ (ConTable s, DB.Set [[Elm s]]) | (Fn s _) <- ts']
+          ts' = filter isConstant ts
+          isConstant (Fn _ []) = True
+          isConstant (Rn _ []) = True
+          isConstant _         = False
 
 {-| Adds a list of new observations to the given model. It also returns a set 
   of tables corresponding to the changes made in the database. It needs a 

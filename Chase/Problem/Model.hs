@@ -3,7 +3,7 @@
 -}
 module Chase.Problem.Model(Model(..),
                            truth,
-                           empty,
+                           emptyModel, emptyModelWithElems,
                            add,
                            isTrue,
                            modelDomain) where

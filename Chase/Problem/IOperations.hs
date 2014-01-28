@@ -60,7 +60,7 @@ buildProblem :: Theory -> (FrameMap, Problem)
 buildProblem thy = 
     ( Map.fromList $ (\f -> (frameID f, f)) <$> frms
     , Problem { problemFrames       = frameID <$> frms
-              , problemModel        = Model.empty 
+              , problemModel        = Model.emptyModel
               , problemQueue        = []
               , problemScheduleInfo = 
                   ScheduleInfo { problemFrameSelector = allFrameTypeSelectors
@@ -84,85 +84,6 @@ hasFreeVarOnRight seq = (not.null) $ hdVars \\ bdyVars
           bdy     = sequentBody seq
           hdVars  = freeVars hd
           bdyVars = freeVars bdy
-
-{- Since the current implementation of the chase requires every free variable
-   on RHS of a sequent be mentioned on its LHS, we add a @Element predicate
-   to the left of this kind of sequents. We also add @Element to the right of
-   every sequent with existential quantifiers. -}
-addElementPred :: Sequent -> Sequent
-addElementPred seq = 
-    let bdy' = foldr (\v b -> And (Atm (elementPred (Var v))) b) bdy hdFVars
-        hd'  = addElementPredToRight [] hd
-    in  seq { sequentBody = bdy' 
-            , sequentHead = hd' }
-    where hd      = sequentHead seq
-          bdy     = sequentBody seq
-          hdVars  = freeVars hd
-          bdyVars = freeVars bdy
-          hdFVars = hdVars \\ bdyVars
-          allVars = hdVars `union` bdyVars
-
-{- Applies addExistsPred on a theory of sequents. -}
-addAllExistsPreds :: [Sequent] -> [Sequent]
-addAllExistsPreds seqs = 
-    State.evalState (run seqs) 0
-    where run = foldM foldFunc []
-          foldFunc res (Sequent b h) = do
-            (h', seqs) <- addExistsPred h
-            return $ res ++ (Sequent b h':seqs)
-
-{- Uses addExistsPredHelper to relpace existential formulas, corresponding to 
-   the head of a sequent, with fresh atomic formulas. As a consequence, new 
-   sequents will be induced with the fresh atomic formula on left and 
-   existential formula on right. The function returns the replaced head, from 
-   the initial sequent, and the set of induced sequents. 
-   The function requires a Counter to generate fresh relation symbols for the
-   fresh atomic formulas. -}
-addExistsPred :: Formula -> Counter (Formula, [Sequent])
-addExistsPred fmla@(Or _ _) = addExistsPredHelper fmla
-    -- Only apply the transformation if the head has disjunctions. That is, if
-    -- the head is an existential formula, it is already in the form we want.
-addExistsPred fmla          = return (fmla, [])
-
-addExistsPredHelper :: Formula -> Counter (Formula, [Sequent])
-addExistsPredHelper (Or f1 f2) = do
-  (f1', seqs1) <- addExistsPredHelper f1
-  (f2', seqs2) <- addExistsPredHelper f2
-  return (Or f1' f2', seqs1 ++ seqs2)
-addExistsPredHelper fmla@(Exists x f) = do
-  let vs      = freeVars fmla
-  sym         <- freshSymbol "@Exists"
-  let atm     = R sym (map Var vs)
-  let fmla'   = Atm atm
-  (f', fSeqs) <- addExistsPredHelper f
-  let seq     = Sequent fmla' (Exists x f')
-  return (fmla', seq:fSeqs)
-addExistsPredHelper f = return (f, []) -- Assumes normalized sequents
-
-{- A helper for addElementPred, which adds @Element predicate to the right of 
-   a sequent. The initial parameter of a list of variables is used to stack up
-   all existentially quantified variables and add them in the most-inner level
-   of the formula when the inductive steps are over. -}
-addElementPredToRight :: Vars -> Formula -> Formula
-addElementPredToRight _ (Or fmla1 fmla2) = -- go inside disjunction
-    Or (addElementPredToRight [] fmla1) (addElementPredToRight [] fmla2)
-    -- assuming normalized sequents
-addElementPredToRight vs (And fmla1 fmla2) = 
-    And (addElementPredToRight [] fmla1) (addElementPredToRight vs fmla2)
-addElementPredToRight vs (Exists x fmla)  = -- add predicate for existentials
-    Exists x (addElementPredToRight (x:vs) fmla)
-addElementPredToRight vs fmla@(Atm atm@(R sym ts)) =
-    let preds = (elementPred <$> ts') ++ ((elementPred.Var) <$> vs)
-    in  foldr (\p f -> And (Atm p) f) fmla preds
-                            -- This assumes flattened terms
-    where ts' = filter (not.isVar) ts
-addElementPredToRight _ fmla = fmla -- Note that we assume normalized sequents
-                   
-
-{- A helper for addElementPred. It constructs an @Element predicate for the 
-   input term. -}
-elementPred :: Term -> Atom
-elementPred =  \x -> R "@Element" [x]
 
 -- The following function is depricated since in the relational algebraic 
 -- solution the theory is not extended.

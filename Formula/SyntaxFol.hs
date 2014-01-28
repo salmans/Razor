@@ -32,7 +32,8 @@ data Term = Var Var
           | Fn Sym [Term]
           | Rn Sym [Term] -- Just like Fn but for cases where we treat relations
                           -- like functions.
-            -- Salman: this is not idea!
+          | NumberTerm Rational -- For compatibility with TPTP
+          | DistinctTerm String -- For compatibility with TPTP
             deriving (Eq, Ord)
             --deriving (Eq, Ord, Show)
 

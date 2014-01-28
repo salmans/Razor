@@ -1,0 +1,10 @@
+#! /bin/bash
+
+# Executable name is Main
+#
+
+
+for file in $1/*.p; 
+    do echo $file;
+    timeout 120 ./GeometricVerifier "$file" >> geometric_theories.txt;
+done 

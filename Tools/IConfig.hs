@@ -13,6 +13,13 @@ instance Show ScheduleType where
     show SchedDFS = "dfs"
     show SchedRR  = "rr" 
 
+data FormulaType = GeoLog | TPTPCNF | TPTPFOF
+
+instance Show FormulaType where
+    show GeoLog  = "geo"
+    show TPTPCNF = "cnf"
+    show TPTPFOF = "fof"
+
 data Config = Config { configInput       :: Maybe String
                        -- input theory
                      , configDebug       :: Bool
@@ -29,6 +36,10 @@ data Config = Config { configInput       :: Maybe String
                        -- processing unit when scheduling mode is round robin
                      , configBound       :: Maybe Int
                        -- maximum size of models
+                     , configTPTPPath    :: String
+                       -- the path to TPTP folder
+                     , configFormulaType :: FormulaType
+                       -- type of the formula to be processed
                      }
 
 instance Show Config where
@@ -42,8 +53,19 @@ instance Show Config where
                "--bound=" ++ 
                               (case configBound cfg of
                                  Nothing -> "unbounded"
-                                 Just b  -> show b) ++ "\n"
+                                 Just b  -> show b) ++ "\n" ++
+               "--tptp-path=" ++ (configTPTPPath cfg) ++
+               "--formula-type=" ++ show (configFormulaType cfg)
 
-defaultConfig = Config Nothing False SchedBFS False False True 20 Nothing
+defaultConfig = Config { configInput = Nothing 
+                       , configDebug = False
+                       , configSchedule = SchedBFS
+                       , configBatch = False 
+                       , configIncremental = False
+                       , configAllModels = True
+                       , configProcessUnit = 20
+                       , configBound = Nothing
+                       , configTPTPPath = "./"
+                       , configFormulaType = GeoLog }
 
 type ConfigMonad = State Config

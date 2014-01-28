@@ -205,7 +205,7 @@ lookupConstant _ _ = error "CC.RelAlg.lookupConstant: invalid element!"
 -- Salamn: this operation is probably the most constly operation. We may be 
 -- able to reduce the cost by using references (pointers) or indices.
 updateTables :: Term -> Term -> Tables -> ProvCounter (Term, Tables)
-updateTables c1@(Elm ('e':'#':n1)) c2@(Elm ('e':'#':n2)) tbls = do
+updateTables c1@(Elm _) c2@(Elm _) tbls = do
   -- Also update provenance information for the elements being collapsed:
   (p, ps) <- State.get
   State.put (p, updateProvInfo c1 c2 ps)

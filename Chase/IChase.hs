@@ -49,8 +49,8 @@ chase' :: Config -> Theory -> Maybe Model
 chase' cfg thy = Maybe.listToMaybe $ chase cfg thy
 
 {-| Runs the chase for a set of input theories over an input (partial) model. -}
-chaseWithModel :: Model -> Theory -> [Model]
-chaseWithModel mdl thy = problemModel <$> runChase defaultConfig (Just mdl) thy 
+chaseWithModel :: Model -> Config -> Theory -> [Model]
+chaseWithModel mdl cfg thy = problemModel <$> runChase cfg (Just mdl) thy 
 
 {-| This is the main chase function, which tries to find the set of all the 
   models for a given geometric theory.
@@ -308,7 +308,7 @@ makeFreshConstant counter = Fn ("a@" ++ (show counter)) []
 
 -- Run the chase for local tests:
 debugConf = defaultConfig { configDebug = False
-                          , configBound = Just 3
+                          , configBound = Nothing
                           , configSchedule = SchedBFS}
 doChase  thy = chase  debugConf $ map parseSequent thy
 doChase' thy = chase' debugConf $ map parseSequent thy

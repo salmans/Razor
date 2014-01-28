@@ -1,4 +1,5 @@
 module Tools.Config ( ScheduleType (..)
+                    , FormulaType (..)
                     , Config (..)
                     , ConfigMonad
                     , defaultConfig) where

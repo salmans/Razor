@@ -1,4 +1,4 @@
-module Tools.FolToGeo (formulaToSequent, parseFolToSequent)
+module Tools.FolToGeo (formulaToSequent, parseFolToSequent, convertTerm)
 where
 
 import Data.List
@@ -13,16 +13,25 @@ import qualified Utils.FolUtilities as FolU (freeVars, variant, apply)
 import qualified Utils.GeoUtilities as GeoU (simplify)
 
 
-parseFolToSequent :: String -> Maybe [Geo.Sequent]
-parseFolToSequent = formulaToSequent.Fol.parseFormula
+{-| Parses an input string to construct an FOL formula, then users 
+  parseFolToSequent to return a set of geometric sequents. -}
+parseFolToSequent :: Bool -> String -> Maybe [Geo.Sequent]
+parseFolToSequent iscjr = (formulaToSequent iscjr).Fol.parseFormula
 
 {-| formulaToSequent is the main function of the module, which may return 
   Just [Sequent] if the input formula is equivalent to a set of geometric 
-  sequents, or Nothing otherwise. -}
-formulaToSequent :: Fol.Formula -> Maybe [Geo.Sequent]
-formulaToSequent fmla = (\(l, r) -> let l's = splitDisjuncts l
-                                    in  (\l' -> Geo.Sequent l' r) <$> l's)
-                        <$> (formulaAllClauses.normalize) fmla
+  sequents, or Nothing otherwise. 
+  If the input formula is a conjecrue (specified by the boolean flag) the 
+  formula is guaranteed to be returned as a single sequent (disjunctions on 
+  left won't be splitted). -}
+formulaToSequent :: Bool -> Fol.Formula -> Maybe [Geo.Sequent]
+formulaToSequent iscjr fmla = 
+    (\(l, r) -> let l' = normalizeAnd' l                          
+                    ls = if iscjr 
+                         then [l']
+                         else splitDisjuncts l'
+                in  (\l'' -> Geo.Sequent l'' r) <$> ls)
+    <$> (formulaAllClauses.normalize) fmla
     where splitDisjuncts (Geo.Or p q) = splitDisjuncts p ++ splitDisjuncts q
           splitDisjuncts f            = [f]  -- otherwise
 
@@ -78,7 +87,7 @@ formulaToConjunct f         = Nothing -- otherwise
 convertFormula :: Fol.Formula -> Maybe Geo.Formula
 convertFormula (Fol.Tru)        = Just Geo.Tru
 convertFormula (Fol.Fls)        = Just Geo.Fls
-convertFormula (Fol.Atm a)      = Just $ Geo.Atm (convertAtom a)
+convertFormula (Fol.Atm a)      = Geo.Atm <$> convertAtom a
 convertFormula (Fol.Or  p q)    = Geo.Or <$> convertFormula p <*> 
                                   convertFormula q
 convertFormula (Fol.And p q)    = Geo.Or <$> convertFormula p <*> 
@@ -86,21 +95,51 @@ convertFormula (Fol.And p q)    = Geo.Or <$> convertFormula p <*>
 convertFormula (Fol.Exists v p) = Geo.Exists v <$> convertFormula p
 convertFormula _                = Nothing -- otherwise
 
+{-| This funciton is used to convert an FOL term data structure to a Geo term 
+  data structure. -}
+convertAtom :: Fol.Atom -> Maybe Geo.Atom
+convertAtom (Fol.R s ts) = do { ts' <- mapM convertTerm ts
+                              ; return $ Geo.R s ts' }
+convertAtom (Fol.F s ts) = do { ts' <- mapM convertTerm ts
+                              ; return $ Geo.F s ts' }
 
-convertAtom :: Fol.Atom -> Geo.Atom
-convertAtom (Fol.R s ts) = Geo.R s $ convertTerm <$> ts
-convertAtom (Fol.F s ts) = Geo.F s $ convertTerm <$> ts
-
-convertTerm :: Fol.Term -> Geo.Term
-convertTerm (Fol.Var v)   = Geo.Var v
-convertTerm (Fol.Fn s ts) = Geo.Fn s $ convertTerm <$> ts
-convertTerm (Fol.Rn s ts) = Geo.Rn s $ convertTerm <$> ts
+convertTerm :: Fol.Term -> Maybe Geo.Term
+convertTerm (Fol.Var v)   = Just $ Geo.Var v
+convertTerm (Fol.Fn s ts) = do { ts' <- mapM convertTerm ts
+                               ; return $ Geo.Fn s ts' }
+convertTerm (Fol.Rn s ts) = do { ts' <- mapM convertTerm ts
+                               ; return $ Geo.Rn s ts' }
+convertTerm _             = Nothing -- We currently do not support DistinctTerm
+                                    -- and NumberTerm.
 
 
 normalize :: Fol.Formula -> Fol.Formula
 normalize = normalize'.pnfAll.elimImp
     where normalize' = fix $ \func x -> let y = (pushExists.pushAnd.nnf) x
+                                                -- Salman: is nnf redundant?
                                         in  if x == y then y else func y
+
+{- We need this function since after construction of a sequent, we may end up 
+   with disjunction over conjunction. -}
+normalizeAnd' :: Geo.Formula -> Geo.Formula
+normalizeAnd' = fix $ \func x -> let y = pushAnd' x
+                                 in  if x == y then y else func y
+                                    -- Salman: do we need fix?
+
+{- pushAnd for geometric formulas -}
+pushAnd' :: Geo.Formula -> Geo.Formula
+pushAnd' (Geo.And r (Geo.Or p q)) = Geo.Or (pushAnd' (Geo.And r p)) 
+                                          (pushAnd' (Geo.And r q))
+pushAnd' (Geo.And (Geo.Or p q) r) = Geo.Or (pushAnd' (Geo.And p r)) 
+                                          (pushAnd' (Geo.And q r))
+pushAnd' (Geo.And p q)        = 
+    case (pushAnd' p, pushAnd' q) of -- inside-out processing
+      (Geo.Or p' p'', q') -> Geo.Or (Geo.And p' q') (Geo.And p'' q')
+      (p', Geo.Or q' q'') -> Geo.Or (Geo.And p' q') (Geo.And p' q'')
+      (p', q')        -> Geo.And p' q'
+pushAnd' (Geo.Or  p q)        = Geo.Or  (pushAnd' p) (pushAnd' q)
+pushAnd' f = f -- otherwise
+
 
 -- Implication Elimination
 elimImp :: Fol.Formula -> Fol.Formula
@@ -186,8 +225,10 @@ pushExists (Fol.Forall x f) = Fol.Forall x (pushExists f)
 pushExists f = f -- otherwise
 
 pushAnd :: Fol.Formula -> Fol.Formula
--- pushAnd (Fol.And (Fol.Or p q) r) = Fol.Or (Fol.And p r) (Fol.And q r)
-pushAnd (Fol.And r (Fol.Or p q)) = Fol.Or (Fol.And r p) (Fol.And r q)
+pushAnd (Fol.And r (Fol.Or p q)) = Fol.Or (pushAnd (Fol.And r p)) 
+                                          (pushAnd (Fol.And r q))
+pushAnd (Fol.And (Fol.Or p q) r) = Fol.Or (pushAnd (Fol.And p r)) 
+                                          (pushAnd (Fol.And q r))
 pushAnd (Fol.Not f)          = Fol.Not (pushAnd f)
 pushAnd (Fol.And p q)        = 
     case (pushAnd p, pushAnd q) of -- inside-out processing
@@ -232,4 +273,4 @@ simplify1 fm =
               Fol.Iff p Fol.Tru  -> p
               Fol.Iff Fol.Fls q  -> Fol.Not q
               Fol.Iff p Fol.Fls -> Fol.Not p
-              _ -> fm              
+              _ -> fm

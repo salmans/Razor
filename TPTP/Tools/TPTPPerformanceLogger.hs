@@ -1,28 +1,39 @@
 {- 
-  Runs chase' on the input theory and returns the first model
-  for the theory (if any exists). It also verifies the output
-  model against the input theory.
+   Runs the chase on an input TPTP problem and prints the execution time.
 -}
 
 
 module Main where
 import System.Environment
+import System.FilePath
 import System.Console.GetOpt
 import System.Exit (exitWith, ExitCode (..))
 import System.IO (hPutStrLn, stderr)
 import Text.Read (readMaybe)
-import Data.Maybe
 
-import Formula.SyntaxGeo (Sequent, parseSequent)
-import Utils.Utils (isRealLine)
+import Data.Time
+import Text.Printf
+
+import Data.Maybe
+import Data.List
+import Control.DeepSeq
+
+import TPTP.TPTPToGeo as T2G
+import Codec.TPTP as TP
+
+import System.FilePath.Posix
+import System.Directory
+
+import Chase.Chase
+import qualified Chase.Problem.Model as Model
 import Tools.Config
-import Tools.FolToGeo
-import Chase.Problem.Model
-import Chase.Chase (chase, chase')
+
+import Debug.Trace
 -- ============================
 -- Main
 -- ============================
 
+-- The path to the TPTP library is hard-coded for now:
 
 options :: [ OptDescr (Config -> IO Config) ]
 options =
@@ -83,6 +94,29 @@ options =
                                  Just pu' -> cfg { configProcessUnit = pu'})
             "#")
         "Process unit for round robing scheduling"
+
+    , Option "" ["tptp-path"]
+        (OptArg
+            (\arg cfg -> return $ 
+                         case arg of
+                           Nothing -> cfg
+                           Just p  -> cfg { configTPTPPath = p})
+            "PATH")
+        "Path to TPTP root directory"
+
+    , Option "f" ["formula-type"]
+        (OptArg
+            (\arg cfg -> return $ 
+                         case arg of
+                           Nothing -> cfg
+                           Just f  -> cfg { configFormulaType = 
+                                                case f of
+                                                  "geo" -> GeoLog
+                                                  "cnf" -> TPTPCNF
+                                                  "fof" -> TPTPFOF })
+            "geo/cnf/fof")
+        "Type of the input formula"
+
     , Option "h" ["help"]
         (NoArg
             (\_ -> do
@@ -106,7 +140,7 @@ main = do
   args <- getArgs
 
   -- Parse options, getting a list of option actions
-  let (actions, nonOptions, errors) = getOpt RequireOrder options args
+  let (actions, nonOptions, errors) = getOpt Permute options args
  
   -- Here we thread startOptions through all supplied option actions
   config <- foldl (>>=) (return defaultConfig) actions
@@ -114,45 +148,47 @@ main = do
   let inputFileName = if   (isJust.configInput) config
                       then (fromJust.configInput) config
                       else error "No input theory is specified!"
-  
-  -- do input file reading
-  src <- readFile inputFileName                    
 
-  -- get a list of sequents from the input file
-  let inputLines = lines src
-      realLines =  filter isRealLine inputLines
-      inputFmlas = case mapM parseFolToSequent realLines of
-                     Nothing    -> error "The input is not geometric!" 
-                     Just fmlas -> concat fmlas
+  time1 <- getCurrentTime
 
-  -- report result
+  tptpInputs <- recursiveLoad (configTPTPPath config) inputFileName
+
+
+  -- 
+  let (Just (thy, consts)) = T2G.inputsToGeo (concat tptpInputs)
+    
+  let model = 
+          case configFormulaType config of
+                TPTPCNF -> let partial = Model.emptyModelWithElems consts
+                           in  listToMaybe $ chaseWithModel partial config thy
+                TPTPFOF -> chase' defaultConfig thy
   --
-  putStrLn $ "\n" ++ "===================="
-  putStrLn $ "file: " ++ show inputFileName
 
-  -- echo the input theory:
-  putStrLn "Theory: "
-  mapM_ (putStrLn.show) inputFmlas
-  putStrLn $ "\n" ++ "===================="
+  time2 <- model`deepseq` getCurrentTime
 
-  putStrLn "Input Options: "
-  putStrLn (show config)
-  putStrLn $ "\n" ++ "===================="
+  let diffTime = diffUTCTime time2 time1
+  let result = case model of
+                 Nothing -> "Unsat"
+                 Just _  -> "Sat"
 
-  putStrLn "Models: \n"
-
-  if   configAllModels config
-    then printModels $ chase config inputFmlas
-    else putStrLn $ case chase' config inputFmlas of
-                    Nothing -> "No models found!"
-                    Just m  -> show m
-
-  putStrLn ""
+  putStrLn $ inputFileName ++ "\t" ++ result ++ "\t" ++ (show diffTime)
 
 
-printModels :: [Model] -> IO ()
-printModels []   = putStrLn "No models found!"
-printModels mdls = do
-  mapM_ (\m -> do 
-           putStrLn (show m)
-           putStrLn ("\n" ++ "--------------------")) mdls
+-- Recursively loads the contents of a file and the files included in it, and
+-- returns the content of each file as a separate list of inputs.
+recursiveLoad :: String -> String -> IO [[TP.TPTP_Input]]
+recursiveLoad tptpPath fName = do 
+  { src <- readFile fName
+  ; let inputLines = intersperse "\n" (lines src)
+  ; let tptpInputs = (TP.parse.concat) inputLines
+  ; let (incls, fmlas) = partition isInclude tptpInputs
+  ; rest <- mapM (\i -> recursiveLoad tptpPath (includePath tptpPath i)) incls
+  ; return (fmlas:concat rest) }
+
+isInclude :: TP.TPTP_Input -> Bool
+isInclude (TP.Include _ _) = True
+isInclude _                = False
+
+includePath :: String -> TP.TPTP_Input -> String
+includePath tptpPath (TP.Include p _) = tptpPath ++ p
+includePath _ _                       = ""

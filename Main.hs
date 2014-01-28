@@ -52,7 +52,7 @@ main = do
   -- get a list of sequents from the input file
   let inputLines = lines src :: [String]
       realLines =  filter Utils.Utils.isRealLine inputLines     :: [String]
-      inputFmlas = case mapM parseFolToSequent realLines of
+      inputFmlas = case mapM (parseFolToSequent False) realLines of
                      Nothing    -> error "The input is not geometric!" 
                      Just fmlas -> concat fmlas
 
