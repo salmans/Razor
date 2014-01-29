@@ -19,6 +19,7 @@ import Chase.Problem.Model
 import Chase.Problem.Operations (sequentHolds)
 import Chase.Problem.Structures
 import Chase.Problem.Provenance
+import Chase.Problem.Observation
 import Chase.Chase
 
 
@@ -38,16 +39,20 @@ main = do
 readFormulae :: FilePath -> IO [Sequent]
 readFormulae inputFileName = readFile inputFileName >>= return . map parseSequent . filter Utils.Utils.isRealLine . lines
 
+data UserCommand = Up Obs | Next deriving Read
+
 modelLoop :: [Problem] -> IO ()
 modelLoop probs = case probs of 
-  [] -> putStrLn "Contradiction! You lose."
-  (prob@Problem {problemModel = oldModel, problemLastConstant = oldConst}):_ -> do
+  [] -> putStrLn "No more models found."
+  (prob@Problem {problemModel = oldModel, problemLastConstant = oldConst}):rest -> do
     putStrLn "Model:"
     putStrLn $ show oldModel
-    putStr "Fact> "
+    putStr "> "
     hFlush stdout
     userInput <- getLine
     if Utils.Utils.isNonEmptyLine userInput then
-      let (newModel, _, newConst) = add oldModel oldConst [read userInput] $ Just UserProv in
-      modelLoop $ runChaseWithProblem prob {problemModel = newModel, problemLastConstant = newConst}
+      modelLoop $ case (read userInput) of
+        Up constraint -> let (newModel, _, newConst) = add oldModel oldConst [constraint] $ Just UserProv in
+          runChaseWithProblem prob {problemModel = newModel, problemLastConstant = newConst}
+        Next -> rest
       else return ()
