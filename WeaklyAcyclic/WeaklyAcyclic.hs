@@ -20,11 +20,13 @@ import Debug.Trace (trace)
 import Control.Exception -- for assert
 import Data.Graph
 
-import Chase.Problem.Operations (addAllExistsPreds, addElementPred)
+import Chase.Problem.Operations
 
 -- Logic modules:
 import Formula.SyntaxGeo
-import Utils.GeoUtilities (Sub, freeVars, theoryFunctions, theoryRelations, relConvert)
+import Utils.GeoUtilities ( Sub, freeVars, theoryFunctions 
+                          , theoryRelations, relConvert
+                          , addAllExistsPreds, addElementPred)
 
 import Data.Tree
 import Utils.Trace

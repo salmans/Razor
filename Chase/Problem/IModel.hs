@@ -31,8 +31,6 @@ err_ChaseProblemModel_IsTruthDen =
     "Chase.Problem.Model.isTruth: No truth value for Den"
 err_ChaseProblemModel_NoEqToDen =
     "Chase.Problem.Model.obsToEquation: Cannot convert Den to Equation"
-err_ChaseProblemModel_DelDenotes =
-    "Chase.Problem.Model.denotes: Not applicable on Den"
 err_ChaseProblemModel_EqlDenotes =
     "Chase.Problem.Model.denotes: Not applicable on Eql"
 
@@ -130,7 +128,6 @@ add model@(Model tbls provs) c obs prov =
                        otherwise -> False
 {- Convert an obs to a Equation -}
 obsToEquation :: Obs -> Equation
-obsToEquation (Den t)     = error err_ChaseProblemModel_NoEqToDen
 obsToEquation (Eql t1 t2) = Equ t1 t2
 obsToEquation (Fct a)     = Equ (fromJust (toTerm a)) truth
 
@@ -138,11 +135,6 @@ obsToEquation (Fct a)     = Equ (fromJust (toTerm a)) truth
   "Fct a", it verifies whether t is true in the model. If the Obs is 
   "Eql t1 t2", it verifies whether t1 and t2 are equal in the model. -} 
 isTrue :: Model -> Obs -> Bool
-isTrue (Model tbls _) obs@(Den t) = 
-    case t == truth of -- Since we treat truth as a denotation, truth is an 
-                       -- exceptional case.
-      True -> True
-      False -> error $ err_ChaseProblemModel_IsTruthDen
 isTrue (Model tbls _) obs@(Fct (F s ts)) = 
     ts' `elem` (DB.toList $ Map.findWithDefault (DB.Set []) (FunTable s) tbls)
     where ts' = (\t -> case OP.lookupConstant t tbls of 

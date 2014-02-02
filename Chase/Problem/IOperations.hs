@@ -296,10 +296,10 @@ formulaHolds _ Fls = False
 formulaHolds _ Tru = True
 formulaHolds model atom@(Atm atm@(F sym terms)) =
     Model.isTrue model obs
-    where obs = termToObs True $ (fromJust.toTerm) atm --not great!!
+    where obs = termToObs $ (fromJust.toTerm) atm --not great!!
 formulaHolds model atom@(Atm atm@(R sym terms)) =
     Model.isTrue model obs
-    where obs = termToObs True $ (fromJust.toTerm) atm --not great!!
+    where obs = termToObs $ (fromJust.toTerm) atm --not great!!
 formulaHolds model (Or p q) = fmlaHolds p || fmlaHolds q
     where fmlaHolds = formulaHolds model
 formulaHolds model (And p q) = 

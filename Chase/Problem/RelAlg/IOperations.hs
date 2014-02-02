@@ -134,7 +134,7 @@ insertRecord t tbls deltas = do
   let r        =  Map.singleton ref (DB.Set [cs])
   let deltas'  =  mergeSets r rs
   let tbls'    =  mergeSets tbls deltas'
-  let obs      =  termToObs True (sym cs)
+  let obs      =  termToObs (sym cs)
   -- Adding new provenance information but first, convert the constants in the
   -- observation being logged are converted to the elements they are pointing:
   (prov, ProvInfo provs lastTag) <- State.get

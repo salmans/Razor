@@ -26,22 +26,18 @@ err_ChaseProblemObservation_RepWithFct =
   2. Two terms are equal in a model
   3. A relational fact is in the model
 -}
-data Obs = Den Term -- Term denotes an element
-         | Eql Term Term -- Two terms are equal
+data Obs = Eql Term Term -- Two terms are equal
          | Fct Atom -- Atm is true as a fact
            deriving (Eq, Ord)
 
 instance Show Obs where
-    show (Den t) = "|" ++ (show t) ++ "|"
     show (Eql t1 t2) = "|" ++ (show t1) ++ "| = |" ++ (show t2) ++ "|"
     show (Fct a) = "|" ++ (show a) ++ "|"
 
 instance TermBased Obs where
-    liftTerm f (Den t) = Den (f t)
     liftTerm f (Eql t1 t2) = Eql (f t1) (f t2)
     liftTerm f (Fct a) = Fct $ liftTerm f a
 
-    freeVars (Den t) = freeVars t
     freeVars (Eql t1 t2) = union (freeVars t1) (freeVars t2)
     freeVars (Fct a) = freeVars a
 
@@ -54,23 +50,16 @@ obsFuncSyms obs = termFuncSyms $ obsToTerm obs
   possible to use Term matching functions over Obs.
 -}
 obsToTerm :: Obs -> Term
-obsToTerm (Den t) = t
 obsToTerm (Eql t1 t2) = Fn "=" [t1, t2]
-obsToTerm (Fct a) = fromJust $ toTerm a
+obsToTerm (Fct a)     = fromJust $ toTerm a
 
 {-| Converts a Term to a Obs. The purpose of this function is to convert terms 
   that have been produced using obsToTerm back to their Obs form.
-  NOTE: determining whether a term represents a fact or a denotaion is not 
-  possible. For now, the caller passes an extra parameter to determine whether 
-  the output has to be a fact or a denotation.
 -}
-termToObs :: Bool -> Term -> Obs
-termToObs _ (Rn "=" [t1, t2]) = Eql t1 t2
-termToObs _ (Rn "=" _) = error $ "Chase.Problem.Operations.termToObs: " ++
-                         "equality must have only two parameters!"
-termToObs isFact t = 
-      case isFact of 
-        True -> Fct $ fromJust $ fromTerm t
-        False -> Den t
+termToObs :: Term -> Obs
+termToObs (Rn "=" [t1, t2]) = Eql t1 t2
+termToObs (Rn "=" _)        = error $ "Chase.Problem.Operations.termToObs: " ++
+                              "equality must have only two parameters!"
+termToObs t                 = Fct $ fromJust $ fromTerm t
 
 -- Salman: Do not convert observations to terms anymore!
