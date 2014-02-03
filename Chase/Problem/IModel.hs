@@ -29,8 +29,6 @@ import qualified RelAlg.DB as DB
 {- Errors raised by this modeule -}
 err_ChaseProblemModel_IsTruthDen =
     "Chase.Problem.Model.isTruth: No truth value for Den"
-err_ChaseProblemModel_NoEqToDen =
-    "Chase.Problem.Model.obsToEquation: Cannot convert Den to Equation"
 err_ChaseProblemModel_EqlDenotes =
     "Chase.Problem.Model.denotes: Not applicable on Eql"
 
@@ -110,7 +108,7 @@ add :: Model -> Int -> [Obs] -> Prov -> (Model, Tables, Int)
 add model@(Model tbls provs) c obs prov =
     -- run a counter monad inside a state monad transformer for provenance
     let (((newTables, deltas), (_, newProvs)), c') = State.runState st c
-        st = State.runStateT (OP.buildTables eqs tbls emptyTables) 
+        st = State.runStateT (OP.buildTables obs tbls emptyTables) 
              (prov, provs)
         newProvs' = case prov of
                       ChaseProv tag _ _ -> newProvs {provInfoLastTag = tag + 1}
@@ -118,14 +116,9 @@ add model@(Model tbls provs) c obs prov =
     in (Model newTables newProvs', deltas, c')
        -- Since we just used the provenance tag, update the tag information.
        -- Salman: make this procedure transparent using a monad.
-    where eqs       = map obsToEquation obs
-          isFact o  = case o of 
+    where isFact o  = case o of 
                        Fct _ -> True 
                        otherwise -> False
-{- Convert an obs to a Equation -}
-obsToEquation :: Obs -> Equation
-obsToEquation (Eql t1 t2) = Equ t1 t2
-obsToEquation (Fct a)     = Equ (fromJust (toTerm a)) truth
 
 {-| Returns true if a term is true in the model; That is, if the Obs is 
   "Fct a", it verifies whether t is true in the model. If the Obs is 

@@ -42,7 +42,7 @@ type ProvCounter = State.StateT (Prov, ProvInfo) Counter
 {-| Updates a set of tables with a list a new equations. Given an empty set of 
   equations, this function returns the input set of tables, together with a
   set of tables containing the changes made to the input tables. -}
-buildTables :: [Equation] -> Tables -> Tables -> ProvCounter (Tables, Tables)
+buildTables :: [Obs] -> Tables -> Tables -> ProvCounter (Tables, Tables)
 buildTables eqs tbls delts = do
   (tbls', delts', eqs') <- buildTables' eqs tbls delts
   let ints              =  integrities tbls'
@@ -65,45 +65,45 @@ garbageCollect tbls =
 {- A helper for buildTables, which passes the input equations around in order
    to keep them in the reduced form with respect to the previously processed 
    equations. -}
-buildTables' :: [Equation] -> Tables -> Tables -> 
-                ProvCounter (Tables, Tables, [Equation])
+buildTables' :: [Obs] -> Tables -> Tables -> 
+                ProvCounter (Tables, Tables, [Obs])
 buildTables' [] tbls  deltas       = return (tbls, deltas, [])
 buildTables' (eq:eqs) tbls  deltas = do
-    (tbls', deltas', eqs') <- processEquation eq (tbls, deltas, eqs)
+    (tbls', deltas', eqs') <- processObs eq (tbls, deltas, eqs)
     buildTables' eqs' tbls' deltas'
 
 {- Processes a set of equations as a helper function to buildTables. -}
-processEquation :: Equation -> (Tables, Tables, [Equation]) 
-                -> ProvCounter (Tables, Tables, [Equation])
-processEquation (Equ (Elm (Elem "True")) (Elm (Elem "True"))) _ = 
-    error "CC.RelAlg.processEquation: invalid equation"
-processEquation (Equ t (Elm (Elem "True"))) (tbls, deltas, eqs) = do
-  (tbls', deltas') <- insertRecord t tbls deltas  
+processObs :: Obs -> (Tables, Tables, [Obs]) 
+                -> ProvCounter (Tables, Tables, [Obs])
+-- processObs (Equ (Elm (Elem "True")) (Elm (Elem "True"))) _ = 
+--     error "CC.RelAlg.processObs: invalid equation"
+processObs (Fct (R s ts)) (tbls, deltas, eqs) = do
+  (tbls', deltas') <- insertRecord (RelTable s) ts tbls deltas  
   return (tbls', deltas', eqs)
           -- processing an equation that records a 
           -- relational fact.
-processEquation (Equ (Elm (Elem "True")) t) currentState = 
-    processEquation (Equ t (Elm (Elem "True"))) currentState
-    -- orient the equation
-processEquation (Equ (Elm c1) (Elm c2)) (tbls, deltas, eqs) = do
+processObs (Fct (F s ts)) (tbls, deltas, eqs) = do
+  (tbls', deltas') <- insertRecord (FunTable s) ts tbls deltas  
+  return (tbls', deltas', eqs)
+processObs (Eql (Elm c1) (Elm c2)) (tbls, deltas, eqs) = do
     (nt, tbls')  <- updateTables c1 c2 tbls
     (_, deltas') <- updateTables c1 c2 deltas
     let deltas'' =  mergeSets deltas' $ filterTables (elem nt) tbls'
-    let eqs'     =  updateEquation c1 c2 <$> eqs
+    let eqs'     =  updateObs c1 c2 <$> eqs
     return (tbls', deltas'', eqs')  -- making two constants equal in the 
                                     -- database.
-processEquation (Equ t@(Fn f []) (Elm c)) (tbls, deltas, eqs) = do
+processObs (Eql t@(Fn f []) (Elm c)) (tbls, deltas, eqs) = do
   (recs, t')    <- initConstant tbls t
   (nt, tbls')   <- updateTables t' c (mergeSets tbls recs)
   (_, deltas')  <- updateTables t' c (mergeSets deltas recs)
   let deltas''  = mergeSets deltas' $ filterTables (elem nt) tbls'
-  let eqs''     = updateEquation t' c <$> eqs
+  let eqs''     = updateObs t' c <$> eqs
   return (tbls', deltas'', eqs'')
     -- making a new element in the database for a given constant.
     -- Salman: use state monad.        
-processEquation (Equ c@(Elm _) t@(Fn f [])) inputState = 
-    processEquation (Equ t c) inputState -- orient the equation    
-processEquation (Equ t1@(Fn f1 []) t2@(Fn f2 [])) (tbls, deltas, eqs) = do
+processObs (Eql c@(Elm _) t@(Fn f [])) inputState = 
+    processObs (Eql t c) inputState -- orient the equation    
+processObs (Eql t1@(Fn f1 []) t2@(Fn f2 [])) (tbls, deltas, eqs) = do
   (recs1, t1')  <- initConstant tbls t1
   (recs2, t2')  <- initConstant tbls t2
   (nt, tbls')   <- updateTables t1' t2' $ mergeAllSets [tbls,recs1,recs2]
@@ -114,27 +114,24 @@ processEquation (Equ t1@(Fn f1 []) t2@(Fn f2 [])) (tbls, deltas, eqs) = do
   let t2Tbl     = Map.lookup (ConTable f2) tbls'
   let deltas''  = mergeAllSets [deltas', recs1,recs2]
   let deltas''' = mergeSets deltas'' $ filterTables (elem nt) tbls'
-  let eqs'      = updateEquation t1' t2' <$> eqs
+  let eqs'      = updateObs t1' t2' <$> eqs
   return (tbls', deltas''', eqs') 
-    -- initiating two constants and make them equal.
-          
-
-processEquation _ _ = error "CC.RelAlg.processEquation: invalid equation"
+    -- initiating two constants and make them equal.          
+processObs _ _ = error "CC.RelAlg.processObs: invalid equation"
 
 {- Inserts a new record (corresponding to a term) to the database. Note that 
  we are treating relational facts as terms. -}
--- Salman: do not convert relational facts to terms since we don't have 
--- function symbols any more!
-insertRecord :: Term -> Tables -> Tables -> ProvCounter (Tables, Tables)
-insertRecord t tbls deltas = do
-  let (sym, ref, ts) = case t of
-                    (Rn s ts') -> (Rn s, RelTable s, ts')
-                    (Fn s ts') -> (Fn s, FunTable s, ts')
+insertRecord :: TableRef -> [Term] -> Tables -> Tables
+             -> ProvCounter (Tables, Tables)
+insertRecord ref ts tbls deltas = do
+  let sym = case ref of
+              RelTable s -> R s
+              FunTable s -> F s
   (rs, cs)     <- foldM (foldFunc) (tbls,[]) ts
   let r        =  Map.singleton ref (DB.Set [cs])
   let deltas'  =  mergeSets r rs
   let tbls'    =  mergeSets tbls deltas'
-  let obs      =  termToObs (sym (Elm <$> cs))
+  let obs      =  Fct (sym ts)
   -- Adding new provenance information but first, convert the constants in the
   -- observation being logged are converted to the elements they are pointing:
   (prov, ProvInfo provs lastTag) <- State.get
@@ -240,11 +237,6 @@ updateProvInfo e1 e2 (ProvInfo info tag) =
           updateSub  = \s -> (Map.map updateFunc s)
           updateFunc = (\x -> updateTerm e1 e2 x)
 
-
-updateEquation :: Elem -> Elem -> Equation -> Equation
-updateEquation t1 t2 (Equ l r) = 
-    Equ (updateTerm t1 t2 l) (updateTerm t1 t2 r)
-
 updateObs :: Elem -> Elem -> Obs -> Obs
 updateObs e1 e2 (Eql t1 t2) =
     Eql (updateTerm e1 e2 t1) (updateTerm e1 e2 t2)
@@ -272,7 +264,7 @@ filterTable f (DB.Set tbl) = DB.Set (filter f tbl)
 
 {- Returns all the equations that enforce integrity constraints in the current
    state of the model. -}
-integrities :: Tables -> [Equation]
+integrities :: Tables -> [Obs]
 integrities tbls = concatMap integrity sets
     where sets = Map.elems $ Map.filterWithKey (\k _ -> isFunTable k) tbls
           -- filter only function tables
@@ -284,8 +276,8 @@ isFunTable _            = False
 
 {- Assuming that the input set is a FunTable, creates new equations to enforce
    integrity constraints over the function corresponding to the table. -}
-integrity :: DB.Set [Elem] -> [Equation]
-integrity set = [Equ (Elm c1) (Elm c2) | ts1 <- list, ts2 <- list
+integrity :: DB.Set [Elem] -> [Obs]
+integrity set = [Eql (Elm c1) (Elm c2) | ts1 <- list, ts2 <- list
                 , let c1   =  last ts1
                 , let c2   =  last ts2
                 , init ts1 == init ts2

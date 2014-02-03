@@ -69,15 +69,6 @@ data RelExp = TblEmpty
               -- the join pair (which works for all three join expressions).
             deriving (Show, Eq)
 
-{- An equation is a pair of terms -}
-data Equation = Equ Term Term
-              deriving (Show, Eq)
-
-instance TermBased Equation where
-    liftTerm f (Equ t1 t2) = 
-        Equ (liftTerm f t1) (liftTerm f t2)
-    freeVars (Equ t1 t2)   = union (freeVars t1) (freeVars t2)
-
 instance Functor DB.Set where
     fmap f (DB.Set x) = DB.Set (map f x)
 

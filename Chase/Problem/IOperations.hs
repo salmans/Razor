@@ -41,8 +41,11 @@ err_ChaseProblemOperations_DisjTop =
     "Chase.Problem.Operations.processHead: " ++
     "disjunctions can appear only at the top " ++
     "level sequents."
-err_ChaseProblemOperations_EqTwoParam = 
+err_ChaseProblemOperations_processHead_EqTwoParam = 
     "Chase.Problem.Operations.processHead: " ++
+    "equality must have only two parameters!"
+err_ChaseProblemOperations_processBody_EqTwoParam = 
+    "Chase.Problem.Operations.processBody: " ++
     "equality must have only two parameters!"
 err_ChaseProblemOperations_InvldSeq = 
     "Chase.Problem.Operations.processHead: " ++
@@ -209,7 +212,8 @@ processHead (Exists x p) =
 processHead (Atm (R "=" [t1, t2])) = 
     ([[Eql t1 t2]], untypedFrame) -- dealing with equality
 -- The following would never happen unless something is wrong with the parser:
-processHead (Atm (R "=" _)) = error err_ChaseProblemOperations_EqTwoParam
+processHead (Atm (R "=" _)) = 
+    error err_ChaseProblemOperations_processHead_EqTwoParam
 processHead (Atm atm@(R sym ts)) = 
     ([[Fct atm]], fType)
     where fType = if   all isVar ts -- Sequents with constants on right get the
@@ -235,7 +239,8 @@ processBody :: Formula -> [Obs]
 processBody Tru = []
 processBody (And p q) = processBody p ++ processBody q
 processBody (Atm (R "=" [t1, t2])) = [Eql t1 t2] -- dealing with equality
-processBody (Atm (R "=" _)) = error err_ChaseProblemOperations_EqTwoParam
+processBody (Atm (R "=" _)) = 
+    error err_ChaseProblemOperations_processBody_EqTwoParam
 processBody (Atm atm) = [Fct atm] -- atoms other than equality
 processBody (Exists x p) = processBody p
 processBody fmla = (error.show) fmla
@@ -295,12 +300,8 @@ sequentHolds model (Sequent b h) =
 formulaHolds :: Model -> Formula -> Bool
 formulaHolds _ Fls = False
 formulaHolds _ Tru = True
-formulaHolds model atom@(Atm atm@(F sym terms)) =
-    Model.isTrue model obs
-    where obs = termToObs $ (fromJust.toTerm) atm --not great!!
-formulaHolds model atom@(Atm atm@(R sym terms)) =
-    Model.isTrue model obs
-    where obs = termToObs $ (fromJust.toTerm) atm --not great!!
+formulaHolds model atom@(Atm atm) =
+    Model.isTrue model (atomToObs atm)
 formulaHolds model (Or p q) = fmlaHolds p || fmlaHolds q
     where fmlaHolds = formulaHolds model
 formulaHolds model (And p q) = 

@@ -20,6 +20,9 @@ err_ChaseProblemObservation_VarToAtm =
 err_ChaseProblemObservation_RepWithFct = 
     "Chase.Problem.Observation.replaceObsSubterms: Fact observations cannot " ++
     "appear inside other observations."
+err_ChaseProblemObservations_atomToObs_EqTwoParam =
+    "Chase.Problem.Operations.formulaHolds: " ++
+    "equality must have only two parameters!"
 
 {-| An observation falls into the following three categories:
   1. A term denotes an element in a model 
@@ -44,22 +47,13 @@ instance TermBased Obs where
 {-| Returns a list of symbols used in an Obs. 
 -}
 obsFuncSyms :: Obs -> [Sym]
-obsFuncSyms obs = termFuncSyms $ obsToTerm obs
+obsFuncSyms (Eql t1 t2)    = termFuncSyms t1 `union` termFuncSyms t2
+obsFuncSyms (Fct (R _ ts)) = nub $ concatMap termFuncSyms ts
+obsFuncSyms (Fct (F _ ts)) = nub $ concatMap termFuncSyms ts
                   
-{-| Converts an Obs to a Term. This function is primarily used to make it 
-  possible to use Term matching functions over Obs.
--}
-obsToTerm :: Obs -> Term
-obsToTerm (Eql t1 t2) = Fn "=" [t1, t2]
-obsToTerm (Fct a)     = fromJust $ toTerm a
-
-{-| Converts a Term to a Obs. The purpose of this function is to convert terms 
-  that have been produced using obsToTerm back to their Obs form.
--}
-termToObs :: Term -> Obs
-termToObs (Rn "=" [t1, t2]) = Eql t1 t2
-termToObs (Rn "=" _)        = error $ "Chase.Problem.Operations.termToObs: " ++
-                              "equality must have only two parameters!"
-termToObs t                 = Fct $ fromJust $ fromTerm t
-
--- Salman: Do not convert observations to terms anymore!
+{-| Converts an Atom to an Obs. -}
+atomToObs :: Atom -> Obs
+atomToObs (R "=" [t1, t2]) = Eql t1 t2
+atomToObs (R "=" _)        = 
+    error err_ChaseProblemObservations_atomToObs_EqTwoParam
+atomToObs atm              = Fct atm
