@@ -74,7 +74,7 @@ main = do
   let verifyMsg = 
           if Maybe.isJust model
           then (let mdl@(Model trs _) = Maybe.fromJust model 
-                    domain = modelDomain mdl
+                    domain = Elm <$> modelDomain mdl
                     maps f = Utils.Utils.allMaps (freeVars f) domain
                     insts = (\f -> map 
                                    (\s -> (liftTerm.lift) s f) 
@@ -144,7 +144,7 @@ verifyAll mdls inputFmlas =
 verify inputFmlas mdl@(Model trs _) = 
     traceShow "."
     $
-    let domain = modelDomain mdl
+    let domain = Elm <$> modelDomain mdl
         maps f = Utils.Utils.allMaps (freeVars f) domain
         fmlas = concatMap insts inputFmlas
         insts = (\f -> map 

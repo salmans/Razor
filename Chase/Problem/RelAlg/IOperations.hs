@@ -75,24 +75,24 @@ buildTables' (eq:eqs) tbls  deltas = do
 {- Processes a set of equations as a helper function to buildTables. -}
 processEquation :: Equation -> (Tables, Tables, [Equation]) 
                 -> ProvCounter (Tables, Tables, [Equation])
-processEquation (Equ (Elm "True") (Elm "True")) _ = 
+processEquation (Equ (Elm (Elem "True")) (Elm (Elem "True"))) _ = 
     error "CC.RelAlg.processEquation: invalid equation"
-processEquation (Equ t (Elm "True")) (tbls, deltas, eqs) = do
+processEquation (Equ t (Elm (Elem "True"))) (tbls, deltas, eqs) = do
   (tbls', deltas') <- insertRecord t tbls deltas  
   return (tbls', deltas', eqs)
           -- processing an equation that records a 
           -- relational fact.
-processEquation (Equ (Elm "True") t) currentState = 
-    processEquation (Equ t (Elm "True")) currentState
+processEquation (Equ (Elm (Elem "True")) t) currentState = 
+    processEquation (Equ t (Elm (Elem "True"))) currentState
     -- orient the equation
-processEquation (Equ c1@(Elm _) c2@(Elm _)) (tbls, deltas, eqs) = do
+processEquation (Equ (Elm c1) (Elm c2)) (tbls, deltas, eqs) = do
     (nt, tbls')  <- updateTables c1 c2 tbls
     (_, deltas') <- updateTables c1 c2 deltas
     let deltas'' =  mergeSets deltas' $ filterTables (elem nt) tbls'
     let eqs'     =  updateEquation c1 c2 <$> eqs
     return (tbls', deltas'', eqs')  -- making two constants equal in the 
                                     -- database.
-processEquation (Equ t@(Fn f []) c@(Elm _)) (tbls, deltas, eqs) = do
+processEquation (Equ t@(Fn f []) (Elm c)) (tbls, deltas, eqs) = do
   (recs, t')    <- initConstant tbls t
   (nt, tbls')   <- updateTables t' c (mergeSets tbls recs)
   (_, deltas')  <- updateTables t' c (mergeSets deltas recs)
@@ -134,7 +134,7 @@ insertRecord t tbls deltas = do
   let r        =  Map.singleton ref (DB.Set [cs])
   let deltas'  =  mergeSets r rs
   let tbls'    =  mergeSets tbls deltas'
-  let obs      =  termToObs (sym cs)
+  let obs      =  termToObs (sym (Elm <$> cs))
   -- Adding new provenance information but first, convert the constants in the
   -- observation being logged are converted to the elements they are pointing:
   (prov, ProvInfo provs lastTag) <- State.get
@@ -151,7 +151,7 @@ insertRecord t tbls deltas = do
    constant. If such an element does not exist, creates a new element and 
    returns a set of tables containing the inserted records for adding the new 
    element. -}
-initConstant :: Tables -> Term -> ProvCounter (Tables, Term)
+initConstant :: Tables -> Term -> ProvCounter (Tables, Elem)
 initConstant tbls t@(Fn s []) = do
   fresh    <- State.lift freshElement
   let recs = Map.fromList [(DomTable, DB.Set [[fresh]]),
@@ -160,7 +160,7 @@ initConstant tbls t@(Fn s []) = do
                            Just t'' -> (Map.empty, t'')
                            Nothing  -> (recs, fresh)
 
-  let obs  = Eql t finalVal
+  let obs  = Eql t (Elm finalVal)
   (prov, ProvInfo provs lastTag) <- State.get
 
   if "a@" `isPrefixOf` s
@@ -175,11 +175,11 @@ initConstant tbls t@(Fn s []) = do
   where t'         = lookupConstant t tbls
           -- Salman: use counter monad.
           -- Salman: FunTable is in fact ConstTable
-initConstant tbls t@(Elm _) = return (tbls, t)
+initConstant tbls (Elm e) = return (tbls, e)
 
 {- Simply looks up a constant (or an element) in a set of tables and returns the
  element denoted by that constant (or element) if it exists. -}
-lookupConstant :: Term -> Tables -> Maybe Term
+lookupConstant :: Term -> Tables -> Maybe Elem
 lookupConstant (Fn c []) tbls =
     case Map.lookup (ConTable c) tbls of
       Nothing -> Nothing
@@ -189,7 +189,7 @@ lookupConstant (Fn c []) tbls =
                      else if   null (head set)
                           then Nothing
                           else Just $ head $ head $ set
-lookupConstant c@(Elm _) tbls =
+lookupConstant (Elm c) tbls =
     case Map.lookup DomTable tbls of
       Nothing -> Nothing
       Just t  -> let set = DB.toList t
@@ -204,8 +204,8 @@ lookupConstant _ _ = error "CC.RelAlg.lookupConstant: invalid element!"
    returns the smaller term, which is the term it rewrites to. -}
 -- Salamn: this operation is probably the most constly operation. We may be 
 -- able to reduce the cost by using references (pointers) or indices.
-updateTables :: Term -> Term -> Tables -> ProvCounter (Term, Tables)
-updateTables c1@(Elm _) c2@(Elm _) tbls = do
+updateTables :: Elem -> Elem -> Tables -> ProvCounter (Elem, Tables)
+updateTables c1 c2 tbls = do
   -- Also update provenance information for the elements being collapsed:
   (p, ps) <- State.get
   State.put (p, updateProvInfo c1 c2 ps)
@@ -224,13 +224,12 @@ updateTables c1@(Elm _) c2@(Elm _) tbls = do
   -- "exists x. exists y. exists z. R(x, y, z)"
   -- "R(x, y, z) => f(z) = x"
   -- "R(x, y, z) => f(z) = y"
-updateTables _ _ _ = error "CC.RelAlg.updateTables: invalid update"    
 
-updateProvInfo :: Term -> Term -> ProvInfo -> ProvInfo
-updateProvInfo c1@(Elm _) c2@(Elm _) (ProvInfo info tag) = 
+updateProvInfo :: Elem -> Elem -> ProvInfo -> ProvInfo
+updateProvInfo e1 e2 (ProvInfo info tag) = 
     ProvInfo ((updateProv <$>) <$> updateKeys info) tag
     where updateKeys = \m -> Map.fromListWith (++) -- union
-                       $ (\(o, ss) -> (updateObs c1 c2 o, ss)) 
+                       $ (\(o, ss) -> (updateObs e1 e2 o, ss)) 
                              <$> (Map.toList m)
           updateProv = (\p -> 
                         case p of
@@ -239,31 +238,25 @@ updateProvInfo c1@(Elm _) c2@(Elm _) (ProvInfo info tag) =
                           UserProv           -> UserProv)
                        -- Salman: Prov may instantiate Control.Applicative
           updateSub  = \s -> (Map.map updateFunc s)
-          updateFunc = (\x -> if x == c1 then c2 else x)
-updateProvInfo _ _ _ = error "CC.RelAlg.updateTables: invalid update"
+          updateFunc = (\x -> updateTerm e1 e2 x)
 
-updateEquation :: Term -> Term -> Equation -> Equation
+
+updateEquation :: Elem -> Elem -> Equation -> Equation
 updateEquation t1 t2 (Equ l r) = 
     Equ (updateTerm t1 t2 l) (updateTerm t1 t2 r)
 
-updateObs :: Term -> Term -> Obs -> Obs
-updateObs c1@(Elm _) c2@(Elm _) (Eql t1 t2) =
-    Eql (updateTerm c1 c2 t1) (updateTerm c1 c2 t2)
-updateObs c1@(Elm _) c2@(Elm _) (Fct (R sym ts)) =
-    Fct (R sym (updateTerm c1 c2 <$> ts))
-updateObs c1@(Elm _) c2@(Elm _) (Fct (F sym ts)) =
-    Fct (F sym (updateTerm c1 c2 <$> ts))
+updateObs :: Elem -> Elem -> Obs -> Obs
+updateObs e1 e2 (Eql t1 t2) =
+    Eql (updateTerm e1 e2 t1) (updateTerm e1 e2 t2)
+updateObs e1 e2 (Fct (R sym ts)) =
+    Fct (R sym (updateTerm e1 e2 <$> ts))
+updateObs e1 e2 (Fct (F sym ts)) =
+    Fct (F sym (updateTerm e1 e2 <$> ts))
 
-updateTerm :: Term -> Term -> Term -> Term
-updateTerm t1 t2 t@(Elm _)   = if t == t1 then t2 else t
-updateTerm t1 t2 t@(Fn f ts) = 
-    if   t == t1 
-    then t2 
-    else Fn f (updateTerm t1 t2 <$> ts)
-updateTerm t1 t2 t@(Rn f ts) = 
-    if   t == t1 
-    then t2 
-    else Rn f (updateTerm t1 t2 <$> ts)
+updateTerm :: Elem -> Elem -> Term -> Term
+updateTerm e1 e2 (Elm e)   = if e == e1 then Elm e2 else Elm e
+updateTerm e1 e2 t@(Fn f ts) = Fn f (updateTerm e1 e2 <$> ts)
+updateTerm e1 e2 t@(Rn f ts) = Rn f (updateTerm e1 e2 <$> ts)
 
 filterTables :: (Record -> Bool) -> Tables -> Tables
 filterTables f tbls =  
@@ -291,8 +284,8 @@ isFunTable _            = False
 
 {- Assuming that the input set is a FunTable, creates new equations to enforce
    integrity constraints over the function corresponding to the table. -}
-integrity :: DB.Set [Term] -> [Equation]
-integrity set = [Equ c1 c2 | ts1 <- list, ts2 <- list
+integrity :: DB.Set [Elem] -> [Equation]
+integrity set = [Equ (Elm c1) (Elm c2) | ts1 <- list, ts2 <- list
                 , let c1   =  last ts1
                 , let c2   =  last ts2
                 , init ts1 == init ts2

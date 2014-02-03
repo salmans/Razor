@@ -262,7 +262,8 @@ createSubs :: Labels -> Table -> [Sub]
 createSubs _ (DB.Set [])  = []
 createSubs bdyVars (DB.Set set) = 
     Map.fromList.bdySubs <$> set
-    where bdySubs ts = [(fromJust v, t) | (v, t) <- zip bdyVars ts, isJust v]
+    where bdySubs ts = [(fromJust v, Elm t) | (v, t) <- zip bdyVars ts
+                       , isJust v]
 
 {-| Returns True if the input set of observations are true in the given mode, 
   otherwise False. Vars is the set of universally quantified variables in the 
@@ -276,7 +277,7 @@ holds model vars allObs@(obs:rest)
       | null (fvars `intersect` vars) =
           let makeSub      = Map.singleton $ head fvars
               liftAllObs e = map ((liftTerm.lift) (makeSub e)) allObs
-          in or $ map (\e -> holds model vars (liftAllObs e)) domain 
+          in or $ map (\e -> holds model vars (liftAllObs (Elm e))) domain 
       -- If the formula is not closed, instantiate the first for one of the
       -- instantiations of the first existential variable, it has to be true.
       | otherwise = error err_ChaseProblemOperations_OpenFmla
@@ -309,5 +310,5 @@ formulaHolds model@(Model trs _) (Exists x p) =
     let makeSub    = Map.singleton x
         liftWith e = (liftTerm.lift) (makeSub e) p
     in
-      or $ map ((formulaHolds model).liftWith) domain
+      or $ map ((formulaHolds model).liftWith.Elm) domain
     where domain = modelDomain model

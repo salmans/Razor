@@ -18,6 +18,7 @@ import Data.Maybe
 import Data.List
 import Control.DeepSeq
 
+import Formula.SyntaxGeo (Term (Elm))
 import TPTP.TPTPToGeo as T2G
 import Codec.TPTP as TP
 
@@ -28,7 +29,6 @@ import Chase.Chase
 import qualified Chase.Problem.Model as Model
 import Tools.Config
 
-import Debug.Trace
 -- ============================
 -- Main
 -- ============================
@@ -156,10 +156,11 @@ main = do
 
   -- 
   let (Just (thy, consts)) = T2G.inputsToGeo (concat tptpInputs)
+  let consts' = map (\(Elm e) -> e) consts
     
   let model = 
           case configFormulaType config of
-                TPTPCNF -> let partial = Model.emptyModelWithElems consts
+                TPTPCNF -> let partial = Model.emptyModelWithElems consts'
                            in  listToMaybe $ chaseWithModel partial config thy
                 TPTPFOF -> chase' defaultConfig thy
   --

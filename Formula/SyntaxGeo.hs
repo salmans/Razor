@@ -34,9 +34,11 @@ import Data.Set ((\\))
 type Var = String
 type Vars = [Var]
 type Sym = String
+newtype Elem = Elem Sym -- elements of the domain
+    deriving (Eq, Ord)
 
 data Term = Var Var
-          | Elm Sym -- reserved for elements of domains
+          | Elm Elem -- elements of the domain are terms
           | Fn Sym [Term]
           | Rn Sym [Term] -- Just like Fn but for cases where we treat relations
                           -- like functions.
@@ -58,6 +60,8 @@ data Formula = Tru
              | Exists Var Formula
              deriving (Ord, Eq)
              -- deriving (Ord, Eq, Show)
+
+instance Show Elem where show = prettyElem
 
 instance Show Atom where show = prettyAtom
 
@@ -81,13 +85,17 @@ prettyTerm t = case t of
      (Fn f ts) -> f ++ "(" ++ (intercalate "," (map prettyTerm ts)) ++ ")"
      (Rn f ts) -> f ++ "(" ++ (intercalate "," (map prettyTerm ts)) ++ ")"
      (Var v) -> v
-     (Elm e) -> e
+     (Elm e) -> prettyElem e
 
 prettyAtom :: Atom -> String
 prettyAtom (R "=" [t1,t2]) = "(" ++ (prettyTerm t1) ++ 
                              " = " ++ (prettyTerm t2) ++ ")"
 prettyAtom (R sym ts) = sym ++ "(" ++ (intercalate "," (map prettyTerm ts)) ++ ")"
 prettyAtom (F sym ts) = sym ++ "(" ++ (intercalate "," (map prettyTerm ts)) ++ ")"
+
+prettyElem :: Elem -> String
+prettyElem (Elem e) = "{" ++ e ++ "}"
+
 --
 -- Some pretty-printing tools
 --

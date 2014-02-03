@@ -15,7 +15,7 @@ import Control.Applicative
 import Data.Maybe
 import Data.List
 
-import Formula.SyntaxGeo (Theory, Sequent, Term, parseSequent)
+import Formula.SyntaxGeo (Theory, Sequent, Term, Elem, parseSequent)
 import Utils.Utils (isRealLine)
 import Tools.Config
 import Tools.FolToGeo
@@ -24,7 +24,7 @@ import Chase.Chase (chase, chase', chaseWithModel)
 
 import qualified Codec.TPTP as TP
 import TPTP.TPTPToGeo as T2G
-import Debug.Trace
+
 -- ============================
 -- Main
 -- ============================
@@ -181,10 +181,8 @@ main = do
 
 
 -- Runs the chase according to given parameters
-runChase :: Config -> Theory -> [Term] -> IO ()
+runChase :: Config -> Theory -> [Elem] -> IO ()
 runChase config fmlas elems =   
-    traceShow (configFormulaType config)
-    $
     case configFormulaType config of
       GeoLog -> if   configAllModels config
                 then printModels $ chase config fmlas

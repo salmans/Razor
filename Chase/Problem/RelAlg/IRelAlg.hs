@@ -23,7 +23,7 @@ import Utils.Trace
 {- Data Types -}
 
 {- A record in a table in models. -}
-type Record = [Term]
+type Record = [Elem]
 
 {- A table in models. -}
 type Table = DB.Set Record
@@ -57,7 +57,7 @@ data RelExp = TblEmpty
             | TblFull
             | Tbl   TableRef
             | Proj  RelExp [Int]
-            | Slct  RelExp [(Int, Int)] [(Int, Term)]
+            | Slct  RelExp [(Int, Int)] [(Int, Elem)]
             | Join  RelExp RelExp [(Int, Int)]
             | Delt  RelExp
             | Union RelExp RelExp RelExp RelExp [(Int, Int)] 
@@ -128,8 +128,7 @@ projectVars exp lbls =
     where lblMap = createLabelMap lbls
           pos    = [fromJust p | l <- nub lbls, 
                     isJust l, 
-                    let p = Map.lookup (fromJust l) lblMap, 
-                    isJust p]
+                    let p = Map.lookup (fromJust l) lblMap, isJust p]
 
 {- Builds a relational expression for a goemetric formula (disjunction free). 
  It also returns a set of variables that appear in every formula. -}
@@ -213,11 +212,11 @@ termRelExp _         = error $ "Chase.Problem.IRelAlg.termRelExp: function " ++
 
 {- Constructs a set of pairs to filter the records of a set based on the 
 elements appearing in the terms of an atomic formula. -}
-elmPreds :: [Term] -> [(Int, Term)]
+elmPreds :: [Term] -> [(Int, Elem)]
 elmPreds ts = fst $ foldl foldFunc ([], 0) ts
     where foldFunc (pairs, i) t = 
               case t of
-                Elm _     -> ((i, t): pairs, i + 1)                
+                Elm e     -> ((i, e): pairs, i + 1)                
                 otherwise -> (pairs, i + 1)  -- otherwise, ignore
 
 {- Constructs a set of pairs to filter the records of a set based on the
@@ -252,9 +251,9 @@ delta _                    = error $ "Chase.Problem.RelAlg.delta: invalid"
 
 {-| Evaluates a relational expression in a set of tables as the database and a 
   set of tables corresponding to the last changes in those tables. -}
-evaluateRelExp :: Tables -> Tables -> RelExp -> DB.Set [Term]
+evaluateRelExp :: Tables -> Tables -> RelExp -> DB.Set [Elem]
 evaluateRelExp _ _ TblEmpty = DB.Set []
-evaluateRelExp _ _ TblFull  = DB.Set [[Elm "True"]]
+evaluateRelExp _ _ TblFull  = DB.Set [[Elem "True"]]
 evaluateRelExp tbls _ (Tbl t) = 
     fromMaybe (DB.Set []) (Map.lookup t tbls)
 evaluateRelExp _ delts (Delt (Tbl t)) = 
@@ -343,7 +342,7 @@ mergeSetPairs tbl = mergeFunc <$> tbl
     where mergeFunc = \(a, b) -> (a ++ b)
 
 {- Construct a projection predicate for a given set of indices. -}
-buildProjPred :: [Int] -> DB.Proj [Term] [Term]
+buildProjPred :: [Int] -> DB.Proj [Elem] [Elem]
 buildProjPred inds = DB.Proj (indProjList inds)
 
 indProjList :: [Int] -> [a] -> [a]
@@ -376,7 +375,7 @@ diffHelper (bdySet, bdyLbls) (hdSet, hdLbls) =
  attributes that occur in the table on left, and (2) sorts the columns of both 
  tables.-}
 sequentProjections :: Labels -> Labels -> 
-                    (DB.Proj [Term] [Term], DB.Proj [Term] [Term])
+                    (DB.Proj [Elem] [Elem], DB.Proj [Elem] [Elem])
 sequentProjections bdyLbls hdLbls = 
     (arrangeLabels bdyLbls' bdyRef, arrangeLabels hdLbls' hdRef)
     where bdyRef   = sortedReference bdyLbls
@@ -404,10 +403,10 @@ sortedReference lbls =
 {- Creates an DB.Proj instance that arranges a set of labels based on a set of
    reference positions maps. It simply ignores the labels that do not show up
    in the reference. -}
-arrangeLabels :: Labels -> Map.Map Var Int -> DB.Proj [Term] [Term]
+arrangeLabels :: Labels -> Map.Map Var Int -> DB.Proj [Elem] [Elem]
 arrangeLabels lbls refMap = DB.Proj $ arrangeLabelsHelper lbls refMap
 
-arrangeLabelsHelper :: Labels -> Map.Map Var Int -> [Term] -> [Term]
+arrangeLabelsHelper :: Labels -> Map.Map Var Int -> [Elem] -> [Elem]
 arrangeLabelsHelper lbls refMap ts =
     foldr arrangeFunc [] $ filter (/=Nothing) $ sort lbls
     where arrangeFunc (Just l) res = case Map.lookup l refMap of
@@ -436,13 +435,13 @@ mergeSets :: Tables -> Tables -> Tables
 mergeSets s1 s2 =  Map.unionWith unionSets s1 s2
 
 {- The same as Map.unionWith but limited to DB.Set elements. -}
-mergeSetsWith :: (DB.Set [Term] -> DB.Set [Term] -> DB.Set [Term]) 
+mergeSetsWith :: (DB.Set [Elem] -> DB.Set [Elem] -> DB.Set [Elem]) 
               -> Tables -> Tables -> Tables
 mergeSetsWith = Map.unionWith
 
 {- The same as Map.unionWithKey but limited to DB.Set elements. -}
-mergeSetsWithKey :: (TableRef -> DB.Set [Term] 
-                              -> DB.Set [Term] -> DB.Set [Term]) 
+mergeSetsWithKey :: (TableRef -> DB.Set [Elem] 
+                              -> DB.Set [Elem] -> DB.Set [Elem]) 
                  -> Tables -> Tables -> Tables
 mergeSetsWithKey = Map.unionWithKey
 
@@ -451,14 +450,14 @@ mergeAllSets :: [Tables] -> Tables
 mergeAllSets ss = Map.unionsWith unionSets ss
 
 {- The same as Map.unionsWith but limited to DB.Set elements. -}
-mergeAllSetsWith :: (DB.Set [Term] -> DB.Set [Term] -> DB.Set [Term]) 
+mergeAllSetsWith :: (DB.Set [Elem] -> DB.Set [Elem] -> DB.Set [Elem]) 
                  -> [Tables] -> Tables
 mergeAllSetsWith  = Map.unionsWith
 
 {- Implements Map.unionsWithKey (the method actually does not exist in Map) 
    but limited to DB.Set elements. -}
-mergeAllSetsWithKey :: (TableRef -> DB.Set [Term] -> DB.Set [Term] 
-                              -> DB.Set [Term]) -> [Tables] -> Tables
+mergeAllSetsWithKey :: (TableRef -> DB.Set [Elem] -> DB.Set [Elem] 
+                              -> DB.Set [Elem]) -> [Tables] -> Tables
 mergeAllSetsWithKey _ [] = Map.empty
 mergeAllSetsWithKey f ss = foldr1 (mergeSetsWithKey f) ss
 

@@ -73,35 +73,31 @@ prettyRecord (FunTable sym) rec =
 prettyRecord (RelTable sym) rec = prettyTuple rec ++ " , "
 
 
-prettyTuple :: [Term] -> String
+prettyTuple :: [Elem] -> String
 prettyTuple tuple = "(" ++ concat tuple' ++ ")"
     where tuple' = intersperse "," (show <$> tuple)
 
 {-| The domain of a model is a table with key ("*", DomTable)
 -}
-modelDomain :: Model -> [Term]
+modelDomain :: Model -> [Elem]
 modelDomain (Model m _) = 
     concat $ DB.toList $ Map.findWithDefault (DB.Set []) DomTable m
 
 {-| truth is an special element represented by "True" in models. -}
 truth :: Term
-truth = Elm "True"
+truth = Elm $ Elem "True"
 
 {-| A shorthand for an empty model. -}
 emptyModel :: Model
 emptyModel = Model emptyTables (ProvInfo Map.empty 0)
 
-emptyModelWithElems :: [Term] -> Model
+emptyModelWithElems :: [Elem] -> Model
 emptyModelWithElems ts = 
     let tbls = Map.fromList ([ (DomTable, es)
                              , (RelTable "@Element", es)] ++ consts)
     in  emptyModel { modelTables = tbls }
-    where es = DB.Set $ [[Elm s] | (Fn s _) <- ts']
-          consts = [ (ConTable s, DB.Set [[Elm s]]) | (Fn s _) <- ts']
-          ts' = filter isConstant ts
-          isConstant (Fn _ []) = True
-          isConstant (Rn _ []) = True
-          isConstant _         = False
+    where es = DB.Set $ [ts]
+          consts = [ (ConTable s, DB.Set [[t]]) | t@(Elem s) <- ts]
 
 {-| Adds a list of new observations to the given model. It also returns a set 
   of tables corresponding to the changes made in the database. It needs a 
@@ -135,19 +131,37 @@ obsToEquation (Fct a)     = Equ (fromJust (toTerm a)) truth
   "Fct a", it verifies whether t is true in the model. If the Obs is 
   "Eql t1 t2", it verifies whether t1 and t2 are equal in the model. -} 
 isTrue :: Model -> Obs -> Bool
-isTrue (Model tbls _) obs@(Fct (F s ts)) = 
-    ts' `elem` (DB.toList $ Map.findWithDefault (DB.Set []) (FunTable s) tbls)
-    where ts' = (\t -> case OP.lookupConstant t tbls of 
-                         Nothing -> t
-                         Just t' -> t') <$> ts
 isTrue (Model tbls _) obs@(Fct (R s ts)) = 
-    ts' `elem` (DB.toList $ Map.findWithDefault (DB.Set []) (RelTable s) tbls)
-    where ts' = (\t -> case OP.lookupConstant t tbls of 
-                         Nothing -> t
-                         Just t' -> t') <$> ts
+    let ts' = mapM ((flip OP.lookupConstant) tbls) ts
+        tbl = (DB.toList $ Map.findWithDefault (DB.Set []) (RelTable s) tbls)
+    in  if   ts' == Nothing
+        then False
+        else (fromJust ts') `elem` tbl
+isTrue (Model tbls _) obs@(Fct (F s ts)) = 
+    let ts' = mapM ((flip OP.lookupConstant) tbls) ts
+        tbl = (DB.toList $ Map.findWithDefault (DB.Set []) (FunTable s) tbls)
+    in  if   ts' == Nothing
+        then False
+        else (fromJust ts') `elem` tbl
 isTrue (Model tbls _) (Eql t1 t2) = 
   let evaluate = do
         c1 <- OP.lookupConstant t1 tbls
         c2 <- OP.lookupConstant t2 tbls
         return $ c1 == c2
   in if evaluate == Nothing then False else fromJust evaluate
+
+    -- ts' `elem` (DB.toList $ Map.findWithDefault (DB.Set []) (FunTable s) tbls)
+    -- where ts' = (\t -> case OP.lookupConstant t tbls of 
+    --                      Nothing -> t
+    --                      Just t' -> t') <$> ts
+-- isTrue (Model tbls _) obs@(Fct (R s ts)) = 
+--     ts' `elem` (DB.toList $ Map.findWithDefault (DB.Set []) (RelTable s) tbls)
+--     where ts' = (\t -> case OP.lookupConstant t tbls of 
+--                          Nothing -> t
+--                          Just t' -> t') <$> ts
+-- isTrue (Model tbls _) (Eql t1 t2) = 
+--   let evaluate = do
+--         c1 <- OP.lookupConstant t1 tbls
+--         c2 <- OP.lookupConstant t2 tbls
+--         return $ c1 == c2
+--   in if evaluate == Nothing then False else fromJust evaluate

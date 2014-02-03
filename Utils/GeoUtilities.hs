@@ -65,9 +65,9 @@ instance TermBased Atom where
     toTerm (F sym terms) = Just $ Fn sym terms
 
     fromTerm (Var _) = Nothing
-    fromTerm (Rn sym ts) = Just $ R sym ts
-    fromTerm (Fn sym ts) = Just $ F sym ts
-    fromTerm (Elm elm) = Just $ R elm []
+    fromTerm (Rn sym ts)      = Just $ R sym ts
+    fromTerm (Fn sym ts)      = Just $ F sym ts
+    fromTerm (Elm (Elem elm)) = Just $ R elm []
 --
 instance TermBased Formula where
     liftTerm f = onAtoms (\atm -> case atm of
@@ -248,7 +248,7 @@ termFuncSyms (Var _) = []
 termFuncSyms (Fn sym terms)
               | null terms = [sym]
               | otherwise = nub $ sym:(concatMap termFuncSyms terms)
-termFuncSyms (Elm s) = [s] -- there are problems here
+termFuncSyms (Elm (Elem s)) = [s] -- there are problems here
 
 
 -- Returns true if the input term contains a function with the given symbol.
@@ -491,10 +491,10 @@ freshVar = get >>=
            (\c -> put (c + 1) >> 
            (return $ "x#" ++ (show c)))
 
-freshElement :: Counter Term
+freshElement :: Counter Elem
 freshElement = get >>=
                (\c -> put (c + 1) >>
-               (return $ Elm $ "e#" ++ (show c)))
+               (return $ Elem $ "e#" ++ (show c)))
 
 freshSymbol :: Sym -> Counter Sym
 freshSymbol sym = get >>=
