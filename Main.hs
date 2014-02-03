@@ -33,16 +33,16 @@ main = do
       formulae <- readFormulae inputPath
       putStrLn "Theory:"
       putStrLn $ show formulae
-      modelLoop $ runChase Nothing formulae
+      modelLoop (runChase Nothing formulae) Map.empty
     otherwise -> error "Usage: ./Main filename"
 
 readFormulae :: FilePath -> IO [Sequent]
 readFormulae inputFileName = readFile inputFileName >>= return . map parseSequent . filter Utils.Utils.isRealLine . lines
 
-data UserCommand = Up Obs | Next deriving Read
+data UserCommand = Add Obs | Next | Load String | Save String deriving Read
 
-modelLoop :: [Problem] -> IO ()
-modelLoop probs = case probs of 
+modelLoop :: [Problem] -> Map.Map String [Problem] -> IO ()
+modelLoop probs varBindings = case probs of
   [] -> putStrLn "No more models found."
   (prob@Problem {problemModel = oldModel, problemLastConstant = oldConst}):rest -> do
     putStrLn "Model:"
@@ -51,8 +51,12 @@ modelLoop probs = case probs of
     hFlush stdout
     userInput <- getLine
     if Utils.Utils.isNonEmptyLine userInput then
-      modelLoop $ case (read userInput) of
-        Up constraint -> let (newModel, _, newConst) = add oldModel oldConst [constraint] $ Just UserProv in
-          runChaseWithProblem prob {problemModel = newModel, problemLastConstant = newConst}
-        Next -> rest
+      case (read userInput) of
+        Add constraint -> let (newModel, _, newConst) = add oldModel oldConst [constraint] $ Just UserProv in
+          modelLoop (runChaseWithProblem prob {problemModel = newModel, problemLastConstant = newConst}) varBindings
+        Next -> modelLoop rest varBindings
+        Load var -> case (Map.lookup var varBindings) of
+          Just oldProbs -> modelLoop oldProbs varBindings
+          Nothing -> putStrLn "Variable not found." >> modelLoop probs varBindings
+        Save var -> modelLoop probs $ Map.insert var probs varBindings
       else return ()
