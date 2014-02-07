@@ -247,19 +247,21 @@ processBody fmla = (error.show) fmla
 
 {-| Given relational information about a sequent and a set of tables in a model,
  returns a set of substituions corresponding to a chase step for the sequent. -}
-matchFrame :: Tables -> Tables -> RelInfo -> Bool -> [Sub]
-matchFrame tbls 
+matchFrame :: Model -> Tables -> RelInfo -> Bool -> [Sub]
+matchFrame mdl
            delts 
            relInfo@(RelInfo bodyInfo bodyDiffInfo headInfo) 
            incremental =
     let bdySet      = evaluateRelExp tbls delts bdyExp
         facts       = diff (bdySet, bdyLbls) hdSetLabels
     in  createSubs bdyLbls facts
-    where (bdyExp, bdyLbls) = if incremental then bodyDiffInfo else bodyInfo
-          noFVars lbls  = all (\l -> ((not.isJust) l) ||
-                                           not(l `elem` bdyLbls)) lbls
-          hdSetLabels = (\(e, l) -> (evaluateRelExp tbls emptyTables e, l)) 
-                        <$> headInfo
+    where tbls              = modelTables mdl
+          (bdyExp, bdyLbls) = if incremental then bodyDiffInfo else bodyInfo
+          noFVars lbls      = all (\l -> ((not.isJust) l) ||
+                                         not(l `elem` bdyLbls)) lbls
+          hdSetLabels       = (\(e, l) -> 
+                                   (evaluateRelExp tbls emptyTables e, l)) 
+                              <$> headInfo
 
 
 {- A helper for matchFrame -}

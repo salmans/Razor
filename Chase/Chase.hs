@@ -3,6 +3,6 @@
    This module, contains our primary model-finding algorithm
    that will use other modules.
 -}
-module Chase.Chase (chase, chase', chaseWithModel) where
+module Chase.Chase (chase, chase') where
 
 import Chase.IChase

@@ -41,37 +41,33 @@ data ChaseStop = Fail | MaxSize
 {-| Runs the chase for a given input theory, starting from an empty model.
 -}
 chase :: Config -> Theory -> [Model]
-chase cfg thy = problemModel <$> runChase cfg Nothing thy
+chase cfg thy = problemModel <$> runChase cfg Nothing frms initialProblem
+    where (frms, initialProblem) = buildProblem thy
 
 {-| Like chase, but returns only the first model found.
 -}
 chase' :: Config -> Theory -> Maybe Model
 chase' cfg thy = Maybe.listToMaybe $ chase cfg thy
 
-{-| Runs the chase for a set of input theories over an input (partial) model. -}
-chaseWithModel :: Model -> Config -> Theory -> [Model]
-chaseWithModel mdl cfg thy = problemModel <$> runChase cfg (Just mdl) thy 
-
 {-| This is the main chase function, which tries to find the set of all the 
   models for a given geometric theory.
   Parameters:
-  - A geometric theory, thy
+  - A Config instance
   - Possibly a starting (partial) model, mdl
+  - A geometric theory, thy
 -}
-runChase :: Config -> Maybe Model -> Theory -> [Problem]
-runChase cfg mdl thy = 
-    let (probs, log) = State.evalState config cfg
+runChase :: Config -> Maybe Model -> FrameMap -> Problem -> [Problem]
+runChase cfg mdl frms initialProblem = 
+    let (probs, log) = State.evalState output cfg
     -- use the log information when needed
     in traceStringListIf (configDebug cfg) log
        probs
-    where (frms, initialProblem) = buildProblem thy
-          -- Create the initial problem (get rid of function symbols)
-          problem        = case mdl of
-                             Nothing -> initialProblem
-                             Just m  -> initialProblem {problemModel = m}
-          config         = RWS.evalRWST run [] (frms, [])
-          run            = scheduleProblem cfg problem >>= (\_ -> process)          
-          -- schedule the problem, then process it
+    where problem = case mdl of
+                      Nothing -> initialProblem
+                      Just m  -> initialProblem {problemModel = m}
+          -- Create the initial problem
+          output  = RWS.evalRWST run [] (frms, [])
+          run     = scheduleProblem cfg problem >>= (\_ -> process) 
 
 {-| Given an input problem, runs the chase and returns a set of final problems,
   which contain the models for the input problem.
@@ -79,14 +75,16 @@ runChase cfg mdl thy =
 runChaseWithProblem :: Config -> FrameMap -> Problem -> [Problem]
 runChaseWithProblem cfg frms problem =
     let (probs, log) = State.evalState config cfg
-    in traceList log
+    in traceStringListIf (configDebug cfg) log
        probs
-    where run    =  mapM (scheduleProblem cfg) [problem] >>= (\_ -> process)
-          config = RWS.evalRWST run [] (frms, [])
-          -- schedule the problem, then process it
+    where schedInfo = (problemScheduleInfo problem) {
+                        problemFrameSelector = allFrameTypeSelectors }
+          problem'  = problem {problemScheduleInfo = schedInfo }
+          run       = mapM (scheduleProblem cfg) [problem'] >>= (\_ -> process)
+          config    = RWS.evalRWST run [] (frms, [])
+          -- schedule the problem, then process it          
 
-
-{- Combines the outputs of stepModels -}
+{- Combines the outputs of stepProblets -}
 -- combine :: [(Model, Tables, Int)] -> [(Model, Tables, Int)]
 --            -> [(Model, Tables, Int)]
 -- combine new old = 
@@ -107,125 +105,123 @@ process = do
       cfg              <- State.lift State.get
       prob             <- selectProblem (configSchedule cfg) -- pick a problem
       (fMap, allProbs) <- RWS.get
-      Logger.log (problemModel <$> allProbs)
-      -- Logger.logUnder (length allProbs) "# of branches"
-      -- Logger.logIf (Maybe.isJust prob) ((problemModel.Maybe.fromJust) prob)
+      Logger.logUnder (length allProbs) "# of branches"
+      Logger.logIf (Maybe.isJust prob) ((problemModel.Maybe.fromJust) prob)
       case prob of
         Nothing -> return [] -- no more problems
         Just p  -> cascadeStep cfg fMap p
 
 {- Runs chase steps on a problem according to problemScheduleInfo in the 
-   problem. The function runs the frames that satisfy the first list of frame 
-   type selectors. If the selected frames create new problems, the problems 
-   will be scheduled and processed using process function. Otherwise, if the 
-   selected frames lead to Nothing, then the current frame will be ignored and 
+   problem. The function runs the frames that satisfy the first set of frame 
+   selectors. If the selected frames create new problems, the problems will be 
+   scheduled and processed using "process". Otherwise, if the selected frames 
+   lead to failure (Left xx), then the current frame will be ignored and 
    the control flow goes back to process. Finally, if the selected list of 
    frames do not produce new problems (i.e., they do not add new facts to the 
    model) cascadeStep will be called on the next set of frame selectors in 
    problemScheduleInfo.-}
 cascadeStep :: Config -> FrameMap -> Problem -> ProbPool [Problem]
 cascadeStep cfg fMap prob 
-    | null selectors = 
+    | null selectors = -- Running out of selectors: model satisfies the theory
         do { rest <- process
            ; return (prob:rest) }
     | otherwise = 
-        do { let (tps:restTps) = selectors
-           ; newProbs <- chaseStep cfg fMap tps prob
-           ; let age' = if null restTps then age + 1 else age
-             -- add to age if a big step is applied, i.e., restTps is empty.
-           ; let schedInfo' = ScheduleInfo { problemFrameSelector = restTps
+        do { let (sl:sls) = selectors
+           ; newProbs <- chaseStep cfg fMap sl prob
+           ; let age' = if null sls then age + 1 else age
+                 -- Increase age if a big step is applied, i.e., sls is empty.
+           ; let schedInfo' = ScheduleInfo { problemFrameSelector = sls
                                            , problemBigStepAge    = age'}
            ; case newProbs of
                Left _   -> process
                Right [] -> 
-                   cascadeStep cfg fMap prob 
-                                   { problemScheduleInfo = schedInfo' }
+                   cascadeStep cfg fMap prob {problemScheduleInfo = schedInfo'}
                Right ps -> do
-                 mapM (scheduleProblem cfg) ps
-                 process }
+                 mapM (scheduleProblem cfg) ps -- Schedule new problems
+                 process }                     -- Process the pool
     where ScheduleInfo { problemFrameSelector = selectors
-                       , problemBigStepAge    = age } = 
-                                                  problemScheduleInfo prob          
+                       , problemBigStepAge    = age } = problemScheduleInfo prob
 
-{- Applies a chase step to the input problem. A big step can potentially 
-   increase the size of the model, i.e., it processes sequents with 
-   existentials. -}
+{- Problet is a minimal version of Problem, which represents a problem in a 
+   chase step. Problet encapsulates exactly the amount of information that is 
+   required to reconstruct problems by the layer above, i.e., cascadeSteps. -}
+data Problet = Problet { probletModel        :: Model,
+                         probletQueue        :: Tables,
+                         probletLastConstant :: Int }
+
+{- Builds a Problem from a Problet. Because a Problem contains more information,
+   the function requires additional information other than the input Problet. -}
+fromProblet :: [ID] -> [Tables] -> ScheduleInfo ->  Problet -> Problem
+fromProblet frms initialQueue schedInfo (Problet m q c) =
+    Problem { problemFrames       = frms
+            , problemModel        = m
+            , problemQueue        = initialQueue ++ [q]
+            , problemScheduleInfo = schedInfo
+            , problemLastConstant = c}
+
+{- Applies a chase step to the input problem. -}
 chaseStep :: Config -> FrameMap -> [FrameTypeSelector] -> Problem -> 
              ProbPool (Either ChaseStop [Problem])
-chaseStep cfg fMap frmTps 
-          problem@(Problem frmIDs model [] schedInfo lastConst) =
-    return $ do 
-      let schedInfo' = 
-              schedInfo { problemFrameSelector = allFrameTypeSelectors }
-              -- reset frame selectors
-      (frms, mdls) <- stepModels cfg fMap frmIDs 
-                        frmTps model emptyTables lastConst
-      return $ map (\(m, q, c) -> Problem { problemFrames       = frms
-                                          , problemModel        = m
-                                          , problemQueue        = [q]
-                                          , problemScheduleInfo = schedInfo'
-                                          , problemLastConstant = c }) mdls
-chaseStep cfg fMap frmTps
-          problem@(Problem frmIDs model (queue:queues) schedInfo lastConst) =
-    return $ do 
+chaseStep cfg fMap sl p@(Problem frmIDs model queues schedInfo lastConst) =
+    return $ do
+      let (q:qs) = if null queues then [emptyTables] else queues
       let bound = configBound cfg
       when (Maybe.isJust bound &&
                  length (Model.modelDomain model) > Maybe.fromJust bound) 
                (Left MaxSize)
                -- When a bound is given, if the model size is greater than the 
-               -- bounds then stop
-      let schedInfo' = 
-             schedInfo { problemFrameSelector = allFrameTypeSelectors }
+               -- bounds then fail.
+      let schedInfo' = schedInfo {problemFrameSelector = allFrameTypeSelectors}
              -- reset frame selectors
-      (frms, mdls) <- stepModels cfg fMap frmIDs frmTps model queue lastConst
-      return $ map (\(m, q, c) -> Problem { problemFrames       = frms
-                                          , problemModel        = m
-                                          , problemQueue        = queues ++ [q]
-                                          , problemScheduleInfo = schedInfo'
-                                          , problemLastConstant = c }) mdls
+      let problet    = Problet model q lastConst
+      (frms, probs) <- stepProblets cfg fMap frmIDs sl problet
+      return $ map (\prob -> fromProblet frms qs schedInfo' prob) probs
 
--- Salman: add comments! See if it is possible to simplify the input
-stepModels :: Config -> FrameMap -> [ID] -> [FrameTypeSelector] -> Model -> 
-              Tables -> Int -> Either ChaseStop ([ID], [(Model, Tables, Int)])
-stepModels _ _ [] _ _ _ _ = Right ([], [])
--- Salman: redo this:
-stepModels cfg fMap frmIDs frmTps model queue counter = do
-      let (frm, fs)  = selectFrame fMap frmIDs frmTps
+
+{- Constructs a set of new Problets for an input given problet. The function
+   requires a Config instance, frames of the theory (FrameMap), a list of IDs 
+   for the current state of the frame queue in the original problem, and a set 
+   of selectors to choose frames in addition to the input Problet. -}
+stepProblets :: Config -> FrameMap -> [ID] -> [FrameTypeSelector] -> Problet 
+           -> Either ChaseStop ([ID], [Problet])
+stepProblets _ _ [] _ _ = Right ([], [])
+stepProblets cfg fMap frmIDs sl p@(Problet model queue counter) = do
+      let (frm, fs)  = selectFrame fMap frmIDs sl -- choose a frame
       if Maybe.isJust frm
         then do
           let id = Maybe.fromJust frm
           let f  = Maybe.fromJust $ Map.lookup id fMap
-          curr         <- newModelsForFrame model queue f counter 
-                              (configIncremental cfg)
-          (fs', oth)   <- stepModels cfg fMap fs frmTps model queue counter
+          curr         <- newProbletsForFrame (configIncremental cfg) f p
+          (fs', oth)   <- stepProblets cfg fMap fs sl p
           if   null curr
             then return (scheduleFrame fMap id fs', oth)
             else return (scheduleFrame fMap id fs , curr)
         else return ([], [])
 
-newModelsForFrame :: Model -> Tables -> Frame -> Int -> Bool
-                     -> Either ChaseStop [(Model, Tables, Int)]
-newModelsForFrame model queue frame counter incremental = do
-  (os, c, p) <- newFacts counter model queue frame incremental
-  return $ map (\o -> Model.add model c o (Maybe.fromJust p)) os
+newProbletsForFrame :: Bool -> Frame -> Problet -> Either ChaseStop [Problet]
+newProbletsForFrame incremental frame prob = do
+  (os, c, p)   <- newFacts incremental frame prob
+  let model     = probletModel prob
+  let mapFunc o = let (m', ts', c') = Model.add model c o (Maybe.fromJust p)
+                  in  Problet m' ts' c'
+  return $ map mapFunc os
 
                       
-newFacts :: Int -> Model -> Tables -> Frame -> Bool -> 
-            Either ChaseStop ([[Obs]], Int, Maybe Prov)
--- Salman: this is too complicated. Is it possible to make the code simpler?
-newFacts counter model queue frame incremental 
+newFacts :: Bool -> Frame -> Problet
+         -> Either ChaseStop ([[Obs]], Int, Maybe Prov)
+newFacts incremental frame (Problet model queue counter)
     | null subs = Right ([], counter, Nothing)
     | (null.frameHead) frame = Left Fail
-    | otherwise = Right $ 
-                  glue (deduceForFrame counter model vars heads)
-                       (Just prov)
-    where subs      = matchFrame (modelTables model) queue 
-                               (frameRelInfo frame) incremental
-          theSub    = head subs
-          lifted    = liftFrame model theSub frame
-          heads     = frameHead lifted
-          vars      = frameVars lifted
-          prov      = ChaseProv provTag (frameID frame) theSub
+    | otherwise = let prov = ChaseProv provTag (frameID frame) theSub
+                  in  Right $ glue (deduceForFrame counter model heads) 
+                                   (Just prov)
+    where subs      = matchFrame model queue (frameRelInfo frame) incremental
+          theSub    = head subs -- Batch processing is off
+          -- lifted    = liftFrame model theSub frame
+          -- heads     = frameHead lifted
+          -- vars      = frameVars lifted
+          heads     = liftTerm (lift theSub) (frameHead frame)
+          vars      = []
           provTag   = (provInfoLastTag.Model.modelProvInfo) model
                       -- Construct the provenance information for the new facts
                       -- being deduced.
@@ -247,11 +243,11 @@ newFacts counter model queue frame incremental
    The parameters are (1) problemLastConstant of the problem to which the frame 
    belongs to, (2) the problemModel of the problem, and (3) finally the frame.
 -}
-deduceForFrame :: Int -> Model -> Vars -> [[Obs]] -> ([[Obs]], Int)
-deduceForFrame counter model vars hs =
+deduceForFrame :: Int -> Model -> [[Obs]] -> ([[Obs]], Int)
+deduceForFrame counter model hs =
     foldr (\h (rest, c) -> 
-           let (result, newCounter) = deduce c model vars h
-           in  (result:rest, newCounter)) ([], counter) hs
+           let (result, newCounter) = deduce c model h
+           in  (result ++ rest, newCounter)) ([], counter) hs
                         
 {- Deduces new facts for a list of conjuncted Obs and a model. This method 
    is called on right of sequents whose body is empty. Vars is a set of 
@@ -262,35 +258,46 @@ deduceForFrame counter model vars hs =
    of the number of elements added by the chase, (2) a model, and (3) the 
    input observations.
 -}
-deduce :: Int -> Model -> Vars -> [Obs] -> ([Obs], Int)
-deduce counter model vars hs = deduceHelper counter model vars hs
+deduce :: Int -> Model -> [Obs] -> ([[Obs]], Int)
+deduce counter model hs = deduceHelper counter model hs
         -- Call a helper function to deduce new facts.
 
 {- This is a helper function for deduce. It infers a list of observations
    to add to the input model in which the observations are not true.
 -}
-deduceHelper counter _ _ [] = ([], counter)
-deduceHelper counter model vars allObs@(obs:rest)
+deduceHelper counter _ [] = ([[]], counter)
+deduceHelper counter model allObs@(obs:rest)
     | null existVars = 
-        let (restObs, restCounter) = deduceHelper counter model vars rest 
-        in (obs: restObs, restCounter)
+        let (restObs, restCounter) = deduceHelper counter model rest 
+        in ((obs:) <$> restObs, restCounter)
             -- The observation is a closed atom. Return it together with
             -- the observations corresponding to the rest of the facts.
-    | null $ existVars `intersect` vars =
+    | otherwise      =
         let freshConstants = map makeFreshConstant [(counter + 1)..]
-            existSubs      = Map.fromList $ zip existVars freshConstants
-            liftedRest     = map ((liftTerm.lift) existSubs) allObs
+            -- existSubs      = Map.fromList $ zip existVars freshConstants
+            existSubs      = allExistsSubs counter existVars (Model.modelDomain model)
+            liftedRest     = (\s -> map ((liftTerm.lift) s) allObs) <$> existSubs
             newCounter     = counter + length existVars
-        in deduceHelper newCounter model vars liftedRest
+            restDeduced    = deduceHelper newCounter model <$> liftedRest
+            (fcts, cs)     = unzip restDeduced
+        in  (concat fcts, head cs) 
             -- In this case, all of the free variables in the observation 
             -- are existentials: instantiate variables with fresh constants; 
             -- then, apply deduce on the instantiated observations.
-    | otherwise = error $ "Chase.Chase.deduceHelper: the input " ++
-                   "formula cannot have free variables."
-            -- There is a universally quantified variable in the obs. We don't
-            -- support universally quantified on right when they are not defined
-            -- on left of a sequent. So, there is something wrong!
     where existVars = freeVars obs -- existentially quantified vars in obs
+
+
+allExistsSubs :: Int -> Vars -> [Elem] -> [Sub]
+allExistsSubs counter vars dom = 
+    let subLists = zip vars <$> lists
+    in  Map.fromList <$> subLists
+    where lists    = foldr (\opts res -> 
+                                let opts' = pure <$> opts
+                                in  prodList opts' res) [] varOpts
+          varOpts  = (\fc -> [fc] {- :domTerms -}) <$> 
+                     makeFreshConstant <$> 
+                     [(counter + 1)..(counter + (length vars))]
+          domTerms = Elm <$> dom
 
 {- Lifts a frame with a substitution and returns a new frame. It also updates
    the list of free variables of the frame accordingly.
