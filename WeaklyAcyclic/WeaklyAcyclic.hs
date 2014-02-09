@@ -5,7 +5,6 @@
    Input Geometric Theories:
    + Existential quantifiers and disjunctions on right
    + Conjunctions on left
-   + Equality
    
    Output:
    + True if the theory is weakly-acyclic; False, otherwise.
@@ -21,11 +20,16 @@ import Debug.Trace (trace)
 import Control.Exception -- for assert
 import Data.Graph
 
+import Chase.Problem.Operations
+
 -- Logic modules:
 import Formula.SyntaxGeo
-import Utils.GeoUtilities (Sub, freeVars)
---import Tools.Equality
+import Utils.GeoUtilities ( Sub, freeVars, theoryFunctions 
+                          , theoryRelations, relConvert
+                          , addAllExistsPreds, addElementPred)
+
 import Data.Tree
+import Utils.Trace
 
 -- Data Types:
 data Relation = Rel Sym Int deriving (Show)
@@ -68,12 +72,42 @@ weaklyAcyclic :: [Sequent] -> Bool
 weaklyAcyclic sequents = 
     not $ any hasSpecialEdge allCycles
     where depgraph@(DepGraph graph vertInfo _ specEdge) = 
-              dependencyGraph sequents
+              dependencyGraph $ (addElementPred <$> (addAllExistsPreds $ relConvert sequents))
+                                 -- (sequents ++ equalityAxioms sequents)
           allCycles = graphCycles graph
           hasSpecialEdge [] = False
           hasSpecialEdge [v2] = False
           hasSpecialEdge (v1:v2:vs) = 
               specEdge (v1, v2) || hasSpecialEdge (v2:vs)
+
+equalityAxioms :: Theory -> Theory
+equalityAxioms thy = equalityEqualityAxioms ++
+                     concatMap (uncurry relationEqualityAxioms) relations ++
+                     concatMap (uncurry functionEqualityAxioms) functions
+    where relations = theoryRelations thy
+          functions = theoryFunctions thy
+
+equalityEqualityAxioms :: Theory
+equalityEqualityAxioms = parseSequent <$> ["x = x", 
+                                           "x = y => y = x", 
+                                           "x = y & y = z => x = z"]
+
+relationEqualityAxioms :: Sym -> Int -> Theory
+relationEqualityAxioms sym arity = map seq [1 .. arity]
+    where vars i j = (\i -> Var ("x" ++ (show i))) <$> [i..j]
+          seq i = Sequent (And (Atm(R sym (vars 1 arity)))
+                           (Atm (R "=" [Var ("x" ++ (show i)), Var "y"])))
+                  (Atm (R sym ((vars 1 (i - 1)) ++ (Var "y"):(vars (i + 1) arity))))
+
+functionEqualityAxioms :: Sym -> Int -> Theory
+functionEqualityAxioms sym arity = map seq [1 .. arity]
+    where vars i j = (\i -> Var ("x" ++ (show i))) <$> [i..j]
+          seq i = let leftvs  = vars 1 (i - 1)
+                      rightvs = vars (i + 1) arity
+                  in Sequent (Atm (R "=" [Var ("x" ++ (show i)), Var "y"]))
+                     (Atm (R "=" [Fn sym (leftvs ++ (Var ("x" ++ (show i))): rightvs), 
+                                  Fn sym (leftvs ++ (Var "y"): rightvs)]))
+                     
 
 
 -- Creates a dependency graph for a given theory                            
@@ -122,6 +156,7 @@ formulaRelations (And p q) =
 formulaRelations (Or p q) = 
     union (formulaRelations p) (formulaRelations q)
 formulaRelations (Atm (R sym terms)) = [Rel sym (length terms)]
+formulaRelations (Atm (F sym terms)) = [Rel sym (length terms)]
 
 -- Unifies a set of edge constructs that get converted to regular
 -- or special edges of a dependency tree.
@@ -229,6 +264,17 @@ univVarPositions (Atm (R sym terms)) =
               positionInRelation (i+1) s ts
           positionInRelation i s (Fn _ _:ts) = 
               error "WeaklyAcyclic.WeaklyAcyclic: terms must be function-free!"
+univVarPositions (Atm (F sym terms)) = 
+    positionInRelation 1 sym terms
+    where positionInRelation _ _ [] = Data.Map.empty
+          positionInRelation i s ((Var x):ts) = 
+              Data.Map.union 
+                  (Data.Map.singleton x [Pos s i])
+                  (positionInRelation (i + 1) s ts)
+          positionInRelation i s (Fn _ []:ts) = 
+              positionInRelation (i+1) s ts
+          positionInRelation i s (Fn _ _:ts) = 
+              error "WeaklyAcyclic.WeaklyAcyclic: terms must be function-free!"
 
 
 -- Returns a map of existentially quantified variables in a given 
@@ -248,6 +294,8 @@ exisVarPositionsHelper varList (Or p q) =
     union (exisVarPositionsHelper varList p) 
               (exisVarPositionsHelper varList q)
 exisVarPositionsHelper varList (Atm (R sym terms)) = 
+    exisPositionInRelation varList 1 sym terms
+exisVarPositionsHelper varList (Atm (F sym terms)) = 
     exisPositionInRelation varList 1 sym terms
 
 -- Returns the positions in a tuple in which existential variables 

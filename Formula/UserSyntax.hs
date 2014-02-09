@@ -47,7 +47,7 @@ pUserElement :: Parser Term
 pUserElement = do
   symbol "e#"
   n <- natural
-  return $ Elm $ "e#" ++ show n
+  return $ Elm $ Elem $ "e#" ++ show n
 
 pUserFunction :: String -> Parser Term
 pUserFunction name = pTermList >>= return . Fn name

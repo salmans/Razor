@@ -1,33 +1,12 @@
-module Utils.GeoUtilities (isVar, 
---                          overatoms,
-                          TermBased (..),
---                          onAtoms,
---                          atomUnion,
-                          termVars,
-                          functions,
---                          funcs,
-                          predicates,
-                          Sub,
-                          Subst,
---                          variant,
---                          applyq,
---                          termval,
---                          theoryRelations,
---                          theoryFunctions,
---                          formulaRelations,
---                          formulaFunctions,
---                          termFunctions,
-                          termFuncSyms,
---                          hasFuncSymbol,
-                          closedTerm,
-                          subterms,
---                          subtermPos,
-                          replaceSubterms,
-                          Counter, freshVar, freshElement,
-                          relConvert) where
+module Utils.GeoUtilities ( isVar, TermBased (..), simplify, termVars
+                          , functions, predicates, Sub, Subst
+                          , theoryRelations, theoryFunctions, termFuncSyms
+                          , closedTerm, subterms, replaceSubterms
+                          , Counter, freshVar, freshElement, freshSymbol
+                          , relConvert, addAllExistsPreds, addElementPred) where
 {- Salman: Unexported functions may be removed! -}
 -- 
-import qualified Data.List as List
+import Data.List
 import qualified Data.Map as Map
 import Data.Map(Map)
 import qualified Tools.ListSet
@@ -36,6 +15,8 @@ import Formula.SyntaxGeo
 
 import Control.Applicative
 import Control.Monad.State as State
+
+import Debug.Trace
 
 isVar :: Term -> Bool
 isVar (Var _) = True
@@ -84,9 +65,9 @@ instance TermBased Atom where
     toTerm (F sym terms) = Just $ Fn sym terms
 
     fromTerm (Var _) = Nothing
-    fromTerm (Rn sym ts) = Just $ R sym ts
-    fromTerm (Fn sym ts) = Just $ F sym ts
-    fromTerm (Elm elm) = Just $ R elm []
+    fromTerm (Rn sym ts)      = Just $ R sym ts
+    fromTerm (Fn sym ts)      = Just $ F sym ts
+    fromTerm (Elm (Elem elm)) = Just $ R elm []
 --
 instance TermBased Formula where
     liftTerm f = onAtoms (\atm -> case atm of
@@ -106,7 +87,7 @@ instance TermBased Sequent where
     liftTerm f (Sequent b h) =
         Sequent (liftTerm f b) (liftTerm f h)
 
-    freeVars (Sequent body head) = List.union (freeVars body) (freeVars head)
+    freeVars (Sequent body head) = union (freeVars body) (freeVars head)
 -- 
 instance TermBased a => TermBased [a] where
     liftTerm f = map (liftTerm f)
@@ -124,13 +105,13 @@ onAtoms f fm =
       Exists x p -> Exists x (onAtoms f p)
 --
 atomUnion :: Eq b => (Atom -> [b]) -> Formula -> [b]
-atomUnion f fm = List.nub (overatoms (\h t -> f(h) ++ t) fm [])
+atomUnion f fm = nub (overatoms (\h t -> f(h) ++ t) fm [])
 
 -- LEFTOVER: (a list of all the variables occurring in a term)
 termVars :: Term -> [Var]
 termVars (Var v) = [v]
 termVars (Elm _) = []
-termVars (Fn fnName ts) = List.nub $ concatMap termVars ts
+termVars (Fn fnName ts) = nub $ concatMap termVars ts
 
 -- %%% Function symbols with arity
 -- 
@@ -172,18 +153,41 @@ instance Subst Formula where
   apply env (Exists x p) = applyq env Exists x p
   apply _ Tru = Tru
   apply _ Fls = Fls
+
+
+-- Simplifying a formula
+simplify :: Formula -> Formula
+simplify (And p q)    = simplify1 (And (simplify p) (simplify q))
+simplify (Or p q)     = simplify1 (Or (simplify p) (simplify q))
+simplify (Exists x p) = simplify1 $ Exists x (simplify p)
+simplify fm = fm
+
+simplify1 :: Formula -> Formula
+simplify1 fm = 
+       case fm of
+              Exists x p -> if elem x (freeVars p) then fm else p
+              And Fls _  -> Fls
+              And _ Fls -> Fls
+              And Tru q  -> q
+              And p Tru  -> p
+              Or Fls q   -> q
+              Or p Fls  -> p
+              Or Tru _   -> Tru
+              Or _ Tru   -> Tru
+              _ -> fm              
+
 -- 
 -- Substitute under a binder
 -- The following functions need the type variable, as they are used at multiple types
 -- 
 variant :: Var -> Vars -> Var
-variant x vars = if List.elem x vars then variant (x ++ "'") vars else x
+variant x vars = if elem x vars then variant (x ++ "'") vars else x
 -- 
 applyq :: Sub -> (Var -> Formula -> Formula) 
        -> Var -> Formula -> Formula
 applyq env quant x p = quant x' (apply ((Map.insert x (Var x')) env) p)
-    where x' = if List.any (\k -> case Map.lookup k env of
-                                  Just v -> List.elem x (freeVars v)
+    where x' = if any (\k -> case Map.lookup k env of
+                                  Just v -> elem x (freeVars v)
                                   Nothing -> False) 
                            (freeVars p Tools.ListSet.\\ [x]) 
                then variant x (freeVars(apply (Map.delete x env) p)) else x
@@ -197,29 +201,37 @@ termval m@(_, func, _) v tm =
     Fn f args -> func f (map (termval m v) args)
 --
 -- Returns a list of the relations in a theory
-theoryRelations :: [Formula] -> [(Sym, Int)]
-theoryRelations theory = List.nub $ concatMap formulaRelations theory
+theoryRelations :: [Sequent] -> [(Sym, Int)]
+theoryRelations theory = nub $ concatMap sequentRelations theory
+
+sequentRelations :: Sequent -> [(Sym, Int)]
+sequentRelations (Sequent bdy hd) = 
+    nub $ formulaRelations bdy ++ formulaRelations hd
 
 -- Returns a list of the functions in a theory
-theoryFunctions :: [Formula] -> [(Sym, Int)]
-theoryFunctions theory = List.nub $ concatMap formulaFunctions theory
+theoryFunctions :: [Sequent] -> [(Sym, Int)]
+theoryFunctions theory = nub $ concatMap sequentFunctions theory
+
+sequentFunctions :: Sequent -> [(Sym, Int)]
+sequentFunctions (Sequent bdy hd) = 
+    nub $ formulaFunctions bdy ++ formulaFunctions hd
 
 -- Returns the relations in a formula
 formulaRelations :: Formula -> [(Sym, Int)]
 formulaRelations Tru = []
 formulaRelations Fls = []
 formulaRelations (Atm (R sym terms)) = (sym, length terms):[]
-formulaRelations (And p q) = List.union (formulaRelations p) (formulaRelations q)
-formulaRelations (Or p q) = List.union (formulaRelations p) (formulaRelations q)
+formulaRelations (And p q) = union (formulaRelations p) (formulaRelations q)
+formulaRelations (Or p q) = union (formulaRelations p) (formulaRelations q)
 formulaRelations (Exists x p) = formulaRelations p
 
 -- Returns the functions in a formula
 formulaFunctions :: Formula -> [(Sym, Int)]
 formulaFunctions Tru = []
 formulaFunctions Fls = []
-formulaFunctions (Atm (R _ terms)) = List.nub $ concatMap termFunctions terms
-formulaFunctions (And p q) = List.union (formulaFunctions p) (formulaFunctions q)
-formulaFunctions (Or p q) = List.union (formulaFunctions p) (formulaFunctions q)
+formulaFunctions (Atm (R _ terms)) = nub $ concatMap termFunctions terms
+formulaFunctions (And p q) = union (formulaFunctions p) (formulaFunctions q)
+formulaFunctions (Or p q) = union (formulaFunctions p) (formulaFunctions q)
 formulaFunctions (Exists x p) = formulaFunctions p
 
 -- Returns the functions in a term
@@ -228,15 +240,15 @@ termFunctions (Var _) = []
 termFunctions (Fn sym terms)
               | null terms = []
               | otherwise = 
-                  List.nub $ (sym, length terms):(concatMap termFunctions terms)
+                  nub $ (sym, length terms):(concatMap termFunctions terms)
 
 -- Returns a list of function symbols in a term
 termFuncSyms :: Term -> [Sym]
 termFuncSyms (Var _) = []
 termFuncSyms (Fn sym terms)
               | null terms = [sym]
-              | otherwise = List.nub $ sym:(concatMap termFuncSyms terms)
-termFuncSyms (Elm s) = [s] -- there are problems here
+              | otherwise = nub $ sym:(concatMap termFuncSyms terms)
+termFuncSyms (Elm (Elem s)) = [s] -- there are problems here
 
 
 -- Returns true if the input term contains a function with the given symbol.
@@ -286,11 +298,14 @@ replaceSubterms t1 t2 t3@(Fn f terms) =
 {- Eliminates all function symbols in the sequents of a theory and replaces 
   them with relational symbols. -}
 relConvert :: Theory -> Theory
-relConvert thy  = orig ++ integ
+relConvert thy  = orig -- ++ total -- ++ integ
+                  -- Salman: Because we have congruence closure, we don't need
+                  -- the integrity sequents.
     where orig  = fst $ State.runState (theoryRelConvert thy) 0
-          integ = integritySequents $ theoryFuncs thy
-          
-
+          funcs = theoryFuncs thy
+          integ = integritySequents funcs
+          total = totalitySequents funcs
+                   
 {- Eliminates all function symbols in the sequents of a theory and replaces 
   them with relational symbols. -}
 theoryRelConvert :: Theory -> Counter Theory
@@ -368,12 +383,92 @@ termRelConvert (Fn f ts) = do
                          -- (returned by flattening the subterm); conjoin the
                          -- corresponding formula.
 
+{- Applies addExistsPred on a theory of sequents. -}
+addAllExistsPreds :: [Sequent] -> [Sequent]
+addAllExistsPreds seqs = 
+    State.evalState (run seqs) 0
+    where run = foldM foldFunc []
+          foldFunc res (Sequent b h) = do
+            (h', seqs) <- addExistsPred h
+            return $ res ++ (Sequent b h':seqs)
+
+
+{- Since the current implementation of the chase requires every free variable
+   on RHS of a sequent be mentioned on its LHS, we add a @Element predicate
+   to the left of this kind of sequents. We also add @Element to the right of
+   every sequent with existential quantifiers. -}
+addElementPred :: Sequent -> Sequent
+addElementPred seq = 
+    let bdy' = foldr (\v b -> And (Atm (elementPred (Var v))) b) bdy hdFVars
+        hd'  = addElementPredToRight [] hd
+    in  seq { sequentBody = bdy' 
+            , sequentHead = hd' }
+    where hd      = sequentHead seq
+          bdy     = sequentBody seq
+          hdVars  = freeVars hd
+          bdyVars = freeVars bdy
+          hdFVars = hdVars \\ bdyVars
+          allVars = hdVars `union` bdyVars
+
+{- Uses addExistsPredHelper to relpace existential formulas, corresponding to 
+   the head of a sequent, with fresh atomic formulas. As a consequence, new 
+   sequents will be induced with the fresh atomic formula on left and 
+   existential formula on right. The function returns the replaced head, from 
+   the initial sequent, and the set of induced sequents. 
+   The function requires a Counter to generate fresh relation symbols for the
+   fresh atomic formulas. -}
+addExistsPred :: Formula -> Counter (Formula, [Sequent])
+addExistsPred fmla@(Or _ _) = addExistsPredHelper fmla
+    -- Only apply the transformation if the head has disjunctions. That is, if
+    -- the head is an existential formula, it is already in the form we want.
+addExistsPred fmla          = return (fmla, [])
+
+addExistsPredHelper :: Formula -> Counter (Formula, [Sequent])
+addExistsPredHelper (Or f1 f2) = do
+  (f1', seqs1) <- addExistsPredHelper f1
+  (f2', seqs2) <- addExistsPredHelper f2
+  return (Or f1' f2', seqs1 ++ seqs2)
+addExistsPredHelper fmla@(Exists x f) = do
+  let vs      = freeVars fmla
+  sym         <- freshSymbol "@Exists"
+  let atm     = R sym (map Var vs)
+  let fmla'   = Atm atm
+  (f', fSeqs) <- addExistsPredHelper f
+  let seq     = Sequent fmla' (Exists x f')
+  return (fmla', seq:fSeqs)
+addExistsPredHelper f = return (f, []) -- Assumes normalized sequents
+
+{- A helper for addElementPred, which adds @Element predicate to the right of 
+   a sequent. The initial parameter of a list of variables is used to stack up
+   all existentially quantified variables and add them in the most-inner level
+   of the formula when the inductive steps are over. -}
+addElementPredToRight :: Vars -> Formula -> Formula
+addElementPredToRight _ (Or fmla1 fmla2) = -- go inside disjunction
+    Or (addElementPredToRight [] fmla1) (addElementPredToRight [] fmla2)
+    -- assuming normalized sequents
+addElementPredToRight vs (And fmla1 fmla2) = 
+    And (addElementPredToRight [] fmla1) (addElementPredToRight vs fmla2)
+addElementPredToRight vs (Exists x fmla)  = -- add predicate for existentials
+    Exists x (addElementPredToRight (x:vs) fmla)
+addElementPredToRight vs fmla@(Atm atm@(R sym ts)) =
+    let preds = (elementPred <$> ts') ++ ((elementPred.Var) <$> vs)
+    in  foldr (\p f -> And (Atm p) f) fmla preds
+                            -- This assumes flattened terms
+    where ts' = filter (not.isVar) ts
+addElementPredToRight _ fmla = fmla -- Note that we assume normalized sequents
+                   
+
+{- A helper for addElementPred. It constructs an @Element predicate for the 
+   input term. -}
+elementPred :: Term -> Atom
+elementPred =  \x -> R "@Element" [x]
+
 -- Create additional sequents to enforce function integrity constraints.
 sequentFuncs :: Sequent -> [(Sym, Int)]
-sequentFuncs (Sequent bdy hd) = (functions bdy) `List.union` (functions hd)
+sequentFuncs (Sequent bdy hd) = (functions bdy) `union` (functions hd)
 
 theoryFuncs :: Theory -> [(Sym, Int)]
-theoryFuncs thy = filter (\(_, a) -> a /= 0) $ List.nub $ concatMap sequentFuncs thy
+theoryFuncs thy = filter (\(_, a) -> a /= 0) $ nub $ concatMap sequentFuncs thy
 
 integritySequents :: [(Sym, Int)] -> [Sequent]
 integritySequents fs = seq <$> fs
@@ -381,6 +476,12 @@ integritySequents fs = seq <$> fs
           lft (f, a) = And (Atm (F f (vars a ++ [Var "y" ])))
                            (Atm (F f (vars a ++ [Var "y'"])))
           vars a     = (\i -> Var ("x" ++ show i)) <$> [1.. a]
+
+totalitySequents :: [(Sym, Int)] -> [Sequent]
+totalitySequents fs = seq <$> fs
+    where seq (f, a) = Sequent Tru 
+                       $ Exists "y" (Atm (F f (vars a ++ [Var "y"])))
+          vars a     = (\i -> Var ("x" ++ (show i))) <$> [1..a]
 ---------------------------------------------
 -- Convert for Relational Algebra
 type Counter = State.State Int
@@ -390,7 +491,12 @@ freshVar = get >>=
            (\c -> put (c + 1) >> 
            (return $ "x#" ++ (show c)))
 
-freshElement :: Counter Term
+freshElement :: Counter Elem
 freshElement = get >>=
                (\c -> put (c + 1) >>
-               (return $ Elm $ "e#" ++ (show c)))
+               (return $ Elem $ "e#" ++ (show c)))
+
+freshSymbol :: Sym -> Counter Sym
+freshSymbol sym = get >>=
+                  (\c -> put (c + 1) >>
+                  (return $ sym ++ "#" ++ (show c)))

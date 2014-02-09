@@ -1,17 +1,28 @@
-# Time-stamp: "2013-02-23 12:46:57 Salman Saghafi"
 
 # -optl-w is there to suppress the warnings about text relocs
-build:  Main.hs
+chase:  .PHONY chase.hs
+	ghc -rtsopts -odir binaries -hidir binaries --make chase.hs -optl-w -o bin/chase
+
+all: .PHONY main chase
+
+main:   Main.hs
 	ghc -odir binaries -hidir binaries --make Main.hs -optl-w
 
+.PHONY: directories
+
+directories:
+	-mkdir bin
+
+
+
 clean:
-	-rm *.hi *.o
+	-rm binaries/*.hi binaries/*.o
 
 realclean: clean
-	-rm Main.hs
+	-rm Main runchase
+	-rm -r bin
 
 rc: realclean
-
 
 profile: Main.hs
 	ghc -O2 -odir binaries -hidir binaries -prof -auto-all -caf-all -fforce-recomp -optl-w --make Main.hs

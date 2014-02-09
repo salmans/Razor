@@ -1,0 +1,6 @@
+#! /bin/bash
+
+for file in $1/thy*.txt;
+    do echo $file;
+    timeout 30 ./WAVerifier "$file" >> weakly_acyclic.txt;
+done

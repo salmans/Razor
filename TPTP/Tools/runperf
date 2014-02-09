@@ -1,0 +1,11 @@
+#! /bin/bash
+
+# for file in $1/*.thy; 
+#     do echo $file;
+#     ./ChasePerf "$file" >> wa_results.txt;
+# done
+
+while IFS= read -r line; do
+  echo "$line"
+  timeout 120 ./TPTPPerformanceLogger -i $line +RTS -K16M -RTS >> chase_results.txt
+done < "$1"

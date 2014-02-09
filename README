@@ -1,0 +1,34 @@
+Atlas is a model-finder for geometric theories.
+
+
+# Build
+
+  * Run make from terminal.
+
+# Run
+
+  atlas
+
+  -i FILE     --input=FILE, --file=FILE	Input theory file
+  -b #	      --bound=#	    		Bound for bounded model-finding
+  -d          --debug	    		Show debug information
+  -s bfs/dfs  --schedule=bfs/dfs	Use schedule type (depth-first-search,
+     /rr      /rr			breadth-first-search, or round-robing)
+  -t 	      --batch			Enable batch processing
+  -n 	      --incremental		Enable incremental view maintenance
+  -1 	      --one			Display only one models (by default,
+     	      				Atlas builds all models)
+  	      --process-unit=#		Process unit for round-robin scheduling
+	      --tptp-path		Path to TPTP library
+  -f geo/fof  --formula-type=geo/fof    The input type (geometric formula, TPTP
+     /cnf     /cnf			FOF or TPTP CNF)
+  -h          --help			Show help
+  -v          --version			Print version
+
+
+# Remarks
+
+  * --incremental is expected to improve the efficiency of the chase for non-equational
+  theories. It significantly hurts the efficiency as the number of equations in the
+  theory increases.
+  * --batch is buggy.

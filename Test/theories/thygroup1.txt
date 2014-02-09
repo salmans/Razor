@@ -1,0 +1,7 @@
+-- The following does not terminate!
+-- Maybe restoring fairness fixes the problem
+exists x . x = e()
+f(x, e()) = x
+f(f(x, y), z) = f(x, f(y,z))
+f(x, i(x)) = e()
+i(i(x)) = x

@@ -1,6 +1,23 @@
-module Tools.Logger where
+module Tools.Logger (Tools.Logger.log, 
+                     logUnder,
+                     logIf, 
+                     logUnderIf) where
 
-import Control.Monad.Writer
+import Control.Monad.RWS
+import Chase.Problem.Structures
 
-logM :: (Show a) => String -> a -> Writer [String] a
-logM t x = writer (x, [t ++ " ==> " ++ (show x)])
+-- Salman: consider moving this insider Chase module
+logUnder :: (Show a) => a -> String -> ProbPool ()
+logUnder x lbl = tell [lbl ++ " ==> " ++ (show x)]
+
+log :: (Show a) => a -> ProbPool ()
+log x = tell [show x]
+
+lIf :: Bool -> ProbPool () -> ProbPool ()
+lIf cond x = if cond then x else return ()
+
+logIf :: (Show a) => Bool -> a -> ProbPool ()
+logIf cond x = lIf cond (Tools.Logger.log x)
+
+logUnderIf :: (Show a) => Bool -> String -> a -> ProbPool ()
+logUnderIf cond lbl x = lIf cond (logUnder x lbl)

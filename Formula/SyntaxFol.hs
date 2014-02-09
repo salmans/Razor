@@ -1,12 +1,4 @@
-{-|Time-stamp: <2013-02-11 23:59:05 Salman Saghafi>
-
-Data type definitions of Geometric Logic. This is very similar to SyntaxFol but there are a few major differences:
-    1. Geometric formulas do not have negations in them.
-    2. Geometric sequents are separate data structures.
-    3. Universal quantification is permitted only at the level of sequents.
-
--}
-module Formula.SyntaxGeo where
+module Formula.SyntaxFol where
 
 import qualified Data.Map as Map
 import Data.Map(Map)
@@ -35,30 +27,36 @@ type Var = String
 type Vars = [Var]
 type Sym = String
 newtype Elem = Elem Sym -- elements of the domain
-    deriving (Eq, Ord, Read) -- read for user input
+    deriving (Eq, Ord)
 
 data Term = Var Var
-          | Elm Elem -- elements of the domain are terms
+          | Elm Elem -- Elements of the domain are terms
           | Fn Sym [Term]
           | Rn Sym [Term] -- Just like Fn but for cases where we treat relations
                           -- like functions.
-            -- Salman: this is not idea!
-            deriving (Eq, Ord, Read) -- read for user input
+          | NumberTerm Rational -- For compatibility with TPTP
+          | DistinctTerm String -- For compatibility with TPTP
+            deriving (Eq, Ord)
             --deriving (Eq, Ord, Show)
 
 data Atom = R Sym [Term]
           | F Sym [Term] -- Just like R but for cases where we treat functions
                          -- like relations.
-           deriving (Eq, Ord, Read) -- read for user input
+           deriving (Eq, Ord)
+           --deriving (Eq, Ord, Show)
 
 data Formula = Tru
              | Fls
              | Atm Atom
+             | Not Formula
              | And Formula Formula
              | Or Formula Formula
+             | Imp Formula Formula
+             | Iff Formula Formula
              | Exists Var Formula
+             | Forall Var Formula
              deriving (Ord, Eq)
-             -- deriving (Ord, Eq, Show)
+             --deriving (Ord, Eq, Show)
 
 instance Show Elem where show = prettyElem
 
@@ -69,14 +67,19 @@ instance Show Formula where show = prettyFormula
 instance Show Term where show = prettyTerm
 
 
+--prettyFormula :: Formula Fol -> String
 prettyFormula :: Formula -> String
 prettyFormula fmla = case fmla of
      Tru ->  "Truth"
      Fls  ->  "Falsehood"
      Atm t -> show t
+     (Not a)   -> "~" ++ (prettyFormula a)
      (And a b)  ->  "(" ++ (prettyFormula a) ++ " & " ++ (prettyFormula b) ++ ")"
      (Or a b)  ->  "(" ++ (prettyFormula a) ++ " | " ++ (prettyFormula b) ++ ")"
+     (Imp a b)  ->  "(" ++ (prettyFormula a) ++ " => " ++ (prettyFormula b) ++ ")"
+     (Iff a b)  ->  "(" ++ (prettyFormula a) ++ " <=> " ++ (prettyFormula b) ++ ")"
      (Exists v f)  ->  "exists " ++ v ++ ". " ++ (prettyFormula f)
+     (Forall v f)  ->  "forall " ++ v ++ ". " ++ (prettyFormula f)
 
 
 prettyTerm :: Term -> String
@@ -87,14 +90,11 @@ prettyTerm t = case t of
      (Elm e) -> prettyElem e
 
 prettyAtom :: Atom -> String
-prettyAtom (R "=" [t1,t2]) = "(" ++ (prettyTerm t1) ++ 
-                             " = " ++ (prettyTerm t2) ++ ")"
 prettyAtom (R sym ts) = sym ++ "(" ++ (intercalate "," (map prettyTerm ts)) ++ ")"
 prettyAtom (F sym ts) = sym ++ "(" ++ (intercalate "," (map prettyTerm ts)) ++ ")"
 
 prettyElem :: Elem -> String
 prettyElem (Elem e) = "{" ++ e ++ "}"
-
 --
 -- Some pretty-printing tools
 --
@@ -208,9 +208,10 @@ pFmla = Expr.buildExpressionParser table pFactor
         <?> "formula"
 
 -- | Operator table for formulas.
-table = [ [binOp "&" And Expr.AssocLeft]
+table = [ [preOp "~" Not]
+        , [binOp "&" And Expr.AssocLeft]
         , [binOp "|" Or Expr.AssocLeft]
-        --, [binOp "=>" Imp Expr.AssocRight, binOp "<=>" Iff Expr.AssocRight]
+        , [binOp "=>" Imp Expr.AssocRight, binOp "<=>" Iff Expr.AssocRight]
         ]
     where preOp op f = Expr.Prefix (do { reservedOp op; return f })
           binOp op f = Expr.Infix (do { reservedOp op; return f })
@@ -219,7 +220,8 @@ table = [ [binOp "&" And Expr.AssocLeft]
 -- change the last line to return (f vars fmla) if want to allow quantifiers
 -- to bind lists of vars
 pQuantified :: Parser Formula
-pQuantified = quant "exists" Exists <|> quant "Exists" Exists
+pQuantified = quant "exists" Exists <|> quant "Exists" Exists <|>
+              quant "forall" Forall <|> quant "Forall" Forall
     where quant q f =  do
                         reserved q
                         vars <- many1 identifier
@@ -235,7 +237,6 @@ pFactor = parens pFmla
           <|> pFls
           <|> pQuantified
           <|> (pEql +++ pAtom)
-          -- <|> pAtom
           <?> "formula"
 
 -- | Parser for atomic formulas. Works like parsing a term, except that it is an
@@ -262,48 +263,3 @@ pTru  = do { reserved "Truth";   return Tru }
 
 pFls :: Parser Formula
 pFls  = do {  reserved "Falsehood";   return Fls}
-
-
-{-| Sequent is a data structure for geometric sequents.
-  - sequentBody: the formula on right of the sequent
-  - sequentHead: the formula on left of the sequent
--}
-data Sequent = Sequent {
-      sequentBody :: Formula,
-      sequentHead :: Formula
-}
-
-instance Show Sequent where
-    show (Sequent b h) = (show b) ++ " => " ++ (show h)
-
-{-| A theory is simply a list of sequents. -}
-type Theory = [Sequent]
-
-parseSequent :: String -> Sequent
-parseSequent input =
- let pResult =  parse pSequent "parsing sequent" input
-    in case pResult of
-           Left err -> error (show err)
-           Right val -> val
-
-pSequent :: Parser Sequent
-pSequent = pSeqBoth +++ pSeqLeft +++ pSeqRight
-           <?> "sequent"
-
-pSeqBoth :: Parser Sequent
-pSeqBoth = do {whiteSpace; 
-               b <- pFmla; 
-               reservedOp "=>";
-               h <- pFmla;
-               return (Sequent b h)}
-
-pSeqLeft :: Parser Sequent
-pSeqLeft = do {whiteSpace;
-               reservedOp "~";
-               b <- pFmla;
-               return (Sequent b Fls)}
-
-pSeqRight :: Parser Sequent
-pSeqRight = do {whiteSpace;
-                b <- pFmla;
-                return (Sequent Tru b)}
