@@ -192,9 +192,9 @@ runChase config fmlas elems =
       _       -> 
           let partial = Model.emptyModelWithElems elems
           in  if   configAllModels config
-              then printModels $ chaseWithModel partial config fmlas
+              then printModels $ chaseWithModel config fmlas partial
               else putStrLn $ 
-                   case listToMaybe $ chaseWithModel partial config fmlas of
+                   case listToMaybe $ chaseWithModel config fmlas partial of
                      Nothing -> "No models found!"
                      Just m  -> show m
 
@@ -208,7 +208,7 @@ printModels mdls = do
 
 
 -- Two different functions for loading TPTP and geometric input theories.
-tptpFormulas :: String -> String -> IO (Maybe (Theory, [Term]))
+tptpFormulas :: String -> String -> IO (Maybe (Theory, [Elem]))
 tptpFormulas tptpPath fName = do
     inputs <- tptpLoad tptpPath fName
     return $ T2G.inputsToGeo $ concat inputs
