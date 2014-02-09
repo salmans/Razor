@@ -52,6 +52,19 @@ prettyModel mdl@(Model tbls _) =
         "Domain: " ++ show (modelDomain mdl) ++ "\n" ++
                       (concat $ (\(tr, t) -> prettyTable tr t) <$> list)
 
+-- FOR TESTING PURPOSES:
+--                      ++ "\n" ++ greaterInfo mdl
+
+
+-- greaterInfo :: Model -> String
+-- greaterInfo mdl = 
+--     let lines = (\(x, y) -> 
+--                      if   greaterElem mdl x y
+--                      then (show x) ++ " >  " ++ (show y)
+--                      else (show x) ++ " ~> " ++ (show y)) <$> pairs
+--     in  concatMap (\l -> (show l)  ++ "\n") lines
+--     where dom   = modelDomain mdl
+--           pairs = [(x, y) | x <- dom, y <- dom]
 
 prettyTable :: TableRef -> Table -> String
 prettyTable DomTable _             = ""
@@ -143,18 +156,17 @@ isTrue (Model tbls _) (Eql t1 t2) =
         return $ c1 == c2
   in if evaluate == Nothing then False else fromJust evaluate
 
-    -- ts' `elem` (DB.toList $ Map.findWithDefault (DB.Set []) (FunTable s) tbls)
-    -- where ts' = (\t -> case OP.lookupConstant t tbls of 
-    --                      Nothing -> t
-    --                      Just t' -> t') <$> ts
--- isTrue (Model tbls _) obs@(Fct (R s ts)) = 
---     ts' `elem` (DB.toList $ Map.findWithDefault (DB.Set []) (RelTable s) tbls)
---     where ts' = (\t -> case OP.lookupConstant t tbls of 
---                          Nothing -> t
---                          Just t' -> t') <$> ts
--- isTrue (Model tbls _) (Eql t1 t2) = 
---   let evaluate = do
---         c1 <- OP.lookupConstant t1 tbls
---         c2 <- OP.lookupConstant t2 tbls
---         return $ c1 == c2
---   in if evaluate == Nothing then False else fromJust evaluate
+--------------------------------------------------------------------------------
+greaterElem :: Model -> Elem -> Elem -> Bool
+greaterElem mdl e1 e2 = 
+    all (\(_, tbl) -> greaterElemInTable tbl e1 e2) list
+    where tbls = modelTables mdl
+          list = Map.toList tbls
+
+
+greaterElemInTable :: Table -> Elem -> Elem -> Bool
+greaterElemInTable tbl e1 e2 = 
+    let rows   = DB.toList tbl
+        e2rows = filter (e2 `elem`) rows
+        e1rows = (\r -> ((\e -> if e == e2 then e1 else e) <$> r)) <$> e2rows
+    in  all ((flip elem) rows) e1rows

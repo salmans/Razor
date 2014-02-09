@@ -156,12 +156,11 @@ main = do
 
   -- 
   let (Just (thy, consts)) = T2G.inputsToGeo (concat tptpInputs)
-  let consts' = map (\(Elm e) -> e) consts
     
   let model = 
           case configFormulaType config of
-                TPTPCNF -> let partial = Model.emptyModelWithElems consts'
-                           in  listToMaybe $ chaseWithModel partial config thy
+                TPTPCNF -> let partial = Model.emptyModelWithElems consts
+                           in  listToMaybe $ chaseWithModel config thy partial
                 TPTPFOF -> chase' defaultConfig thy
   --
 

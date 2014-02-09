@@ -3,7 +3,7 @@ verifier: GeometricVerifier.hs
 	ghc -rtsopts -odir ../../binaries -hidir ../../binaries -i=../../ --make GeometricVerifier.hs -optl-w
 
 performance: TPTPPerformanceLogger.hs
-	ghc -odir ../../binaries -hidir ../../binaries -i=../../ --make TPTPPerformanceLogger.hs -optl-w
+	ghc -rtsopts -odir ../../binaries -hidir ../../binaries -i=../../ --make TPTPPerformanceLogger.hs -optl-w
 
 waverifier: WAVerifier.hs
 	ghc -odir ../../binaries -hidir ../../binaries -i=../../ --make WAVerifier.hs -optl-w
