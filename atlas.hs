@@ -6,7 +6,7 @@ module Main where
 import System.Environment
 import System.Console.GetOpt
 import System.Exit (exitWith, ExitCode (..))
-import System.IO (hPutStrLn, stderr)
+import System.IO (hPutStrLn, stderr, hFlush, stdout)
 import Text.Read (readMaybe)
 
 import Control.Monad
@@ -14,13 +14,18 @@ import Control.Applicative
 
 import Data.Maybe
 import Data.List
+import qualified Data.Map as Map
 
 import Formula.SyntaxGeo (Theory, Sequent, Term, Elem, parseSequent)
-import Utils.Utils (isRealLine)
+import Utils.Utils (isRealLine, isNonEmptyLine)
 import Tools.Config
 import Tools.FolToGeo
 import qualified Chase.Problem.Model as Model
-import Chase.Chase (chase, chase', chaseWithModel)
+import Chase.Chase (chase, chase', chaseWithModel, runChase, runChaseWithProblem)
+import Chase.Problem.Observation
+import Chase.Problem.Operations
+import Chase.Problem.Provenance
+import Chase.Problem.Structures
 
 import qualified Codec.TPTP as TP
 import TPTP.TPTPToGeo as T2G
@@ -185,28 +190,29 @@ data GraphLoc = GraphLoc [Problem] Int
 
 
 resolve :: Config -> FrameMap -> ModelExpr -> Map.Map String GraphLoc -> GraphLoc -> GraphLoc -> Maybe GraphLoc
-resolve config frms expr bindings origin last = case expr of
-  Origin -> Just origin
-  Last -> Just last
-  ModelVar name -> Map.lookup name bindings
-  Add subExpr obs -> do
-    GraphLoc row index <- resolve subExpr bindings origin last
-    let prob@Problem {problemModel = oldModel, problemLastConstant = oldConst} = row !! index
-        (newModel, _, newConst) = add oldModel oldConst [obs] $ Just UserProv
-    case (runChaseWithProblem config frms prob {problemModel = newModel, problemLastConstant = newConst}) of
-      [] -> Nothing
-      newRow -> Just $ GraphLoc newRow 0
-  Next subExpr -> do
-    GraphLoc row index <- resolve subExpr bindings origin last
-    let nextIndex = succ index
-    if nextIndex < length row then Just $ GraphLoc row nextIndex else Nothing
+resolve config frms expr bindings origin last = let resolv = resolve config frms in
+  case expr of
+    Origin -> Just origin
+    Last -> Just last
+    ModelVar name -> Map.lookup name bindings
+    Add subExpr obs -> do
+      GraphLoc row index <- resolv subExpr bindings origin last
+      let prob@Problem {problemModel = oldModel, problemLastConstant = oldConst} = row !! index
+          (newModel, _, newConst) = Model.add oldModel oldConst [obs] UserProv
+      case (runChaseWithProblem config frms prob {problemModel = newModel, problemLastConstant = newConst}) of
+        [] -> Nothing
+        newRow -> Just $ GraphLoc newRow 0
+    Next subExpr -> do
+      GraphLoc row index <- resolv subExpr bindings origin last
+      let nextIndex = succ index
+      if nextIndex < length row then Just $ GraphLoc row nextIndex else Nothing
 
 
 modelLoop :: Config -> FrameMap -> Map.Map String GraphLoc -> GraphLoc -> GraphLoc -> IO ()
 modelLoop config frms bindings origin last = do
   let loop = modelLoop config frms
       continue = loop bindings origin last
-      resolv = resolve config fmrs
+      resolv = resolve config frms
   putStr "> "
   hFlush stdout
   userInput <- getLine
@@ -223,7 +229,7 @@ modelLoop config frms bindings origin last = do
 
 
 -- Two different functions for loading TPTP and geometric input theories.
-tptpFormulas :: String -> String -> IO (Maybe (Theory, [Term]))
+tptpFormulas :: String -> String -> IO (Maybe (Theory, [Elem]))
 tptpFormulas tptpPath fName = do
     inputs <- tptpLoad tptpPath fName
     return $ T2G.inputsToGeo $ concat inputs

@@ -49,6 +49,13 @@ chase cfg thy = problemModel <$> runChase cfg Nothing frms initialProblem
 chase' :: Config -> Theory -> Maybe Model
 chase' cfg thy = Maybe.listToMaybe $ chase cfg thy
 
+{-| Runs the chase for an input theory atop an initial model.
+-}
+chaseWithModel :: Config -> Theory -> Model -> [Model]
+chaseWithModel cfg thy mdl = problemModel <$> 
+                                runChase cfg (Just mdl) frms initialProblem
+    where (frms, initialProblem) = buildProblem thy
+
 {-| This is the main chase function, which tries to find the set of all the 
   models for a given geometric theory.
   Parameters:
@@ -61,6 +68,7 @@ runChase cfg mdl frms initialProblem =
     let (probs, log) = State.evalState output cfg
     -- use the log information when needed
     in traceStringListIf (configDebug cfg) log
+       -- traceStringList log
        probs
     where problem = case mdl of
                       Nothing -> initialProblem
@@ -106,7 +114,7 @@ process = do
       prob             <- selectProblem (configSchedule cfg) -- pick a problem
       (fMap, allProbs) <- RWS.get
       Logger.logUnder (length allProbs) "# of branches"
-      Logger.logIf (Maybe.isJust prob) ((problemModel.Maybe.fromJust) prob)
+      -- Logger.logIf (Maybe.isJust prob) ((problemModel.Maybe.fromJust) prob)
       case prob of
         Nothing -> return [] -- no more problems
         Just p  -> cascadeStep cfg fMap p
@@ -294,7 +302,7 @@ allExistsSubs counter vars dom =
     where lists    = foldr (\opts res -> 
                                 let opts' = pure <$> opts
                                 in  prodList opts' res) [] varOpts
-          varOpts  = (\fc -> [fc] {- :domTerms -}) <$> 
+          varOpts  = (\fc -> [fc] {- :domTerms-}) <$> 
                      makeFreshConstant <$> 
                      [(counter + 1)..(counter + (length vars))]
           domTerms = Elm <$> dom

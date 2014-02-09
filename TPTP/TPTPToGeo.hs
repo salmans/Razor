@@ -32,14 +32,14 @@ import Debug.Trace
   theory. Otherwise, returns Nothing. It also returns a list of constants in 
   the theory, which can be used for constructing a partial model before running 
   the chase on TPTP CNFs. -}
-inputsToGeo :: [TP.TPTP_Input] -> Maybe (Theory, [Term])
+inputsToGeo :: [TP.TPTP_Input] -> Maybe (Theory, [Elem])
 inputsToGeo inps = do
   (thy, ts, c) <- 
       foldM (\(fs, ts, c) i -> do 
                let cnjr = (TP.unrole.TP.role) i == "conjecture"
                let (f, t) = inputToFol i
                f' <- F2G.formulaToSequent cnjr f
-               t'  <- mapM F2G.convertTerm t
+               t'  <- mapM F2G.convertElem t
                let (f'', t'', c'') = 
                        if cnjr
                        then let (cjrF, cjrT, cjrC) = conjecturize 0 f'
@@ -60,13 +60,13 @@ conjecturize c seqs =
 {- Converts a TPTP input to a FOL formula, also returns the constants in the
    TPTP formula. The constants will be used to construct a partial model on 
    which the chase is executed when the input is a CNF.-}
-inputToFol :: TP.TPTP_Input -> (Fol.Formula, [Fol.Term])
+inputToFol :: TP.TPTP_Input -> (Fol.Formula, [Fol.Elem])
 inputToFol = formulaToFol.TP.formula
 
 {- Converts a TPTP formula to a FOL formula, also returns the constants in the
    TPTP formula. The constants will be used to construct a partial model on 
    which the chase is executed when the input is a CNF.-}
-formulaToFol :: TP.Formula -> (Fol.Formula, [Fol.Term])
+formulaToFol :: TP.Formula -> (Fol.Formula, [Fol.Elem])
 formulaToFol (TP.F f) =
     case runIdentity f of
       (TP.:~:) f'              -> let (f'', ts) = formulaToFol f'
@@ -108,12 +108,12 @@ formulaToFol (TP.F f) =
                            , cs1 `union` cs2)
 
 
-termToFol :: TP.Term -> (Fol.Term, [Fol.Term])
+termToFol :: TP.Term -> (Fol.Term, [Fol.Elem])
 termToFol trm@(TP.T t) = 
     case runIdentity t of
       TP.Var (TP.V v) -> (Fol.Var v, [])
       TP.FunApp aw@(TP.AtomicWord f) [] ->
-          (Fol.Fn f [], [Fol.Fn f []])
+          (Fol.Fn f [], [Fol.Elem f])
       TP.FunApp aw@(TP.AtomicWord f) ts -> 
           let (ts', cs) = unzip $ map termToFol ts
               cs'       = foldr union [] cs
@@ -124,11 +124,11 @@ termToFol trm@(TP.T t) =
 {-| Converts a set of sequent to a set of conjecture sequents. It uses a 
   counter to create indices for constants. The function also returns a list of 
   terms created during the process. -}
-conjecture :: Sequent -> Counter ([Sequent], [Term])
+conjecture :: Sequent -> Counter ([Sequent], [Elem])
 conjecture seq = do
   let vs = freeVars seq
-  cs <- mapM (\v -> do { c <- freshSymbol "cjr"; return (Fn c [])}) vs
-  let sub  = Map.fromList $ zip vs cs
+  cs <- mapM (\v -> do { c <- freshSymbol "cjr"; return (Elem c)}) vs
+  let sub  = Map.fromList $ zip vs (Elm <$> cs)
   let (Sequent bdy hd) = liftTerm (Unif.lift sub) seq
   let hdSequents = (\s -> Sequent s Fls) <$> (splitHead hd)
   let bdySequent = Sequent Tru bdy

@@ -1,4 +1,4 @@
-module Tools.FolToGeo (formulaToSequent, parseFolToSequent, convertTerm)
+module Tools.FolToGeo (formulaToSequent, parseFolToSequent, convertElem)
 where
 
 import Data.List
@@ -109,9 +109,12 @@ convertTerm (Fol.Fn s ts) = do { ts' <- mapM convertTerm ts
                                ; return $ Geo.Fn s ts' }
 convertTerm (Fol.Rn s ts) = do { ts' <- mapM convertTerm ts
                                ; return $ Geo.Rn s ts' }
+convertTerm (Fol.Elm e)   = Geo.Elm <$> convertElem e
 convertTerm _             = Nothing -- We currently do not support DistinctTerm
                                     -- and NumberTerm.
 
+convertElem :: Fol.Elem -> Maybe Geo.Elem
+convertElem (Fol.Elem e)  = Just $ Geo.Elem e
 
 normalize :: Fol.Formula -> Fol.Formula
 normalize = normalize'.pnfAll.elimImp
