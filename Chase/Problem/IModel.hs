@@ -15,8 +15,8 @@ import qualified Control.Monad.State as State
 import Control.DeepSeq
 
 -- Logic Modules
-import Formula.SyntaxGeo
-import Utils.GeoUtilities
+import Chase.Formula.SyntaxGeo
+import Chase.Utils.GeoUtilities
 
 -- Chase Modules:
 import Chase.Problem.BaseTypes
@@ -24,7 +24,7 @@ import Chase.Problem.Provenance
 import Chase.Problem.Observation
 import Chase.Problem.RelAlg.RelAlg
 import qualified Chase.Problem.RelAlg.Operations as OP
-import qualified RelAlg.DB as DB
+import qualified Chase.RelAlg.DB as DB
 
 {- Errors raised by this modeule -}
 err_ChaseProblemModel_IsTruthDen =

@@ -19,12 +19,12 @@ import qualified Data.Either as Either
 import qualified Data.Maybe as Maybe
 import qualified Data.Map as Map
 
-import Formula.SyntaxGeo
-import Utils.GeoUtilities
-import Tools.FolToGeo
-import qualified Utils.Utils
-import Tools.GeoUnification
-import Tools.Config
+import Chase.Formula.SyntaxGeo
+import Chase.Utils.GeoUtilities
+import Chase.Tools.FolToGeo
+import qualified Chase.Utils.Utils as Utils
+import Chase.Tools.GeoUnification
+import Chase.Tools.Config
 import Chase.Problem.Model
 import Chase.Problem.Operations (sequentHolds)
 import Chase.Chase
@@ -51,7 +51,7 @@ main = do
 
   -- get a list of sequents from the input file
   let inputLines = lines src :: [String]
-      realLines =  filter Utils.Utils.isRealLine inputLines     :: [String]
+      realLines =  filter Utils.isRealLine inputLines     :: [String]
       inputFmlas = case mapM (parseFolToSequent False) realLines of
                      Nothing    -> error "The input is not geometric!" 
                      Just fmlas -> concat fmlas
@@ -75,7 +75,7 @@ main = do
           if Maybe.isJust model
           then (let mdl@(Model trs _) = Maybe.fromJust model 
                     domain = Elm <$> modelDomain mdl
-                    maps f = Utils.Utils.allMaps (freeVars f) domain
+                    maps f = Utils.allMaps (freeVars f) domain
                     insts = (\f -> map 
                                    (\s -> (liftTerm.lift) s f) 
                                    (maps f)) 
@@ -145,7 +145,7 @@ verify inputFmlas mdl@(Model trs _) =
     traceShow "."
     $
     let domain = Elm <$> modelDomain mdl
-        maps f = Utils.Utils.allMaps (freeVars f) domain
+        maps f = Utils.allMaps (freeVars f) domain
         fmlas = concatMap insts inputFmlas
         insts = (\f -> map 
                        (\s -> (liftTerm.lift) s f) 

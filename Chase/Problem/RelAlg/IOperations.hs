@@ -13,20 +13,20 @@ import Data.Maybe
 
 
 import Debug.Trace
-import Utils.Trace
+import Chase.Utils.Trace
 
 import Control.Exception -- for assert
 
 
 -- Logic modules:
-import Formula.SyntaxGeo
-import Utils.GeoUtilities
-import Tools.GeoUnification
+import Chase.Formula.SyntaxGeo
+import Chase.Utils.GeoUtilities
+import Chase.Tools.GeoUnification
 
 import Chase.Problem.Provenance
 import Chase.Problem.Observation
 import Chase.Problem.RelAlg.RelAlg
-import qualified RelAlg.DB as DB
+import qualified Chase.RelAlg.DB as DB
 
 
 {-| ProvCounter is the context of computation for building a model, including

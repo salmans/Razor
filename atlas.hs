@@ -16,10 +16,10 @@ import Data.Maybe
 import Data.List
 import qualified Data.Map as Map
 
-import Formula.SyntaxGeo (Theory, Sequent, Term, Elem, parseSequent)
-import Utils.Utils (isRealLine, isNonEmptyLine)
-import Tools.Config
-import Tools.FolToGeo
+import Chase.Formula.SyntaxGeo (Theory, Sequent, Term, Elem, parseSequent)
+import Chase.Utils.Utils (isRealLine, isNonEmptyLine)
+import Chase.Tools.Config
+import Chase.Tools.FolToGeo
 import qualified Chase.Problem.Model as Model
 import Chase.Chase (chase, chase', chaseWithModel, runChase, runChaseWithProblem)
 import Chase.Problem.Observation
@@ -28,7 +28,7 @@ import Chase.Problem.Provenance
 import Chase.Problem.Structures
 
 import qualified Codec.TPTP as TP
-import TPTP.TPTPToGeo as T2G
+import Chase.TPTP.TPTPToGeo as T2G
 
 -- ============================
 -- Main
@@ -216,7 +216,7 @@ modelLoop config frms bindings origin last = do
   putStr "> "
   hFlush stdout
   userInput <- getLine
-  if Utils.Utils.isNonEmptyLine userInput then
+  if Chase.Utils.Utils.isNonEmptyLine userInput then
     case (read userInput) of
       Show expr -> case (resolv expr bindings origin last) of
         Just loc@(GraphLoc row index) -> putStrLn (show (problemModel (row !! index))) >> loop bindings origin loc

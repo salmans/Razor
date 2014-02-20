@@ -3,7 +3,7 @@ module Chase.Problem.Provenance where
 import qualified Data.Map as Map
 import Control.Applicative
 
-import Utils.GeoUtilities
+import Chase.Utils.GeoUtilities
 import Chase.Problem.Observation
 import Chase.Problem.BaseTypes
 

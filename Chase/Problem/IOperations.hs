@@ -15,13 +15,13 @@ import qualified Control.Monad.Writer as Writer
 import Control.Applicative
 import Control.Monad
 
-import Utils.Trace
+import Chase.Utils.Trace
 import Debug.Trace
 -- Logic Modules
-import Formula.SyntaxGeo
-import Utils.GeoUtilities
-import Tools.GeoUnification
-import Tools.Config
+import Chase.Formula.SyntaxGeo
+import Chase.Utils.GeoUtilities
+import Chase.Tools.GeoUnification
+import Chase.Tools.Config
 
 -- Chase Modeuls:
 import Chase.Problem.BaseTypes
@@ -31,7 +31,7 @@ import Chase.Problem.Model (Model(..), modelDomain)
 import qualified Chase.Problem.Model as Model
 import Chase.Problem.RelAlg.RelAlg
 import qualified Chase.Problem.RelAlg.Operations as OP
-import qualified RelAlg.DB as DB -- Salman: Do not import this here!
+import qualified Chase.RelAlg.DB as DB -- Salman: Do not import this here!
 
 
 {- A list of errors raised by this module -}

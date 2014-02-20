@@ -9,16 +9,16 @@ import Control.Applicative
 import Control.Monad
 
 -- Logic Modules
-import Formula.SyntaxGeo
-import Utils.GeoUtilities
+import Chase.Formula.SyntaxGeo
+import Chase.Utils.GeoUtilities
 
 -- Chase Modules:
 import Chase.Problem.Observation
-import qualified RelAlg.DB as DB
+import qualified Chase.RelAlg.DB as DB
 
 -- Other Modules
 import Debug.Trace
-import Utils.Trace
+import Chase.Utils.Trace
 
 {- Data Types -}
 

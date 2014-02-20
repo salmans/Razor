@@ -6,9 +6,9 @@ module Chase.Problem.Observation where
 
 import Data.List
 
-import Formula.SyntaxGeo
-import Utils.GeoUtilities
-import Tools.GeoUnification(matchSubterms, match) 
+import Chase.Formula.SyntaxGeo
+import Chase.Utils.GeoUtilities
+import Chase.Tools.GeoUnification(matchSubterms, match) 
 
 import Data.Maybe
 import Data.Char

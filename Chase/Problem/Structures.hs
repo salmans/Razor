@@ -13,9 +13,9 @@ import qualified Control.Monad.RWS as RWS
 import Control.Applicative
 
 -- Logic Modules
-import Formula.SyntaxGeo
-import Utils.GeoUtilities(TermBased(..))
-import Tools.Config
+import Chase.Formula.SyntaxGeo
+import Chase.Utils.GeoUtilities(TermBased(..))
+import Chase.Tools.Config
 
 -- Chase Modeuls:
 import Chase.Problem.BaseTypes
@@ -23,7 +23,7 @@ import Chase.Problem.Observation
 import Chase.Problem.Model
 import Chase.Problem.RelAlg.RelAlg
 import qualified Chase.Problem.RelAlg.Operations as OP
-import qualified RelAlg.DB as RA
+import qualified Chase.RelAlg.DB as RA
 
 {-| Additional information about frames are stored as frame type instances. -}
 data FrameType = FrameType { ftInitial      :: Bool

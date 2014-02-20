@@ -13,11 +13,11 @@ import Control.Applicative
 import Control.Monad
 
 -- Logic Modules
-import Formula.SyntaxGeo
-import Utils.GeoUtilities
-import qualified Tools.Logger as Logger
-import Tools.GeoUnification
-import Tools.Config
+import Chase.Formula.SyntaxGeo
+import Chase.Utils.GeoUtilities
+import qualified Chase.Tools.Logger as Logger
+import Chase.Tools.GeoUnification
+import Chase.Tools.Config
 
 -- Chase Modules
 import Chase.Problem.BaseTypes
@@ -30,9 +30,9 @@ import qualified Chase.Problem.Model as Model
 import Chase.Problem.RelAlg.RelAlg as RA
 
 -- Other Modules
-import Utils.Utils (allMaps, prodList, allSublists, 
+import Chase.Utils.Utils (allMaps, prodList, allSublists, 
                     allCombinations)
-import Utils.Trace
+import Chase.Utils.Trace
 import Debug.Trace
 
 
