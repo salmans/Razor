@@ -22,10 +22,10 @@ import Formula.SyntaxGeo
 import Utils.GeoUtilities
 import Tools.GeoUnification
 import Tools.Config
+import Tools.Isomorph
 
 -- Chase Modeuls:
 import Chase.Problem.BaseTypes
-import Chase.Problem.Observation
 import Chase.Problem.Structures
 import Chase.Problem.Model (Model(..), modelDomain)
 import qualified Chase.Problem.Model as Model
@@ -62,12 +62,17 @@ err_ChaseProblemOperations_NarrowDen =
 buildProblem :: Theory -> (FrameMap, Problem)
 buildProblem thy = 
     ( Map.fromList $ (\f -> (frameID f, f)) <$> frms
-    , Problem { problemFrames       = frameID <$> frms
+    , Problem { problemID           = 0
+              , problemFrames       = frameID <$> frms
               , problemModel        = Model.emptyModel
               , problemQueue        = []
               , problemScheduleInfo = 
-                  ScheduleInfo { problemFrameSelector = allFrameTypeSelectors
-                               , problemBigStepAge    = 0 }
+                  ScheduleInfo { problemSelectors  = allFrameTypeSelectors
+                               , problemBigStepAge = 0 
+                               , problemParent     = -1
+                               , problemCollapses  = 0
+                               , problemExtendable = True
+                               , problemScore      = defaultScore }
               , problemLastConstant = 0})
     where frms  = zipWith (\x y -> buildFrame x y) [1..] thy''
           temp  = relConvert thy
@@ -88,25 +93,6 @@ hasFreeVarOnRight seq = (not.null) $ hdVars \\ bdyVars
           hdVars  = freeVars hd
           bdyVars = freeVars bdy
 
--- The following function is depricated since in the relational algebraic 
--- solution the theory is not extended.
--- {-| Updates a problem by adding new frames to its theory. It updates problem's 
---   symbol map accordingly.
--- -} 
--- extendProblem :: Problem -> [Frame] -> Problem
--- extendProblem (Problem oldFrames model queue last lastConst) 
---               frames =
---     Problem { problemFrames       = (union oldFrames newFrames) 
---             , problemModel        = model
---             , problemQueue        = queue
---             , problemLastID       = newLastID              
---             , problemLastConstant = lastConst}
---         -- REMARK: the two set of frames have to be unined; otherwise, the chase may
---         -- never terminate (as for thyphone1_2)
---     where newFrames = zipWith (\frame id -> frame {frameID = id})
---                       frames [(last + 1)..]
---           newLastID = last + (length newFrames)
-
 {-| Selects a problem from a pool of problems based on the given scheduling type
   and returns the selected problem. The function changes the current state of 
   the pool of problems. If the pool is empty, the function returns Nothing. 
@@ -116,17 +102,32 @@ selectProblem :: ScheduleType -> ProbPool (Maybe Problem)
 selectProblem _ =
     State.get >>= (\(fs, probs) ->
     case probs of
-      []   -> return Nothing
-      p:ps -> State.put (fs, ps) >>= (\_ -> 
-              return $ Just p))
+      [] -> return Nothing
+      ps -> do
+        let p = maximumBy (\p p' -> 
+                           compare ((problemScore.problemScheduleInfo) p)
+                           ((problemScore.problemScheduleInfo) p')) ps
+        State.put(fs, delete p ps)
+        return (Just p)) -- For now, we do score-based selection
+
+    -- State.get >>= (\(fs, probs) ->
+    -- case probs of
+    --   []   -> return Nothing
+    --   p:ps -> State.put (fs, ps) >>= (\_ -> 
+    --           return $ Just p))
 
 {-| Inserts a problem into the problem pool based on the given scheduling 
   type. -}
 scheduleProblem :: Config -> Problem -> ProbPool ()
-scheduleProblem cfg p = 
-        State.get  >>= (\(fs, ps) ->
-        State.put (fs, scheduleProblemHelper cfg p ps) >>= (\_ -> return ()))
-
+scheduleProblem cfg p = do
+  (fs, ps) <- State.get
+  let age = (problemBigStepAge.problemScheduleInfo) p
+  let ps' = deleteFirstsBy 
+            (\p1 p2 -> isomorphic (problemModel p1) (problemModel p2)) ps [p]
+  State.put (fs, if   age /= 0 && configIsoElim cfg
+                 then scheduleProblemHelper cfg p ps'
+                 else scheduleProblemHelper cfg p ps)
+    
 {- A helper for scheduleProblem -}
 scheduleProblemHelper :: Config -> Problem -> [Problem] -> [Problem]
 scheduleProblemHelper cfg p ps 
@@ -139,6 +140,20 @@ scheduleProblemHelper cfg p ps
           unit      = configProcessUnit cfg
           age       = (problemBigStepAge.problemScheduleInfo) p
                         
+{-| Updates the reputation of all problems in the pool with a given parent 
+  using an update function. -}
+updateReputation :: (Int -> Int) -> ID -> ProbPool ()
+updateReputation f pid = do
+  (fs, ps) <- State.get
+  let ps' = (\p -> let schedInfo = problemScheduleInfo p
+                       score     = problemScore schedInfo
+                       reput     = scoreReputation score
+                   in if   problemParent schedInfo == pid
+                      then p { problemScheduleInfo = 
+                                   schedInfo { problemScore = 
+                                               score { scoreReputation = f reput}}}
+                      else p) <$> ps
+  State.put (fs, ps')
 
 {-| Selects a frame from a set of frames and returns the selected frame as well 
   as the remaining frames. The scheduling algorithm is always fifo to maintain
@@ -309,7 +324,7 @@ formulaHolds model (Or p q) = fmlaHolds p || fmlaHolds q
 formulaHolds model (And p q) = 
     fmlaHolds p && fmlaHolds q
     where fmlaHolds = formulaHolds model
-formulaHolds model@(Model trs _) (Exists x p) = 
+formulaHolds model@(Model trs _ _) (Exists x p) = 
     let makeSub    = Map.singleton x
         liftWith e = (liftTerm.lift) (makeSub e) p
     in

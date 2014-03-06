@@ -22,6 +22,7 @@ import Utils.GeoUtilities
 import qualified Tools.GeoUnification as Unif (lift)
 import qualified Utils.GeoUtilities 
 import qualified Tools.FolToGeo as F2G
+import Tools.Counter
 
 import qualified Codec.TPTP as TP
 

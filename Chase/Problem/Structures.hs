@@ -9,17 +9,17 @@ module Chase.Problem.Structures where
 -- General Modules
 import Data.List
 import qualified Data.Map as Map
-import qualified Control.Monad.RWS as RWS
+import qualified Control.Monad.RWS.Lazy as RWS
 import Control.Applicative
 
 -- Logic Modules
 import Formula.SyntaxGeo
 import Utils.GeoUtilities(TermBased(..))
 import Tools.Config
+import Tools.Counter
 
 -- Chase Modeuls:
 import Chase.Problem.BaseTypes
-import Chase.Problem.Observation
 import Chase.Problem.Model
 import Chase.Problem.RelAlg.RelAlg
 import qualified Chase.Problem.RelAlg.Operations as OP
@@ -53,11 +53,50 @@ hasFrameType frame types = and $ (flip ($)) (frameType frame) <$> types
    for scheduling, it is convenient to define them as a type. -}
 type FrameTypeSelector = FrameType -> Bool
 
+{- Score captures heuristic scores assigned to a problem for scheduling 
+   purposes. -}
+data Score = Score { scoreDomainSize :: Int 
+                   , scoreFactSize   :: Int 
+                   , scoreReputation :: Int }
+           deriving (Eq, Show)
+
+instance Ord Score where
+    compare (Score d f r) (Score d' f' r') = 
+        let cmps = (uncurry compare) <$> [(r, r'), (d', d), (f, f')]
+            -- Notice that a bigger domain size gives a worse score
+            res  = filter (/= EQ) cmps
+        in  if null res then EQ else head res
+    
+
+defaultScore :: Score
+defaultScore =  Score 0 0 0
+
 {- FrameScheduleInfo keeps the information required to schedule frames for a 
-   problem. Every element of such list is a list of selectors to describe the
-   frames that need to be scheduled next. -}
-data ScheduleInfo = ScheduleInfo { problemFrameSelector :: [[FrameTypeSelector]]
-                                 , problemBigStepAge    :: Int }
+   problem:
+   - problemSelectors:  set of selctors for the current problem
+   not existential sequents.
+   - problemBigStepAge: age of the problem (number of firing existentials)
+   - problemParent: ID of the parent problem
+   - problemCollapses: keeps track of the number of collapses permitted on this
+   problem (in fact, its the problem's model), which grows logarithmically with
+   the size of the model.
+   - problemExtendable: determines whether new elements can be added to the
+   domain of the problem or not.
+   - problemScore: score of the problem
+ -}
+data ScheduleInfo = ScheduleInfo { problemSelectors  :: [[FrameTypeSelector]]
+                                 , problemBigStepAge :: Int
+                                 , problemParent     :: ID
+                                 , problemCollapses  :: Int
+                                 , problemExtendable :: Bool
+                                 , problemScore      :: Score }
+instance Show ScheduleInfo where
+    show (ScheduleInfo _ age parent _ _ score) =
+        "-- AGE:\n" ++ (show age) ++ "\n" ++
+        "-- PARENT:\n" ++ (show parent) ++ "\n" ++
+        "-- SCORE:\n" ++ (show score) ++ "\n"
+
+
 
 {- A shorthand for a systematic way of scheduling frames in the following order:
    1- Process frames with empty right
@@ -145,6 +184,7 @@ instance TermBased Frame where
   for satisfying an existential quantifier.
 -}
 data Problem = Problem {
+      problemID           :: ID, 
       problemFrames       :: [ID],
       problemModel        :: Model,
       problemQueue        :: [Tables],
@@ -152,14 +192,22 @@ data Problem = Problem {
       problemLastConstant :: Int -- We may remove this later
 }
 
+instance Eq Problem where
+    p == p' = problemID p == problemID p'
+
 instance Show Problem where
-    show (Problem frames model _ _ _) =
+    show (Problem id frames model _ sched _) =
+        "-- ID:\n" ++ (show id) ++ "\n" ++
+        "-- SCHED:\n" ++ (show sched) ++ "\n" ++
         "-- FRAMES:\n" ++ (show frames) ++ "\n" ++
         "-- MODEL: \n" ++ (show model) ++ "\n"
 
 {-| A map from frame IDs to frames. -}
 type FrameMap = Map.Map Int Frame
 
-{-| ProbPool keeps track of the theory and the pool of problems.
+{-| ProbPool keeps track of a counter for problem IDs,  theory and the pool 
+  of problems.
 -}
-type ProbPool = RWS.RWST [String] [String] (FrameMap, [Problem]) ConfigMonad
+type ProbPool = RWS.RWST [String] [String] 
+    (FrameMap, [Problem])  -- Frames and Problems
+    (CounterT ConfigMonad) -- Counter and Config

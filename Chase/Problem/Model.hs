@@ -4,8 +4,7 @@
 module Chase.Problem.Model(Model(..),
                            truth,
                            emptyModel, emptyModelWithElems,
-                           add,
-                           isTrue,
-                           modelDomain) where
+                           add, greaterElem,
+                           isTrue, modelDomain, modelOrigTables) where
 
 import Chase.Problem.IModel

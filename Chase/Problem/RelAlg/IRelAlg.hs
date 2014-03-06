@@ -13,7 +13,6 @@ import Formula.SyntaxGeo
 import Utils.GeoUtilities
 
 -- Chase Modules:
-import Chase.Problem.Observation
 import qualified RelAlg.DB as DB
 
 -- Other Modules
@@ -250,8 +249,8 @@ evaluateRelExp tbls _ (Tbl t) =
 evaluateRelExp _ delts (Delt (Tbl t)) = 
     fromMaybe (DB.Set []) (Map.lookup t delts)
 evaluateRelExp tbls delts (Proj exp inds) =
-    if    null (DB.toList projected)
-    then  if   (not.null) (DB.toList set)
+    if    null (records projected)
+    then  if   (not.null) (records set)
           then evaluateRelExp tbls delts TblFull
           else evaluateRelExp tbls delts TblEmpty
     else  projected
@@ -374,6 +373,10 @@ sequentProjections bdyLbls hdLbls =
           bdyLbls' = filterLabels bdyLbls hdLbls
           hdLbls'  = filterLabels hdLbls bdyLbls'
 --------------------------------------------------------------------------------
+{- Returns the records of a Table. -}
+records :: Table -> [Record]
+records =  DB.toList
+
 {- Filters a list of labels according to a refrence set of labels. It removes
  the labels that do not show up in the reference set. -}
 filterLabels :: Labels -> Labels -> Labels

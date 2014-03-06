@@ -7,5 +7,5 @@
 
 while IFS= read -r line; do
   echo "$line"
-  timeout 120 ./TPTPPerformanceLogger -i $line +RTS -K16M -RTS --formula-type=cnf --tptp-path=/Programming/TPTP-v6.0.0/ >> chase_results.txt
+  timeout 120 ./TPTPPerformanceLogger -i $line +RTS -K16M -RTS --schedule=rr --process-unit=5 --formula-type=cnf --tptp-path=/Programming/TPTP-v6.0.0/ >> chase_results.txt
 done < "$1"

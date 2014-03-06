@@ -22,9 +22,9 @@ import Control.Exception -- for assert
 import Formula.SyntaxGeo
 import Utils.GeoUtilities
 import Tools.GeoUnification
+import Tools.Counter
 
-import Chase.Problem.Provenance
-import Chase.Problem.Observation
+import Chase.Problem.BaseTypes
 import Chase.Problem.RelAlg.RelAlg
 import qualified RelAlg.DB as DB
 
@@ -75,8 +75,6 @@ buildTables' (eq:eqs) tbls  deltas = do
 {- Processes a set of equations as a helper function to buildTables. -}
 processObs :: Obs -> (Tables, Tables, [Obs]) 
                 -> ProvCounter (Tables, Tables, [Obs])
--- processObs (Equ (Elm (Elem "True")) (Elm (Elem "True"))) _ = 
---     error "CC.RelAlg.processObs: invalid equation"
 processObs (Fct (R s ts)) (tbls, deltas, eqs) = do
   (tbls', deltas') <- insertRecord (RelTable s) ts tbls deltas  
   return (tbls', deltas', eqs)
@@ -90,7 +88,8 @@ processObs (Eql (Elm c1) (Elm c2)) (tbls, deltas, eqs) = do
     (_, deltas') <- updateTables c1 c2 deltas
     let deltas'' =  mergeSets deltas' $ filterTables (elem nt) tbls'
     let eqs'     =  updateObs c1 c2 <$> eqs
-    return (tbls', deltas'', eqs')  -- making two constants equal in the 
+    return (tbls', tbls', eqs')
+    -- return (tbls', deltas'', eqs')  -- making two constants equal in the 
                                     -- database.
 processObs (Eql t@(Fn f []) (Elm c)) (tbls, deltas, eqs) = do
   (recs, t')    <- initConstant tbls t
@@ -98,7 +97,8 @@ processObs (Eql t@(Fn f []) (Elm c)) (tbls, deltas, eqs) = do
   (_, deltas')  <- updateTables t' c (mergeSets deltas recs)
   let deltas''  = mergeSets deltas' $ filterTables (elem nt) tbls'
   let eqs''     = updateObs t' c <$> eqs
-  return (tbls', deltas'', eqs'')
+  return (tbls', tbls', eqs'')
+  -- return (tbls', deltas'', eqs'')
     -- making a new element in the database for a given constant.
     -- Salman: use state monad.        
 processObs (Eql c@(Elm _) t@(Fn f [])) inputState = 
@@ -115,7 +115,8 @@ processObs (Eql t1@(Fn f1 []) t2@(Fn f2 [])) (tbls, deltas, eqs) = do
   let deltas''  = mergeAllSets [deltas', recs1,recs2]
   let deltas''' = mergeSets deltas'' $ filterTables (elem nt) tbls'
   let eqs'      = updateObs t1' t2' <$> eqs
-  return (tbls', deltas''', eqs') 
+  return (tbls', tbls', eqs')
+  -- return (tbls', deltas''', eqs') 
     -- initiating two constants and make them equal.          
 processObs _ _ = error "CC.RelAlg.processObs: invalid equation"
 

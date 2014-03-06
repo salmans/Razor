@@ -161,7 +161,7 @@ main = do
           case configFormulaType config of
                 TPTPCNF -> let partial = Model.emptyModelWithElems consts
                            in  listToMaybe $ chaseWithModel config thy partial
-                TPTPFOF -> chase' defaultConfig thy
+                TPTPFOF -> chase' config thy
   --
 
   time2 <- model`deepseq` getCurrentTime

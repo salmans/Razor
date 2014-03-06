@@ -2,7 +2,7 @@ module Utils.GeoUtilities ( isVar, TermBased (..), simplify, termVars
                           , functions, predicates, Sub, Subst
                           , theoryRelations, theoryFunctions, termFuncSyms
                           , closedTerm, subterms, replaceSubterms
-                          , Counter, freshVar, freshElement, freshSymbol
+                          , freshVar, freshElement, freshSymbol
                           , relConvert, addAllExistsPreds, addElementPred) where
 {- Salman: Unexported functions may be removed! -}
 -- 
@@ -12,6 +12,7 @@ import Data.Map(Map)
 import qualified Tools.ListSet
 
 import Formula.SyntaxGeo
+import Tools.Counter
 
 import Control.Applicative
 import Control.Monad.State as State
@@ -419,8 +420,11 @@ addElementPred seq =
    fresh atomic formulas. -}
 addExistsPred :: Formula -> Counter (Formula, [Sequent])
 addExistsPred fmla@(Or _ _) = addExistsPredHelper fmla
-    -- Only apply the transformation if the head has disjunctions. That is, if
-    -- the head is an existential formula, it is already in the form we want.
+-- addExistsPred fmla@(Exists _ _) = addExistsPredHelper fmla
+    -- If the head is an existential formula, it is already in the form we want.
+    -- However, we want to generate a new predicate which can be used to 
+    -- construct skolem terms for elements created by the existential 
+    -- quantifier.
 addExistsPred fmla          = return (fmla, [])
 
 addExistsPredHelper :: Formula -> Counter (Formula, [Sequent])
@@ -483,20 +487,3 @@ totalitySequents fs = seq <$> fs
                        $ Exists "y" (Atm (F f (vars a ++ [Var "y"])))
           vars a     = (\i -> Var ("x" ++ (show i))) <$> [1..a]
 ---------------------------------------------
--- Convert for Relational Algebra
-type Counter = State.State Int
-
-freshVar :: Counter Var
-freshVar = get >>= 
-           (\c -> put (c + 1) >> 
-           (return $ "x#" ++ (show c)))
-
-freshElement :: Counter Elem
-freshElement = get >>=
-               (\c -> put (c + 1) >>
-               (return $ Elem $ "e#" ++ (show c)))
-
-freshSymbol :: Sym -> Counter Sym
-freshSymbol sym = get >>=
-                  (\c -> put (c + 1) >>
-                  (return $ sym ++ "#" ++ (show c)))

@@ -21,6 +21,7 @@ import qualified Data.Map as Map
 
 import Formula.SyntaxGeo
 import Utils.GeoUtilities
+import Tools.Counter
 import Tools.FolToGeo
 import qualified Utils.Utils
 import Tools.GeoUnification
@@ -58,7 +59,10 @@ main = do
 
   time1 <- getClockTime
   -- get the answer
-  let model  = chase' defaultConfig inputFmlas
+  let model  = chase' defaultConfig {configSchedule = SchedBFS
+                                    ,configIsoElim  = False
+                                    ,configQuotient = False 
+                                    ,configIncremental = True } inputFmlas
   time2 <- getClockTime
 
   let diffTime = diffClockTimes time2 time1
@@ -73,7 +77,7 @@ main = do
   -- Verify that every formula in the theory is true:
   let verifyMsg = 
           if Maybe.isJust model
-          then (let mdl@(Model trs _) = Maybe.fromJust model 
+          then (let mdl@(Model trs _ _) = Maybe.fromJust model 
                     domain = Elm <$> modelDomain mdl
                     maps f = Utils.Utils.allMaps (freeVars f) domain
                     insts = (\f -> map 
@@ -141,7 +145,7 @@ verifyAll mdls inputFmlas =
 
 -- mapM_ $ verify inputFmlas <$> mdls'
 
-verify inputFmlas mdl@(Model trs _) = 
+verify inputFmlas mdl@(Model trs _ _) = 
     traceShow "."
     $
     let domain = Elm <$> modelDomain mdl

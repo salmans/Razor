@@ -1,7 +1,7 @@
 module Tools.IConfig where
 
 import Data.Maybe
-import Control.Monad.State
+import Control.Monad.State.Lazy
 
 data ScheduleType = SchedBFS
                   | SchedDFS
@@ -40,6 +40,10 @@ data Config = Config { configInput       :: Maybe String
                        -- the path to TPTP folder
                      , configFormulaType :: FormulaType
                        -- type of the formula to be processed
+                     , configIsoElim     :: Bool
+                       -- eliminate isomorphic models
+                     , configQuotient    :: Bool
+                       -- construct quotient models
                      }
 
 instance Show Config where
@@ -54,18 +58,22 @@ instance Show Config where
                               (case configBound cfg of
                                  Nothing -> "unbounded"
                                  Just b  -> show b) ++ "\n" ++
-               "--tptp-path=" ++ (configTPTPPath cfg) ++
-               "--formula-type=" ++ show (configFormulaType cfg)
+               "--tptp-path=" ++ (configTPTPPath cfg) ++ "\n" ++
+               "--formula-type=" ++ show (configFormulaType cfg) ++ "\n" ++
+               "--iso-elim=" ++ show (configIsoElim cfg) ++ "\n" ++
+               "--quotient=" ++ show (configQuotient cfg)
 
-defaultConfig = Config { configInput = Nothing 
-                       , configDebug = False
-                       , configSchedule = SchedBFS
-                       , configBatch = False 
+defaultConfig = Config { configInput       = Nothing 
+                       , configDebug       = False
+                       , configSchedule    = SchedBFS
+                       , configBatch       = False 
                        , configIncremental = False
-                       , configAllModels = True
+                       , configAllModels   = True
                        , configProcessUnit = 20
-                       , configBound = Nothing
-                       , configTPTPPath = "./"
-                       , configFormulaType = GeoLog }
+                       , configBound       = Nothing
+                       , configTPTPPath    = "./"
+                       , configFormulaType = GeoLog
+                       , configIsoElim     = False
+                       , configQuotient    = False }
 
 type ConfigMonad = State Config

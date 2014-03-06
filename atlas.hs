@@ -18,6 +18,7 @@ import Data.List
 import Formula.SyntaxGeo (Theory, Sequent, Term, Elem, parseSequent)
 import Utils.Utils (isRealLine)
 import Tools.Config
+import Tools.Counter
 import Tools.FolToGeo
 import qualified Chase.Problem.Model as Model
 import Chase.Chase (chase, chase', chaseWithModel)
@@ -111,6 +112,16 @@ options =
                                                   "fof" -> TPTPFOF })
             "geo/cnf/fof")
         "Type of the input formula"
+
+    , Option "" ["iso-elim"]
+        (NoArg
+            (\cfg -> return cfg { configIsoElim = True }))
+        "Eliminate isomorphic models"
+
+    , Option "q" ["quotient"]
+        (NoArg
+            (\cfg -> return cfg { configQuotient = True }))
+        "Create quotient models"
 
     , Option "h" ["help"]
         (NoArg
