@@ -23,8 +23,8 @@ import Tools.FolToGeo
 import qualified Chase.Problem.Model as Model
 import Chase.Chase (chase, chase', chaseWithModel)
 
-import qualified Codec.TPTP as TP
-import TPTP.TPTPToGeo as T2G
+-- import qualified Codec.TPTP as TP
+-- import TPTP.TPTPToGeo as T2G
 
 -- ============================
 -- Main
@@ -162,11 +162,12 @@ main = do
                 case geoFmlas of
                   Just fs -> return (fs, [])
                   Nothing -> error "The input is not geometric!"
-            _      -> do
-                tptpData <- tptpFormulas (configTPTPPath config) inputFileName
-                case tptpData of
-                  Just (fs, es) -> return (fs, es)
-                  Nothing -> error "The input is not geometric!"
+            _      -> error "input type is not supported!"
+            -- _      -> do
+            --     tptpData <- tptpFormulas (configTPTPPath config) inputFileName
+            --     case tptpData of
+            --       Just (fs, es) -> return (fs, es)
+            --       Nothing -> error "The input is not geometric!"
 
 
   -- report result
@@ -219,10 +220,10 @@ printModels mdls = do
 
 
 -- Two different functions for loading TPTP and geometric input theories.
-tptpFormulas :: String -> String -> IO (Maybe (Theory, [Elem]))
-tptpFormulas tptpPath fName = do
-    inputs <- tptpLoad tptpPath fName
-    return $ T2G.inputsToGeo $ concat inputs
+-- tptpFormulas :: String -> String -> IO (Maybe (Theory, [Elem]))
+-- tptpFormulas tptpPath fName = do
+--     inputs <- tptpLoad tptpPath fName
+--     return $ T2G.inputsToGeo $ concat inputs
 
 
 geoFormulas :: String -> IO (Maybe Theory)
@@ -235,19 +236,19 @@ geoFormulas fName = do
 
 -- Recursively loads the contents of a file and the files included in it, and
 -- returns the content of each file as a separate list of inputs.
-tptpLoad :: String -> String -> IO [[TP.TPTP_Input]]
-tptpLoad tptpPath fName = do 
-  { src <- readFile fName
-  ; let inputLines = intersperse "\n" (lines src)
-  ; let tptpInputs = (TP.parse.concat) inputLines
-  ; let (incls, fmlas) = partition isTPTPInclude tptpInputs
-  ; rest <- mapM (\i -> tptpLoad tptpPath (tptpIncludePath tptpPath i)) incls
-  ; return (fmlas:concat rest) }
+-- tptpLoad :: String -> String -> IO [[TP.TPTP_Input]]
+-- tptpLoad tptpPath fName = do 
+--   { src <- readFile fName
+--   ; let inputLines = intersperse "\n" (lines src)
+--   ; let tptpInputs = (TP.parse.concat) inputLines
+--   ; let (incls, fmlas) = partition isTPTPInclude tptpInputs
+--   ; rest <- mapM (\i -> tptpLoad tptpPath (tptpIncludePath tptpPath i)) incls
+--   ; return (fmlas:concat rest) }
 
-isTPTPInclude :: TP.TPTP_Input -> Bool
-isTPTPInclude (TP.Include _ _) = True
-isTPTPInclude _                = False
+-- isTPTPInclude :: TP.TPTP_Input -> Bool
+-- isTPTPInclude (TP.Include _ _) = True
+-- isTPTPInclude _                = False
 
-tptpIncludePath :: String -> TP.TPTP_Input -> String
-tptpIncludePath tptpPath (TP.Include p _) = tptpPath ++ p
-tptpIncludePath _ _                       = ""
+-- tptpIncludePath :: String -> TP.TPTP_Input -> String
+-- tptpIncludePath tptpPath (TP.Include p _) = tptpPath ++ p
+-- tptpIncludePath _ _                       = ""
