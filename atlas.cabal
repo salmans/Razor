@@ -2,7 +2,7 @@
 --  see http://haskell.org/cabal/users-guide/
 
 name:                Atlas
-version:             3.6
+version:             3.7
 synopsis:            Atlas is a model-finder for geometric theories.
 -- description:         
 homepage:            https://github.com/salmans/atlas
