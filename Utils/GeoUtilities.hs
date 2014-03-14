@@ -420,7 +420,7 @@ addElementPred seq =
    fresh atomic formulas. -}
 addExistsPred :: Formula -> Counter (Formula, [Sequent])
 addExistsPred fmla@(Or _ _) = addExistsPredHelper fmla
--- addExistsPred fmla@(Exists _ _) = addExistsPredHelper fmla
+addExistsPred fmla@(Exists _ _) = addExistsPredHelper fmla
     -- If the head is an existential formula, it is already in the form we want.
     -- However, we want to generate a new predicate which can be used to 
     -- construct skolem terms for elements created by the existential 

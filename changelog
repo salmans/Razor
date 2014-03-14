@@ -166,8 +166,13 @@ Version 3.6
     - Atlas now processes TPTP input problems.
     - Several tools for working with TPTP libraries has been added.
 
+Version 3.7
+    - Collapsing elements based on the skolem depth of their histories (skolem
+    terms) is now possible.
+    - Refactoring table construction operations at Chase/Problem/RelAlg/Operations.hs
+    - Minor bug fixes
+
 Yet to come:
     - Efficient congruence closure implementation.
     - Improving the efficiency of the code as indicated by comments.
     - Fixing a bug where batch processing produces too many models.
-    - Allow free variables on right after preprocessing the input.

@@ -7,13 +7,14 @@ import Formula.SyntaxGeo
 type Counter  = State.State Int
 type CounterT = State.StateT Int
 
+lift :: (Monad m, MonadTrans t) => m a  -> t m a
+lift = State.lift
+
 increment :: Counter Int
-increment =  State.get >>= 
-             (\c -> State.put (c + 1) >> (return $ c))
+increment =  State.gets (+1)
 
 incrementT :: Monad m => CounterT m Int
-incrementT = State.get >>= 
-             (\c -> State.put (c + 1) >> (return $ c))
+incrementT = State.gets (+1)
 
 freshVar :: Counter Var
 freshVar = State.get >>= 
@@ -24,6 +25,11 @@ freshElement :: Counter Elem
 freshElement = get >>=
                (\c -> State.put (c + 1) >>
                (return $ Elem $ "e#" ++ (show c)))
+
+freshElementT :: Monad m => CounterT m Elem
+freshElementT = get >>=
+                (\c -> State.put (c + 1) >>
+                 (return $ Elem $ "e#" ++ (show c)))
 
 freshSymbol :: Sym -> Counter Sym
 freshSymbol sym = State.get >>=

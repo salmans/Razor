@@ -1,4 +1,4 @@
-Atlas is a model-finder for geometric theories.
+Atlas version 3.7 is a model-finder for geometric theories.
 
 
 # Build
@@ -22,6 +22,9 @@ Atlas is a model-finder for geometric theories.
 	      --tptp-path		Path to TPTP library
   -f geo/fof  --formula-type=geo/fof    The input type (geometric formula, TPTP
      /cnf     /cnf			FOF or TPTP CNF)
+              --skolem-depth=#          Depth of skolem term for reusing elements
+	      				(-1 for pure minimal models and 0 for 
+					random collapse)
   -h          --help			Show help
   -v          --version			Print version
 

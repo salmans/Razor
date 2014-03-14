@@ -21,13 +21,13 @@ type State    = (PairList, Sub)
 -- the result of applying a substitution to a term.  Note that partial
 -- application of this function turns a substitution as a Data.Map into
 -- an ordinary Haskell function on terms; this is sometimes useful.
-lift :: Sub -> Term -> Term
-lift sub trm =
+liftSub :: Sub -> Term -> Term
+liftSub sub trm =
     case trm of
       Var x -> case (Map.lookup x sub) of
             Just t' -> t'
             Nothing -> trm
-      Fn f args  -> Fn f (map (lift sub) args)
+      Fn f args  -> Fn f (map (liftSub sub) args)
       Elm _ -> trm
  
 
@@ -125,7 +125,7 @@ elim var trm (pairs, sub) =
           -- substituting trm for var
           var_trm_sub = Map.fromList [(var, trm)]   :: Sub
           -- make it a function, to apply it
-          var_trm_fn  = lift var_trm_sub       ::  Term->Term 
+          var_trm_fn  = liftSub var_trm_sub       ::  Term->Term 
           -- apply it to the other pairs
           newPairs  = map (\(t1,t2) -> (var_trm_fn t1, var_trm_fn t2)) pairs ::[(Term,Term)]
           -- apply it to the sub-so-far

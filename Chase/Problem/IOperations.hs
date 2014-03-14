@@ -21,7 +21,7 @@ import Debug.Trace
 import Formula.SyntaxGeo
 import Utils.GeoUtilities
 import Tools.GeoUnification
-import Tools.Config
+import Tools.Config as Config
 import Tools.Isomorph
 
 -- Chase Modeuls:
@@ -98,29 +98,32 @@ hasFreeVarOnRight seq = (not.null) $ hdVars \\ bdyVars
   the pool of problems. If the pool is empty, the function returns Nothing. 
   Otherwise, returns the problem wrapped in Just.
 -}
-selectProblem :: ScheduleType -> ProbPool (Maybe Problem)
-selectProblem _ =
+selectProblem :: ProbPool (Maybe Problem)
+-- selectProblem = do
+  -- cfg <- configure Config.get
+  -- let sched = configSchedule cfg
+  -- (fs, probs) <- State.get
+  -- if   null probs
+  -- then return Nothing
+  -- else do
+  --   let p = maximumBy (\p p' -> 
+  --                      compare ((problemScore.problemScheduleInfo) p)
+  --                      ((problemScore.problemScheduleInfo) p')) probs
+  --   State.put(fs, delete p probs)
+  --   return (Just p) -- For now, we do score-based selection
+selectProblem = 
     State.get >>= (\(fs, probs) ->
     case probs of
-      [] -> return Nothing
-      ps -> do
-        let p = maximumBy (\p p' -> 
-                           compare ((problemScore.problemScheduleInfo) p)
-                           ((problemScore.problemScheduleInfo) p')) ps
-        State.put(fs, delete p ps)
-        return (Just p)) -- For now, we do score-based selection
-
-    -- State.get >>= (\(fs, probs) ->
-    -- case probs of
-    --   []   -> return Nothing
-    --   p:ps -> State.put (fs, ps) >>= (\_ -> 
-    --           return $ Just p))
+      []   -> return Nothing
+      p:ps -> State.put (fs, ps) >>= (\_ -> 
+              return $ Just p))
 
 {-| Inserts a problem into the problem pool based on the given scheduling 
   type. -}
-scheduleProblem :: Config -> Problem -> ProbPool ()
-scheduleProblem cfg p = do
+scheduleProblem :: Problem -> ProbPool ()
+scheduleProblem p = do
   (fs, ps) <- State.get
+  cfg      <- configure Config.get
   let age = (problemBigStepAge.problemScheduleInfo) p
   let ps' = deleteFirstsBy 
             (\p1 p2 -> isomorphic (problemModel p1) (problemModel p2)) ps [p]
@@ -298,7 +301,7 @@ holds model vars allObs@(obs:rest)
       -- if the formula is closed, check if it is true in the model
       | null (fvars `intersect` vars) =
           let makeSub      = Map.singleton $ head fvars
-              liftAllObs e = map ((liftTerm.lift) (makeSub e)) allObs
+              liftAllObs e = map ((liftTerm.liftSub) (makeSub e)) allObs
           in or $ map (\e -> holds model vars (liftAllObs (Elm e))) domain 
       -- If the formula is not closed, instantiate the first for one of the
       -- instantiations of the first existential variable, it has to be true.
@@ -326,7 +329,6 @@ formulaHolds model (And p q) =
     where fmlaHolds = formulaHolds model
 formulaHolds model@(Model trs _ _) (Exists x p) = 
     let makeSub    = Map.singleton x
-        liftWith e = (liftTerm.lift) (makeSub e) p
-    in
-      or $ map ((formulaHolds model).liftWith.Elm) domain
+        liftWith e = (liftTerm.liftSub) (makeSub e) p
+    in  or $ map ((formulaHolds model).liftWith.Elm) domain
     where domain = modelDomain model

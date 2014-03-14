@@ -41,12 +41,9 @@ options =
     , Option "b" ["bound"]
         (OptArg
             (\arg cfg -> return $
-                         case arg of
+                         case join (readMaybe <$> arg) of
                            Nothing -> cfg
-                           Just b  ->
-                               case readMaybe b of
-                                 Nothing  -> cfg
-                                 Just b'  -> cfg { configBound = Just b'})
+                           Just b  -> cfg { configBound = Just b})
             "#")
         "Maximum for bounded model-finding"
     , Option "d" ["debug"]
@@ -82,12 +79,9 @@ options =
     , Option "" ["process-unit"]
         (OptArg
             (\arg cfg -> return $
-                         case arg of
+                         case join (readMaybe <$> arg) of
                            Nothing -> cfg
-                           Just pu ->
-                               case readMaybe pu of
-                                 Nothing  -> cfg
-                                 Just pu' -> cfg { configProcessUnit = pu'})
+                           Just pu -> cfg { configProcessUnit = pu})
             "#")
         "Process unit for round robing scheduling"
 
@@ -118,10 +112,14 @@ options =
             (\cfg -> return cfg { configIsoElim = True }))
         "Eliminate isomorphic models"
 
-    , Option "q" ["quotient"]
-        (NoArg
-            (\cfg -> return cfg { configQuotient = True }))
-        "Create quotient models"
+    , Option "" ["skolem-depth"]
+        (OptArg
+            (\arg cfg -> return $ 
+                         case join (readMaybe <$> arg) of
+                           Nothing -> cfg
+                           Just sk -> cfg { configSkolemDepth = sk})
+            "#")
+        "Depth of skolem term for reusing elements (-1 for pure minimal models)"
 
     , Option "h" ["help"]
         (NoArg

@@ -11,15 +11,16 @@ import qualified Data.Map as Map
 import Data.Maybe
 
 import Control.Applicative
-import qualified Control.Monad.State as State
+import qualified Control.Monad.State.Lazy as State
+import qualified Control.Monad.List as List
 import Control.DeepSeq
 
 -- Logic Modules
 import Formula.SyntaxGeo
 import Utils.GeoUtilities
-
 -- Chase Modules:
 import Chase.Problem.BaseTypes
+import Tools.Config
 import Chase.Problem.RelAlg.RelAlg
 import qualified Chase.Problem.RelAlg.Operations as OP
 import qualified RelAlg.DB as DB
@@ -108,7 +109,7 @@ truth = Elm $ Elem "True"
 
 {-| A shorthand for an empty model. -}
 emptyModel :: Model
-emptyModel = Model emptyTables (ProvInfo Map.empty 0) Map.empty
+emptyModel = Model emptyTables (ProvInfo Map.empty 0) []
 
 emptyModelWithElems :: [Elem] -> Model
 emptyModelWithElems ts = 
@@ -118,25 +119,34 @@ emptyModelWithElems ts =
     where es = DB.Set $ [ts]
           consts = [ (ConTable s, DB.Set [[t]]) | t@(Elem s) <- ts]
 
-{-| Adds a list of new observations to the given model. It also returns a set 
-  of tables corresponding to the changes made in the database. It needs a 
-  counter value to initialize new constants. Also, it updates the provenance 
-  information of the model if it is provided (it is a Just value). That is, the
-  function assumes that all of the added observations have the same provenance
-  information.
+{-| Adds a list of new observations to the given model and returns a list of 
+  resulting models. Different models are constructed as the result of various
+  possibilities for instantiating skolem constants (a@xx) when collapsing is on.
+  For each model, the function also returns a set of tables corresponding to the 
+  changes made in the database. It needs a counter value to initialize new 
+  constants. 
+  Also, it updates the provenance  information of the model if it is provided 
+  (it is a Just value). That is, the function assumes that all of the added 
+  observations have the same provenance information.
 -}
-add :: Model -> Int -> [Obs] -> Prov -> (Model, Tables, Int)
-add model@(Model tbls provs hist) c obs prov =
+add ::  Model -> Int -> [Obs] -> Prov -> (Maybe SkolemTerm, Int)
+    -> [(Model, Tables, Int)]
+add model@(Model tbls provs hist) c obs prov (skTerm, skDepth) =
     -- run a counter monad inside a state monad transformer for provenance
-    let (((newTables, deltas), (_, newProvs)), c') = State.runState st c
-        st = State.runStateT (OP.buildTables obs tbls emptyTables) 
-             (prov, provs)
-        newProvs' = case prov of
-                      ChaseProv tag _ _ -> newProvs {provInfoLastTag = tag + 1}
-                      UserProv          -> newProvs
-    in (Model newTables newProvs' hist, deltas, c')
+    let result = State.runStateT hst c
+        hst    = State.runStateT pst (skTerm, skDepth, hist)
+        pst    = State.runStateT dst (prov, provs)
+        dst    = State.runStateT ost emptyTables
+        ost    = State.runStateT (OP.buildTables tbls) obs
+        newProvs' np = case prov of
+                         ChaseProv tag _ _ -> np {provInfoLastTag = tag + 1}
+                         UserProv          -> np
+    in (\(((((newTables, []), deltas), (_, newProvs)), (_, _, newHist)), c') ->
+            (Model newTables (newProvs' newProvs) newHist, deltas, c')) <$> result
        -- Since we just used the provenance tag, update the tag information.
        -- Salman: make this procedure transparent using a monad.
+
+
 
 {-| Returns true if a term is true in the model; That is, if the Obs is 
   "Fct a", it verifies whether t is true in the model. If the Obs is 

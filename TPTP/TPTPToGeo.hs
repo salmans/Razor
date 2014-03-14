@@ -19,7 +19,7 @@ import Formula.SyntaxGeo
 import qualified Formula.SyntaxFol as Fol
 
 import Utils.GeoUtilities
-import qualified Tools.GeoUnification as Unif (lift)
+import qualified Tools.GeoUnification as Unif (liftSub)
 import qualified Utils.GeoUtilities 
 import qualified Tools.FolToGeo as F2G
 import Tools.Counter
@@ -130,7 +130,7 @@ conjecture seq = do
   let vs = freeVars seq
   cs <- mapM (\v -> do { c <- freshSymbol "cjr"; return (Elem c)}) vs
   let sub  = Map.fromList $ zip vs (Elm <$> cs)
-  let (Sequent bdy hd) = liftTerm (Unif.lift sub) seq
+  let (Sequent bdy hd) = liftTerm (Unif.liftSub sub) seq
   let hdSequents = (\s -> Sequent s Fls) <$> (splitHead hd)
   let bdySequent = Sequent Tru bdy
   let filtered   = 
