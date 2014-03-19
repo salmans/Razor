@@ -19,6 +19,9 @@ import qualified Data.Either as Either
 import qualified Data.Maybe as Maybe
 import qualified Data.Map as Map
 
+import qualified Data.List as List
+import qualified FindCore.FindCoreI as FC
+
 import Formula.SyntaxGeo
 import Utils.GeoUtilities
 import Tools.Counter
@@ -27,6 +30,7 @@ import qualified Utils.Utils
 import Tools.GeoUnification
 import Tools.Config
 import Chase.Problem.Model
+import Chase.Problem.BaseTypes
 import Chase.Problem.Operations (sequentHolds)
 import Chase.Chase
 -- ============================
@@ -105,9 +109,32 @@ main = do
 
   putStrLn "Model: "
   putStrLn $ show model
-  --putStrLn ""
-  putStrLn $ "-> " ++ verifyMsg
+
+  if Maybe.isJust model
+  then let provA = modelProvInfo $ Maybe.fromJust model in
+       let provFC = provForFC provA in
+       putStrLn $ "FC.Provenance:\n" ++
+                  (provSexp provA) ++ "\n\n" ++
+                  (show provFC) ++
+                  "\n\nRetraction:\n" ++
+                  (show $ FC.coreRetractFromProvenance provFC)
+  else putStrLn "-----"
+
   putStrLn ""
+--  putStrLn $ "-> " ++ verifyMsg
+  putStrLn ""
+
+
+
+{-
+  putStrLn "("
+  if   configAllModels config
+  then putStrLn $ problemsSexp $ chase config inputFmlas
+  else putStrLn $ case chase' config inputFmlas of
+                    Nothing -> problemsSexp []
+                    Just m  -> problemsSexp [m]
+  putStrLn ")"
+-}
 
 
 -- QUICK FIX
@@ -160,3 +187,121 @@ verify inputFmlas mdl@(Model trs _ _) =
                    "Oops! The model does not satisfy the theory." ++
                   (show (filter (\s -> (not(sequentHolds mdl s))) 
                          fmlas)))
+
+
+{-
+problemsSexp :: [Problem] -> String
+problemsSexp []    = ";; No models found!"
+problemsSexp probs = List.intercalate "\n\n" (List.map strProblem probs)
+  where strProblem p =
+          let model = problemModel p in
+          " ( ;; Model\n" ++
+--          (show model) ++ "\n\n" ++
+--          (modelSexp model) ++ "\n\n" ++
+          (provSexp (modelProvInfo model)) ++
+--        "\n" ++ (framesSexp (problemFrames p)) ++
+          "\n )"
+-}
+
+{-
+modelSexp :: Model -> String
+modelSexp model = do
+  let list = List.filter (\(tr, _) -> tr /= DomTable) $ Map.toList (modelTables model)
+  "\n" --(List.concat (\(tr, t) -> prettyTable tr t) list) ++ "\n"
+-}
+
+
+provSexp :: ProvInfo -> String
+provSexp provs =
+  "  ( ;; Provenance\n" ++
+  (List.intercalate "\n" $
+   List.map snd $
+   List.sortBy compareFst $
+   List.concatMap strFctProv (Map.assocs (provInfoData provs))) ++
+  "\n  )"
+  where strFctProv ((Fct (R a b)), provl) = strFctProv2 a b provl
+        strFctProv ((Fct (F a b)), provl) = strFctProv2 a b provl
+        strFctProv ((Eql (Fn a []) e@(Elm _)), prov1) = strFctProv2 a [e] prov1
+        --strFctProv ((Den (Fn a [])), provl) = strFctProv2 a [] provl
+        --strFctProv a = error (show a)
+        --strFctProv _ = []
+
+        strFctProv2 a b provl = List.map (strProv ("   ((" ++ a ++ (strArgs b) ++ ") (")) (List.nubBy eq provl)
+        eq p1 p2 = (provKey p1) == (provKey p2)
+
+        strProv str1 prov = (provKey prov, str1 ++ (strp prov) ++ "))")
+
+        strp (ChaseProv sid fid sub) =
+          (show sid) ++ " " ++ (show fid) ++ " (" ++ (strSub sub) ++ ")"
+        strp UserProv = "?"
+
+        strSub sub = List.intercalate " " $ List.map strSubEach (Map.assocs sub)
+        strSubEach (a, (Elm (Elem b))) = "(" ++ a ++ " " ++ b ++ ")"
+        strSubEach _ = "(_ _)"
+
+        compareFst (key1,_) (key2,_) = compare key1 key2
+        provKey (ChaseProv sid _ _) = sid
+        provKey UserProv = -1
+
+--{-
+provForFC :: ProvInfo -> [FC.Provenance]
+provForFC provs =
+  (List.map snd $
+   List.sortBy compareFst $
+   List.concatMap strFctProv (Map.assocs (provInfoData provs)))
+  where strFctProv ((Fct (R a b)), provl) = strFctProv2 a b provl
+        strFctProv ((Fct (F a b)), provl) = strFctProv2 a b provl
+        strFctProv ((Eql (Fn a []) e@(Elm _)), prov1) = strFctProv2 a [e] prov1
+        --strFctProv ((Den (Fn a [])), provl) = strFctProv2 a [] provl
+        --strFctProv a = error (show a)
+        --strFctProv _ = []
+
+        strFctProv2 a b provl = List.map (strProv (FC.Fact a (strArg <$> b))) (List.nubBy eq provl)
+        eq p1 p2 = (provKey p1) == (provKey p2)
+
+        strProv fact prov = (provKey prov, FC.Provenance fact (strp prov))
+
+        strp (ChaseProv sid fid sub) = FC.ProvTag sid fid (strSub sub)
+        strp UserProv =                FC.ProvTag (-1) (-1) []
+
+        strSub sub = List.map strSubEach (Map.assocs sub)
+        strSubEach (a, (Elm (Elem b))) = (a, b)
+        strSubEach _ = ("?", "?")
+
+        compareFst (key1,_) (key2,_) = compare key1 key2
+        provKey (ChaseProv sid _ _) = sid
+        provKey UserProv = -1
+--}
+
+provenance1 = [FC.Provenance (FC.Fact "P" ["e#1"]) (FC.ProvTag 0 1 []),
+               FC.Provenance (FC.Fact "Q" ["e#3"]) (FC.ProvTag 1 2 []),
+               FC.Provenance (FC.Fact "Q" ["e#1"]) (FC.ProvTag 2 3 [("x","e#1")]),
+               FC.Provenance (FC.Fact "R" ["e#3","e#5"]) (FC.ProvTag 3 4 [("x","e#3")]),
+               FC.Provenance (FC.Fact "R" ["e#1","e#7"]) (FC.ProvTag 4 4 [("x","e#1")])]
+
+
+{-
+framesSexp :: [Frame] -> String
+framesSexp frames =
+  "  ( ;; Theory\n" ++
+  (List.intercalate "\n" $ List.map strFrame $ List.sortBy compareByID frames) ++
+  "\n  )"
+  where strFrame (Frame id body head _ _ _) =
+          "   (" ++ (show id) ++ " (" ++ (list body) ++ ") (" ++ (list2 head) ++ "))"
+
+        list2 obsll = "(" ++ (List.intercalate ") (" (List.map list obsll)) ++ ")"
+        list obsl = List.intercalate " " (List.concatMap strObs obsl)
+        strObs (Fct (R a b)) = [strObs2 a b]
+        strObs (Fct (F a b)) = [strObs2 a b]
+        strObs _ = []
+        strObs2 a b = "(" ++ a ++ " " ++ (strArgs b) ++ ")"
+
+        compareByID f1 f2 = compare (frameID f1) (frameID f2)
+-}
+
+strArgs args = List.concatMap ((++) " ") (List.map strArg args)
+strArg (Elm (Elem e)) = e
+strArg (Var x) = x
+strArg (Fn ('a':'@':x) []) = 'e':'#':x
+--strArg x = show x
+strArg _ = "?"
