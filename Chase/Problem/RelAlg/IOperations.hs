@@ -54,13 +54,8 @@ import qualified RelAlg.DB as DB
   the changes in the database in the current computational context.
 
   [Obs] is the set of remaining observations to be added to the model.
-  
-  Finally, a list monad sits at the top of monadic stack for various 
-  possibliites of instantiating skolem constants (a@xx) when collapsing is 
-  enabled.
  -}
-type Cntr             = CounterT []
-type HistCntr         = (State.StateT (Maybe Term, Int, ElemHistory) Cntr)
+type HistCntr         = (State.StateT (Maybe Term, Int, ElemHistory) Counter)
 type ProvHistCntr     = State.StateT (Prov, ProvInfo) HistCntr
 type DeltProvHistCntr = State.StateT Tables ProvHistCntr
 type ModelBuilder     = State.StateT [Obs] DeltProvHistCntr
@@ -226,8 +221,7 @@ initConstant tbls t@(Fn s []) = do
                  -- a pattern matching error. A data-type refactoring can make
                  -- the code prettier!
 
-       vs <- liftCounter $ getValue depth (Fn f ts') hist
-       v  <- liftList [head vs]
+       v <- liftCounter $ getValue depth (Fn f ts') hist
 
        let recs = Map.fromList [(DomTable, DB.Set [[v]]),
                                 (ConTable s, DB.Set [[v]])]
@@ -374,19 +368,17 @@ integrity set = [Eql (Elm c1) (Elm c2) | ts1 <- list, ts2 <- list
     where list = DB.toList set
 
 -- Collapsec functions
-getValue :: Int -> SkolemTerm -> ElemHistory -> Cntr [Elem]
+getValue :: Int -> SkolemTerm -> ElemHistory -> Counter Elem
 getValue depth skTerm hist = 
-    let vals = selectCollapses depth skTerm hist
-    in  if   null vals
-        then do
-          fresh <- freshElementT
-          return [fresh]
-        else return vals
+    let val = selectCollapse depth skTerm hist    
+    in  case val of
+          Nothing -> freshElement
+          Just v  -> return v
 
-selectCollapses :: Int -> SkolemTerm -> ElemHistory -> [Elem]
-selectCollapses (-1) _ _          = [] -- Do not collapse anything
-selectCollapses depth skTerm hist =
-    nub $ fst <$> filter ((matchSkolemTerms depth skTerm).snd) hist
+selectCollapse :: Int -> SkolemTerm -> ElemHistory -> Maybe Elem
+selectCollapse (-1) _ _          = Nothing -- Do not collapse anything
+selectCollapse depth skTerm hist =
+    fst <$> find ((matchSkolemTerms depth skTerm).snd) hist
 
 matchSkolemTerms :: Int -> SkolemTerm -> SkolemTerm -> Bool
 matchSkolemTerms 0 _ _                         = True

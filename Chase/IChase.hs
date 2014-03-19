@@ -147,7 +147,7 @@ cascadeStep fMap prob
            ; let schedInfo' = schedInfo { problemSelectors  = sls
                                         , problemBigStepAge = age'}
            ; let prob' = prob {problemScheduleInfo = schedInfo'}
-           ; cfg <- configure Config.get
+           ; cfg <- liftConfig Config.get
            ; newProbs <- chaseStep fMap sl prob'
            ; case newProbs of
                Left _   -> do
@@ -165,14 +165,18 @@ cascadeStep fMap prob
                  --   let minC = minimum (problemLastConstant <$> ps')
                  --   let (pre, post) = 
                  --           partition (\p -> (problemLastConstant p) == minC) ps'
-                 --   mapM (scheduleProblem cfg {configSchedule = SchedDFS}) pre
-                 --   mapM (scheduleProblem cfg {configSchedule = SchedBFS}) post
+
+                 --   liftConfig $ State.modify (\cfg -> cfg {configSchedule = SchedDFS})
+                 --   mapM scheduleProblem pre
+                 --   liftConfig $ State.modify (\cfg -> cfg {configSchedule = SchedBFS})
+                 --   mapM scheduleProblem post
                  --   process
                  -- else  do
-                 --   mapM (scheduleProblem cfg {configSchedule = SchedDFS}) ps'
-                 --   process
-                 mapM scheduleProblem ps' -- Schedule new problems
-                 process }                      -- Process the pool
+                 --   liftConfig $ State.modify (\cfg -> cfg {configSchedule = SchedDFS})
+                 --   mapM scheduleProblem ps'
+                 --   process }
+                 mapM scheduleProblem ps' Schedule new problems
+                 process } -- Process the pool
     where schedInfo@ScheduleInfo { problemSelectors  = selectors
                                  , problemBigStepAge = age 
                                  , problemScore      = score } = 
@@ -212,7 +216,7 @@ fromProblet frms initialQueue schedInfo (Problet m q c) =
 chaseStep :: FrameMap -> [FrameTypeSelector] -> Problem -> 
              ProbPool (Either ChaseStop [Problem])
 chaseStep fMap sl p@(Problem id frmIDs model queues schedInfo lastConst) = do
-  cfg <- configure Config.get
+  cfg <- liftConfig Config.get
   return $ do
       let (q:qs) = if null queues then [emptyTables] else queues
       let bound = configBound cfg
@@ -260,9 +264,9 @@ newProbletsForFrame cfg frame prob = do
   (os, c, p, skTerm)   <- newFacts cfg frame prob
   let model     = probletModel prob
   let depth     = configSkolemDepth cfg
-  let mapFunc o = (\(m', ts', c') -> Problet m' ts' c') <$>
+  let mapFunc o = (\(m', ts', c') -> Problet m' ts' c') $
                   Model.add model c o (Maybe.fromJust p) (skTerm, depth)
-  return $ concatMap mapFunc os
+  return $ map mapFunc os
 
 
 frameSkolemTerm frm sub = let Fct (R s ts) = liftTerm (liftSub sub) $ head (frameBody frm)
@@ -395,7 +399,7 @@ debugConf = defaultConfig { configDebug       = False
                           , configBound       = Nothing
                           , configSchedule    = SchedBFS
                           , configIsoElim     = False 
-                          , configSkolemDepth = 4 }
+                          , configSkolemDepth = -1 }
 
 doChase  thy = chase  debugConf $ map parseSequent thy
 doChase' thy = chase' debugConf $ map parseSequent thy

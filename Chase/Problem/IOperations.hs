@@ -122,14 +122,39 @@ selectProblem =
   type. -}
 scheduleProblem :: Problem -> ProbPool ()
 scheduleProblem p = do
+  {- Punish the isomorphic model -}
+  -- (fs, ps) <- State.get
+  -- cfg      <- liftConfig Config.get
+  -- let age = (problemBigStepAge.problemScheduleInfo) p
+  -- let isomorph  = find (\p' -> isomorphic (problemModel p) (problemModel p')) ps
+  -- case isomorph of
+  --   Nothing -> State.put $ (fs, scheduleProblemHelper cfg p ps)
+  --   Just _  -> do
+  --     State.put (fs, if   age /= 0 && configIsoElim cfg
+  --                    then (ps ++ [p])
+  --                    else scheduleProblemHelper cfg p ps)
+
+  {- Delete the isomorphic model from the pool -}
+  -- (fs, ps) <- State.get
+  -- cfg      <- liftConfig Config.get
+  -- let age = (problemBigStepAge.problemScheduleInfo) p
+  -- let ps' = deleteFirstsBy 
+  --           (\p1 p2 -> isomorphic (problemModel p1) (problemModel p2)) ps [p]
+  -- State.put (fs, if   age /= 0 && configIsoElim cfg
+  --                then scheduleProblemHelper cfg p ps'
+  --                else scheduleProblemHelper cfg p ps)
+  
+  {- Don't schedule the isomorphic model -}
   (fs, ps) <- State.get
-  cfg      <- configure Config.get
+  cfg      <- liftConfig Config.get
   let age = (problemBigStepAge.problemScheduleInfo) p
-  let ps' = deleteFirstsBy 
-            (\p1 p2 -> isomorphic (problemModel p1) (problemModel p2)) ps [p]
-  State.put (fs, if   age /= 0 && configIsoElim cfg
-                 then scheduleProblemHelper cfg p ps'
-                 else scheduleProblemHelper cfg p ps)
+  let isomorph  = find (\p' -> isomorphic (problemModel p) (problemModel p')) ps
+  case isomorph of
+    Nothing -> State.put $ (fs, scheduleProblemHelper cfg p ps)
+    Just _  -> do
+      State.put (fs, if   age /= 0 && configIsoElim cfg
+                     then ps
+                     else scheduleProblemHelper cfg p ps)
     
 {- A helper for scheduleProblem -}
 scheduleProblemHelper :: Config -> Problem -> [Problem] -> [Problem]

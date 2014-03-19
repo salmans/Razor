@@ -60,7 +60,7 @@ main = do
   time1 <- getClockTime
   -- get the answer
   let model  = chase' defaultConfig {configSchedule    = SchedBFS
-                                    ,configIsoElim     = False
+                                    ,configIsoElim     = True
                                     ,configSkolemDepth = -1
                                     ,configIncremental = True } inputFmlas
   time2 <- getClockTime

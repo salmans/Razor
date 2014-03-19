@@ -22,7 +22,7 @@ isomorphic mdl1 mdl2 =
     all (\test -> test mdl1 mdl2) [ test_Domain
                                   , test_Preds, test_PredsSize
                                   , test_FullTest]
-
+    
 test_Domain :: Model -> Model -> Bool
 test_Domain mdl1 mdl2 = 
     length (modelDomain mdl1) == length (modelDomain mdl2)

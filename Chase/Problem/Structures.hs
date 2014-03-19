@@ -215,8 +215,8 @@ type ProbPool = RWS.RWST [String] [String]
      (FrameMap, [Problem])  -- Frames and Problems
      CntrCfg                -- Counter and Config
 
-count :: (Monad m, State.MonadTrans t) => m a  -> t m a
-count  = RWS.lift
-configure :: ( Monad (t m), Monad m, State.MonadTrans t'
-             , State.MonadTrans t) => m a  -> t' (t m) a
-configure  = count.State.lift
+liftCounter :: (Monad m, State.MonadTrans t) => m a  -> t m a
+liftCounter  = RWS.lift
+liftConfig :: ( Monad (t m), Monad m, State.MonadTrans t'
+              , State.MonadTrans t) => m a  -> t' (t m) a
+liftConfig  = liftCounter.State.lift
