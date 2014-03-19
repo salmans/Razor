@@ -175,7 +175,7 @@ cascadeStep fMap prob
                  --   liftConfig $ State.modify (\cfg -> cfg {configSchedule = SchedDFS})
                  --   mapM scheduleProblem ps'
                  --   process }
-                 mapM scheduleProblem ps' Schedule new problems
+                 mapM scheduleProblem ps' -- Schedule new problems
                  process } -- Process the pool
     where schedInfo@ScheduleInfo { problemSelectors  = selectors
                                  , problemBigStepAge = age 
