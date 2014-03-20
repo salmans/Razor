@@ -118,8 +118,8 @@ process :: ProbPool [Problem]
 process = do
       cfg              <- (State.lift.State.lift) State.get 
       prob             <- selectProblem -- pick a problem
-      (fMap, allProbs) <- RWS.get
-      Logger.logUnder (length allProbs) "# of branches"
+      (fMap, allProbs) <- RWS.get                          
+      Logger.logUnder (length allProbs) "# of branches"                          
       -- Logger.logIf (Maybe.isJust prob) ((problemModel.Maybe.fromJust) prob)
       case prob of
         Nothing -> return [] -- no more problems
@@ -335,11 +335,33 @@ deduce cfg counter model hs = deduceHelper cfg counter model hs
 {- This is a helper function for deduce. It infers a list of observations
    to add to the input model in which the observations are not true.
 -}
+-- deduceHelper _ counter _ [] = ([[]], counter)
+-- deduceHelper cfg counter model allObs@(obs:rest)
+--     | null existVars = 
+--         let (restObs, restCounter) = deduceHelper cfg counter model rest 
+--         in  ((obs:) <$> restObs, restCounter)
+--             -- The observation is a closed atom. Return it together with
+--             -- the observations corresponding to the rest of the facts.
+--     | otherwise      =
+--         let freshConstants = map makeFreshConstant [(counter + 1)..]
+--             -- existSubs      = Map.fromList $ zip existVars freshConstants
+--             existSubs      = allExistsSubs cfg counter existVars 
+--                              (Model.modelDomain model)
+--             liftedRest     = (\s -> map ((liftTerm.liftSub) s) allObs) <$> existSubs
+--             newCounter     = counter + length existVars
+--             restDeduced    = deduceHelper cfg newCounter model <$> liftedRest
+--             (fcts, cs)     = unzip restDeduced
+--         in  (concat fcts, head cs) 
+--             -- In this case, all of the free variables in the observation 
+--             -- are existentials: instantiate variables with fresh constants; 
+--             -- then, apply deduce on the instantiated observations.
+--     where existVars = freeVars obs -- existentially quantified vars in obs
+
 deduceHelper _ counter _ [] = ([[]], counter)
 deduceHelper cfg counter model allObs@(obs:rest)
     | null existVars = 
         let (restObs, restCounter) = deduceHelper cfg counter model rest 
-        in ((obs:) <$> restObs, restCounter)
+        in  ((obs:) <$> restObs, restCounter)
             -- The observation is a closed atom. Return it together with
             -- the observations corresponding to the rest of the facts.
     | otherwise      =
