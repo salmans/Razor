@@ -183,8 +183,8 @@ insertRecord ref ts tbls = do
   -- Adding new provenance information but first, convert the constants in the
   -- observation being logged are converted to the elements they are pointing:
   let obs      =  atomToObs $ case ref of 
-                                RelTable s -> R s ts
-                                FunTable s -> F s ts
+                                RelTable s -> R s (Elm <$> es)
+                                FunTable s -> F s (Elm <$> es)
   (prov, ProvInfo provs lastTag) <- liftProv State.get
   let provInfo = ProvInfo (Map.insertWith (++) obs [prov] provs) lastTag
 
@@ -231,7 +231,9 @@ initConstant tbls t@(Fn s []) = do
                                  
        let obs  = Eql t (Elm finalVal)
        (prov, ProvInfo provs lastTag) <- liftProv State.get
-       
+
+       -- let provInfo = ProvInfo (Map.insertWith (++) obs [prov] provs) lastTag
+       -- liftProv $ State.put (prov, provInfo)       
        liftHist $ State.put $ (Just skTerm, depth, ((v, (Fn f ts')):hist))
        return (delts, finalVal)
      else do
