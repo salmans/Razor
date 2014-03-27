@@ -219,7 +219,8 @@ provSexp provs =
    List.sortBy compareFst $
    List.concatMap strFctProv (Map.assocs (provInfoData provs))) ++
   "\n  )"
-  where strFctProv ((Fct (R a b)), provl) = strFctProv2 a b provl
+  where strFctProv ((Fct (R ('@':'E':'x':'i':'s':'t':'s':_) _)), _) = []
+        strFctProv ((Fct (R a b)), provl) = strFctProv2 a b provl
         strFctProv ((Fct (F a b)), provl) = strFctProv2 a b provl
         strFctProv ((Eql (Fn a []) e@(Elm _)), prov1) = strFctProv2 a [e] prov1
         --strFctProv ((Den (Fn a [])), provl) = strFctProv2 a [] provl
@@ -249,7 +250,8 @@ provForFC provs =
   (List.map snd $
    List.sortBy compareFst $
    List.concatMap strFctProv (Map.assocs (provInfoData provs)))
-  where strFctProv ((Fct (R a b)), provl) = strFctProv2 a b provl
+  where strFctProv ((Fct (R ('@':'E':'x':'i':'s':'t':'s':_) _)), _) = []
+        strFctProv ((Fct (R a b)), provl) = strFctProv2 a b provl
         strFctProv ((Fct (F a b)), provl) = strFctProv2 a b provl
         strFctProv ((Eql (Fn a []) e@(Elm _)), prov1) = strFctProv2 a [e] prov1
         --strFctProv ((Den (Fn a [])), provl) = strFctProv2 a [] provl
@@ -302,6 +304,6 @@ framesSexp frames =
 strArgs args = List.concatMap ((++) " ") (List.map strArg args)
 strArg (Elm (Elem e)) = e
 strArg (Var x) = x
-strArg (Fn ('a':'@':x) []) = 'e':'#':x
+--strArg (Fn ('a':'@':x) []) = 'e':'#':x
 --strArg x = show x
 strArg _ = "?"
