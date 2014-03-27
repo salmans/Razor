@@ -1,7 +1,7 @@
 module Tools.IConfig where
 
 import Data.Maybe
-import Control.Monad.State.Lazy
+import Control.Monad.State.Lazy as State
 
 data ScheduleType = SchedBFS
                   | SchedDFS
@@ -42,8 +42,8 @@ data Config = Config { configInput       :: Maybe String
                        -- type of the formula to be processed
                      , configIsoElim     :: Bool
                        -- eliminate isomorphic models
-                     , configQuotient    :: Bool
-                       -- construct quotient models
+                     , configSkolemDepth :: Int
+                       -- depth of skolem term for reusing elements
                      }
 
 instance Show Config where
@@ -61,7 +61,7 @@ instance Show Config where
                "--tptp-path=" ++ (configTPTPPath cfg) ++ "\n" ++
                "--formula-type=" ++ show (configFormulaType cfg) ++ "\n" ++
                "--iso-elim=" ++ show (configIsoElim cfg) ++ "\n" ++
-               "--quotient=" ++ show (configQuotient cfg)
+               "--skolem-depth=" ++ show (configSkolemDepth cfg)
 
 defaultConfig = Config { configInput       = Nothing 
                        , configDebug       = False
@@ -74,6 +74,18 @@ defaultConfig = Config { configInput       = Nothing
                        , configTPTPPath    = "./"
                        , configFormulaType = GeoLog
                        , configIsoElim     = False
-                       , configQuotient    = False }
+                       , configSkolemDepth = -1 }
 
-type ConfigMonad = State Config
+{- ConfigMonad is  a state monad with a Config instance as its state. -}
+type ConfigMonad  = State Config
+type ConfigMonadT = StateT Config
+
+get :: State.MonadState s m => m s
+get =  State.get
+
+put :: State.MonadState s m => s -> m ()
+put =  State.put
+
+lift :: (Monad m, MonadTrans t) => m a -> t m a
+lift = State.lift
+

@@ -9,14 +9,16 @@ module Chase.Problem.Structures where
 -- General Modules
 import Data.List
 import qualified Data.Map as Map
+import Control.Monad
 import qualified Control.Monad.RWS.Lazy as RWS
+import qualified Control.Monad.State.Lazy as State
 import Control.Applicative
 
 -- Logic Modules
 import Formula.SyntaxGeo
 import Utils.GeoUtilities(TermBased(..))
-import Tools.Config
-import Tools.Counter
+import Tools.Config as Config
+import Tools.Counter as Counter
 
 -- Chase Modeuls:
 import Chase.Problem.BaseTypes
@@ -208,6 +210,13 @@ type FrameMap = Map.Map Int Frame
 {-| ProbPool keeps track of a counter for problem IDs,  theory and the pool 
   of problems.
 -}
+type CntrCfg   = CounterT ConfigMonad
 type ProbPool = RWS.RWST [String] [String] 
-    (FrameMap, [Problem])  -- Frames and Problems
-    (CounterT ConfigMonad) -- Counter and Config
+     (FrameMap, [Problem])  -- Frames and Problems
+     CntrCfg                -- Counter and Config
+
+liftCounter :: (Monad m, State.MonadTrans t) => m a  -> t m a
+liftCounter  = RWS.lift
+liftConfig :: ( Monad (t m), Monad m, State.MonadTrans t'
+              , State.MonadTrans t) => m a  -> t' (t m) a
+liftConfig  = liftCounter.State.lift

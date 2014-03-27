@@ -63,9 +63,9 @@ main = do
 
   time1 <- getClockTime
   -- get the answer
-  let model  = chase' defaultConfig {configSchedule = SchedBFS
-                                    ,configIsoElim  = False
-                                    ,configQuotient = False 
+  let model  = chase' defaultConfig {configSchedule    = SchedBFS
+                                    ,configIsoElim     = True
+                                    ,configSkolemDepth = -1
                                     ,configIncremental = True } inputFmlas
   time2 <- getClockTime
 
@@ -85,7 +85,7 @@ main = do
                     domain = Elm <$> modelDomain mdl
                     maps f = Utils.Utils.allMaps (freeVars f) domain
                     insts = (\f -> map 
-                                   (\s -> (liftTerm.lift) s f) 
+                                   (\s -> (liftTerm.liftSub) s f) 
                                    (maps f)) 
                     fmlas = concatMap insts inputFmlas'
                 in
@@ -160,7 +160,7 @@ renameHeadVars (Exists x f) = do
   x' <- freshSymbol "@bv"
   f' <- renameHeadVars f
   let sub = Map.singleton x (Var x')
-  return $ Exists x' ((liftTerm.lift) sub f')
+  return $ Exists x' ((liftTerm.liftSub) sub f')
 renameHeadVars f = return f  --otherwise
 
 
@@ -179,7 +179,7 @@ verify inputFmlas mdl@(Model trs _ _) =
         maps f = Utils.Utils.allMaps (freeVars f) domain
         fmlas = concatMap insts inputFmlas
         insts = (\f -> map 
-                       (\s -> (liftTerm.lift) s f) 
+                       (\s -> (liftTerm.liftSub) s f) 
                        (maps f)) 
     in (case all (\s -> (sequentHolds mdl s)) fmlas of
           True  -> print "Verified!"

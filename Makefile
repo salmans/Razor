@@ -1,7 +1,7 @@
 
 # -optl-w is there to suppress the warnings about text relocs
 chase:  .PHONY chase.hs
-	ghc -rtsopts -odir binaries -hidir binaries --make chase.hs -optl-w -o bin/chase
+	ghc -rtsopts -odir binaries -hidir binaries --make atlas.hs -optl-w -o bin/chase
 
 all: .PHONY main chase
 

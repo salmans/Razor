@@ -21,8 +21,9 @@ isomorphic :: Model -> Model -> Bool
 isomorphic mdl1 mdl2 =
     all (\test -> test mdl1 mdl2) [ test_Domain
                                   , test_Preds, test_PredsSize
-                                  , test_FullTest]
-
+                                  , test_ElemSignature ]
+--                                  , test_FullTest]
+    
 test_Domain :: Model -> Model -> Bool
 test_Domain mdl1 mdl2 = 
     length (modelDomain mdl1) == length (modelDomain mdl2)
@@ -42,6 +43,22 @@ test_PredsSize mdl1 mdl2 =
     where list1 = sortBy sortFunc $ Map.toList $ modelOrigTables mdl1
           list2 = sortBy sortFunc $ Map.toList $ modelOrigTables mdl2
           sortFunc = \(k1, _) (k2, _) -> compare k1 k2
+
+test_ElemSignature :: Model -> Model -> Bool
+test_ElemSignature mdl1 mdl2 = 
+    let sig1 = Map.keys <$> (\e -> Map.filter (isElemInTable e) tbls1) <$> dom1
+        sig2 = Map.keys <$> (\e -> Map.filter (isElemInTable e) tbls2) <$> dom2
+    in  sorts sig1 == sorts sig2
+    where dom1  = modelDomain mdl1
+          dom2  = modelDomain mdl2
+          tbls1 = modelTables mdl1
+          tbls2 = modelTables mdl2
+          sorts = \l -> sort $ sort <$> l
+
+isElemInTable :: Elem -> Table -> Bool
+isElemInTable e tbl = 
+    any (\t -> e `elem` t) tuples
+    where tuples = DB.toList tbl
 
 -- Assumes test_PredSize since the result of lookup has to be a Just value.
 test_FullTest :: Model -> Model -> Bool

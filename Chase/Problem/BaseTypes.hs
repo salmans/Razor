@@ -32,7 +32,7 @@ data ProvInfo = ProvInfo { provInfoData     :: Map.Map Obs [Prov]
 
 {-| History of elements introduced by existential quantifiers are stored as an
   ElemHistory structure inside a model. -}
-type ElemHistory = Map.Map Elem [SkolemTerm]
+type ElemHistory = [(Elem, SkolemTerm)]
 
 {-| Errors raised by this modeule |-}
 err_ChaseProblemObservation_VarToAtm =

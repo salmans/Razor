@@ -16,6 +16,8 @@ import Text.Printf
 
 import Data.Maybe
 import Data.List
+import Control.Applicative
+import Control.Monad
 import Control.DeepSeq
 
 import Formula.SyntaxGeo (Term (Elm))
@@ -34,7 +36,6 @@ import Tools.Config
 -- ============================
 
 -- The path to the TPTP library is hard-coded for now:
-
 options :: [ OptDescr (Config -> IO Config) ]
 options =
     [ Option "i" ["input", "file"]
@@ -45,12 +46,9 @@ options =
     , Option "b" ["bound"]
         (OptArg
             (\arg cfg -> return $
-                         case arg of
+                         case join (readMaybe <$> arg) of
                            Nothing -> cfg
-                           Just b  ->
-                               case readMaybe b of
-                                 Nothing  -> cfg
-                                 Just b'  -> cfg { configBound = Just b'})
+                           Just b  -> cfg { configBound = Just b})
             "#")
         "Maximum for bounded model-finding"
     , Option "d" ["debug"]
@@ -86,12 +84,9 @@ options =
     , Option "" ["process-unit"]
         (OptArg
             (\arg cfg -> return $
-                         case arg of
+                         case join (readMaybe <$> arg) of
                            Nothing -> cfg
-                           Just pu ->
-                               case readMaybe pu of
-                                 Nothing  -> cfg
-                                 Just pu' -> cfg { configProcessUnit = pu'})
+                           Just pu -> cfg { configProcessUnit = pu})
             "#")
         "Process unit for round robing scheduling"
 
@@ -117,6 +112,20 @@ options =
             "geo/cnf/fof")
         "Type of the input formula"
 
+    , Option "" ["iso-elim"]
+        (NoArg
+            (\cfg -> return cfg { configIsoElim = True }))
+        "Eliminate isomorphic models"
+
+    , Option "" ["skolem-depth"]
+        (OptArg
+            (\arg cfg -> return $ 
+                         case join (readMaybe <$> arg) of
+                           Nothing -> cfg
+                           Just sk -> cfg { configSkolemDepth = sk})
+            "#")
+        "Depth of skolem term for reusing elements (-1 for pure minimal models)"
+
     , Option "h" ["help"]
         (NoArg
             (\_ -> do
@@ -128,11 +137,10 @@ options =
     , Option "v" ["version"]
         (NoArg
             (\_ -> do
-               hPutStrLn stderr "Version 3.5"
+               hPutStrLn stderr "Version 3.6"
                exitWith ExitSuccess))
         "Print version"
     ]
-
 
 main :: IO ()
 main = do
