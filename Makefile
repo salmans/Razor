@@ -1,9 +1,11 @@
+forcemain:
+	ghc -odir binaries -hidir binaries --make Main.hs -optl-w
+
+all: main atlas
 
 # -optl-w is there to suppress the warnings about text relocs
-chase:  .PHONY chase.hs
-	ghc -rtsopts -odir binaries -hidir binaries --make atlas.hs -optl-w -o bin/chase
-
-all: .PHONY main chase
+atlas:  .PHONY atlas.hs
+	ghc -rtsopts -odir binaries -hidir binaries --make atlas.hs -optl-w -o bin/atlas
 
 main:   Main.hs
 	ghc -odir binaries -hidir binaries --make Main.hs -optl-w
@@ -19,7 +21,7 @@ clean:
 	-rm binaries/*.hi binaries/*.o
 
 realclean: clean
-	-rm Main runchase
+	-rm Main runatlas
 	-rm -r bin
 
 rc: realclean

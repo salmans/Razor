@@ -13,6 +13,7 @@ import Debug.Trace
 import Control.Exception 
 import Control.Applicative
 import Control.Monad
+import Control.DeepSeq
 import qualified Control.Monad.State as State
 import Data.List
 import qualified Data.Either as Either
@@ -21,6 +22,7 @@ import qualified Data.Map as Map
 
 import qualified Data.List as List
 import qualified FindCore.FindCoreI as FC
+import FindCore.Utils.Trace (showMapping)
 
 import Formula.SyntaxGeo
 import Utils.GeoUtilities
@@ -47,9 +49,14 @@ main = do
           else head args                     :: String
       inputFileName = inputFileBaseName :: FilePath 
 
-      maxIterations = if (length args) > 1 
-                      then read (args !! 1) 
-                      else -1
+      modelAtMost   = if (length args) > 1
+                      then read (args !! 1)
+                      else 1
+
+      maxIterations = -1 {-
+                      if (length args) > 1
+                      then read (args !! 1)
+                      else -1 -}
 
   -- do input file reading
   src <- readFile inputFileName                    
@@ -61,17 +68,18 @@ main = do
                      Nothing    -> error "The input is not geometric!" 
                      Just fmlas -> concat fmlas
 
-  time1 <- getClockTime
-  -- get the answer
-  let model  = chase' defaultConfig {configSchedule    = SchedBFS
+--  let temp = deepseq inputFmlas ()
+
+--  time1 <- getClockTime
+  -- get the answers
+  let models  = chase defaultConfig {configSchedule    = SchedBFS
                                     ,configIsoElim     = True
                                     ,configSkolemDepth = -1
                                     ,configIncremental = True } inputFmlas
-  time2 <- getClockTime
 
-  let diffTime = diffClockTimes time2 time1
-
-  putStrLn $ "Execution time:" ++ (show diffTime)
+--  time2 <- model `deepseq` getClockTime
+--  let diffTime = diffClockTimes time2 time1
+--  putStrLn $ inputFileName ++ "\t" ++ (timeDiffToString diffTime)
 
   -- Remove functions from the input sequents, like what the chase does:
   let inputFmlas' = renameVars <$> relConvert inputFmlas
@@ -79,6 +87,7 @@ main = do
   -- verifyAll model inputFmlas'
 
   -- Verify that every formula in the theory is true:
+{-
   let verifyMsg = 
           if Maybe.isJust model
           then (let mdl@(Model trs _ _) = Maybe.fromJust model 
@@ -97,6 +106,11 @@ main = do
                           fmlas))
                 ))
           else "Nothing to verify!"
+-}
+
+  putStrLn "Start evaluating models"
+  let evalModels = deepSeqAtMost models modelAtMost
+  putStrLn $ "Finished evaluating " ++ (show $ length evalModels) ++ " model(s)"
 
 
   -- report result
@@ -107,34 +121,57 @@ main = do
   putStrLn "Theory: "
   putStrLn $ show inputFmlas'
 
-  putStrLn "Model: "
-  putStrLn $ show model
+--  putStrLn "Model: "
+--  putStrLn $ show evalModels
 
-  if Maybe.isJust model
-  then let provA = modelProvInfo $ Maybe.fromJust model in
-       let provFC = provForFC provA in
-       putStrLn $ "FC.Provenance:\n" ++
-                  (provSexp provA) ++ "\n\n" ++
-                  (show provFC) ++
-                  "\n\nRetraction:\n" ++
-                  (show $ FC.coreRetractFromProvenance provFC)
-  else putStrLn "-----"
-
-  putStrLn ""
+--  putStrLn ""
 --  putStrLn $ "-> " ++ verifyMsg
-  putStrLn ""
+--  putStrLn ""
 
+  runRetractionList evalModels
+
+  putStrLn $ "\nTotal: " ++ (show $ length evalModels) ++ " model(s)"
 
 
 {-
-  putStrLn "("
-  if   configAllModels config
-  then putStrLn $ problemsSexp $ chase config inputFmlas
-  else putStrLn $ case chase' config inputFmlas of
-                    Nothing -> problemsSexp []
-                    Just m  -> problemsSexp [m]
-  putStrLn ")"
+Retrieve at most "atMost" models and strictly evaluate them,
+assigning model number starting from 1
 -}
+deepSeqAtMost :: [Model] -> Int -> [(Model, Int)]
+deepSeqAtMost models atMost = deepSeqAtMostHelper models atMost 1
+
+deepSeqAtMostHelper :: [Model] -> Int -> Int -> [(Model, Int)]
+deepSeqAtMostHelper _ 0 _ = [] -- must check for atMost == 0 before empty list
+deepSeqAtMostHelper [] _ _ = []
+deepSeqAtMostHelper (model:modelList) atMost counter =
+  ((deepseq model model), counter):
+    (deepSeqAtMostHelper modelList (atMost - 1) (counter + 1))
+
+
+
+runRetractionList :: [(Model, Int)] -> IO ()
+runRetractionList models = do
+  forM_ models runRetraction
+
+runRetraction :: (Model, Int) -> IO ()
+runRetraction (model, id) = do
+  let provA = modelProvInfo model
+      provFC = provForFC provA
+      retract = FC.coreRetractFromProvenance provFC
+
+  -- Capture the time to find cores
+  timeStart <- getClockTime
+  timeEnd   <- deepseq retract getClockTime
+
+  let runTime1 = timeDiffToString $ diffClockTimes timeEnd timeStart
+  let runTime = if runTime1 == "" then "~0 sec" else runTime1
+
+  putStrLn $ "\n\n========================  Model " ++ (show id) ++
+             "  ========================\n" ++ (show model)
+  putStrLn $ "Retraction:\n" ++ (showMapping retract)
+  putStrLn $ "\nTime : " ++ runTime
+
+
 
 
 -- QUICK FIX
@@ -189,28 +226,11 @@ verify inputFmlas mdl@(Model trs _ _) =
                          fmlas)))
 
 
-{-
-problemsSexp :: [Problem] -> String
-problemsSexp []    = ";; No models found!"
-problemsSexp probs = List.intercalate "\n\n" (List.map strProblem probs)
-  where strProblem p =
-          let model = problemModel p in
-          " ( ;; Model\n" ++
---          (show model) ++ "\n\n" ++
---          (modelSexp model) ++ "\n\n" ++
-          (provSexp (modelProvInfo model)) ++
---        "\n" ++ (framesSexp (problemFrames p)) ++
-          "\n )"
--}
+
 
 {-
-modelSexp :: Model -> String
-modelSexp model = do
-  let list = List.filter (\(tr, _) -> tr /= DomTable) $ Map.toList (modelTables model)
-  "\n" --(List.concat (\(tr, t) -> prettyTable tr t) list) ++ "\n"
+Converts provenance information into the pretty S-expression format
 -}
-
-
 provSexp :: ProvInfo -> String
 provSexp provs =
   "  ( ;; Provenance\n" ++
