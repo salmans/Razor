@@ -72,8 +72,13 @@ add :: GraphLoc -> MAtom -> GraphLoc
 add (GraphLoc theory startingIndex steps) constraint =
   GraphLoc theory startingIndex (steps ++ [(constraint,0)])
 
+undoConstraint :: GraphLoc -> Maybe GraphLoc
+undoConstraint (GraphLoc _ _ []) = Nothing
+undoConstraint (GraphLoc theory startingIndex steps) =
+  Just $ GraphLoc theory startingIndex $ init steps
+
 previousLoc :: GraphLoc -> Maybe GraphLoc
-previousLoc (GraphLoc theory 0 []) = Nothing
+previousLoc (GraphLoc _ 0 []) = Nothing
 previousLoc (GraphLoc theory startingIndex []) =
   Just $ GraphLoc theory (pred startingIndex) []
 previousLoc (GraphLoc theory startingIndex steps) =
@@ -88,3 +93,6 @@ nextLoc (GraphLoc theory startingIndex []) =
 nextLoc (GraphLoc theory startingIndex steps) =
   let (constraint,index) = last steps in
   GraphLoc theory startingIndex (init steps ++ [(constraint,succ index)])
+
+origin :: GraphLoc -> GraphLoc
+origin (GraphLoc theory _ _) = GraphLoc theory 0 []

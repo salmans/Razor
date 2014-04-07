@@ -44,6 +44,11 @@ find = do
             H.li $ H.a ! A.href (H.toValue $ locURL prevLoc) $ "Previous"
           Nothing -> return undefined
         H.li $ H.a ! A.href (H.toValue $ locURL $ Datatypes.nextLoc loc) $ "Next"
+        case Datatypes.undoConstraint loc of
+          Just upLoc ->
+            H.li $ H.a ! A.href (H.toValue $ locURL upLoc) $ "Undo Constraint"
+          Nothing -> return undefined
+        H.li $ H.a ! A.href (H.toValue $ locURL $ Datatypes.origin loc) $ "Origin"
       H.form ! A.action "/add" $ do
         H.input ! A.type_ "hidden" ! A.name "loc" ! A.value (H.toValue $ encodeGraphLoc loc)
         H.label $ do
