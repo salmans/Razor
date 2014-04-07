@@ -5,6 +5,7 @@
 module Main where
 import System.Environment
 import System.Console.GetOpt
+import System.Console.Readline
 import System.Exit (exitWith, ExitCode (..))
 import System.IO (hPutStrLn, stderr, hFlush, stdout)
 import Text.Read (readMaybe)
@@ -16,7 +17,9 @@ import Data.Maybe
 import Data.List
 import qualified Data.Map as Map
 
-import Chase.Formula.SyntaxGeo (Theory, Sequent, Term, Elem, parseSequent)
+import Chase.Formula.SyntaxGeo (Theory, Sequent, Term, Elem, parseSequent,
+                                Atom, parseCommand, Command(..), ModelExpr(..),
+                                ModelOperation(..))
 import Chase.Utils.Utils (isRealLine, isNonEmptyLine)
 import Chase.Tools.Config
 import Chase.Tools.FolToGeo
@@ -145,6 +148,7 @@ main = do
   -- Here we thread startOptions through all supplied option actions
   config <- foldl (>>=) (return defaultConfig) actions
  
+{-
   let inputFileName = if   (isJust.configInput) config
                       then (fromJust.configInput) config
                       else error "No input theory is specified!"
@@ -162,7 +166,6 @@ main = do
                   Just (fs, es) -> return (fs, es)
                   Nothing -> error "The input is not geometric!"
 
-
   putStrLn $ "File: " ++ show inputFileName
   putStrLn ""
   putStrLn "Theory:"
@@ -171,62 +174,83 @@ main = do
   putStrLn "Input options: "
   putStrLn $ show config
   putStrLn ""
-  let (frms, initialProblem) = buildProblem inputFmlas
-  case (runChase config Nothing frms initialProblem) of
-    [] -> putStrLn "No models found."
-    row@(model:_) -> do
-      putStrLn "First model:"
-      putStrLn $ show model
-      putStrLn ""
-      let origin = GraphLoc row 0
-      modelLoop config frms Map.empty origin origin
+-}
+  modelLoop config Map.empty Nothing
 
+data GraphLoc = GraphLoc Theory Int [(Atom, Int)]
 
-data UserCommand = Show ModelExpr | Store String ModelExpr | Exit deriving Read
+modelLoop :: Config -> Map.Map String GraphLoc -> Maybe GraphLoc -> IO ()
+modelLoop config bindings lastLoc = do
+  let loop = modelLoop config
+      continue = loop bindings lastLoc
+  userLine <- readline "> "
+  case userLine of
+    Nothing -> return ()
+    Just userInput -> if Chase.Utils.Utils.isNonEmptyLine userInput then
+      addHistory userInput >> case (parseCommand userInput) of
+        Nothing -> putStrLn "Syntax error." >> continue
+        Just cmd -> case cmd of
+          Display expr -> do
+            maybeLoc <- resolveModelExpr expr bindings lastLoc
+            case maybeLoc of
+              Nothing -> putStrLn "Invalid expression." >> continue
+              Just loc -> case resolveGraphLoc config loc of
+                Nothing -> putStrLn "Model not found." >> continue
+                Just (prob,_) -> putStrLn (show $ problemModel prob) >> loop bindings maybeLoc
+          Assign var expr -> do
+            maybeLoc <- resolveModelExpr expr bindings lastLoc
+            case maybeLoc of
+              Nothing -> putStrLn "Invalid expression." >> continue
+              Just loc -> loop (Map.insert var loc bindings) lastLoc
+          Exit -> return ()
+      else continue
 
-data ModelExpr = Origin | Last | ModelVar String | Add ModelExpr Obs | Next ModelExpr deriving Read
+resolveModelExpr :: ModelExpr -> Map.Map String GraphLoc -> Maybe GraphLoc -> IO (Maybe GraphLoc)
+resolveModelExpr expr bindings lastLoc = case expr of
+  ThyLiteral thy -> return $ Just $ GraphLoc thy 0 []
+  LoadFromFile filename -> do
+    maybeThy <- geoFormulas filename
+    return $ case maybeThy of
+      Nothing -> Nothing
+      Just thy -> Just $ GraphLoc thy 0 []
+  ApplyOp preExpr op -> do
+    maybeLoc <- resolveModelExpr preExpr bindings lastLoc
+    return $ case maybeLoc of
+      Nothing -> Nothing
+      Just (GraphLoc thy initialIndex steps) -> case op of
+        AddConstraint atom -> Just $ GraphLoc thy initialIndex (steps ++ [(atom,0)])
+        RemoveConstraint -> case steps of
+          [] -> Nothing
+          _ -> Just $ GraphLoc thy initialIndex $ init steps
+        NextModel -> Just $ case steps of
+          [] -> GraphLoc thy (succ initialIndex) []
+          _ -> let (atom,lastIndex) = last steps in
+            GraphLoc thy initialIndex (init steps ++ [(atom,succ lastIndex)])
+        PreviousModel -> case steps of
+          [] -> case initialIndex of
+            0 -> Nothing
+            _ -> Just $ GraphLoc thy (pred initialIndex) []
+          _ -> let (atom,lastIndex) = last steps in
+            case lastIndex of
+              0 -> Nothing
+              _ -> Just $ GraphLoc thy initialIndex (init steps ++ [(atom,pred lastIndex)])
+        Origin -> Just $ GraphLoc thy 0 []
+  LastResult -> return lastLoc
+  ModelVar var -> return $ Map.lookup var bindings
 
-data GraphLoc = GraphLoc [Problem] Int
-
-
-resolve :: Config -> FrameMap -> ModelExpr -> Map.Map String GraphLoc -> GraphLoc -> GraphLoc -> Maybe GraphLoc
-resolve config frms expr bindings origin last = let resolv = resolve config frms in
-  case expr of
-    Origin -> Just origin
-    Last -> Just last
-    ModelVar name -> Map.lookup name bindings
-    Add subExpr obs -> do
-      GraphLoc row index <- resolv subExpr bindings origin last
-      let prob@Problem {problemModel = oldModel, problemLastConstant = oldConst} = row !! index
-          (newModel, _, newConst) = Model.add oldModel oldConst [obs] UserProv
-      case (runChaseWithProblem config frms prob {problemModel = newModel, problemLastConstant = newConst}) of
-        [] -> Nothing
-        newRow -> Just $ GraphLoc newRow 0
-    Next subExpr -> do
-      GraphLoc row index <- resolv subExpr bindings origin last
-      let nextIndex = succ index
-      if nextIndex < length row then Just $ GraphLoc row nextIndex else Nothing
-
-
-modelLoop :: Config -> FrameMap -> Map.Map String GraphLoc -> GraphLoc -> GraphLoc -> IO ()
-modelLoop config frms bindings origin last = do
-  let loop = modelLoop config frms
-      continue = loop bindings origin last
-      resolv = resolve config frms
-  putStr "> "
-  hFlush stdout
-  userInput <- getLine
-  if Chase.Utils.Utils.isNonEmptyLine userInput then
-    case (read userInput) of
-      Show expr -> case (resolv expr bindings origin last) of
-        Just loc@(GraphLoc row index) -> putStrLn (show (problemModel (row !! index))) >> loop bindings origin loc
-        Nothing -> putStrLn "Model not found." >> continue
-      Store name expr -> case (resolv expr bindings origin last) of
-        Just loc -> loop (Map.insert name loc bindings) origin last
-        Nothing -> putStrLn "Model not found." >> continue
-      Exit -> return ()
-    else continue
-
+resolveGraphLoc :: Config -> GraphLoc -> Maybe (Problem, FrameMap)
+resolveGraphLoc config (GraphLoc thy initialIndex steps) =
+  case steps of
+    [] -> let (frms,initialProblem) = buildProblem thy
+              stream = runChase config Nothing frms initialProblem in
+          if length stream > initialIndex then Just ((stream !! initialIndex),frms) else Nothing
+    _ -> case resolveGraphLoc config (GraphLoc thy initialIndex (init steps)) of
+      Nothing -> Nothing
+      Just (prob@Problem {problemModel = oldModel, problemLastConstant = oldConst},frms) -> 
+        let (atom,lastIndex) = last steps
+            (newModel,_,newConst) = Model.add oldModel oldConst [atomToObs atom] UserProv
+            stream = runChaseWithProblem config frms prob {problemModel = newModel, problemLastConstant = newConst} in
+        if length stream > lastIndex then Just ((stream !! lastIndex),frms) else Nothing
 
 -- Two different functions for loading TPTP and geometric input theories.
 tptpFormulas :: String -> String -> IO (Maybe (Theory, [Elem]))

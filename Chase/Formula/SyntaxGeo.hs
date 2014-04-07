@@ -18,7 +18,7 @@ import Data.List(intercalate)
 --import Text.PrettyPrint.HughesPJ((<+>), (<>))
 --import qualified Text.PrettyPrint.HughesPJ as PP
 
-import Control.Applicative
+import Control.Applicative hiding (many)
 import Text.ParserCombinators.Parsec hiding ( (<|>) )
 import Text.Parsec.Token ( TokenParser )
 import qualified Text.Parsec.Token as Token
@@ -146,7 +146,7 @@ p +++ q = ( Text.ParserCombinators.Parsec.try p) <|> q
 -- | The lexer. Using haskellStyle allows for haskell-style comments.
 lexer :: TokenParser ()
 lexer = Token.makeTokenParser $ haskellStyle
-    { Token.reservedOpNames = [ "~", "&", "|", "=>", "<=>", "."]
+    { Token.reservedOpNames = [ "~", "&", "|", "=>", "<=>", ".", "#"]
     , Token.reservedNames = [ "forall", "Forall", "exists", "Exists" , "Truth", "Falsehood" ]
     }
 
@@ -159,7 +159,11 @@ reserved = Token.reserved lexer
 reservedOp = Token.reservedOp lexer
 commaSep = Token.commaSep lexer
 -- many = Token.many lexer
-
+stringLiteral = Token.stringLiteral lexer
+decimal = Token.decimal lexer
+brackets = Token.brackets lexer
+dot = Token.dot lexer
+semiSep1 = Token.semiSep1 lexer
 
 -- Parsing Terms
 parseTerm :: String -> Term
@@ -173,8 +177,14 @@ pTerm :: Parser Term
 -- Parses the identifier and then lets the next thing decide whether its a
 -- variable name or a function name (depending on whether there is an argument
 -- list).
-pTerm = identifier >>= pTermWithIden
+pTerm = (pModelElement <|> (identifier >>= pTermWithIden))
     <?> "term"
+
+pModelElement :: Parser Term
+pModelElement = do
+  reservedOp "#"
+  number <- decimal
+  return $ Elm $ Elem ("e#" ++ show number)
 
 -- | Parser for terms with leading identifier already parsed. This is the "next
 -- thing" that decides whether the given string is a variable name or a function
@@ -234,28 +244,33 @@ pFactor = parens pFmla
           <|> pTru
           <|> pFls
           <|> pQuantified
-          <|> (pEql +++ pAtom)
+          <|> (Atm <$> pAtomic)
           -- <|> pAtom
           <?> "formula"
 
+pAtomic :: Parser Atom
+pAtomic = pEql +++ pAtom
+
 -- | Parser for atomic formulas. Works like parsing a term, except that it is an
 -- atom either way. Atoms with no arguments need not provide parens, however.
-pAtom :: Parser Formula
+pAtom :: Parser Atom
 pAtom = identifier >>= pAtomWithIden
      <?> "atom"
 
 -- | Parser for atomic formulas with the leading identifier already parsed.
-pAtomWithIden :: Sym -> Parser Formula
-pAtomWithIden name = makeAtom name <$> pTermList
+pAtomWithIden :: Sym -> Parser Atom
+pAtomWithIden name = R name <$> pTermList
                     <|>
-                    (return $ Atm (R name []))
+                    (return $ R name [])
 
+{-
 makeAtom :: Sym -> [Term] -> Formula
 makeAtom  x y = Atm (R x y)
+-}
 
 -- |  equalities
-pEql :: Parser Formula
-pEql = do {t1 <- pTerm; (symbol "=") ; t2 <- pTerm; return (makeAtom "=" [t1, t2])}
+pEql :: Parser Atom
+pEql = do {t1 <- pTerm; (symbol "=") ; t2 <- pTerm; return (R "=" [t1, t2])}
 
 pTru :: Parser Formula
 pTru  = do { reserved "Truth";   return Tru }
@@ -307,3 +322,84 @@ pSeqRight :: Parser Sequent
 pSeqRight = do {whiteSpace;
                 b <- pFmla;
                 return (Sequent Tru b)}
+
+
+-- Query language stuff
+
+data Command = Display ModelExpr | Assign String ModelExpr | Exit
+
+data ModelExpr = ThyLiteral Theory | LoadFromFile String
+               | ApplyOp ModelExpr ModelOperation | LastResult | ModelVar String
+
+data ModelOperation = AddConstraint Atom | RemoveConstraint | NextModel
+                    | PreviousModel | Origin
+
+pCommand :: Parser Command
+pCommand = pExit <|> (pAssign +++ pDisplay)
+
+pDisplay :: Parser Command
+pDisplay = Display <$> pModelExpr
+
+pAssign :: Parser Command
+pAssign = do
+  var <- identifier
+  symbol ":="
+  expr <- pModelExpr
+  return $ Assign var expr
+
+pExit :: Parser Command
+pExit = symbol "exit" >> return Exit
+
+pModelExpr :: Parser ModelExpr
+pModelExpr = pExplicitModelExpr <|> pImpliedOp +++ pImpliedAdd
+
+pExplicitModelExpr :: Parser ModelExpr
+pExplicitModelExpr = do
+  base <- pThyLiteral <|> pLoadFromFile <|> pLastResult <|> pModelVar
+  ops <- many $ dot >> pModelOperation
+  return $ foldl ApplyOp base ops
+
+pImpliedOp :: Parser ModelExpr
+pImpliedOp = foldl ApplyOp LastResult <$> sepBy1 pModelOperation dot
+
+pImpliedAdd :: Parser ModelExpr
+pImpliedAdd = ApplyOp LastResult <$> AddConstraint <$> pAtomic
+
+pThyLiteral :: Parser ModelExpr
+pThyLiteral = ThyLiteral <$> brackets (semiSep1 pSequent)
+
+pLoadFromFile :: Parser ModelExpr
+pLoadFromFile = LoadFromFile <$> stringLiteral
+
+pLastResult :: Parser ModelExpr
+pLastResult = symbol "~" >> return LastResult
+
+pModelVar :: Parser ModelExpr
+pModelVar = do
+  symbol "@"
+  ModelVar <$> identifier
+
+pModelOperation :: Parser ModelOperation
+pModelOperation = pAddConstraint <|> pRemoveConstraint <|> pNextModel <|> pPreviousModel <|> pOrigin
+
+pAddConstraint :: Parser ModelOperation
+pAddConstraint = do
+  symbol "add"
+  parens $ AddConstraint <$> pAtomic
+
+pRemoveConstraint :: Parser ModelOperation
+pRemoveConstraint = symbol "remove" >> return RemoveConstraint
+
+pNextModel :: Parser ModelOperation
+pNextModel = symbol "next" >> return NextModel
+
+pPreviousModel :: Parser ModelOperation
+pPreviousModel = symbol "previous" >> return PreviousModel
+
+pOrigin :: Parser ModelOperation
+pOrigin = symbol "origin" >> return Origin
+
+parseCommand :: String -> Maybe Command
+parseCommand input = case (parse pCommand "parsing Command" input) of
+  Left _ -> Nothing
+  Right val -> Just val
