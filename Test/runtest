@@ -4,7 +4,15 @@
 #
 
 
-for file in theories/thy*.txt; 
+for file in theories/thy*.txt;
     do echo $file;
-    ../Main "$file" >> test_results_`date +%m-%d-%y-%Hh:%Mm`;
-done 
+    ../Main "$file" 10 >> test_results_1_`date +%m-%d-%y-%Hh`;
+done
+for file in theories/ex*.txt;
+    do echo $file;
+    ../Main "$file" >> test_results_2_`date +%m-%d-%y-%Hh`;
+done
+for file in theories/disj*.txt;
+    do echo $file;
+    ../Main "$file" 10 >> test_results_3_`date +%m-%d-%y-%Hh`;
+done

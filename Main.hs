@@ -9,6 +9,7 @@ module Main where
 import System.Environment
 import System.FilePath
 import System.Time
+import System.IO
 import Debug.Trace
 import Control.Exception 
 import Control.Applicative
@@ -22,7 +23,9 @@ import qualified Data.Map as Map
 
 import qualified Data.List as List
 import qualified FindCore.FindCoreI as FC
-import FindCore.Utils.Trace (showMapping)
+import FindCore.Utils.Trace (showMapping, showModel)
+import FindCore.Model.Element (toPairList)
+import Text.Printf
 
 import Formula.SyntaxGeo
 import Utils.GeoUtilities
@@ -108,18 +111,20 @@ main = do
           else "Nothing to verify!"
 -}
 
-  putStrLn "Start evaluating models"
-  let evalModels = deepSeqAtMost models modelAtMost
-  putStrLn $ "Finished evaluating " ++ (show $ length evalModels) ++ " model(s)"
-
-
   -- report result
   --
-  putStrLn $ "\n" ++ "===================="
+  putStrLn $ "\n" ++ "======================================================================"
   putStrLn $ "file: " ++ show inputFileName
   -- echo the input theory:
   putStrLn "Theory: "
   putStrLn $ show inputFmlas'
+
+
+  putStrLn $ "\n\n" ++ "Start evaluating models"
+  hFlush stdout
+  let evalModels = deepSeqAtMost models modelAtMost
+  putStrLn $ "Finished evaluating " ++ (show $ length evalModels) ++ " model(s)"
+  hFlush stdout
 
 --  putStrLn "Model: "
 --  putStrLn $ show evalModels
@@ -130,7 +135,7 @@ main = do
 
   runRetractionList evalModels
 
-  putStrLn $ "\nTotal: " ++ (show $ length evalModels) ++ " model(s)"
+  putStrLn $ "\nTotal: " ++ (show $ length evalModels) ++ " model(s)\n\n\n"
 
 
 {-
@@ -157,19 +162,33 @@ runRetraction :: (Model, Int) -> IO ()
 runRetraction (model, id) = do
   let provA = modelProvInfo model
       provFC = provForFC provA
-      retract = FC.coreRetractFromProvenance provFC
-
-  -- Capture the time to find cores
-  timeStart <- getClockTime
-  timeEnd   <- deepseq retract getClockTime
-
-  let runTime1 = timeDiffToString $ diffClockTimes timeEnd timeStart
-  let runTime = if runTime1 == "" then "~0 sec" else runTime1
+--      retract = FC.coreRetractFromProvenance provFC
+      result = FC.coreResultFromProvenance provFC
+      (core, ret, allRound, retRound, initSize, coreSize) = result
 
   putStrLn $ "\n\n========================  Model " ++ (show id) ++
              "  ========================\n" ++ (show model)
-  putStrLn $ "Retraction:\n" ++ (showMapping retract)
-  putStrLn $ "\nTime : " ++ runTime
+  hFlush stdout
+
+  -- Capture the time to find cores
+  timeStart <- getClockTime
+  timeEnd   <- deepseq result getClockTime
+
+  -- Compute the running time
+  let runTime1 = diffClockTimes timeEnd timeStart
+      rtPSec1 = (fromIntegral $ tdPicosec runTime1) :: Float
+      rtSec1 = (fromIntegral $ tdSec runTime1) :: Float
+      runTime = rtSec1 + (rtPSec1 / 1e12)
+      runTimeStr = show runTime
+
+  let coreSizeStr = "(Size: init " ++ (show initSize) ++
+                    ", core " ++ (show coreSize) ++ ")"
+
+  putStrLn $ "\nCore " ++ coreSizeStr ++ ":\n" ++ (showModel core)
+  putStrLn $ "\nRetraction:\n" ++ (showMapping $ toPairList ret)
+  putStrLn $ "\nRounds (ret/all) : " ++ (show retRound) ++ "/" ++ (show allRound)
+  putStrLn $ "\nTime : " ++ runTimeStr ++ "s"
+  hFlush stdout
 
 
 
