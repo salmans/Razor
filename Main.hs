@@ -114,7 +114,7 @@ main = do
   putStrLn $ show inputFmlas'
 
   -- Run FindCore on these models
-  runCoreTests models modelAtMost True
+  runCoreTests models modelAtMost True True
 
 --  putStrLn ""
 --  putStrLn $ "-> " ++ verifyMsg

@@ -9,7 +9,7 @@
 
 module FCAtlas where
 
-import System.Time
+--import System.Time
 import System.IO
 import Debug.Trace
 import Control.Applicative
@@ -17,8 +17,9 @@ import Control.Monad
 import Control.DeepSeq
 import qualified Data.Maybe as Maybe
 import qualified Data.Map as Map
+import Data.Time
+import Data.List
 
-import qualified Data.List as List
 import qualified FindCore.FindCoreI as FC
 import FindCore.Utils.Trace (showMapping, showModel)
 import FindCore.Model.Element (toPairList)
@@ -83,14 +84,11 @@ runRetraction (model, id) useSigTest minimalStat = do
   hFlush stdout
 
   -- Capture the time to find cores
-  timeStart <- getClockTime
-  timeEnd   <- deepseq result getClockTime
+  timeStart <- getCurrentTime
+  timeEnd   <- deepseq result getCurrentTime
 
   -- Compute the running time
-  let runTime1 = diffClockTimes timeEnd timeStart
-      rtPSec1 = (fromIntegral $ tdPicosec runTime1) :: Float
-      rtSec1 = (fromIntegral $ tdSec runTime1) :: Float
-      runTime = rtSec1 + (rtPSec1 / 1e12)
+  let runTime = diffUTCTime timeEnd timeStart
       runTimeStr = show runTime
 
   let modeStrMin = "mode: " ++ (show mode)
@@ -112,13 +110,13 @@ runRetraction (model, id) useSigTest minimalStat = do
 
   let statStrMin = modeStrMin ++ "\n" ++ sigStrMin ++ "\n" ++ coreSizeStrMin ++
                    "\nrounds: " ++ (show retRound) ++ "/" ++ (show allRound) ++
-                   "\ntime: " ++ runTimeStr ++ "s"
+                   "\ntime: " ++ runTimeStr
 
   let statStr = modeStr ++ "\n" ++ sigStr ++
                 "\n\n" ++ coreSizeStr ++ "core:\n" ++ (showModel core) ++
                 "\n\nretraction:\n" ++ (showMapping $ toPairList ret) ++
                 "\n\nrounds (ret/all) : " ++ (show retRound) ++ "/" ++ (show allRound) ++
-                "\n\ntime : " ++ runTimeStr ++ "s"
+                "\n\ntime : " ++ runTimeStr
 
   if minimalStat
   then putStrLn $ statStrMin
@@ -134,10 +132,10 @@ Converts provenance information into the pretty S-expression format
 provSexp :: ProvInfo -> String
 provSexp provs =
   "  ( ;; Provenance\n" ++
-  (List.intercalate "\n" $
-   List.map snd $
-   List.sortBy compareFst $
-   List.concatMap strFctProv (Map.assocs (provInfoData provs))) ++
+  (intercalate "\n" $
+   map snd $
+   sortBy compareFst $
+   concatMap strFctProv (Map.assocs (provInfoData provs))) ++
   "\n  )"
   where strFctProv ((Fct (R ('@':'E':'x':'i':'s':'t':'s':_) _)), _) = []
         strFctProv ((Fct (R a b)), provl) = strFctProv2 a b provl
@@ -147,7 +145,7 @@ provSexp provs =
         --strFctProv a = error (show a)
         --strFctProv _ = []
 
-        strFctProv2 a b provl = List.map (strProv ("   ((" ++ a ++ (strArgs b) ++ ") (")) (List.nubBy eq provl)
+        strFctProv2 a b provl = map (strProv ("   ((" ++ a ++ (strArgs b) ++ ") (")) (nubBy eq provl)
         eq p1 p2 = (provKey p1) == (provKey p2)
 
         strProv str1 prov = (provKey prov, str1 ++ (strp prov) ++ "))")
@@ -156,7 +154,7 @@ provSexp provs =
           (show sbid) ++ " " ++ (show sqid) ++ " (" ++ (strSub sub) ++ ")"
         strp UserProv = "?"
 
-        strSub sub = List.intercalate " " $ List.map strSubEach (Map.assocs sub)
+        strSub sub = intercalate " " $ map strSubEach (Map.assocs sub)
         strSubEach (a, (Elm (Elem b))) = "(" ++ a ++ " " ++ b ++ ")"
         strSubEach _ = "(_ _)"
 
@@ -167,9 +165,9 @@ provSexp provs =
 --{-
 provForFC :: ProvInfo -> [FC.Provenance]
 provForFC provs =
-  (List.map snd $
-   List.sortBy compareFst $
-   List.concatMap strFctProv (Map.assocs (provInfoData provs)))
+  (map snd $
+   sortBy compareFst $
+   concatMap strFctProv (Map.assocs (provInfoData provs)))
   where strFctProv ((Fct (R ('@':'E':'x':'i':'s':'t':'s':_) _)), _) = []
         strFctProv ((Fct (R "@Element" _)), _) = []
         strFctProv ((Fct (R a b)), provl) = strFctProv2 a b provl
@@ -179,7 +177,7 @@ provForFC provs =
         --strFctProv a = error (show a)
         --strFctProv _ = []
 
-        strFctProv2 a b provl = List.map (strProv (FC.Fact a (strArg <$> b))) (List.nubBy eq provl)
+        strFctProv2 a b provl = map (strProv (FC.Fact a (strArg <$> b))) (nubBy eq provl)
         eq p1 p2 = (provKey p1) == (provKey p2)
 
         strProv fact prov = (provKey prov, FC.Provenance fact (strp prov))
@@ -187,7 +185,7 @@ provForFC provs =
         strp (ChaseProv sbid sqid sub) = FC.ProvTag sbid sqid (strSub sub)
         strp UserProv =                FC.ProvTag (-1) (-1) []
 
-        strSub sub = List.map strSubEach (Map.assocs sub)
+        strSub sub = map strSubEach (Map.assocs sub)
         strSubEach (a, (Elm (Elem b))) = (a, b)
         strSubEach _ = ("?", "?")
 
@@ -207,13 +205,13 @@ provenance1 = [FC.Provenance (FC.Fact "P" ["e#1"]) (FC.ProvTag 0 1 []),
 framesSexp :: [Frame] -> String
 framesSexp frames =
   "  ( ;; Theory\n" ++
-  (List.intercalate "\n" $ List.map strFrame $ List.sortBy compareByID frames) ++
+  (intercalate "\n" $ map strFrame $ sortBy compareByID frames) ++
   "\n  )"
   where strFrame (Frame id body head _ _ _) =
           "   (" ++ (show id) ++ " (" ++ (list body) ++ ") (" ++ (list2 head) ++ "))"
 
-        list2 obsll = "(" ++ (List.intercalate ") (" (List.map list obsll)) ++ ")"
-        list obsl = List.intercalate " " (List.concatMap strObs obsl)
+        list2 obsll = "(" ++ (intercalate ") (" (map list obsll)) ++ ")"
+        list obsl = intercalate " " (concatMap strObs obsl)
         strObs (Fct (R a b)) = [strObs2 a b]
         strObs (Fct (F a b)) = [strObs2 a b]
         strObs _ = []
@@ -222,7 +220,7 @@ framesSexp frames =
         compareByID f1 f2 = compare (frameID f1) (frameID f2)
 -}
 
-strArgs args = List.concatMap ((++) " ") (List.map strArg args)
+strArgs args = concatMap ((++) " ") (map strArg args)
 strArg (Elm (Elem e)) = e
 strArg (Var x) = x
 --strArg (Fn ('a':'@':x) []) = 'e':'#':x

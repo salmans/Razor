@@ -43,12 +43,12 @@ maxFuncArity = 3
 -- fmlaNum = 10 -- How to use?!
 -- parameters that control term generation:
 varProb = 1 -- 1/varProb is the chance of a term being a variable.
-exVarProb = 3 -- 1/exVarProb is the chance of a variable being existential.
+exVarProb = 4 -- 1/exVarProb is the chance of a variable being existential.
 constProb = 1 -- 1/constProb is the chance of a function term being a constant.
 
 -- parameters to control formula generation on left:
-lTrueProb = 0
-lAtomProb = 60
+lTrueProb = 10
+lAtomProb = 80
 lAndProb = 10
 
 -- parameters to control formula generation on right:
@@ -60,14 +60,14 @@ rExistsProb = 15
 
 -- For randomized theories
 minSequents = 2
-maxSequents = 8
+maxSequents = 10
 -- For initial models
-minFacts = 10
+minFacts = 2
 maxFacts = 30
-minElms = 5
-maxElms = 20
+minElms = 2
+maxElms = 40
 -- Relation signature, for both sequents and facts
-relSig = [("P", 1), ("Q", 2), ("R", 3), ("S", 2)]
+relSig = [("P", 1), ("Q", 2), ("R", 2), ("S", 2), ("T", 3), ("U", 3)]
 
 -- main :: IO() 
 -- main = verboseCheck prop_validModel
@@ -257,24 +257,25 @@ r = do
   
 r1 :: Theory -> IO()
 r1 thy = do
-  putStrLn $ show thy
-  
+--  putStrLn $ show thy
+
   initModels <- sample' genInitModel
   let initModel = head initModels
 --  putStrLn $ show initModel
 
   let models = chaseWithModel defaultConfig thy initModel
-  putStrLn ""
-  putStrLn $ show $ head models
+--  putStrLn ""
+--  putStrLn $ show $ head models
 
   if null models
   then return ()
   else do
-    { --putStrLn $ show thy
+    { putStrLn "*******************************"
+    ; --putStrLn $ show thy
     ; --putStrLn $ "\n\n" ++ (show $ head models) ++ "\n"
-    ; runCoreTests models 2 True True -- first n models, use sig test
+    ; runCoreTests models 5 True True -- first n models, use sig test
     ; hFlush stdout
-    ; runCoreTests models 2 False True -- first n models, don't use sig test
+    ; runCoreTests models 5 False True -- first n models, don't use sig test
     ; hFlush stdout
     }
 
@@ -349,7 +350,11 @@ facts1 = [Fct (R "P" [Elm (Elem "a"), Elm (Elem "b")])
          ,Fct (R "P" [Elm (Elem "b"), Elm (Elem "c")])
          ,Fct (R "Q" [Elm (Elem "a")])]
 
+facts2 = [Fct (R "P" [Elm (Elem "a12")]) , Fct (R "P" [Elm (Elem "a6")]) , Fct (R "Q" [Elm (Elem "a7"), Elm (Elem "a2")]) , Fct (R "Q" [Elm (Elem "a12"), Elm (Elem "a5")]) , Fct (R "Q" [Elm (Elem "a6"), Elm (Elem "a8")]) , Fct (R "Q" [Elm (Elem "a10"), Elm (Elem "a6")]) , Fct (R "R" [Elm (Elem "a13"), Elm (Elem "a3"), Elm (Elem "a9")]) , Fct (R "R" [Elm (Elem "a4"), Elm (Elem "a14"), Elm (Elem "a4")]) , Fct (R "R" [Elm (Elem "a5"), Elm (Elem "a5"), Elm (Elem "a5")]) , Fct (R "R" [Elm (Elem "a2"), Elm (Elem "a2"), Elm (Elem "a2")]) , Fct (R "R" [Elm (Elem "a8"), Elm (Elem "a8"), Elm (Elem "a8")]) , Fct (R "S" [Elm (Elem "a2"), Elm (Elem "a13")]) , Fct (R "S" [Elm (Elem "a5"), Elm (Elem "a5")]) , Fct (R "S" [Elm (Elem "a8"), Elm (Elem "a11")]) , Fct (R "S" [Elm (Elem "a2"), Elm (Elem "a2")]) , Fct (R "S" [Elm (Elem "a8"), Elm (Elem "a8")])]
+
+
 model1 = modelFromFacts facts1
+model2 = modelFromFacts facts2 -- This is used to fix a bug in FindCore (incorrect rigid domain)
 
 gt = genThy
 
