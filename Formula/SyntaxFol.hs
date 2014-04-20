@@ -88,6 +88,9 @@ prettyTerm t = case t of
      (Rn f ts) -> f ++ "(" ++ (intercalate "," (map prettyTerm ts)) ++ ")"
      (Var v) -> v
      (Elm e) -> prettyElem e
+     (NumberTerm a) -> "NumberTerm: " ++ (show a)
+     (DistinctTerm s) -> "DistinctTerm: " ++ s
+     --otherwise -> "???"
 
 prettyAtom :: Atom -> String
 prettyAtom (R sym ts) = sym ++ "(" ++ (intercalate "," (map prettyTerm ts)) ++ ")"

@@ -1,0 +1,41 @@
+Time in the 3rd column is for Chase, not FindCore
+The time is for the first model only.
+
+Config to run: ./TPTPPerformanceLogger -i $line +RTS -K16M -RTS  --skolem-depth=4 --schedule=dfs --formula-type=cnf --tptp-path=./TPTP/
+
+
+results from 5 models and 1 min (per theory):
+ordered by time
+
+TPTP/Problems/PUZ/PUZ028-3.p	Sat	1.3480771s   0 round, small
+TPTP/Problems/NLP/NLP099-1.p	Sat	3.1071777s   XXX (2nd model not produced on time)
+TPTP/Problems/NLP/NLP234-1.p	Sat	4.7912741s   large (800) core
+TPTP/Problems/NLP/NLP237-1.p	Sat	4.9052806s   large (800) core
+TPTP/Problems/NLP/NLP232-1.p	Sat	5.4313107s   large (800) core
+TPTP/Problems/NLP/NLP102-1.p	Sat	6.697383s    XXX (2nd model not produced on time)
+TPTP/Problems/KRS/KRS007-1.p	Sat	8.7074981s   very large (FindCore didn't finish in 1 minutes)
+TPTP/Problems/SYN/SYN513-1.p	Sat	10.6496091s  medium non-core
+TPTP/Problems/SYN/SYN547-1.p	Sat	11.4102258s  medium non-core
+TPTP/Problems/SYN/SYN418-1.p	Sat	11.8666787s  0 round, medium
+TPTP/Problems/SYN/SYN433-1.p	Sat	33.2829037s  0 round, small
+TPTP/Problems/SYN/SYN720-1.p	Sat	45.9916305s  1 model, high (many) facts, few elms
+TPTP/Problems/SYN/SYN431-1.p	Sat	77.208804s   0 round, small (Chase didn't finish in 1 minutes)
+
+
+results for 10 models under 10 mins (per theory):
+ordered by groups (same order as in the written notes)
+* still applies for 10 models
+
+TPTP/Problems/NLP/NLP234-1.p	Sat	4.7912741s   large (800) core *
+TPTP/Problems/NLP/NLP237-1.p	Sat	4.9052806s   large (800) core *
+TPTP/Problems/NLP/NLP232-1.p	Sat	5.4313107s   large (800) core *
+
+TPTP/Problems/SYN/SYN513-1.p	Sat	10.6496091s  medium non-core *
+TPTP/Problems/SYN/SYN547-1.p	Sat	11.4102258s  medium non-core *
+
+TPTP/Problems/SYN/SYN418-1.p	Sat	11.8666787s  0 round, medium core *
+TPTP/Problems/SYN/SYN433-1.p	Sat	33.2829037s  0 round, small core *
+TPTP/Problems/PUZ/PUZ028-3.p	Sat	1.3480771s   0 round, small core *
+TPTP/Problems/SYN/SYN431-1.p	Sat	77.208804s   0 round, small core *
+
+TPTP/Problems/KRS/KRS007-1.p	Sat	8.7074981s   large (800+ facts, ~100 elms) cores, very high rounds (3000+), FindCore didn't finish in 10 minutes

@@ -1,3 +1,5 @@
+all: performance
+
 # -optl-w is there to suppress the warnings about text relocs
 verifier: GeometricVerifier.hs
 	ghc -rtsopts -odir ../../binaries -hidir ../../binaries -i=../../ --make GeometricVerifier.hs -optl-w

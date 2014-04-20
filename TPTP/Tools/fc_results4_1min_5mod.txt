@@ -1,0 +1,3443 @@
+==============================================================================
+
+TPTP/Problems/GRP/GRP733+1.p
+
+Start evaluating models
+Finished evaluating 5 model(s)
+
+===== Model 1 =====
+init: 5/1
+core: 5/1
+Rounds: 0/0
+Time: 1.56000005e-2s
+
+===== Model 2 =====
+init: 5/1
+core: 5/1
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 3 =====
+init: 5/1
+core: 5/1
+Rounds: 0/0
+Time: 1.56000005e-2s
+
+===== Model 4 =====
+init: 5/1
+core: 5/1
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 5 =====
+init: 5/1
+core: 5/1
+Rounds: 0/0
+Time: 1.56000005e-2s
+
+Total: 5 model(s)
+
+==============================================================================
+
+TPTP/Problems/HWC/HWC004-1.p
+
+Start evaluating models
+Finished evaluating 1 model(s)
+
+===== Model 1 =====
+init: 12/2
+core: 12/2
+Rounds: 0/0
+Time: 0.0s
+
+Total: 1 model(s)
+
+==============================================================================
+
+TPTP/Problems/HWV/HWV034-1.p
+
+Start evaluating models
+Finished evaluating 1 model(s)
+
+===== Model 1 =====
+init: 0/0
+core: 0/0
+Rounds: 0/0
+Time: 0.0s
+
+Total: 1 model(s)
+
+==============================================================================
+
+TPTP/Problems/HWV/HWV034-2.p
+
+Start evaluating models
+Finished evaluating 1 model(s)
+
+===== Model 1 =====
+init: 0/0
+core: 0/0
+Rounds: 0/0
+Time: 0.0s
+
+Total: 1 model(s)
+
+==============================================================================
+
+TPTP/Problems/HWV/HWV035-1.p
+
+Start evaluating models
+Finished evaluating 1 model(s)
+
+===== Model 1 =====
+init: 0/0
+core: 0/0
+Rounds: 0/0
+Time: 0.0s
+
+Total: 1 model(s)
+
+==============================================================================
+
+TPTP/Problems/HWV/HWV035-2.p
+
+Start evaluating models
+Finished evaluating 1 model(s)
+
+===== Model 1 =====
+init: 0/0
+core: 0/0
+Rounds: 0/0
+Time: 0.0s
+
+Total: 1 model(s)
+
+==============================================================================
+
+TPTP/Problems/HWV/HWV036-1.p
+
+Start evaluating models
+Finished evaluating 1 model(s)
+
+===== Model 1 =====
+init: 0/0
+core: 0/0
+Rounds: 0/0
+Time: 0.0s
+
+Total: 1 model(s)
+
+==============================================================================
+
+TPTP/Problems/HWV/HWV036-2.p
+
+Start evaluating models
+Finished evaluating 1 model(s)
+
+===== Model 1 =====
+init: 0/0
+core: 0/0
+Rounds: 0/0
+Time: 0.0s
+
+Total: 1 model(s)
+
+==============================================================================
+
+TPTP/Problems/KRS/KRS005-1.p
+
+Start evaluating models
+Finished evaluating 1 model(s)
+
+===== Model 1 =====
+init: 11/4
+core: 11/4
+Rounds: 0/0
+Time: 0.0s
+
+Total: 1 model(s)
+
+==============================================================================
+
+TPTP/Problems/KRS/KRS007-1.p
+
+Start evaluating models
+Finished evaluating 5 model(s)
+
+===== Model 1 =====
+==============================================================================
+
+TPTP/Problems/KRS/KRS011-1.p
+
+Start evaluating models
+Finished evaluating 5 model(s)
+
+===== Model 1 =====
+init: 38/7
+core: 38/7
+Rounds: 0/0
+Time: 1.56000005e-2s
+
+===== Model 2 =====
+init: 38/7
+core: 38/7
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 3 =====
+init: 38/7
+core: 38/7
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 4 =====
+init: 38/7
+core: 38/7
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 5 =====
+init: 38/7
+core: 38/7
+Rounds: 0/0
+Time: 0.0s
+
+Total: 5 model(s)
+
+==============================================================================
+
+TPTP/Problems/KRS/KRS014-1.p
+
+Start evaluating models
+Finished evaluating 4 model(s)
+
+===== Model 1 =====
+init: 19/4
+core: 19/4
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 2 =====
+init: 19/4
+core: 19/4
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 3 =====
+init: 19/4
+core: 19/4
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 4 =====
+init: 19/4
+core: 19/4
+Rounds: 0/0
+Time: 0.0s
+
+Total: 4 model(s)
+
+==============================================================================
+
+TPTP/Problems/KRS/KRS016-1.p
+
+Start evaluating models
+Finished evaluating 1 model(s)
+
+===== Model 1 =====
+init: 4/1
+core: 4/1
+Rounds: 0/0
+Time: 0.0s
+
+Total: 1 model(s)
+
+==============================================================================
+
+TPTP/Problems/MGT/MGT019-2.p
+
+Start evaluating models
+Finished evaluating 4 model(s)
+
+===== Model 1 =====
+init: 17/7
+core: 17/7
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 2 =====
+init: 18/8
+core: 18/8
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 3 =====
+init: 18/8
+core: 18/8
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 4 =====
+init: 19/9
+core: 19/9
+Rounds: 0/0
+Time: 0.0s
+
+Total: 4 model(s)
+
+==============================================================================
+
+TPTP/Problems/MGT/MGT031-1.p
+
+Start evaluating models
+Finished evaluating 1 model(s)
+
+===== Model 1 =====
+init: 25/10
+core: 25/10
+Rounds: 0/1
+Time: 1.56000005e-2s
+
+Total: 1 model(s)
+
+==============================================================================
+
+TPTP/Problems/MGT/MGT040-1.p
+
+Start evaluating models
+Finished evaluating 5 model(s)
+
+===== Model 1 =====
+init: 8/3
+core: 8/3
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 2 =====
+init: 12/4
+core: 12/4
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 3 =====
+init: 13/5
+core: 13/5
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 4 =====
+init: 12/5
+core: 12/5
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 5 =====
+init: 22/7
+core: 22/7
+Rounds: 0/0
+Time: 0.0s
+
+Total: 5 model(s)
+
+==============================================================================
+
+TPTP/Problems/MGT/MGT040-2.p
+
+Start evaluating models
+Finished evaluating 5 model(s)
+
+===== Model 1 =====
+init: 8/3
+core: 8/3
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 2 =====
+init: 12/4
+core: 12/4
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 3 =====
+init: 13/5
+core: 13/5
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 4 =====
+init: 12/5
+core: 12/5
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 5 =====
+init: 21/7
+core: 21/7
+Rounds: 0/0
+Time: 0.0s
+
+Total: 5 model(s)
+
+==============================================================================
+
+TPTP/Problems/MSC/MSC009-1.p
+
+Start evaluating models
+Finished evaluating 2 model(s)
+
+===== Model 1 =====
+init: 1/1
+core: 1/1
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 2 =====
+init: 1/1
+core: 1/1
+Rounds: 0/0
+Time: 0.0s
+
+Total: 2 model(s)
+
+==============================================================================
+
+TPTP/Problems/NLP/NLP036-1.p
+
+Start evaluating models
+Finished evaluating 1 model(s)
+
+===== Model 1 =====
+init: 8/2
+core: 8/2
+Rounds: 0/0
+Time: 0.0s
+
+Total: 1 model(s)
+
+==============================================================================
+
+TPTP/Problems/NLP/NLP037-1.p
+
+Start evaluating models
+Finished evaluating 1 model(s)
+
+===== Model 1 =====
+init: 23/3
+core: 23/3
+Rounds: 0/0
+Time: 0.0s
+
+Total: 1 model(s)
+
+==============================================================================
+
+TPTP/Problems/NLP/NLP040-1.p
+
+Start evaluating models
+Finished evaluating 1 model(s)
+
+===== Model 1 =====
+init: 8/2
+core: 8/2
+Rounds: 0/0
+Time: 0.0s
+
+Total: 1 model(s)
+
+==============================================================================
+
+TPTP/Problems/NLP/NLP041-1.p
+
+Start evaluating models
+Finished evaluating 1 model(s)
+
+===== Model 1 =====
+init: 148/21
+core: 148/21
+Rounds: 0/225
+Time: 0.124800004s
+
+Total: 1 model(s)
+
+==============================================================================
+
+TPTP/Problems/NLP/NLP097-1.p
+
+Start evaluating models
+==============================================================================
+
+TPTP/Problems/NLP/NLP098-1.p
+
+Start evaluating models
+==============================================================================
+
+TPTP/Problems/NLP/NLP099-1.p
+
+Start evaluating models
+==============================================================================
+
+TPTP/Problems/NLP/NLP100-1.p
+
+Start evaluating models
+==============================================================================
+
+TPTP/Problems/NLP/NLP101-1.p
+
+Start evaluating models
+==============================================================================
+
+TPTP/Problems/NLP/NLP102-1.p
+
+Start evaluating models
+==============================================================================
+
+TPTP/Problems/NLP/NLP104-1.p
+
+Start evaluating models
+Finished evaluating 1 model(s)
+
+===== Model 1 =====
+init: 3/1
+core: 3/1
+Rounds: 0/0
+Time: 0.0s
+
+Total: 1 model(s)
+
+==============================================================================
+
+TPTP/Problems/NLP/NLP105-1.p
+
+Start evaluating models
+Finished evaluating 1 model(s)
+
+===== Model 1 =====
+init: 3/1
+core: 3/1
+Rounds: 0/0
+Time: 0.0s
+
+Total: 1 model(s)
+
+==============================================================================
+
+TPTP/Problems/NLP/NLP106-1.p
+
+Start evaluating models
+Finished evaluating 1 model(s)
+
+===== Model 1 =====
+init: 18/2
+core: 18/2
+Rounds: 0/0
+Time: 0.0s
+
+Total: 1 model(s)
+
+==============================================================================
+
+TPTP/Problems/NLP/NLP107-1.p
+
+Start evaluating models
+Finished evaluating 1 model(s)
+
+===== Model 1 =====
+init: 32/3
+core: 32/3
+Rounds: 0/0
+Time: 0.0s
+
+Total: 1 model(s)
+
+==============================================================================
+
+TPTP/Problems/NLP/NLP108-1.p
+
+Start evaluating models
+Finished evaluating 1 model(s)
+
+===== Model 1 =====
+init: 59/5
+core: 59/5
+Rounds: 0/0
+Time: 0.0s
+
+Total: 1 model(s)
+
+==============================================================================
+
+TPTP/Problems/NLP/NLP109-1.p
+
+Start evaluating models
+Finished evaluating 1 model(s)
+
+===== Model 1 =====
+init: 32/3
+core: 32/3
+Rounds: 0/0
+Time: 0.0s
+
+Total: 1 model(s)
+
+==============================================================================
+
+TPTP/Problems/NLP/NLP110-1.p
+
+Start evaluating models
+Finished evaluating 1 model(s)
+
+===== Model 1 =====
+init: 45/4
+core: 45/4
+Rounds: 0/0
+Time: 0.0s
+
+Total: 1 model(s)
+
+==============================================================================
+
+TPTP/Problems/NLP/NLP111-1.p
+
+Start evaluating models
+Finished evaluating 1 model(s)
+
+===== Model 1 =====
+init: 59/5
+core: 59/5
+Rounds: 0/0
+Time: 0.0s
+
+Total: 1 model(s)
+
+==============================================================================
+
+TPTP/Problems/NLP/NLP112-1.p
+
+Start evaluating models
+Finished evaluating 1 model(s)
+
+===== Model 1 =====
+init: 59/5
+core: 59/5
+Rounds: 0/0
+Time: 0.0s
+
+Total: 1 model(s)
+
+==============================================================================
+
+TPTP/Problems/NLP/NLP113-1.p
+
+Start evaluating models
+Finished evaluating 1 model(s)
+
+===== Model 1 =====
+init: 17/2
+core: 17/2
+Rounds: 0/0
+Time: 0.0s
+
+Total: 1 model(s)
+
+==============================================================================
+
+TPTP/Problems/NLP/NLP114-1.p
+
+Start evaluating models
+Finished evaluating 5 model(s)
+
+===== Model 1 =====
+init: 45/11
+core: 45/11
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 2 =====
+init: 44/11
+core: 44/11
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 3 =====
+init: 43/11
+core: 43/11
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 4 =====
+init: 42/11
+core: 42/11
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 5 =====
+init: 41/11
+core: 41/11
+Rounds: 0/0
+Time: 0.0s
+
+Total: 5 model(s)
+
+==============================================================================
+
+TPTP/Problems/NLP/NLP115-1.p
+
+Start evaluating models
+Finished evaluating 5 model(s)
+
+===== Model 1 =====
+init: 45/11
+core: 45/11
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 2 =====
+init: 44/11
+core: 44/11
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 3 =====
+init: 43/11
+core: 43/11
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 4 =====
+init: 42/11
+core: 42/11
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 5 =====
+init: 41/11
+core: 41/11
+Rounds: 0/0
+Time: 1.56000005e-2s
+
+Total: 5 model(s)
+
+==============================================================================
+
+TPTP/Problems/NLP/NLP116-1.p
+
+Start evaluating models
+Finished evaluating 5 model(s)
+
+===== Model 1 =====
+init: 24/6
+core: 24/6
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 2 =====
+init: 44/10
+core: 44/10
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 3 =====
+init: 43/10
+core: 43/10
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 4 =====
+init: 42/10
+core: 42/10
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 5 =====
+init: 41/10
+core: 41/10
+Rounds: 0/0
+Time: 0.0s
+
+Total: 5 model(s)
+
+==============================================================================
+
+TPTP/Problems/NLP/NLP118-1.p
+
+Start evaluating models
+Finished evaluating 1 model(s)
+
+===== Model 1 =====
+init: 25/7
+core: 25/7
+Rounds: 0/0
+Time: 0.0s
+
+Total: 1 model(s)
+
+==============================================================================
+
+TPTP/Problems/NLP/NLP119-1.p
+
+Start evaluating models
+Finished evaluating 1 model(s)
+
+===== Model 1 =====
+init: 25/7
+core: 25/7
+Rounds: 0/0
+Time: 0.0s
+
+Total: 1 model(s)
+
+==============================================================================
+
+TPTP/Problems/NLP/NLP120-1.p
+
+Start evaluating models
+Finished evaluating 5 model(s)
+
+===== Model 1 =====
+init: 45/11
+core: 45/11
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 2 =====
+init: 44/11
+core: 44/11
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 3 =====
+init: 43/11
+core: 43/11
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 4 =====
+init: 42/11
+core: 42/11
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 5 =====
+init: 41/11
+core: 41/11
+Rounds: 0/0
+Time: 1.56000005e-2s
+
+Total: 5 model(s)
+
+==============================================================================
+
+TPTP/Problems/NLP/NLP121-1.p
+
+Start evaluating models
+Finished evaluating 5 model(s)
+
+===== Model 1 =====
+init: 24/6
+core: 24/6
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 2 =====
+init: 44/10
+core: 44/10
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 3 =====
+init: 43/10
+core: 43/10
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 4 =====
+init: 42/10
+core: 42/10
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 5 =====
+init: 41/10
+core: 41/10
+Rounds: 0/0
+Time: 0.0s
+
+Total: 5 model(s)
+
+==============================================================================
+
+TPTP/Problems/NLP/NLP123-1.p
+
+Start evaluating models
+Finished evaluating 5 model(s)
+
+===== Model 1 =====
+init: 45/11
+core: 45/11
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 2 =====
+init: 44/11
+core: 44/11
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 3 =====
+init: 43/11
+core: 43/11
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 4 =====
+init: 42/11
+core: 42/11
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 5 =====
+init: 41/11
+core: 41/11
+Rounds: 0/0
+Time: 0.0s
+
+Total: 5 model(s)
+
+==============================================================================
+
+TPTP/Problems/NLP/NLP221-1.p
+
+Start evaluating models
+Finished evaluating 5 model(s)
+
+===== Model 1 =====
+init: 179/39
+core: 179/39
+Rounds: 0/271
+Time: 0.21840101s
+
+===== Model 2 =====
+init: 178/39
+core: 178/39
+Rounds: 0/262
+Time: 0.1872s
+
+===== Model 3 =====
+init: 177/39
+core: 177/39
+Rounds: 0/262
+Time: 0.1872s
+
+===== Model 4 =====
+init: 174/38
+core: 174/38
+Rounds: 0/244
+Time: 0.187201s
+
+===== Model 5 =====
+init: 173/38
+core: 173/38
+Rounds: 0/235
+Time: 0.15599999s
+
+Total: 5 model(s)
+
+==============================================================================
+
+TPTP/Problems/NLP/NLP222-1.p
+
+Start evaluating models
+Finished evaluating 5 model(s)
+
+===== Model 1 =====
+init: 179/39
+core: 179/39
+Rounds: 0/271
+Time: 0.202801s
+
+===== Model 2 =====
+init: 178/39
+core: 178/39
+Rounds: 0/262
+Time: 0.1716s
+
+===== Model 3 =====
+init: 177/39
+core: 177/39
+Rounds: 0/262
+Time: 0.18720001s
+
+===== Model 4 =====
+init: 174/38
+core: 174/38
+Rounds: 0/244
+Time: 0.15599999s
+
+===== Model 5 =====
+init: 173/38
+core: 173/38
+Rounds: 0/235
+Time: 0.171601s
+
+Total: 5 model(s)
+
+==============================================================================
+
+TPTP/Problems/NLP/NLP223-1.p
+
+Start evaluating models
+Finished evaluating 5 model(s)
+
+===== Model 1 =====
+init: 37/9
+core: 37/9
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 2 =====
+init: 68/16
+core: 68/16
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 3 =====
+init: 67/16
+core: 67/16
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 4 =====
+init: 66/16
+core: 66/16
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 5 =====
+init: 65/16
+core: 65/16
+Rounds: 0/0
+Time: 1.56000005e-2s
+
+Total: 5 model(s)
+
+==============================================================================
+
+TPTP/Problems/NLP/NLP230-1.p
+
+Start evaluating models
+==============================================================================
+
+TPTP/Problems/NLP/NLP231-1.p
+
+Start evaluating models
+Finished evaluating 5 model(s)
+
+===== Model 1 =====
+init: 67/15
+core: 67/15
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 2 =====
+init: 128/28
+core: 128/28
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 3 =====
+init: 127/28
+core: 127/28
+Rounds: 0/0
+Time: 1.56000005e-2s
+
+===== Model 4 =====
+init: 126/28
+core: 126/28
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 5 =====
+init: 125/28
+core: 125/28
+Rounds: 0/0
+Time: 1.56000005e-2s
+
+Total: 5 model(s)
+
+==============================================================================
+
+TPTP/Problems/NLP/NLP232-1.p
+
+Start evaluating models
+Finished evaluating 5 model(s)
+
+===== Model 1 =====
+init: 310/66
+core: 310/66
+Rounds: 0/772
+Time: 0.686401s
+
+===== Model 2 =====
+init: 309/66
+core: 309/66
+Rounds: 0/756
+Time: 0.592801s
+
+===== Model 3 =====
+init: 308/66
+core: 308/66
+Rounds: 0/756
+Time: 0.624001s
+
+===== Model 4 =====
+init: 305/65
+core: 305/65
+Rounds: 0/726
+Time: 0.608401s
+
+===== Model 5 =====
+init: 304/65
+core: 304/65
+Rounds: 0/710
+Time: 0.546001s
+
+Total: 5 model(s)
+
+==============================================================================
+
+TPTP/Problems/NLP/NLP233-1.p
+
+Start evaluating models
+Finished evaluating 5 model(s)
+
+===== Model 1 =====
+init: 67/15
+core: 67/15
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 2 =====
+init: 131/29
+core: 131/29
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 3 =====
+init: 130/29
+core: 130/29
+Rounds: 0/0
+Time: 1.56000005e-2s
+
+===== Model 4 =====
+init: 129/29
+core: 129/29
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 5 =====
+init: 128/29
+core: 128/29
+Rounds: 0/0
+Time: 1.56000005e-2s
+
+Total: 5 model(s)
+
+==============================================================================
+
+TPTP/Problems/NLP/NLP234-1.p
+
+Start evaluating models
+Finished evaluating 5 model(s)
+
+===== Model 1 =====
+init: 312/66
+core: 312/66
+Rounds: 0/818
+Time: 0.76440203s
+
+===== Model 2 =====
+init: 311/66
+core: 311/66
+Rounds: 0/802
+Time: 0.655201s
+
+===== Model 3 =====
+init: 310/66
+core: 310/66
+Rounds: 0/802
+Time: 0.702001s
+
+===== Model 4 =====
+init: 307/65
+core: 307/65
+Rounds: 0/770
+Time: 0.655201s
+
+===== Model 5 =====
+init: 306/65
+core: 306/65
+Rounds: 0/754
+Time: 0.60840106s
+
+Total: 5 model(s)
+
+==============================================================================
+
+TPTP/Problems/NLP/NLP235-1.p
+
+Start evaluating models
+Finished evaluating 5 model(s)
+
+===== Model 1 =====
+init: 67/15
+core: 67/15
+Rounds: 0/0
+Time: 1.56000005e-2s
+
+===== Model 2 =====
+init: 128/28
+core: 128/28
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 3 =====
+init: 127/28
+core: 127/28
+Rounds: 0/0
+Time: 1.56000005e-2s
+
+===== Model 4 =====
+init: 126/28
+core: 126/28
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 5 =====
+init: 125/28
+core: 125/28
+Rounds: 0/0
+Time: 1.56000005e-2s
+
+Total: 5 model(s)
+
+==============================================================================
+
+TPTP/Problems/NLP/NLP236-1.p
+
+Start evaluating models
+Finished evaluating 5 model(s)
+
+===== Model 1 =====
+init: 67/15
+core: 67/15
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 2 =====
+init: 128/28
+core: 128/28
+Rounds: 0/0
+Time: 1.56000005e-2s
+
+===== Model 3 =====
+init: 127/28
+core: 127/28
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 4 =====
+init: 126/28
+core: 126/28
+Rounds: 0/0
+Time: 1.56000005e-2s
+
+===== Model 5 =====
+init: 125/28
+core: 125/28
+Rounds: 0/0
+Time: 0.0s
+
+Total: 5 model(s)
+
+==============================================================================
+
+TPTP/Problems/NLP/NLP237-1.p
+
+Start evaluating models
+Finished evaluating 5 model(s)
+
+===== Model 1 =====
+init: 310/66
+core: 310/66
+Rounds: 0/772
+Time: 0.686402s
+
+===== Model 2 =====
+init: 309/66
+core: 309/66
+Rounds: 0/756
+Time: 0.592801s
+
+===== Model 3 =====
+init: 308/66
+core: 308/66
+Rounds: 0/756
+Time: 0.655201s
+
+===== Model 4 =====
+init: 305/65
+core: 305/65
+Rounds: 0/726
+Time: 0.577201s
+
+===== Model 5 =====
+init: 304/65
+core: 304/65
+Rounds: 0/710
+Time: 0.577201s
+
+Total: 5 model(s)
+
+==============================================================================
+
+TPTP/Problems/NLP/NLP238-1.p
+
+Start evaluating models
+Finished evaluating 5 model(s)
+
+===== Model 1 =====
+init: 67/15
+core: 67/15
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 2 =====
+init: 128/28
+core: 128/28
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 3 =====
+init: 127/28
+core: 127/28
+Rounds: 0/0
+Time: 1.56000005e-2s
+
+===== Model 4 =====
+init: 126/28
+core: 126/28
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 5 =====
+init: 125/28
+core: 125/28
+Rounds: 0/0
+Time: 1.56000005e-2s
+
+Total: 5 model(s)
+
+==============================================================================
+
+TPTP/Problems/NLP/NLP239-1.p
+
+Start evaluating models
+Finished evaluating 5 model(s)
+
+===== Model 1 =====
+init: 67/15
+core: 67/15
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 2 =====
+init: 128/28
+core: 128/28
+Rounds: 0/0
+Time: 1.56000005e-2s
+
+===== Model 3 =====
+init: 127/28
+core: 127/28
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 4 =====
+init: 126/28
+core: 126/28
+Rounds: 0/0
+Time: 1.56000005e-2s
+
+===== Model 5 =====
+init: 125/28
+core: 125/28
+Rounds: 0/0
+Time: 0.0s
+
+Total: 5 model(s)
+
+==============================================================================
+
+TPTP/Problems/NUM/NUM285-1.p
+
+Start evaluating models
+Finished evaluating 5 model(s)
+
+===== Model 1 =====
+init: 17/0
+core: 17/0
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 2 =====
+init: 17/0
+core: 17/0
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 3 =====
+init: 18/0
+core: 18/0
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 4 =====
+init: 18/0
+core: 18/0
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 5 =====
+init: 17/0
+core: 17/0
+Rounds: 0/0
+Time: 0.0s
+
+Total: 5 model(s)
+
+==============================================================================
+
+TPTP/Problems/PLA/PLA029-1.p
+
+Start evaluating models
+Finished evaluating 1 model(s)
+
+===== Model 1 =====
+init: 0/0
+core: 0/0
+Rounds: 0/0
+Time: 0.0s
+
+Total: 1 model(s)
+
+==============================================================================
+
+TPTP/Problems/PUZ/PUZ001-3.p
+
+Start evaluating models
+Finished evaluating 2 model(s)
+
+===== Model 1 =====
+init: 12/3
+core: 12/3
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 2 =====
+init: 13/3
+core: 13/3
+Rounds: 0/0
+Time: 0.0s
+
+Total: 2 model(s)
+
+==============================================================================
+
+TPTP/Problems/PUZ/PUZ028-1.p
+
+Start evaluating models
+Finished evaluating 5 model(s)
+
+===== Model 1 =====
+init: 42/6
+core: 42/6
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 2 =====
+init: 42/6
+core: 42/6
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 3 =====
+init: 42/6
+core: 42/6
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 4 =====
+init: 42/6
+core: 42/6
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 5 =====
+init: 42/6
+core: 42/6
+Rounds: 0/0
+Time: 0.0s
+
+Total: 5 model(s)
+
+==============================================================================
+
+TPTP/Problems/PUZ/PUZ028-2.p
+
+Start evaluating models
+Finished evaluating 5 model(s)
+
+===== Model 1 =====
+init: 72/6
+core: 72/6
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 2 =====
+init: 72/6
+core: 72/6
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 3 =====
+init: 72/6
+core: 72/6
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 4 =====
+init: 72/6
+core: 72/6
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 5 =====
+init: 72/6
+core: 72/6
+Rounds: 0/0
+Time: 1.56000005e-2s
+
+Total: 5 model(s)
+
+==============================================================================
+
+TPTP/Problems/PUZ/PUZ028-3.p
+
+Start evaluating models
+Finished evaluating 5 model(s)
+
+===== Model 1 =====
+init: 72/6
+core: 72/6
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 2 =====
+init: 72/6
+core: 72/6
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 3 =====
+init: 72/6
+core: 72/6
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 4 =====
+init: 72/6
+core: 72/6
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 5 =====
+init: 72/6
+core: 72/6
+Rounds: 0/0
+Time: 0.0s
+
+Total: 5 model(s)
+
+==============================================================================
+
+TPTP/Problems/PUZ/PUZ028-4.p
+
+Start evaluating models
+Finished evaluating 5 model(s)
+
+===== Model 1 =====
+init: 36/6
+core: 36/6
+Rounds: 0/0
+Time: 1.56000005e-2s
+
+===== Model 2 =====
+init: 36/6
+core: 36/6
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 3 =====
+init: 36/6
+core: 36/6
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 4 =====
+init: 36/6
+core: 36/6
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 5 =====
+init: 36/6
+core: 36/6
+Rounds: 0/0
+Time: 0.0s
+
+Total: 5 model(s)
+
+==============================================================================
+
+TPTP/Problems/PUZ/PUZ046-1.p
+
+Start evaluating models
+Finished evaluating 1 model(s)
+
+===== Model 1 =====
+init: 0/0
+core: 0/0
+Rounds: 0/0
+Time: 0.0s
+
+Total: 1 model(s)
+
+==============================================================================
+
+TPTP/Problems/PUZ/PUZ054-1.p
+
+Start evaluating models
+Finished evaluating 1 model(s)
+
+===== Model 1 =====
+init: 89/15
+core: 89/15
+Rounds: 0/125
+Time: 0.2964s
+
+Total: 1 model(s)
+
+==============================================================================
+
+TPTP/Problems/SCT/SCT072-1.p
+
+Start evaluating models
+Finished evaluating 1 model(s)
+
+===== Model 1 =====
+init: 10/3
+core: 10/3
+Rounds: 0/0
+Time: 0.0s
+
+Total: 1 model(s)
+
+==============================================================================
+
+TPTP/Problems/SCT/SCT101-1.p
+
+Start evaluating models
+Finished evaluating 1 model(s)
+
+===== Model 1 =====
+init: 11/3
+core: 11/3
+Rounds: 0/0
+Time: 0.0s
+
+Total: 1 model(s)
+
+==============================================================================
+
+TPTP/Problems/SWV/SWV010-1.p
+
+Start evaluating models
+Finished evaluating 1 model(s)
+
+===== Model 1 =====
+init: 35/27
+core: 35/27
+Rounds: 0/20
+Time: 1.56000005e-2s
+
+Total: 1 model(s)
+
+==============================================================================
+
+TPTP/Problems/SYN/SYN036-2.p
+
+Start evaluating models
+Finished evaluating 5 model(s)
+
+===== Model 1 =====
+init: 1/1
+core: 1/1
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 2 =====
+init: 6/3
+core: 4/1
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 3 =====
+init: 12/4
+core: 11/3
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 4 =====
+init: 16/5
+core: 15/4
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 5 =====
+init: 19/6
+core: 18/5
+Rounds: 1/3
+Time: 0.0s
+
+Total: 5 model(s)
+
+==============================================================================
+
+TPTP/Problems/SYN/SYN056-1.p
+
+Start evaluating models
+Finished evaluating 2 model(s)
+
+===== Model 1 =====
+init: 8/4
+core: 8/4
+Rounds: 0/0
+Time: 1.0e-2s
+
+===== Model 2 =====
+init: 8/4
+core: 8/4
+Rounds: 0/0
+Time: 0.0s
+
+Total: 2 model(s)
+
+==============================================================================
+
+TPTP/Problems/SYN/SYN059-1.p
+
+Start evaluating models
+Finished evaluating 5 model(s)
+
+===== Model 1 =====
+init: 15/5
+core: 15/5
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 2 =====
+init: 15/5
+core: 15/5
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 3 =====
+init: 15/5
+core: 15/5
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 4 =====
+init: 15/5
+core: 15/5
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 5 =====
+init: 15/5
+core: 15/5
+Rounds: 0/0
+Time: 0.0s
+
+Total: 5 model(s)
+
+==============================================================================
+
+TPTP/Problems/SYN/SYN084-1.p
+
+Start evaluating models
+Finished evaluating 1 model(s)
+
+===== Model 1 =====
+init: 3/1
+core: 3/1
+Rounds: 0/0
+Time: 0.0s
+
+Total: 1 model(s)
+
+==============================================================================
+
+TPTP/Problems/SYN/SYN304-1.p
+
+Start evaluating models
+Finished evaluating 5 model(s)
+
+===== Model 1 =====
+init: 17/4
+core: 17/4
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 2 =====
+init: 22/5
+core: 22/5
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 3 =====
+init: 26/6
+core: 26/6
+Rounds: 0/0
+Time: 1.0e-2s
+
+===== Model 4 =====
+init: 30/7
+core: 30/7
+Rounds: 0/2
+Time: 0.0s
+
+===== Model 5 =====
+init: 34/8
+core: 34/8
+Rounds: 0/6
+Time: 0.0s
+
+Total: 5 model(s)
+
+==============================================================================
+
+TPTP/Problems/SYN/SYN317-1.p
+
+Start evaluating models
+Finished evaluating 1 model(s)
+
+===== Model 1 =====
+init: 4/2
+core: 3/1
+Rounds: 1/1
+Time: 0.0s
+
+Total: 1 model(s)
+
+==============================================================================
+
+TPTP/Problems/SYN/SYN320-1.p
+
+Start evaluating models
+Finished evaluating 5 model(s)
+
+===== Model 1 =====
+init: 50/15
+core: 50/15
+Rounds: 0/90
+Time: 3.0000001e-2s
+
+===== Model 2 =====
+init: 50/15
+core: 50/15
+Rounds: 0/87
+Time: 2.0e-2s
+
+===== Model 3 =====
+init: 46/14
+core: 46/14
+Rounds: 0/83
+Time: 2.0e-2s
+
+===== Model 4 =====
+init: 39/12
+core: 39/12
+Rounds: 0/64
+Time: 1.0e-2s
+
+===== Model 5 =====
+init: 29/9
+core: 29/9
+Rounds: 0/36
+Time: 0.0s
+
+Total: 5 model(s)
+
+==============================================================================
+
+TPTP/Problems/SYN/SYN322-1.p
+
+Start evaluating models
+Finished evaluating 1 model(s)
+
+===== Model 1 =====
+init: 0/0
+core: 0/0
+Rounds: 0/0
+Time: 0.0s
+
+Total: 1 model(s)
+
+==============================================================================
+
+TPTP/Problems/SYN/SYN337-1.p
+
+Start evaluating models
+Finished evaluating 1 model(s)
+
+===== Model 1 =====
+init: 24/5
+core: 24/5
+Rounds: 0/9
+Time: 1.0e-2s
+
+Total: 1 model(s)
+
+==============================================================================
+
+TPTP/Problems/SYN/SYN342-1.p
+
+Start evaluating models
+Finished evaluating 1 model(s)
+
+===== Model 1 =====
+init: 16/5
+core: 16/5
+Rounds: 0/9
+Time: 1.0e-2s
+
+Total: 1 model(s)
+
+==============================================================================
+
+TPTP/Problems/SYN/SYN344-1.p
+
+Start evaluating models
+==============================================================================
+
+TPTP/Problems/SYN/SYN418-1.p
+
+Start evaluating models
+Finished evaluating 5 model(s)
+
+===== Model 1 =====
+init: 342/20
+core: 342/20
+Rounds: 0/0
+Time: 1.56000005e-2s
+
+===== Model 2 =====
+init: 356/21
+core: 356/21
+Rounds: 0/0
+Time: 1.56000005e-2s
+
+===== Model 3 =====
+init: 371/22
+core: 371/22
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 4 =====
+init: 372/22
+core: 372/22
+Rounds: 0/0
+Time: 1.56000005e-2s
+
+===== Model 5 =====
+init: 388/23
+core: 388/23
+Rounds: 0/0
+Time: 1.56000005e-2s
+
+Total: 5 model(s)
+
+==============================================================================
+
+TPTP/Problems/SYN/SYN430-1.p
+
+Start evaluating models
+Finished evaluating 5 model(s)
+
+===== Model 1 =====
+init: 25/5
+core: 25/5
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 2 =====
+init: 45/9
+core: 44/8
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 3 =====
+init: 45/9
+core: 43/8
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 4 =====
+init: 45/9
+core: 43/8
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 5 =====
+init: 48/10
+core: 47/9
+Rounds: 1/1
+Time: 0.0s
+
+Total: 5 model(s)
+
+==============================================================================
+
+TPTP/Problems/SYN/SYN431-1.p
+
+Start evaluating models
+==============================================================================
+
+TPTP/Problems/SYN/SYN432-1.p
+
+Start evaluating models
+Finished evaluating 5 model(s)
+
+===== Model 1 =====
+init: 75/15
+core: 75/15
+Rounds: 0/0
+Time: 1.56000005e-2s
+
+===== Model 2 =====
+init: 75/15
+core: 75/15
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 3 =====
+init: 81/16
+core: 81/16
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 4 =====
+init: 81/16
+core: 81/16
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 5 =====
+init: 82/16
+core: 82/16
+Rounds: 0/0
+Time: 0.0s
+
+Total: 5 model(s)
+
+==============================================================================
+
+TPTP/Problems/SYN/SYN433-1.p
+
+Start evaluating models
+Finished evaluating 5 model(s)
+
+===== Model 1 =====
+init: 39/7
+core: 39/7
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 2 =====
+init: 40/7
+core: 40/7
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 3 =====
+init: 35/6
+core: 35/6
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 4 =====
+init: 44/8
+core: 44/8
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 5 =====
+init: 44/8
+core: 44/8
+Rounds: 0/0
+Time: 0.0s
+
+Total: 5 model(s)
+
+==============================================================================
+
+TPTP/Problems/SYN/SYN490-1.p
+
+Start evaluating models
+Finished evaluating 5 model(s)
+
+===== Model 1 =====
+init: 30/6
+core: 30/6
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 2 =====
+init: 27/5
+core: 27/5
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 3 =====
+init: 31/6
+core: 31/6
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 4 =====
+init: 28/5
+core: 28/5
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 5 =====
+init: 28/5
+core: 28/5
+Rounds: 0/0
+Time: 0.0s
+
+Total: 5 model(s)
+
+==============================================================================
+
+TPTP/Problems/SYN/SYN491-1.p
+
+Start evaluating models
+Finished evaluating 5 model(s)
+
+===== Model 1 =====
+init: 23/4
+core: 23/4
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 2 =====
+init: 19/3
+core: 19/3
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 3 =====
+init: 13/2
+core: 13/2
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 4 =====
+init: 12/2
+core: 12/2
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 5 =====
+init: 12/2
+core: 12/2
+Rounds: 0/0
+Time: 0.0s
+
+Total: 5 model(s)
+
+==============================================================================
+
+TPTP/Problems/SYN/SYN492-1.p
+
+Start evaluating models
+Finished evaluating 5 model(s)
+
+===== Model 1 =====
+init: 15/3
+core: 15/3
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 2 =====
+init: 12/2
+core: 12/2
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 3 =====
+init: 7/1
+core: 7/1
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 4 =====
+init: 7/1
+core: 7/1
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 5 =====
+init: 5/1
+core: 5/1
+Rounds: 0/0
+Time: 0.0s
+
+Total: 5 model(s)
+
+==============================================================================
+
+TPTP/Problems/SYN/SYN493-1.p
+
+Start evaluating models
+Finished evaluating 5 model(s)
+
+===== Model 1 =====
+init: 22/4
+core: 22/4
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 2 =====
+init: 19/3
+core: 19/3
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 3 =====
+init: 19/3
+core: 19/3
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 4 =====
+init: 35/6
+core: 35/6
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 5 =====
+init: 29/5
+core: 29/5
+Rounds: 0/0
+Time: 0.0s
+
+Total: 5 model(s)
+
+==============================================================================
+
+TPTP/Problems/SYN/SYN494-1.p
+
+Start evaluating models
+Finished evaluating 5 model(s)
+
+===== Model 1 =====
+init: 37/7
+core: 37/7
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 2 =====
+init: 38/7
+core: 38/7
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 3 =====
+init: 38/7
+core: 38/7
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 4 =====
+init: 38/7
+core: 38/7
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 5 =====
+init: 39/7
+core: 39/7
+Rounds: 0/0
+Time: 0.0s
+
+Total: 5 model(s)
+
+==============================================================================
+
+TPTP/Problems/SYN/SYN495-1.p
+
+Start evaluating models
+Finished evaluating 5 model(s)
+
+===== Model 1 =====
+init: 30/6
+core: 30/6
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 2 =====
+init: 31/6
+core: 31/6
+Rounds: 0/0
+Time: 1.56000005e-2s
+
+===== Model 3 =====
+init: 27/5
+core: 27/5
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 4 =====
+init: 29/6
+core: 29/6
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 5 =====
+init: 30/6
+core: 30/6
+Rounds: 0/0
+Time: 0.0s
+
+Total: 5 model(s)
+
+==============================================================================
+
+TPTP/Problems/SYN/SYN496-1.p
+
+Start evaluating models
+Finished evaluating 5 model(s)
+
+===== Model 1 =====
+init: 19/4
+core: 19/4
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 2 =====
+init: 16/4
+core: 16/4
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 3 =====
+init: 16/4
+core: 15/3
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 4 =====
+init: 16/4
+core: 15/3
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 5 =====
+init: 16/4
+core: 16/4
+Rounds: 0/0
+Time: 0.0s
+
+Total: 5 model(s)
+
+==============================================================================
+
+TPTP/Problems/SYN/SYN497-1.p
+
+Start evaluating models
+Finished evaluating 5 model(s)
+
+===== Model 1 =====
+init: 29/7
+core: 29/7
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 2 =====
+init: 25/6
+core: 25/6
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 3 =====
+init: 22/5
+core: 22/5
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 4 =====
+init: 30/7
+core: 30/7
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 5 =====
+init: 28/6
+core: 28/6
+Rounds: 0/0
+Time: 0.0s
+
+Total: 5 model(s)
+
+==============================================================================
+
+TPTP/Problems/SYN/SYN513-1.p
+
+Start evaluating models
+Finished evaluating 5 model(s)
+
+===== Model 1 =====
+init: 356/19
+core: 342/18
+Rounds: 1/1
+Time: 3.1200001e-2s
+
+===== Model 2 =====
+init: 356/19
+core: 342/18
+Rounds: 1/1
+Time: 4.6800997e-2s
+
+===== Model 3 =====
+init: 355/19
+core: 341/18
+Rounds: 1/1
+Time: 3.1200001e-2s
+
+===== Model 4 =====
+init: 355/19
+core: 341/18
+Rounds: 1/1
+Time: 3.1200001e-2s
+
+===== Model 5 =====
+init: 372/20
+core: 358/19
+Rounds: 1/1
+Time: 4.68e-2s
+
+Total: 5 model(s)
+
+==============================================================================
+
+TPTP/Problems/SYN/SYN515-1.p
+
+Start evaluating models
+Finished evaluating 5 model(s)
+
+===== Model 1 =====
+init: 26/3
+core: 23/2
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 2 =====
+init: 27/3
+core: 24/2
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 3 =====
+init: 32/4
+core: 29/3
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 4 =====
+init: 33/4
+core: 30/3
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 5 =====
+init: 33/4
+core: 30/3
+Rounds: 1/1
+Time: 0.0s
+
+Total: 5 model(s)
+
+==============================================================================
+
+TPTP/Problems/SYN/SYN516-1.p
+
+Start evaluating models
+Finished evaluating 5 model(s)
+
+===== Model 1 =====
+init: 20/3
+core: 19/2
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 2 =====
+init: 21/3
+core: 20/2
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 3 =====
+init: 22/3
+core: 21/2
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 4 =====
+init: 26/4
+core: 25/3
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 5 =====
+init: 27/4
+core: 26/3
+Rounds: 1/1
+Time: 0.0s
+
+Total: 5 model(s)
+
+==============================================================================
+
+TPTP/Problems/SYN/SYN517-1.p
+
+Start evaluating models
+Finished evaluating 5 model(s)
+
+===== Model 1 =====
+init: 32/5
+core: 30/4
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 2 =====
+init: 33/5
+core: 31/4
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 3 =====
+init: 32/5
+core: 30/4
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 4 =====
+init: 33/5
+core: 31/4
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 5 =====
+init: 32/5
+core: 30/4
+Rounds: 1/1
+Time: 1.56000005e-2s
+
+Total: 5 model(s)
+
+==============================================================================
+
+TPTP/Problems/SYN/SYN521-1.p
+
+Start evaluating models
+Finished evaluating 5 model(s)
+
+===== Model 1 =====
+init: 27/6
+core: 25/4
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 2 =====
+init: 28/6
+core: 26/4
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 3 =====
+init: 32/7
+core: 30/5
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 4 =====
+init: 33/7
+core: 31/5
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 5 =====
+init: 34/7
+core: 32/5
+Rounds: 1/1
+Time: 0.0s
+
+Total: 5 model(s)
+
+==============================================================================
+
+TPTP/Problems/SYN/SYN522-1.p
+
+Start evaluating models
+Finished evaluating 5 model(s)
+
+===== Model 1 =====
+init: 59/5
+core: 51/4
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 2 =====
+init: 59/5
+core: 51/4
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 3 =====
+init: 58/5
+core: 50/4
+Rounds: 1/1
+Time: 1.56000005e-2s
+
+===== Model 4 =====
+init: 57/5
+core: 49/4
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 5 =====
+init: 56/5
+core: 48/4
+Rounds: 1/1
+Time: 0.0s
+
+Total: 5 model(s)
+
+==============================================================================
+
+TPTP/Problems/SYN/SYN523-1.p
+
+Start evaluating models
+Finished evaluating 5 model(s)
+
+===== Model 1 =====
+init: 21/4
+core: 20/3
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 2 =====
+init: 21/4
+core: 20/3
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 3 =====
+init: 21/4
+core: 20/3
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 4 =====
+init: 21/4
+core: 21/4
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 5 =====
+init: 23/4
+core: 23/4
+Rounds: 0/0
+Time: 0.0s
+
+Total: 5 model(s)
+
+==============================================================================
+
+TPTP/Problems/SYN/SYN524-1.p
+
+Start evaluating models
+Finished evaluating 5 model(s)
+
+===== Model 1 =====
+init: 29/5
+core: 27/4
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 2 =====
+init: 29/5
+core: 27/4
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 3 =====
+init: 34/6
+core: 32/5
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 4 =====
+init: 34/6
+core: 32/5
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 5 =====
+init: 35/6
+core: 33/5
+Rounds: 1/1
+Time: 0.0s
+
+Total: 5 model(s)
+
+==============================================================================
+
+TPTP/Problems/SYN/SYN525-1.p
+
+Start evaluating models
+Finished evaluating 5 model(s)
+
+===== Model 1 =====
+init: 25/3
+core: 25/3
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 2 =====
+init: 29/4
+core: 29/4
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 3 =====
+init: 30/4
+core: 30/4
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 4 =====
+init: 31/4
+core: 31/4
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 5 =====
+init: 31/4
+core: 31/4
+Rounds: 0/0
+Time: 0.0s
+
+Total: 5 model(s)
+
+==============================================================================
+
+TPTP/Problems/SYN/SYN526-1.p
+
+Start evaluating models
+Finished evaluating 5 model(s)
+
+===== Model 1 =====
+init: 25/4
+core: 24/3
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 2 =====
+init: 29/5
+core: 28/4
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 3 =====
+init: 30/5
+core: 29/4
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 4 =====
+init: 31/5
+core: 30/4
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 5 =====
+init: 31/5
+core: 30/4
+Rounds: 1/1
+Time: 0.0s
+
+Total: 5 model(s)
+
+==============================================================================
+
+TPTP/Problems/SYN/SYN527-1.p
+
+Start evaluating models
+Finished evaluating 5 model(s)
+
+===== Model 1 =====
+init: 31/5
+core: 28/4
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 2 =====
+init: 31/5
+core: 28/4
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 3 =====
+init: 37/6
+core: 34/5
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 4 =====
+init: 37/6
+core: 34/5
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 5 =====
+init: 38/6
+core: 35/5
+Rounds: 1/1
+Time: 0.0s
+
+Total: 5 model(s)
+
+==============================================================================
+
+TPTP/Problems/SYN/SYN528-1.p
+
+Start evaluating models
+Finished evaluating 5 model(s)
+
+===== Model 1 =====
+init: 29/3
+core: 25/2
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 2 =====
+init: 30/3
+core: 26/2
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 3 =====
+init: 36/4
+core: 32/3
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 4 =====
+init: 37/4
+core: 33/3
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 5 =====
+init: 37/4
+core: 37/4
+Rounds: 0/0
+Time: 0.0s
+
+Total: 5 model(s)
+
+==============================================================================
+
+TPTP/Problems/SYN/SYN529-1.p
+
+Start evaluating models
+Finished evaluating 5 model(s)
+
+===== Model 1 =====
+init: 65/12
+core: 61/9
+Rounds: 1/1
+Time: 1.56000005e-2s
+
+===== Model 2 =====
+init: 68/13
+core: 64/10
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 3 =====
+init: 69/13
+core: 65/10
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 4 =====
+init: 69/13
+core: 65/10
+Rounds: 1/1
+Time: 1.56000005e-2s
+
+===== Model 5 =====
+init: 66/12
+core: 62/9
+Rounds: 1/1
+Time: 0.0s
+
+Total: 5 model(s)
+
+==============================================================================
+
+TPTP/Problems/SYN/SYN530-1.p
+
+Start evaluating models
+Finished evaluating 5 model(s)
+
+===== Model 1 =====
+init: 15/2
+core: 12/1
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 2 =====
+init: 15/2
+core: 15/2
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 3 =====
+init: 21/3
+core: 18/2
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 4 =====
+init: 21/3
+core: 18/2
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 5 =====
+init: 29/4
+core: 26/3
+Rounds: 1/1
+Time: 0.0s
+
+Total: 5 model(s)
+
+==============================================================================
+
+TPTP/Problems/SYN/SYN531-1.p
+
+Start evaluating models
+Finished evaluating 5 model(s)
+
+===== Model 1 =====
+init: 60/9
+core: 56/7
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 2 =====
+init: 60/9
+core: 56/7
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 3 =====
+init: 60/9
+core: 56/7
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 4 =====
+init: 60/9
+core: 56/7
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 5 =====
+init: 60/9
+core: 56/7
+Rounds: 1/1
+Time: 0.0s
+
+Total: 5 model(s)
+
+==============================================================================
+
+TPTP/Problems/SYN/SYN532-1.p
+
+Start evaluating models
+Finished evaluating 5 model(s)
+
+===== Model 1 =====
+init: 41/6
+core: 39/5
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 2 =====
+init: 46/7
+core: 44/6
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 3 =====
+init: 47/7
+core: 45/6
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 4 =====
+init: 47/7
+core: 45/6
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 5 =====
+init: 46/7
+core: 44/6
+Rounds: 1/1
+Time: 0.0s
+
+Total: 5 model(s)
+
+==============================================================================
+
+TPTP/Problems/SYN/SYN533-1.p
+
+Start evaluating models
+Finished evaluating 5 model(s)
+
+===== Model 1 =====
+init: 33/5
+core: 31/4
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 2 =====
+init: 38/6
+core: 36/5
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 3 =====
+init: 39/6
+core: 37/5
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 4 =====
+init: 40/6
+core: 38/5
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 5 =====
+init: 40/6
+core: 38/5
+Rounds: 1/1
+Time: 0.0s
+
+Total: 5 model(s)
+
+==============================================================================
+
+TPTP/Problems/SYN/SYN534-1.p
+
+Start evaluating models
+Finished evaluating 5 model(s)
+
+===== Model 1 =====
+init: 29/5
+core: 28/4
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 2 =====
+init: 33/6
+core: 32/5
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 3 =====
+init: 34/6
+core: 33/5
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 4 =====
+init: 35/6
+core: 34/5
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 5 =====
+init: 35/6
+core: 34/5
+Rounds: 1/1
+Time: 0.0s
+
+Total: 5 model(s)
+
+==============================================================================
+
+TPTP/Problems/SYN/SYN535-1.p
+
+Start evaluating models
+Finished evaluating 5 model(s)
+
+===== Model 1 =====
+init: 23/4
+core: 22/3
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 2 =====
+init: 23/4
+core: 22/3
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 3 =====
+init: 23/4
+core: 22/3
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 4 =====
+init: 23/4
+core: 22/3
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 5 =====
+init: 24/4
+core: 24/4
+Rounds: 0/0
+Time: 0.0s
+
+Total: 5 model(s)
+
+==============================================================================
+
+TPTP/Problems/SYN/SYN536-1.p
+
+Start evaluating models
+Finished evaluating 5 model(s)
+
+===== Model 1 =====
+init: 19/2
+core: 19/2
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 2 =====
+init: 22/3
+core: 22/3
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 3 =====
+init: 22/3
+core: 22/3
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 4 =====
+init: 24/4
+core: 24/4
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 5 =====
+init: 27/5
+core: 27/5
+Rounds: 0/0
+Time: 0.0s
+
+Total: 5 model(s)
+
+==============================================================================
+
+TPTP/Problems/SYN/SYN537-1.p
+
+Start evaluating models
+Finished evaluating 5 model(s)
+
+===== Model 1 =====
+init: 53/10
+core: 52/9
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 2 =====
+init: 54/10
+core: 53/9
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 3 =====
+init: 58/11
+core: 57/10
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 4 =====
+init: 59/11
+core: 58/10
+Rounds: 1/1
+Time: 1.56000005e-2s
+
+===== Model 5 =====
+init: 60/11
+core: 59/10
+Rounds: 1/1
+Time: 0.0s
+
+Total: 5 model(s)
+
+==============================================================================
+
+TPTP/Problems/SYN/SYN538-1.p
+
+Start evaluating models
+Finished evaluating 5 model(s)
+
+===== Model 1 =====
+init: 14/1
+core: 14/1
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 2 =====
+init: 15/1
+core: 15/1
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 3 =====
+init: 15/1
+core: 15/1
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 4 =====
+init: 15/1
+core: 15/1
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 5 =====
+init: 16/1
+core: 16/1
+Rounds: 0/0
+Time: 0.0s
+
+Total: 5 model(s)
+
+==============================================================================
+
+TPTP/Problems/SYN/SYN539-1.p
+
+Start evaluating models
+Finished evaluating 5 model(s)
+
+===== Model 1 =====
+init: 28/3
+core: 24/2
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 2 =====
+init: 35/4
+core: 31/3
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 3 =====
+init: 36/4
+core: 32/3
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 4 =====
+init: 64/8
+core: 60/7
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 5 =====
+init: 65/8
+core: 61/7
+Rounds: 1/1
+Time: 0.0s
+
+Total: 5 model(s)
+
+==============================================================================
+
+TPTP/Problems/SYN/SYN540-1.p
+
+Start evaluating models
+Finished evaluating 5 model(s)
+
+===== Model 1 =====
+init: 78/12
+core: 76/11
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 2 =====
+init: 83/13
+core: 81/12
+Rounds: 1/1
+Time: 1.56000005e-2s
+
+===== Model 3 =====
+init: 84/13
+core: 82/12
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 4 =====
+init: 86/13
+core: 84/12
+Rounds: 1/1
+Time: 0.0s
+
+===== Model 5 =====
+init: 86/13
+core: 84/12
+Rounds: 1/1
+Time: 1.56000005e-2s
+
+Total: 5 model(s)
+
+==============================================================================
+
+TPTP/Problems/SYN/SYN541-1.p
+
+Start evaluating models
+Finished evaluating 5 model(s)
+
+===== Model 1 =====
+init: 64/9
+core: 64/9
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 2 =====
+init: 64/9
+core: 64/9
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 3 =====
+init: 74/10
+core: 74/10
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 4 =====
+init: 74/10
+core: 74/10
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 5 =====
+init: 74/10
+core: 74/10
+Rounds: 0/0
+Time: 0.0s
+
+Total: 5 model(s)
+
+==============================================================================
+
+TPTP/Problems/SYN/SYN547-1.p
+
+Start evaluating models
+Finished evaluating 5 model(s)
+
+===== Model 1 =====
+init: 266/21
+core: 265/19
+Rounds: 1/1
+Time: 3.1200001e-2s
+
+===== Model 2 =====
+init: 266/21
+core: 265/19
+Rounds: 1/1
+Time: 1.56000005e-2s
+
+===== Model 3 =====
+init: 265/21
+core: 264/19
+Rounds: 1/1
+Time: 1.56000005e-2s
+
+===== Model 4 =====
+init: 264/21
+core: 263/19
+Rounds: 1/1
+Time: 3.1200001e-2s
+
+===== Model 5 =====
+init: 264/21
+core: 263/19
+Rounds: 1/1
+Time: 1.56000005e-2s
+
+Total: 5 model(s)
+
+==============================================================================
+
+TPTP/Problems/SYN/SYN720-1.p
+
+Start evaluating models
+Finished evaluating 1 model(s)
+
+===== Model 1 =====
+init: 1006/5
+core: 1006/5
+Rounds: 0/0
+Time: 3.1200001e-2s
+
+Total: 1 model(s)
+

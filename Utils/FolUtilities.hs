@@ -70,7 +70,11 @@ instance TermBased Term where
 
     freeVars (Var x)     = [x]
     freeVars (Fn _ args) = Tools.ListSet.unions (map freeVars args)
+    freeVars (Rn _ args) = Tools.ListSet.unions (map freeVars args)
     freeVars (Elm _)     = []
+    freeVars (NumberTerm a) = [show a]
+    freeVars (DistinctTerm s) = [s]
+    --freeVars a = [a]
 
     toTerm = Just
     fromTerm = Just
@@ -165,6 +169,10 @@ instance Subst Term where
                           Just t -> t
                           Nothing -> tm
                  Fn f args -> Fn f (map (apply env) args)
+                 Rn f args -> Rn f (map (apply env) args)
+                 a -> a
+                 --NumberTerm a -> a
+                 --freeVars (DistinctTerm s) = [s]
 -- 
 instance Subst Atom where
   apply env (R p args) = R p (map (apply env) args)

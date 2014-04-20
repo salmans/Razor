@@ -1,0 +1,690 @@
+==============================================================================
+
+TPTP/Problems/NLP/NLP234-1.p
+
+Start evaluating models
+Finished evaluating 10 model(s)
+
+===== Model 1 =====
+init: 312/66
+core: 312/66
+Rounds: 0/818
+Time: 0.608401s
+
+===== Model 2 =====
+init: 311/66
+core: 311/66
+Rounds: 0/802
+Time: 0.530401s
+
+===== Model 3 =====
+init: 310/66
+core: 310/66
+Rounds: 0/802
+Time: 0.592801s
+
+===== Model 4 =====
+init: 307/65
+core: 307/65
+Rounds: 0/770
+Time: 0.49920103s
+
+===== Model 5 =====
+init: 306/65
+core: 306/65
+Rounds: 0/754
+Time: 0.514801s
+
+===== Model 6 =====
+init: 305/65
+core: 305/65
+Rounds: 0/754
+Time: 0.546s
+
+===== Model 7 =====
+init: 302/64
+core: 302/64
+Rounds: 0/724
+Time: 0.49920103s
+
+===== Model 8 =====
+init: 301/64
+core: 301/64
+Rounds: 0/708
+Time: 0.48360097s
+
+===== Model 9 =====
+init: 300/64
+core: 300/64
+Rounds: 0/708
+Time: 0.530401s
+
+===== Model 10 =====
+init: 297/63
+core: 297/63
+Rounds: 0/680
+Time: 0.45240098s
+
+Total: 10 model(s)
+
+==============================================================================
+
+TPTP/Problems/NLP/NLP237-1.p
+
+Start evaluating models
+Finished evaluating 10 model(s)
+
+===== Model 1 =====
+init: 310/66
+core: 310/66
+Rounds: 0/772
+Time: 0.592801s
+
+===== Model 2 =====
+init: 309/66
+core: 309/66
+Rounds: 0/756
+Time: 0.468001s
+
+===== Model 3 =====
+init: 308/66
+core: 308/66
+Rounds: 0/756
+Time: 0.483601s
+
+===== Model 4 =====
+init: 305/65
+core: 305/65
+Rounds: 0/726
+Time: 0.530401s
+
+===== Model 5 =====
+init: 304/65
+core: 304/65
+Rounds: 0/710
+Time: 0.468001s
+
+===== Model 6 =====
+init: 303/65
+core: 303/65
+Rounds: 0/710
+Time: 0.4992s
+
+===== Model 7 =====
+init: 300/64
+core: 300/64
+Rounds: 0/682
+Time: 0.49920103s
+
+===== Model 8 =====
+init: 299/64
+core: 299/64
+Rounds: 0/666
+Time: 0.514801s
+
+===== Model 9 =====
+init: 298/64
+core: 298/64
+Rounds: 0/666
+Time: 0.561601s
+
+===== Model 10 =====
+init: 295/63
+core: 295/63
+Rounds: 0/640
+Time: 0.49920103s
+
+Total: 10 model(s)
+
+==============================================================================
+
+TPTP/Problems/NLP/NLP232-1.p
+
+Start evaluating models
+Finished evaluating 10 model(s)
+
+===== Model 1 =====
+init: 310/66
+core: 310/66
+Rounds: 0/772
+Time: 0.639601s
+
+===== Model 2 =====
+init: 309/66
+core: 309/66
+Rounds: 0/756
+Time: 0.67080104s
+
+===== Model 3 =====
+init: 308/66
+core: 308/66
+Rounds: 0/756
+Time: 0.592801s
+
+===== Model 4 =====
+init: 305/65
+core: 305/65
+Rounds: 0/726
+Time: 0.577201s
+
+===== Model 5 =====
+init: 304/65
+core: 304/65
+Rounds: 0/710
+Time: 0.624001s
+
+===== Model 6 =====
+init: 303/65
+core: 303/65
+Rounds: 0/710
+Time: 0.54600096s
+
+===== Model 7 =====
+init: 300/64
+core: 300/64
+Rounds: 0/682
+Time: 0.530401s
+
+===== Model 8 =====
+init: 299/64
+core: 299/64
+Rounds: 0/666
+Time: 0.577201s
+
+===== Model 9 =====
+init: 298/64
+core: 298/64
+Rounds: 0/666
+Time: 0.514801s
+
+===== Model 10 =====
+init: 295/63
+core: 295/63
+Rounds: 0/640
+Time: 0.54600096s
+
+Total: 10 model(s)
+
+
+
+
+
+
+
+
+
+
+==============================================================================
+
+TPTP/Problems/SYN/SYN513-1.p
+
+Start evaluating models
+Finished evaluating 10 model(s)
+
+===== Model 1 =====
+init: 356/19
+core: 342/18
+Rounds: 1/1
+Time: 3.1200001e-2s
+
+===== Model 2 =====
+init: 356/19
+core: 342/18
+Rounds: 1/1
+Time: 3.1200001e-2s
+
+===== Model 3 =====
+init: 355/19
+core: 341/18
+Rounds: 1/1
+Time: 1.56000005e-2s
+
+===== Model 4 =====
+init: 355/19
+core: 341/18
+Rounds: 1/1
+Time: 3.1200001e-2s
+
+===== Model 5 =====
+init: 372/20
+core: 358/19
+Rounds: 1/1
+Time: 4.68e-2s
+
+===== Model 6 =====
+init: 372/20
+core: 358/19
+Rounds: 1/1
+Time: 3.1200001e-2s
+
+===== Model 7 =====
+init: 371/20
+core: 357/19
+Rounds: 1/1
+Time: 3.1200001e-2s
+
+===== Model 8 =====
+init: 371/20
+core: 357/19
+Rounds: 1/1
+Time: 3.1200001e-2s
+
+===== Model 9 =====
+init: 372/20
+core: 358/19
+Rounds: 1/1
+Time: 3.1201e-2s
+
+===== Model 10 =====
+init: 372/20
+core: 358/19
+Rounds: 1/1
+Time: 3.1200001e-2s
+
+Total: 10 model(s)
+
+==============================================================================
+
+TPTP/Problems/SYN/SYN547-1.p
+
+Start evaluating models
+Finished evaluating 10 model(s)
+
+===== Model 1 =====
+init: 266/21
+core: 265/19
+Rounds: 1/1
+Time: 1.56000005e-2s
+
+===== Model 2 =====
+init: 266/21
+core: 265/19
+Rounds: 1/1
+Time: 1.56000005e-2s
+
+===== Model 3 =====
+init: 265/21
+core: 264/19
+Rounds: 1/1
+Time: 1.56000005e-2s
+
+===== Model 4 =====
+init: 264/21
+core: 263/19
+Rounds: 1/1
+Time: 1.56000005e-2s
+
+===== Model 5 =====
+init: 264/21
+core: 263/19
+Rounds: 1/1
+Time: 3.1200001e-2s
+
+===== Model 6 =====
+init: 276/22
+core: 275/20
+Rounds: 1/1
+Time: 1.56000005e-2s
+
+===== Model 7 =====
+init: 276/22
+core: 275/20
+Rounds: 1/1
+Time: 1.56000005e-2s
+
+===== Model 8 =====
+init: 275/22
+core: 274/20
+Rounds: 1/1
+Time: 1.56000005e-2s
+
+===== Model 9 =====
+init: 274/22
+core: 273/20
+Rounds: 1/1
+Time: 1.56000005e-2s
+
+===== Model 10 =====
+init: 274/22
+core: 273/20
+Rounds: 1/1
+Time: 3.1200001e-2s
+
+Total: 10 model(s)
+
+
+
+
+
+
+
+
+
+
+
+==============================================================================
+
+TPTP/Problems/PUZ/PUZ028-3.p
+
+Start evaluating models
+Finished evaluating 10 model(s)
+
+===== Model 1 =====
+init: 72/6
+core: 72/6
+Rounds: 0/0
+Time: 1.56000005e-2s
+
+===== Model 2 =====
+init: 72/6
+core: 72/6
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 3 =====
+init: 72/6
+core: 72/6
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 4 =====
+init: 72/6
+core: 72/6
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 5 =====
+init: 72/6
+core: 72/6
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 6 =====
+init: 72/6
+core: 72/6
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 7 =====
+init: 72/6
+core: 72/6
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 8 =====
+init: 72/6
+core: 72/6
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 9 =====
+init: 72/6
+core: 72/6
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 10 =====
+init: 72/6
+core: 72/6
+Rounds: 0/0
+Time: 1.56000005e-2s
+
+Total: 10 model(s)
+
+==============================================================================
+
+TPTP/Problems/SYN/SYN418-1.p
+
+Start evaluating models
+Finished evaluating 10 model(s)
+
+===== Model 1 =====
+init: 342/20
+core: 342/20
+Rounds: 0/0
+Time: 1.56000005e-2s
+
+===== Model 2 =====
+init: 356/21
+core: 356/21
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 3 =====
+init: 371/22
+core: 371/22
+Rounds: 0/0
+Time: 1.56000005e-2s
+
+===== Model 4 =====
+init: 372/22
+core: 372/22
+Rounds: 0/0
+Time: 1.56000005e-2s
+
+===== Model 5 =====
+init: 388/23
+core: 388/23
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 6 =====
+init: 387/23
+core: 387/23
+Rounds: 0/0
+Time: 1.56000005e-2s
+
+===== Model 7 =====
+init: 387/23
+core: 387/23
+Rounds: 0/0
+Time: 1.56000005e-2s
+
+===== Model 8 =====
+init: 401/24
+core: 401/24
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 9 =====
+init: 401/24
+core: 401/24
+Rounds: 0/0
+Time: 1.56000005e-2s
+
+===== Model 10 =====
+init: 401/24
+core: 401/24
+Rounds: 0/0
+Time: 1.56000005e-2s
+
+Total: 10 model(s)
+
+==============================================================================
+
+TPTP/Problems/SYN/SYN433-1.p
+
+Start evaluating models
+Finished evaluating 10 model(s)
+
+===== Model 1 =====
+init: 39/7
+core: 39/7
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 2 =====
+init: 40/7
+core: 40/7
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 3 =====
+init: 35/6
+core: 35/6
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 4 =====
+init: 44/8
+core: 44/8
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 5 =====
+init: 44/8
+core: 44/8
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 6 =====
+init: 45/8
+core: 45/8
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 7 =====
+init: 45/8
+core: 45/8
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 8 =====
+init: 40/7
+core: 40/7
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 9 =====
+init: 40/7
+core: 40/7
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 10 =====
+init: 43/8
+core: 43/8
+Rounds: 0/0
+Time: 0.0s
+
+Total: 10 model(s)
+
+
+
+
+
+
+==============================================================================
+
+TPTP/Problems/SYN/SYN431-1.p
+
+Start evaluating models
+Finished evaluating 10 model(s)
+
+===== Model 1 =====
+init: 42/10
+core: 42/10
+Rounds: 0/0
+Time: 1.0e-3s
+
+===== Model 2 =====
+init: 42/10
+core: 42/10
+Rounds: 0/0
+Time: 1.0e-3s
+
+===== Model 3 =====
+init: 42/10
+core: 42/10
+Rounds: 0/0
+Time: 1.0e-3s
+
+===== Model 4 =====
+init: 41/10
+core: 41/10
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 5 =====
+init: 41/10
+core: 41/10
+Rounds: 0/0
+Time: 1.0e-3s
+
+===== Model 6 =====
+init: 41/10
+core: 41/10
+Rounds: 0/0
+Time: 0.0s
+
+===== Model 7 =====
+init: 39/9
+core: 39/9
+Rounds: 0/0
+Time: 1.0e-3s
+
+===== Model 8 =====
+init: 39/9
+core: 39/9
+Rounds: 0/0
+Time: 1.0e-3s
+
+===== Model 9 =====
+init: 39/9
+core: 39/9
+Rounds: 0/0
+Time: 1.0e-3s
+
+===== Model 10 =====
+init: 38/9
+core: 38/9
+Rounds: 0/0
+Time: 0.0s
+
+Total: 10 model(s)
+
+
+
+
+
+
+
+==============================================================================
+
+TPTP/Problems/KRS/KRS007-1.p
+
+Start evaluating models
+Finished evaluating 10 model(s)
+
+===== Model 1 =====
+init: 829/92
+core: 829/92
+Rounds: 0/3446
+Time: 47.280704s
+
+===== Model 2 =====
+init: 957/106
+core: 957/106
+Rounds: 0/4290
+Time: 81.82468s
+
+===== Model 3 =====
+init: 1013/112
+core: 1013/112
+Rounds: 0/4499
+Time: 90.62518s
+
+===== Model 4 =====
+init: 1141/126
+core: 1141/126
+Rounds: 0/5570
+Time: 132.39157s
+
+===== Model 5 =====
+init: 1161/128
+core: 1161/128
+Rounds: 0/5488
+Time: 133.81966s
+
+===== Model 6 =====
+-- time out 10 minutes

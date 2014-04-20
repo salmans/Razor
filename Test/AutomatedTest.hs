@@ -1,28 +1,38 @@
 {- Time-stamp: <2012-12-01 12:05:16 Salman Saghafi>
 -}
 
-module Test.AutomatedTest where
+--module Test.AutomatedTest where
+module Main where
 
-import System
+import System.Environment
+import System.IO
 import System.FilePath
 import Debug.Trace
-import Control.Exception 
+import Control.Applicative
+import Control.Monad
+import Control.DeepSeq
 import Data.List
+import Data.Maybe
 import qualified Data.Either as Either
-import qualified Data.Maybe as Maybe
 import qualified Data.Map as Map
 
 import Formula.SyntaxGeo
 import Utils.GeoUtilities
-import qualified Utils.Utils
+import qualified Utils.Utils as Utils
 import Tools.GeoUnification
-import CC.CC as CC
+import qualified RelAlg.DB as DB
+
 import Chase.Chase
 import Chase.Problem.Model
+import Chase.Problem.BaseTypes
 import Chase.Problem.Operations (sequentHolds)
+import Chase.Problem.RelAlg.RelAlg
 import WeaklyAcyclic.WeaklyAcyclic
 import Test.QuickCheck
 
+import Tools.Config
+
+import FCAtlas
 
 varNum = 10
 constNum = 10
@@ -32,25 +42,35 @@ maxRelArity = 3
 maxFuncArity = 3
 -- fmlaNum = 10 -- How to use?!
 -- parameters that control term generation:
-varProb = 2 -- 1/varProb is the chance of a term being a variable.
-exVarProb = 2 -- 1/exVarProb is the chance of a variable being existential.
+varProb = 1 -- 1/varProb is the chance of a term being a variable.
+exVarProb = 3 -- 1/exVarProb is the chance of a variable being existential.
 constProb = 1 -- 1/constProb is the chance of a function term being a constant.
 
 -- parameters to control formula generation on left:
-lTrueProb = 10
-lAtomProb = 80
+lTrueProb = 0
+lAtomProb = 60
 lAndProb = 10
 
 -- parameters to control formula generation on right:
-rFalseProb = 10
-rAtomProb = 60
-rAndProb = 10
+rFalseProb = 0
+rAtomProb = 45
+rAndProb = 30
 rOrProb = 10
-rExistsProb = 10
-{- ** In this implementation, all functions and relations have arity one. -}
+rExistsProb = 15
 
-main :: IO() 
-main = verboseCheck prop_validModel
+-- For randomized theories
+minSequents = 2
+maxSequents = 8
+-- For initial models
+minFacts = 10
+maxFacts = 30
+minElms = 5
+maxElms = 20
+-- Relation signature, for both sequents and facts
+relSig = [("P", 1), ("Q", 2), ("R", 3), ("S", 2)]
+
+-- main :: IO() 
+-- main = verboseCheck prop_validModel
 
 
 -- Implements an Arbitrary instance for Term
@@ -67,7 +87,6 @@ instance Arbitrary Term where
                  _ -> case b2 of
                         1 -> Fn ("c" ++ (show cInd)) []
                         _ -> Fn ("f" ++ (show fInd)) ts
-    coarbitrary = undefined
 
 
 -- Uses arbitrary to generate a list of terms of the given 
@@ -118,22 +137,32 @@ instance Arbitrary Sequent where
       left <- buildLeft
       right <- buildRight (freeVars left) [] 0
       return $ Sequent left right
-    coarbitrary = undefined
+
+-- temporarily replaces Theory
+
+genThy :: Gen Theory
+genThy = do
+    numSeqs <- choose (minSequents, maxSequents) :: Gen Int
+    seqs <- vector numSeqs :: Gen [Sequent]
+    return seqs
+
+
 
 
 -- Builds the left subformulas of a sequent.
 buildLeft :: Gen Formula
 buildLeft = do
   b <- choose (0, prob3 - 1) :: Gen Int
-  rInd <- choose (0, relNum - 1) :: Gen Int
+  (rel,arity) <- elements relSig
   f1 <- buildLeft
   f2 <- buildLeft
-  ts <- leftTerms ((rInd `mod` maxRelArity) + 1)
+  ts <- leftTerms arity
+--  ts <- leftTerms ((rInd `mod` maxRelArity) + 1)
   return $ case b of
              x | x < prob1 ->
                    Tru
              x | x >= prob1 && x < prob2 ->
-                   Atm (R ("R" ++ (show rInd)) ts)
+                   Atm (R rel ts)
              x | x >= prob2 && x < prob3 ->
                    And f1 f2
   where prob1 = lTrueProb
@@ -144,57 +173,187 @@ buildLeft = do
 buildRight :: Vars -> Vars -> Int -> Gen Formula
 buildRight vars exvars ind = do
   b <- choose (0, prob5 - 1) :: Gen Int
-  rInd <- choose (0, relNum - 1) :: Gen Int
+  (rel,arity) <- elements relSig
   f1 <- buildRight vars (("bv" ++ (show ind)):exvars) (ind + 1)
+  f1' <- buildRight' vars (("bv" ++ (show ind)):exvars) (ind + 1)
   f2 <- buildRight vars exvars ind
+  f2' <- buildRight' vars exvars ind
   f3 <- buildRight vars exvars ind
-  ts <- rightTerms ((rInd `mod` maxRelArity) + 1) vars exvars
+  f3' <- buildRight' vars exvars ind
+  ts <- rightTerms arity vars exvars
   return $ case b of
              x | x < prob1 ->
                    Fls
              x | x >= prob1 && x < prob2 -> 
-                   Atm (R ("R" ++ (show rInd)) ts)
+                   Atm (R rel ts)
              x | x >= prob2 && x < prob3 -> 
                    Or f2 f3
+             x | x >= prob3 && x < prob4 -> 
+                   And f2' f3'
+             x | x >= prob4 && x < prob5 -> 
+                  Exists ("bv" ++ (show ind)) f1'
+  where prob1 = rFalseProb
+        prob2 = prob1 + rAtomProb
+        prob3 = prob2 + rOrProb
+        prob4 = prob3 + rAndProb
+        prob5 = prob4 + rExistsProb
+
+
+buildRight' :: Vars -> Vars -> Int -> Gen Formula
+buildRight' vars exvars ind = do
+  b <- choose (0, prob5 - 1) :: Gen Int
+  (rel,arity) <- elements relSig
+  f1 <- buildRight' vars (("bv" ++ (show ind)):exvars) (ind + 1)
+  f2 <- buildRight' vars exvars ind
+  f3 <- buildRight' vars exvars ind
+  ts <- rightTerms arity vars exvars
+  return $ case b of
+             x | x < prob1 ->
+                   Fls
+             x | x >= prob1 && x < prob3 -> 
+                   Atm (R rel ts)
              x | x >= prob3 && x < prob4 -> 
                    And f2 f3
              x | x >= prob4 && x < prob5 -> 
                   Exists ("bv" ++ (show ind)) f1
   where prob1 = rFalseProb
         prob2 = prob1 + rAtomProb
-        prob3 = prob2 + rAndProb
-        prob4 = prob3 + rOrProb
+        prob3 = prob2 + rOrProb
+        prob4 = prob3 + rAndProb
         prob5 = prob4 + rExistsProb
 
 
 -- A theory is either not weakly acyclic or its model makes every
 -- formula true.
 prop_validModel sequents =
-    if weaklyAcyclic sequents
-    then case model of
-           Nothing -> verify model sequents == Nothing
-           otherwise -> verify model sequents == Just True
-    else True
-    where model = chase' sequents
+  if   not (weaklyAcyclic sequents)
+  then True
+  else let models = chase defaultConfig sequents in
+       traceShow sequents (traceShow models True)
+
+arg = Args {replay = Nothing,
+  maxSuccess = 20,
+  maxDiscardRatio = 10,
+  maxSize = 20,
+  chatty = True}
 
 
--- Verify that every formula in the theory is true:
-verify :: Maybe Model -> [Sequent] -> Maybe Bool
--- verify Nothing _ = Nothing
--- verify (Just _) _ = Just True
-verify model inputFmlas = 
-    trace ("verifying")
-    (if Maybe.isJust model
-    then (let Model trs domain = Maybe.fromJust model 
-              maps f = Utils.Utils.allMaps (freeVars f)
-                       $ filter (\e -> CC.normalForm trs e /= truth) domain
-              fmlas = concatMap insts inputFmlas
-              insts = (\f -> map 
-                             (\s -> (liftTerm.lift) s f) 
-                             (maps f))
-          in
-          (case all (\s -> (sequentHolds (Maybe.fromJust model) s)) 
-                fmlas of               
-             True -> Just True
-             False -> Just False ))
-    else Nothing)
+q = quickCheckWith arg prop_validModel
+
+
+r :: IO()
+r = do
+  thys <- sample' genThy
+  let thy = head thys
+
+  --putStrLn $ "  Thys : " ++ (show $ length thys)
+  --putStrLn $ "  Thy  : " ++ (show $ length thy)
+  --putStrLn $ show thy
+
+  if weaklyAcyclic thy
+  then r1 thy
+  else return ()
+
+  
+r1 :: Theory -> IO()
+r1 thy = do
+  putStrLn $ show thy
+  
+  initModels <- sample' genInitModel
+  let initModel = head initModels
+--  putStrLn $ show initModel
+
+  let models = chaseWithModel defaultConfig thy initModel
+  putStrLn ""
+  putStrLn $ show $ head models
+
+  if null models
+  then return ()
+  else do
+    { --putStrLn $ show thy
+    ; --putStrLn $ "\n\n" ++ (show $ head models) ++ "\n"
+    ; runCoreTests models 2 True True -- first n models, use sig test
+    ; hFlush stdout
+    ; runCoreTests models 2 False True -- first n models, don't use sig test
+    ; hFlush stdout
+    }
+
+rloop :: Int -> IO()
+rloop num = do
+  if num <= 0
+  then return ()
+  else do
+  {
+  ; r
+  ; rloop (num - 1)
+  }
+  
+main :: IO ()
+main = do
+  rloop 5
+
+
+
+genFact :: Int -> Gen Obs
+genFact numElms = do
+  (rel,arity) <- elements relSig
+  args <- genArgs arity
+  return $ Fct $ R rel args
+
+  where genArg = do
+          a <- choose (1, numElms) :: Gen Int
+          return $ Elm $ Elem $ (++) "a" (show a)
+        genArgs 0 = return []
+        genArgs n = do
+          arg <- genArg
+          args <- genArgs (n-1)
+          return (arg:args)
+
+
+genInitModel :: Gen Model
+genInitModel = do
+  numFacts <- choose (minFacts, maxFacts) :: Gen Int
+  numElms <- choose (minElms, maxElms) :: Gen Int
+  facts <- genFacts numFacts numElms
+  return $ modelFromFacts facts
+
+  where genFacts 0 _ = return []
+        genFacts n ne = do
+          f <- genFact ne
+          fs <- genFacts (n-1) ne
+          return (f:fs)
+
+
+
+modelFromFacts :: [Obs] -> Model
+modelFromFacts facts =
+  let domTbl = Map.singleton DomTable es
+      tbls = foldl addFact domTbl facts
+      sks  = (\(Elem s) -> Fn s []) <$> ts
+      hist = zip ts sks
+  in  emptyModel { modelTables = tbls, modelProvInfo = provs, modelElemHist = hist }
+  where es = DB.Set $ [ts]
+        ts = nub.concat $ (\(Fct (R _ tl)) -> (\(Elm e) -> e) <$> tl) <$> facts
+        provs = ProvInfo (Map.fromList $ (\f -> (f, initProv)) <$> facts) 0
+        initProv = [ChaseProv (-1) (-1) Map.empty]
+--        initProv = UserProv
+        addFact tbls f = let (Fct (R relName args)) = f
+                             relTbl = RelTable relName
+                             record = (\(Elm e) -> e) <$> args
+                             recSet = DB.Set [record]
+                             combineRecord _ (DB.Set b) = (DB.Set (record:b))
+                         in Map.insertWith combineRecord relTbl recSet tbls
+
+facts1 = [Fct (R "P" [Elm (Elem "a"), Elm (Elem "b")])
+         ,Fct (R "Q" [Elm (Elem "d")])
+         ,Fct (R "P" [Elm (Elem "b"), Elm (Elem "c")])
+         ,Fct (R "Q" [Elm (Elem "a")])]
+
+model1 = modelFromFacts facts1
+
+gt = genThy
+
+st = do
+  l <- sample' gt
+  return $ head l
+

@@ -1,0 +1,10 @@
+#! /bin/bash
+
+# Executable name is Main
+#
+
+for ((i = 1; i <= 1000; i++))
+do
+	echo "Round $i"
+	timeout 30 ./AutomatedTest >> test2_results.txt
+done

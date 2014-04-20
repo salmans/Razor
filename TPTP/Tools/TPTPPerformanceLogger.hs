@@ -3,12 +3,13 @@
 -}
 
 
+--module TPTP.Tools.TPTPPerformanceLogger where
 module Main where
 import System.Environment
 import System.FilePath
 import System.Console.GetOpt
 import System.Exit (exitWith, ExitCode (..))
-import System.IO (hPutStrLn, stderr)
+import System.IO (hPutStrLn, stderr, hFlush, stdout)
 import Text.Read (readMaybe)
 
 import Data.Time
@@ -23,6 +24,9 @@ import Control.DeepSeq
 import Formula.SyntaxGeo (Term (Elm))
 import TPTP.TPTPToGeo as T2G
 import Codec.TPTP as TP
+import Test.QuickCheck
+import Debug.Trace
+import Tools.Config
 
 import System.FilePath.Posix
 import System.Directory
@@ -30,6 +34,8 @@ import System.Directory
 import Chase.Chase
 import qualified Chase.Problem.Model as Model
 import Tools.Config
+
+import FCAtlas
 
 -- ============================
 -- Main
@@ -157,21 +163,25 @@ main = do
                       then (fromJust.configInput) config
                       else error "No input theory is specified!"
 
-  time1 <- getCurrentTime
+--  time1 <- getCurrentTime
 
   tptpInputs <- recursiveLoad (configTPTPPath config) inputFileName
 
-
+  putStrLn "BEGIN\n"
+  putStrLn $ show tptpInputs
+  putStrLn "\nEND\n"
+  --error "1"
   -- 
   let (Just (thy, consts)) = T2G.inputsToGeo (concat tptpInputs)
     
-  let model = 
+  let models =
           case configFormulaType config of
                 TPTPCNF -> let partial = Model.emptyModelWithElems consts
-                           in  listToMaybe $ chaseWithModel config thy partial
-                TPTPFOF -> chase' config thy
+                           in  chaseWithModel config thy partial
+                TPTPFOF -> chase config thy
   --
 
+  {-
   time2 <- model`deepseq` getCurrentTime
 
   let diffTime = diffUTCTime time2 time1
@@ -180,6 +190,17 @@ main = do
                  Just _  -> "Sat"
 
   putStrLn $ inputFileName ++ "\t" ++ result ++ "\t" ++ (show diffTime)
+  -}
+
+  putStrLn "=============================================================================="
+  putStrLn ""
+  putStrLn inputFileName
+--  putStrLn $ show (head $ tail models)
+
+  runCoreTests models 1 True -- first n models only
+  hFlush stdout
+
+
 
 
 -- Recursively loads the contents of a file and the files included in it, and
@@ -200,3 +221,23 @@ isInclude _                = False
 includePath :: String -> TP.TPTP_Input -> String
 includePath tptpPath (TP.Include p _) = tptpPath ++ p
 includePath _ _                       = ""
+
+
+propFC :: [[TP.TPTP_Input]] -> Bool
+propFC input =
+  let parsed = T2G.inputsToGeo (concat input) in
+  case parsed of
+    Nothing -> True -- trace "Nothing" True
+    Just ([], _) -> True
+    Just (thy, _) -> trace (show thy) True
+                     --let partial = Model.emptyModelWithElems consts in
+                     --let models = chaseWithModel defaultConfig thy partial in
+                     --traceShow models True
+
+arg = Args {replay = Nothing,
+            maxSuccess = 100,
+            maxDiscardRatio = 10,
+            maxSize = 20,
+            chatty = True}
+
+b = quickCheckWith arg propFC

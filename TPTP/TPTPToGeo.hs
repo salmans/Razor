@@ -51,6 +51,7 @@ inputsToGeo inps = do
     where inps' = filter filterFunc inps
           filterFunc (TP.AFormula _ _ _ _) = True
           filterFunc (TP.Comment _)        = False
+          filterFunc (TP.Include _ _)      = False
 
 
 conjecturize c seqs = 
@@ -69,7 +70,8 @@ inputToFol = formulaToFol.TP.formula
    which the chase is executed when the input is a CNF.-}
 formulaToFol :: TP.Formula -> (Fol.Formula, [Fol.Elem])
 formulaToFol (TP.F f) =
-    case runIdentity f of
+    let ff = runIdentity f in
+    case ff of
       (TP.:~:) f'              -> let (f'', ts) = formulaToFol f'
                                   in  (Fol.Not f'', ts)
       TP.Quant TP.All vs f'    -> 
@@ -81,17 +83,30 @@ formulaToFol (TP.F f) =
               (base, ts) = formulaToFol f'
           in  (foldr (\v f -> Fol.Exists v f) base vs', ts)
       TP.BinOp p (TP.:|:) q   -> let (p', pts) = formulaToFol p
-                                     (q', qts) = formulaToFol q                                                 
+                                     (q', qts) = formulaToFol q
                                  in  (Fol.Or p' q', pts `union` qts)
       TP.BinOp p (TP.:&:) q   -> let (p', pts) = formulaToFol p
-                                     (q', qts) = formulaToFol q                                                 
+                                     (q', qts) = formulaToFol q
                                  in  (Fol.And p' q', pts `union` qts)
       TP.BinOp p (TP.:=>:) q  -> let (p', pts) = formulaToFol p
-                                     (q', qts) = formulaToFol q                                                 
+                                     (q', qts) = formulaToFol q
+                                 in  (Fol.Imp p' q', pts `union` qts)
+      TP.BinOp q (TP.:<=:) p  -> let (p', pts) = formulaToFol p
+                                     (q', qts) = formulaToFol q
                                  in  (Fol.Imp p' q', pts `union` qts)
       TP.BinOp p (TP.:<=>:) q -> let (p', pts) = formulaToFol p
-                                     (q', qts) = formulaToFol q                                                 
+                                     (q', qts) = formulaToFol q
                                  in  (Fol.Iff p' q', pts `union` qts)
+      TP.BinOp p (TP.:<~>:) q -> let (p', pts) = formulaToFol p
+                                     (q', qts) = formulaToFol q
+                                 in  (Fol.Or (Fol.And (Fol.Not p') q')
+                                             (Fol.And (Fol.Not q') p') , pts `union` qts)
+      TP.BinOp p (TP.:~&:) q  -> let (p', pts) = formulaToFol p
+                                     (q', qts) = formulaToFol q
+                                 in  (Fol.Not (Fol.And p' q'), pts `union` qts)
+      TP.BinOp p (TP.:~|:) q  -> let (p', pts) = formulaToFol p
+                                     (q', qts) = formulaToFol q
+                                 in  (Fol.Not (Fol.Or p' q'), pts `union` qts)
       TP.PredApp (TP.AtomicWord "$true")  [] -> (Fol.Tru, [])
       TP.PredApp (TP.AtomicWord "$false") [] -> (Fol.Fls, [])
       TP.PredApp (TP.AtomicWord s) ts -> 
