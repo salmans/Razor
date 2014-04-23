@@ -173,6 +173,7 @@ initConstant tbls t@(Fn s []) = do
           -- Salman: use counter monad.
           -- Salman: FunTable is in fact ConstTable
 initConstant tbls (Elm e) = return (tbls, e)
+initConstant tbls input = traceShow input undefined
 
 {- Simply looks up a constant (or an element) in a set of tables and returns the
  element denoted by that constant (or element) if it exists. -}

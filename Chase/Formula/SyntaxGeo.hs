@@ -331,11 +331,11 @@ data Command = Display ModelExpr | Assign String ModelExpr | Exit
 data ModelExpr = ThyLiteral Theory | LoadFromFile String
                | ApplyOp ModelExpr ModelOperation | LastResult | ModelVar String
 
-data ModelOperation = AddConstraint Atom | RemoveConstraint | NextModel
-                    | PreviousModel | Origin
+data ModelOperation = AddConstraint Formula | RemoveConstraint | NextModel
+                    | PreviousModel | FirstModel | Origin
 
 pCommand :: Parser Command
-pCommand = pExit <|> (pAssign +++ pDisplay)
+pCommand = pExit +++ pAssign +++ pDisplay
 
 pDisplay :: Parser Command
 pDisplay = Display <$> pModelExpr
@@ -351,7 +351,7 @@ pExit :: Parser Command
 pExit = symbol "exit" >> return Exit
 
 pModelExpr :: Parser ModelExpr
-pModelExpr = pExplicitModelExpr <|> pImpliedOp +++ pImpliedAdd
+pModelExpr = (pExplicitModelExpr <|> pImpliedOp) +++ pImpliedAdd
 
 pExplicitModelExpr :: Parser ModelExpr
 pExplicitModelExpr = do
@@ -363,7 +363,7 @@ pImpliedOp :: Parser ModelExpr
 pImpliedOp = foldl ApplyOp LastResult <$> sepBy1 pModelOperation dot
 
 pImpliedAdd :: Parser ModelExpr
-pImpliedAdd = ApplyOp LastResult <$> AddConstraint <$> pAtomic
+pImpliedAdd = ApplyOp LastResult <$> AddConstraint <$> pFmla
 
 pThyLiteral :: Parser ModelExpr
 pThyLiteral = ThyLiteral <$> brackets (semiSep1 pSequent)
@@ -380,12 +380,12 @@ pModelVar = do
   ModelVar <$> identifier
 
 pModelOperation :: Parser ModelOperation
-pModelOperation = pAddConstraint <|> pRemoveConstraint <|> pNextModel <|> pPreviousModel <|> pOrigin
+pModelOperation = pAddConstraint <|> pRemoveConstraint <|> pNextModel <|> pPreviousModel <|> pFirst <|> pOrigin
 
 pAddConstraint :: Parser ModelOperation
 pAddConstraint = do
   symbol "add"
-  parens $ AddConstraint <$> pAtomic
+  parens $ AddConstraint <$> pFmla
 
 pRemoveConstraint :: Parser ModelOperation
 pRemoveConstraint = symbol "remove" >> return RemoveConstraint
@@ -395,6 +395,9 @@ pNextModel = symbol "next" >> return NextModel
 
 pPreviousModel :: Parser ModelOperation
 pPreviousModel = symbol "previous" >> return PreviousModel
+
+pFirst :: Parser ModelOperation
+pFirst = symbol "first" >> return FirstModel
 
 pOrigin :: Parser ModelOperation
 pOrigin = symbol "origin" >> return Origin

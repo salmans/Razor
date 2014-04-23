@@ -18,13 +18,13 @@ import Data.List
 import qualified Data.Map as Map
 
 import Chase.Formula.SyntaxGeo (Theory, Sequent, Term, Elem, parseSequent,
-                                Atom, parseCommand, Command(..), ModelExpr(..),
+                                Formula, parseCommand, Command(..), ModelExpr(..),
                                 ModelOperation(..))
 import Chase.Utils.Utils (isRealLine, isNonEmptyLine)
 import Chase.Tools.Config
 import Chase.Tools.FolToGeo
 import qualified Chase.Problem.Model as Model
-import Chase.Chase (chase, chase', chaseWithModel, runChase, runChaseWithProblem)
+import Chase.Chase (chase, chase', chaseWithModel, runChase, runChaseWithProblem, deduceForFrame)
 import Chase.Problem.Observation
 import Chase.Problem.Operations
 import Chase.Problem.Provenance
@@ -177,7 +177,7 @@ main = do
 -}
   modelLoop config Map.empty Nothing
 
-data GraphLoc = GraphLoc Theory Int [(Atom, Int)]
+data GraphLoc = GraphLoc Theory Int [(Formula, Int)]
 
 modelLoop :: Config -> Map.Map String GraphLoc -> Maybe GraphLoc -> IO ()
 modelLoop config bindings lastLoc = do
@@ -218,22 +218,26 @@ resolveModelExpr expr bindings lastLoc = case expr of
     return $ case maybeLoc of
       Nothing -> Nothing
       Just (GraphLoc thy initialIndex steps) -> case op of
-        AddConstraint atom -> Just $ GraphLoc thy initialIndex (steps ++ [(atom,0)])
+        AddConstraint aug -> Just $ GraphLoc thy initialIndex (steps ++ [(aug,0)])
         RemoveConstraint -> case steps of
           [] -> Nothing
           _ -> Just $ GraphLoc thy initialIndex $ init steps
         NextModel -> Just $ case steps of
           [] -> GraphLoc thy (succ initialIndex) []
-          _ -> let (atom,lastIndex) = last steps in
-            GraphLoc thy initialIndex (init steps ++ [(atom,succ lastIndex)])
+          _ -> let (aug,lastIndex) = last steps in
+            GraphLoc thy initialIndex (init steps ++ [(aug,succ lastIndex)])
         PreviousModel -> case steps of
           [] -> case initialIndex of
             0 -> Nothing
             _ -> Just $ GraphLoc thy (pred initialIndex) []
-          _ -> let (atom,lastIndex) = last steps in
+          _ -> let (aug,lastIndex) = last steps in
             case lastIndex of
               0 -> Nothing
-              _ -> Just $ GraphLoc thy initialIndex (init steps ++ [(atom,pred lastIndex)])
+              _ -> Just $ GraphLoc thy initialIndex (init steps ++ [(aug,pred lastIndex)])
+        FirstModel -> case steps of
+          [] -> GraphLoc thy 0 []
+          _ -> let (aug,_) = last steps in
+            GraphLoc thy initialIndex (init steps ++ [(aug,0)])
         Origin -> Just $ GraphLoc thy 0 []
   LastResult -> return lastLoc
   ModelVar var -> return $ Map.lookup var bindings
@@ -247,8 +251,10 @@ resolveGraphLoc config (GraphLoc thy initialIndex steps) =
     _ -> case resolveGraphLoc config (GraphLoc thy initialIndex (init steps)) of
       Nothing -> Nothing
       Just (prob@Problem {problemModel = oldModel, problemLastConstant = oldConst},frms) -> 
-        let (atom,lastIndex) = last steps
-            (newModel,_,newConst) = Model.add oldModel oldConst [atomToObs atom] UserProv
+        let (aug,lastIndex) = last steps
+            (preDeducedObs,_) = processHead aug
+            ([postDeducedObs],intermediateConst) = deduceForFrame oldConst oldModel preDeducedObs
+            (newModel,_,newConst) = Model.add oldModel oldConst postDeducedObs UserProv
             stream = runChaseWithProblem config frms prob {problemModel = newModel, problemLastConstant = newConst} in
         if length stream > lastIndex then Just ((stream !! lastIndex),frms) else Nothing
 
