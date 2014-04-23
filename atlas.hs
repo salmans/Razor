@@ -235,9 +235,9 @@ resolveModelExpr expr bindings lastLoc = case expr of
               0 -> Nothing
               _ -> Just $ GraphLoc thy initialIndex (init steps ++ [(aug,pred lastIndex)])
         FirstModel -> case steps of
-          [] -> GraphLoc thy 0 []
+          [] -> Just $ GraphLoc thy 0 []
           _ -> let (aug,_) = last steps in
-            GraphLoc thy initialIndex (init steps ++ [(aug,0)])
+            Just $ GraphLoc thy initialIndex (init steps ++ [(aug,0)])
         Origin -> Just $ GraphLoc thy 0 []
   LastResult -> return lastLoc
   ModelVar var -> return $ Map.lookup var bindings
