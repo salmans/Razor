@@ -60,18 +60,11 @@ type FrameTypeSelector = FrameType -> Bool
    - problemSelectors:  set of selctors for the current problem
    not existential sequents.
    - problemBigStepAge: age of the problem (number of firing existentials)
-   - problemCollapses: keeps track of the number of collapses permitted on this
-   problem (in fact, its the problem's model), which grows logarithmically with
-   the size of the model.
-   - problemExtendable: determines whether new elements can be added to the
-   domain of the problem or not.
  -}
 data ScheduleInfo = ScheduleInfo { problemSelectors  :: [[FrameTypeSelector]]
-                                 , problemBigStepAge :: Int
-                                 , problemCollapses  :: Int
-                                 , problemExtendable :: Bool }
+                                 , problemBigStepAge :: Int }
 instance Show ScheduleInfo where
-    show (ScheduleInfo _ age _ _) =
+    show (ScheduleInfo _ age) =
         "-- AGE:\n" ++ (show age) ++ "\n"
 
 
