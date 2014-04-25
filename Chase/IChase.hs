@@ -39,7 +39,7 @@ data ChaseStop = Fail | MaxSize
 {-| Runs the chase for a given input theory, starting from an empty model.
 -}
 chase :: Config -> Theory -> [Model]
-chase cfg thy = problemModel <$> runChase 1 cfg Nothing frms initialProblem
+chase cfg thy = problemModel <$> runChase cfg Nothing frms initialProblem
     -- let probs = runChase cfg Nothing frms initialProblem
     -- in  [m | p <- probs, let m = problemModel p
     --     , let c = problemLastConstant p]
@@ -54,7 +54,7 @@ chase' cfg thy = Maybe.listToMaybe $ chase cfg thy
 -}
 chaseWithModel :: Config -> Theory -> Model -> [Model]
 chaseWithModel cfg thy mdl = 
-    problemModel <$> runChase (problemID initialProblem + 1) cfg (Just mdl) 
+    problemModel <$> runChase cfg (Just mdl) 
                  frms initialProblem
     where (frms, initialProblem) = buildProblem thy
 
@@ -66,9 +66,9 @@ chaseWithModel cfg thy mdl =
   - Possibly a starting (partial) model, mdl
   - A geometric theory, thy
 -}
-runChase :: Int -> Config -> Maybe Model -> FrameMap -> Problem -> [Problem]
-runChase pid cfg mdl frms initialProblem = 
-    let (probs, log) = State.evalState runCfg cfg
+runChase :: Config -> Maybe Model -> FrameMap -> Problem -> [Problem]
+runChase cfg mdl frms initialProblem = 
+    let (probs, log) = State.evalState runCt cfg
     -- use the log information when needed
     in traceStringListIf (configDebug cfg) log
        -- traceStringList log
@@ -77,7 +77,6 @@ runChase pid cfg mdl frms initialProblem =
                       Nothing -> initialProblem
                       Just m  -> initialProblem {problemModel = m}
           -- Create the initial problem
-          runCfg  = State.evalStateT runCt pid
           runCt   = RWS.evalRWST runRWSt [] (frms, [])
           runRWSt = scheduleProblem problem >>= (\_ -> process) 
 
@@ -86,13 +85,12 @@ runChase pid cfg mdl frms initialProblem =
 -}
 runChaseWithProblem :: Int -> Config -> FrameMap -> Problem -> [Problem]
 runChaseWithProblem pid cfg frms problem =
-    let (probs, log) = State.evalState runCfg cfg
+    let (probs, log) = State.evalState runCt cfg
     in traceStringListIf (configDebug cfg) log
        probs
     where schedInfo = (problemScheduleInfo problem) {
                         problemSelectors = allFrameTypeSelectors }
           problem'  = problem {problemScheduleInfo = schedInfo }
-          runCfg    = State.evalStateT runCt pid
           runCt     = RWS.evalRWST runRWSt [] (frms, [])
           runRWSt   = mapM scheduleProblem [problem'] >>= (\_ -> process)
           -- schedule the problem, then process it
@@ -116,10 +114,10 @@ runChaseWithProblem pid cfg frms problem =
    step. -}
 process :: ProbPool [Problem]
 process = do
-      cfg              <- (State.lift.State.lift) State.get 
+      cfg              <- liftConfig State.get 
       prob             <- selectProblem -- pick a problem
       (fMap, allProbs) <- RWS.get                          
-      Logger.logUnder (length allProbs) "# of branches"                          
+      -- Logger.logUnder (length allProbs) "# of branches"                          
       -- Logger.logIf (Maybe.isJust prob) ((problemModel.Maybe.fromJust) prob)
       case prob of
         Nothing -> return [] -- no more problems
@@ -146,14 +144,15 @@ cascadeStep fMap prob
            ; let schedInfo' = schedInfo { problemSelectors  = sls
                                         , problemBigStepAge = age'}
            ; let prob' = prob {problemScheduleInfo = schedInfo'}
-           ; cfg <- liftConfig Config.get
            ; newProbs <- chaseStep fMap sl prob'
            ; case newProbs of
                Left _   -> process
                Right [] -> cascadeStep fMap prob'
+                 -- Try another set of sequents if the sequents in the current 
+                 -- set didn't get fired.
                Right ps -> do
                  mapM scheduleProblem ps -- Schedule new problems
-                 process } -- Process the pool
+                 process }               -- Process the pool
     where schedInfo@ScheduleInfo { problemSelectors  = selectors
                                  , problemBigStepAge = age } = 
                                  problemScheduleInfo prob
@@ -169,8 +168,7 @@ data Problet = Problet { probletModel        :: Model,
    the function requires additional information other than the input Problet. -}
 fromProblet :: [ID] -> [Tables] -> ScheduleInfo ->  Problet -> Problem
 fromProblet frms initialQueue schedInfo (Problet m q c) =
-    Problem { problemID           = -1 -- Does not initialize problem ID
-            , problemFrames       = frms
+    Problem { problemFrames       = frms
             , problemModel        = m
             , problemQueue        = initialQueue ++ [q]
             , problemScheduleInfo = schedInfo
@@ -179,7 +177,7 @@ fromProblet frms initialQueue schedInfo (Problet m q c) =
 {- Applies a chase step to the input problem. -}
 chaseStep :: FrameMap -> [FrameTypeSelector] -> Problem -> 
              ProbPool (Either ChaseStop [Problem])
-chaseStep fMap sl p@(Problem id frmIDs model queues schedInfo lastConst) = do
+chaseStep fMap sl p@(Problem frmIDs model queues schedInfo lastConst) = do
   cfg <- liftConfig Config.get
   return $ do
       let (q:qs) = if null queues then [emptyTables] else queues
@@ -189,13 +187,7 @@ chaseStep fMap sl p@(Problem id frmIDs model queues schedInfo lastConst) = do
                (Left MaxSize)
                -- When a bound is given, if the model size is greater than the 
                -- bounds then fail.
-      let schedInfo' = schedInfo { problemSelectors  = allFrameTypeSelectors
-                                 -- Reset frame selectors
-                                 , problemCollapses  = 0
-                                 , problemExtendable = True
-                                 -- When doing a collapse, descendents of the 
-                                 -- problem won't be extendable. 
-                                 }
+      let schedInfo' = schedInfo { problemSelectors  = allFrameTypeSelectors }
       let problet    = Problet model q lastConst
       (frms, probs) <- stepProblets cfg fMap frmIDs sl problet
       return $ map (\prob -> fromProblet frms qs schedInfo' prob) probs
@@ -391,7 +383,7 @@ doChase' thy = chase' debugConf $ map parseSequent thy
 
 
 test cfg thy = 
-    runChase 1 cfg Nothing frms initialProblem
+    runChase cfg Nothing frms initialProblem
     where (frms, initialProblem) = buildProblem thy
 
 doTest thy = test debugConf $ map parseSequent thy

@@ -155,7 +155,6 @@ instance TermBased Frame where
   for satisfying an existential quantifier.
 -}
 data Problem = Problem {
-      problemID           :: ID, 
       problemFrames       :: [ID],
       problemModel        :: Model,
       problemQueue        :: [Tables],
@@ -163,12 +162,8 @@ data Problem = Problem {
       problemLastConstant :: Int -- We may remove this later
 }
 
-instance Eq Problem where
-    p == p' = problemID p == problemID p'
-
 instance Show Problem where
-    show (Problem id frames model _ sched _) =
-        "-- ID:\n" ++ (show id) ++ "\n" ++
+    show (Problem frames model _ sched _) =
         "-- SCHED:\n" ++ (show sched) ++ "\n" ++
         "-- FRAMES:\n" ++ (show frames) ++ "\n" ++
         "-- MODEL: \n" ++ (show model) ++ "\n"
@@ -176,16 +171,11 @@ instance Show Problem where
 {-| A map from frame IDs to frames. -}
 type FrameMap = Map.Map Int Frame
 
-{-| ProbPool keeps track of a counter for problem IDs,  theory and the pool 
-  of problems.
+{-| ProbPool keeps track of the theory and the pool of problems.
 -}
-type CntrCfg   = CounterT ConfigMonad
 type ProbPool = RWS.RWST [String] [String] 
      (FrameMap, [Problem])  -- Frames and Problems
-     CntrCfg                -- Counter and Config
+     ConfigMonad
 
-liftCounter :: (Monad m, State.MonadTrans t) => m a  -> t m a
-liftCounter  = RWS.lift
-liftConfig :: ( Monad (t m), Monad m, State.MonadTrans t'
-              , State.MonadTrans t) => m a  -> t' (t m) a
-liftConfig  = liftCounter.State.lift
+liftConfig :: (Monad m, State.MonadTrans t) => m a  -> t m a
+liftConfig  = RWS.lift

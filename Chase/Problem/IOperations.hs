@@ -62,8 +62,7 @@ err_ChaseProblemOperations_NarrowDen =
 buildProblem :: Theory -> (FrameMap, Problem)
 buildProblem thy = 
     ( Map.fromList $ (\f -> (frameID f, f)) <$> frms
-    , Problem { problemID           = 0
-              , problemFrames       = frameID <$> frms
+    , Problem { problemFrames       = frameID <$> frms
               , problemModel        = Model.emptyModel
               , problemQueue        = []
               , problemScheduleInfo = 
