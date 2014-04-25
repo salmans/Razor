@@ -137,8 +137,7 @@ process = do
 cascadeStep :: FrameMap -> Problem -> ProbPool [Problem]
 cascadeStep fMap prob 
     | null selectors = -- Running out of selectors: model satisfies the theory
-        do { updateReputation (+ 1) (problemParent schedInfo)
-           ; rest <- process             
+        do { rest <- process             
            ; return (prob:rest) }
     | otherwise = 
         do { let (sl:sls) = selectors
@@ -150,49 +149,14 @@ cascadeStep fMap prob
            ; cfg <- liftConfig Config.get
            ; newProbs <- chaseStep fMap sl prob'
            ; case newProbs of
-               Left _   -> do
-                 updateReputation (\s -> s - 1) (problemParent schedInfo)
-                 process
+               Left _   -> process
                Right [] -> cascadeStep fMap prob'
                Right ps -> do
-                 let parent = problemID prob
-                 ids <- replicateM (length ps) (State.lift incrementT)
-                 let ps' = zipWith (\p id -> 
-                                    (updateScore parent p) {problemID = id}) 
-                           ps ids
-                 -- if null sls
-                 -- then do                       
-                 --   let minC = minimum (problemLastConstant <$> ps')
-                 --   let (pre, post) = 
-                 --           partition (\p -> (problemLastConstant p) == minC) ps'
-
-                 --   liftConfig $ State.modify (\cfg -> cfg {configSchedule = SchedDFS})
-                 --   mapM scheduleProblem pre
-                 --   liftConfig $ State.modify (\cfg -> cfg {configSchedule = SchedBFS})
-                 --   mapM scheduleProblem post
-                 --   process
-                 -- else  do
-                 --   liftConfig $ State.modify (\cfg -> cfg {configSchedule = SchedDFS})
-                 --   mapM scheduleProblem ps'
-                 --   process }
-                 mapM scheduleProblem ps' -- Schedule new problems
+                 mapM scheduleProblem ps -- Schedule new problems
                  process } -- Process the pool
     where schedInfo@ScheduleInfo { problemSelectors  = selectors
-                                 , problemBigStepAge = age 
-                                 , problemScore      = score } = 
+                                 , problemBigStepAge = age } = 
                                  problemScheduleInfo prob
-
-updateScore :: ID -> Problem -> Problem
-updateScore parent p  =
-  let m          = problemModel p 
-      domainSize = (length.Model.modelDomain) m
-      factSize   = sum (length.records <$> (Map.elems $ modelTables m))
-      schedInfo  = problemScheduleInfo p
-      score      = (problemScore schedInfo) { scoreDomainSize = domainSize 
-                                            , scoreFactSize   = factSize }
-  in  p { problemScheduleInfo = schedInfo { problemScore  = score 
-                                          , problemParent = parent } }
-
 
 {- Problet is a minimal version of Problem, which represents a problem in a 
    chase step. Problet encapsulates exactly the amount of information that is 
@@ -225,8 +189,7 @@ chaseStep fMap sl p@(Problem id frmIDs model queues schedInfo lastConst) = do
                (Left MaxSize)
                -- When a bound is given, if the model size is greater than the 
                -- bounds then fail.
-      let schedInfo' = schedInfo { problemParent     = id
-                                 , problemSelectors  = allFrameTypeSelectors
+      let schedInfo' = schedInfo { problemSelectors  = allFrameTypeSelectors
                                  -- Reset frame selectors
                                  , problemCollapses  = 0
                                  , problemExtendable = True

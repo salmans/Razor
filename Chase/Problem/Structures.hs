@@ -55,48 +55,24 @@ hasFrameType frame types = and $ (flip ($)) (frameType frame) <$> types
    for scheduling, it is convenient to define them as a type. -}
 type FrameTypeSelector = FrameType -> Bool
 
-{- Score captures heuristic scores assigned to a problem for scheduling 
-   purposes. -}
-data Score = Score { scoreDomainSize :: Int 
-                   , scoreFactSize   :: Int 
-                   , scoreReputation :: Int }
-           deriving (Eq, Show)
-
-instance Ord Score where
-    compare (Score d f r) (Score d' f' r') = 
-        let cmps = (uncurry compare) <$> [(r, r'), (d', d), (f, f')]
-            -- Notice that a bigger domain size gives a worse score
-            res  = filter (/= EQ) cmps
-        in  if null res then EQ else head res
-    
-
-defaultScore :: Score
-defaultScore =  Score 0 0 0
-
 {- FrameScheduleInfo keeps the information required to schedule frames for a 
    problem:
    - problemSelectors:  set of selctors for the current problem
    not existential sequents.
    - problemBigStepAge: age of the problem (number of firing existentials)
-   - problemParent: ID of the parent problem
    - problemCollapses: keeps track of the number of collapses permitted on this
    problem (in fact, its the problem's model), which grows logarithmically with
    the size of the model.
    - problemExtendable: determines whether new elements can be added to the
    domain of the problem or not.
-   - problemScore: score of the problem
  -}
 data ScheduleInfo = ScheduleInfo { problemSelectors  :: [[FrameTypeSelector]]
                                  , problemBigStepAge :: Int
-                                 , problemParent     :: ID
                                  , problemCollapses  :: Int
-                                 , problemExtendable :: Bool
-                                 , problemScore      :: Score }
+                                 , problemExtendable :: Bool }
 instance Show ScheduleInfo where
-    show (ScheduleInfo _ age parent _ _ score) =
-        "-- AGE:\n" ++ (show age) ++ "\n" ++
-        "-- PARENT:\n" ++ (show parent) ++ "\n" ++
-        "-- SCORE:\n" ++ (show score) ++ "\n"
+    show (ScheduleInfo _ age _ _) =
+        "-- AGE:\n" ++ (show age) ++ "\n"
 
 
 

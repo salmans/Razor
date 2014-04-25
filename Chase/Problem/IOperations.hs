@@ -69,10 +69,8 @@ buildProblem thy =
               , problemScheduleInfo = 
                   ScheduleInfo { problemSelectors  = allFrameTypeSelectors
                                , problemBigStepAge = 0 
-                               , problemParent     = -1
                                , problemCollapses  = 0
-                               , problemExtendable = True
-                               , problemScore      = defaultScore }
+                               , problemExtendable = True }
               , problemLastConstant = 0})
     where frms  = zipWith (\x y -> buildFrame x y) [1..] thy''
           temp  = relConvert thy
@@ -146,21 +144,6 @@ scheduleProblemHelper cfg p ps
           unit      = configProcessUnit cfg
           age       = (problemBigStepAge.problemScheduleInfo) p
                         
-{-| Updates the reputation of all problems in the pool with a given parent 
-  using an update function. -}
-updateReputation :: (Int -> Int) -> ID -> ProbPool ()
-updateReputation f pid = do
-  (fs, ps) <- State.get
-  let ps' = (\p -> let schedInfo = problemScheduleInfo p
-                       score     = problemScore schedInfo
-                       reput     = scoreReputation score
-                   in if   problemParent schedInfo == pid
-                      then p { problemScheduleInfo = 
-                                   schedInfo { problemScore = 
-                                               score { scoreReputation = f reput}}}
-                      else p) <$> ps
-  State.put (fs, ps')
-
 {-| Selects a frame from a set of frames and returns the selected frame as well 
   as the remaining frames. The scheduling algorithm is always fifo to maintain
   fairness. 
