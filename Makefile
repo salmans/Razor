@@ -1,12 +1,10 @@
-
+default: ui
 # -optl-w is there to suppress the warnings about text relocs
-chase:  .PHONY
-	ghc -rtsopts -odir binaries -hidir binaries --make atlas.hs -optl-w -o bin/chase
-
 ui: .PHONY
 	ghc -rtsopts -odir binaries -hidir binaries --make UI.hs -optl-w -o bin/UI
 
-all: .PHONY main chase ui
+chase:  .PHONY
+	ghc -rtsopts -odir binaries -hidir binaries --make atlas.hs -optl-w -o bin/chase
 
 main:   Main.hs
 	ghc -odir binaries -hidir binaries --make Main.hs -optl-w
@@ -16,14 +14,12 @@ main:   Main.hs
 directories:
 	-mkdir bin
 
-
-
 clean:
-	-rm binaries/*.hi binaries/*.o
+	-rm -f binaries/*.hi binaries/*.o
 
 realclean: clean
-	-rm Main runchase
-	-rm -r bin
+	-rm -f Main runchase
+	-rm -rf bin
 
 rc: realclean
 
@@ -42,12 +38,3 @@ profile: Main.hs
 # To extract a standard heap profile run it with the -hc runtime flag:
 # ... +RTS -hc -p -K100M
 # then "hp2ps go.hp" will make go.ps
-
-
-
-
-
-
-
-
-
