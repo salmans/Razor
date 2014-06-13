@@ -3,7 +3,10 @@
 chase:  .PHONY
 	ghc -rtsopts -odir binaries -hidir binaries --make atlas.hs -optl-w -o bin/chase
 
-all: .PHONY main chase
+ui: .PHONY
+	ghc -rtsopts -odir binaries -hidir binaries --make UI.hs -optl-w -o bin/UI
+
+all: .PHONY main chase ui
 
 main:   Main.hs
 	ghc -odir binaries -hidir binaries --make Main.hs -optl-w
