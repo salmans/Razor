@@ -1,5 +1,6 @@
-{-|
-  This module defines an instance of a Chase Model serialized into an XML String
+{-
+  This module defines an instance of a Chase Model serialized into/outof an XML String
+  NOTE: Going from XML to Haskell Data Structures has not been tested
 -}
 module Chase.Problem.XMLModel where
 
@@ -13,6 +14,7 @@ import Utils.GeoUtilities
 import Chase.Problem.Model
 import Chase.Problem.RelAlg.IRelAlg
 import Chase.Problem.BaseTypes
+import qualified RelAlg.DB as DB
 -- HXT Library Modules
 import Text.XML.HXT.Arrow.Pickle
 import Text.XML.HXT.Core
@@ -49,6 +51,23 @@ xpTables =
   xpPair  xpTableRef
           xpTable
 
+{-
+data TableRef  = ConTable Sym -- constant tables
+               | RelTable Sym -- relation tables
+               | FunTable Sym -- function tables
+               | DomTable -- A table containing elements of the domain
+               | TmpTable -- A temporary table denoting equality between 
+                          -- elements (C-rules in Bachmair et al. definitions)
+type Sym = String
+-}
+xpTableRef :: PU TableRef
+xpTableRef =
+  xpWrap  ( \ ((reftype, refname)) -> (typeTable reftype refname)
+    , \ t -> (tableType t, 
+              tableName t)
+    ) $
+  xpPair  (xpAttr "type" xpText)
+          (xpOption (xpAttr "name" xpText))
 -- Maps a table ref type to a string
 tableType :: TableRef -> String
 tableType (ConTable s)  = "Constant"
@@ -63,25 +82,38 @@ typeTable "Relation" (Just s)  = (RelTable s)
 typeTable "Function" (Just s)  = (FunTable s)
 typeTable "Domain"    Nothing  = (DomTable)
 typeTable "Temporary" Nothing  = (TmpTable)
-{-
-data TableRef  = ConTable Sym -- constant tables
-               | RelTable Sym -- relation tables
-               | FunTable Sym -- function tables
-               | DomTable -- A table containing elements of the domain
-               | TmpTable -- A temporary table denoting equality between 
-                          -- elements (C-rules in Bachmair et al. definitions)
--}
-xpTableRef :: PU TableRef
-xpTableRef =
-  xpWrap  ( \ ((reftype, refname)) -> (typeTable reftype refname)
-    , \ t -> (tableType t, 
-              tableName t)
-    ) $
-  xpPair  (xpAttr "type" xpText)
-          (xpOption (xpAttr "name" xpText))
 
+{-
+type Table = DB.Set Record
+data Set a = Set [a] 
+... substitution ...
+type Table = Set [Record]
+... calling records ...
+type Table = [Record]
+-}
 xpTable :: PU Table
-xpTable = xpElem "table" (xpZero "Not implemented")
+xpTable =
+  xpWrap ( \ ((rs)) -> DB.Set rs
+    , \ t -> (records t)
+    ) $
+  (xpList xpRecord)
+
+{-
+type Record = [Elem]
+-}
+xpRecord :: PU Record
+xpRecord = (xpElem "record" (xpList xpElt))
+
+{-
+newtype Elem = Elem Sym
+type Sym = String
+-}
+xpElt :: PU Elem
+xpElt =
+  xpWrap ( \ ((e)) -> Elem e
+      , \ (Elem e) -> (e)
+      ) $
+  (xpAttr "elt" xpText)
 
 xpProvInfo :: PU ProvInfo
 xpProvInfo = xpElem "provinfo" (xpZero "Not implemented")

@@ -217,8 +217,11 @@ printModels :: [Model.Model] -> IO ()
 printModels []   = putStrLn "No models found!"
 printModels mdls = do
   mapM_ (\m -> do 
-           putStrLn (showPickled [] m)
-           putStrLn ("\n" ++ "--------------------")) mdls
+          putStrLn ("PRETTY")
+          putStrLn (show m)
+          putStrLn ("XML")
+          putStrLn (showPickled [] m)
+          putStrLn ("\n" ++ "--------------------")) mdls
 
 
 -- Two different functions for loading TPTP and geometric input theories.
