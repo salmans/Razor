@@ -68,6 +68,7 @@ xpTableRef =
     ) $
   xpPair  (xpAttr "type" xpText)
           (xpOption (xpAttr "name" xpText))
+-- TODO: I think there's a way to avoid using the two following functions for disjunct types
 -- Maps a table ref type to a string
 tableType :: TableRef -> String
 tableType (ConTable s)  = "Constant"
@@ -118,5 +119,47 @@ xpElt =
 xpProvInfo :: PU ProvInfo
 xpProvInfo = xpElem "provinfo" (xpZero "Not implemented")
 
+{-
+type ElemHistory = [(Elem, SkolemTerm)]
+-}
 xpElemHistory :: PU ElemHistory
-xpElemHistory = xpElem "elemhist" (xpZero "Not implemented")
+xpElemHistory = (xpList xpElemProvInfo)
+
+xpElemProvInfo :: PU (Elem, SkolemTerm)
+xpElemProvInfo =
+  xpElem "history" $
+  xpWrap ( \ ((e, st)) -> (e, st)
+    , \ t -> (fst t, snd t)
+    ) $
+  xpPair xpElt xpSkolemTerm
+
+{-
+type SkolemTerm = Term
+data Term = Var Var
+          | Elm Elem -- elements of the domain are terms
+          | Fn Sym [Term]
+          | Rn Sym [Term] -- Just like Fn but for cases where we treat relations
+                          -- like functions.
+-}
+xpSkolemTerm :: PU SkolemTerm
+xpSkolemTerm = 
+  xpElem "SkolemTerm" $
+  xpWrap ( \ ((termtype, value, moreterms)) -> implodeSkolemTerm (termtype, value, moreterms)
+    , \ t -> (explodeSkolemTerm t)
+    ) $
+  xpTriple  (xpAttr "type" xpText)
+            (xpAttr "value" xpText)
+            (xpList xpSkolemTerm)
+-- TODO: again, better way to do this?
+-- Maps a skolem term to a xml-friendly value tuple
+explodeSkolemTerm :: SkolemTerm -> (String, String, [Term])
+explodeSkolemTerm (Var v)         = ("Variable", v, [])
+explodeSkolemTerm (Elm (Elem e))  = ("Element", e, [])
+explodeSkolemTerm (Fn s terms)    = ("Function", s, terms)
+explodeSkolemTerm (Rn s terms)    = ("Relation", s, terms)
+-- Unmaps a skolem term to a xml-friendly value tuple
+implodeSkolemTerm :: (String, String, [Term]) -> SkolemTerm
+implodeSkolemTerm ("Variable", v, [])  = (Var v)
+implodeSkolemTerm ("Element", e, [])   = (Elm (Elem e))
+implodeSkolemTerm ("Function", s, terms)    = (Fn s terms)
+implodeSkolemTerm ("Relation", s, terms)    = (Rn s terms)
