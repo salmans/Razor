@@ -1,4 +1,4 @@
-{-| This module is the primary user interface library
+{-| This module is a test app of serializing models as xml
 -}
 
 module Main where

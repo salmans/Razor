@@ -1,15 +1,10 @@
-default: ui
-# -optl-w is there to suppress the warnings about text relocs
-ui: .PHONY
-	ghc -rtsopts -odir binaries -hidir binaries --make UI.hs -optl-w -o bin/UI
+default: 
 
-chase:  .PHONY
-	ghc -rtsopts -odir binaries -hidir binaries --make atlas.hs -optl-w -o bin/chase
+xml-test: directories
+	ghc -rtsopts -odir binaries -hidir binaries --make xml-test.hs -optl-w -o bin/xml-test
 
-main:   Main.hs
-	ghc -odir binaries -hidir binaries --make Main.hs -optl-w
-
-.PHONY: directories
+windows: directories
+	ghc --make -no-hs-main -shared -static -fno-shared-implib -lHSrts-ghc7.6.3 -optl-Wl,-rpath,"/cygdrive/c/Program Files (x86)/Haskell Platform/2013.2.0.0/lib" ffi.hs -o bin/ffi.dll
 
 directories:
 	-mkdir bin
@@ -18,7 +13,6 @@ clean:
 	-rm -f binaries/*.hi binaries/*.o
 
 realclean: clean
-	-rm -f Main runchase
 	-rm -rf bin
 
 rc: realclean
