@@ -25,8 +25,8 @@ import Text.XML.HXT.Core
 import Foreign.C.Types
 import Foreign.C.String
 
-getmodels_hs :: CString -> IO ()
-getmodels_hs cs = do
+hs_getmodels :: CString -> IO ()
+hs_getmodels cs = do
   s <- peekCString cs
   getmodels s
 
@@ -63,4 +63,4 @@ geoFormulas fName = do
       inputFmlas = mapM (parseFolToSequent False) realLines
   return $ concat <$> inputFmlas
 
-foreign export ccall getmodels_hs :: CString -> IO ()
+foreign export ccall hs_getmodels :: CString -> IO ()
