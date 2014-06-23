@@ -11,6 +11,8 @@ public class Model
 {
 	@XmlElement(name = "TABLE")
 	List<Table> tables;
+	@XmlElement(name = "PROVENANCEINFORMATION")
+	ProvenanceInformation provenanceInformation;
 	
 	public Model()
 	{
@@ -31,7 +33,7 @@ public class Model
 			out += "\n" + t.toString(tabDepth+1);
 		}
 		// provenance information
-		
+		out += Pretty.tabString(tabDepth, "\n" + provenanceInformation.toString(tabDepth));
 		// element history
 		
 		// done
