@@ -19,7 +19,18 @@ import qualified RelAlg.DB as DB
 import Text.XML.HXT.Arrow.Pickle
 import Text.XML.HXT.Core
 
-instance XmlPickler Model where xpickle = xpModel
+instance XmlPickler Models where xpickle = xpModels
+data Models = Models {
+  models :: [Model]
+}
+xpModels :: PU Models
+xpModels =
+  xpElem "MODELS" $
+  xpWrap ( \ ((models)) -> Models models
+    , \ t -> (models t)
+  ) $
+  xpList xpModel
+
 {-
   data Model = Model
   {
@@ -30,7 +41,7 @@ instance XmlPickler Model where xpickle = xpModel
 -}
 xpModel :: PU Model
 xpModel =
-  xpElem "model" $
+  xpElem "MODEL" $
   xpWrap ( \ ((tbls, provinfo, elemhist)) -> Model tbls provinfo elemhist
     , \ t -> (modelTables t,
               modelProvInfo t,
@@ -47,7 +58,7 @@ xpTables :: PU Tables
 xpTables = 
   xpWrap ( fromList, toList ) $
   xpList $
-  xpElem "table" $
+  xpElem "TABLE" $
   xpPair  xpTableRef
           xpTable
 
@@ -65,8 +76,8 @@ xpTableRef =
   xpWrap  ( \ ((reftype, refname)) -> (implodeTableRef (reftype, refname))
     , \ t -> (explodeTableRef t)
     ) $
-  xpPair  (xpAttr "type" xpText)
-          (xpOption (xpAttr "name" xpText))
+  xpPair  (xpAttr "TYPE" xpText)
+          (xpOption (xpAttr "NAME" xpText))
 {- 
 TODO: I think there's a way to avoid using the two following functions for disjunct types
       I tried avoiding doing this for data types with clauses (disjunct types in Coq); didn't work
@@ -109,7 +120,7 @@ xpTable =
 type Record = [Elem]
 -}
 xpRecord :: PU Record
-xpRecord = (xpElem "record" (xpList xpElt))
+xpRecord = (xpElem "RECORD" (xpList xpElt))
 
 {-
 newtype Elem = Elem Sym
@@ -120,7 +131,8 @@ xpElt =
   xpWrap ( \ ((e)) -> Elem e
       , \ (Elem e) -> (e)
       ) $
-  (xpAttr "elt" xpText)
+  (xpElem "ELT") $
+  (xpAttr "NAME" xpText)
 
 {-
 data ProvInfo = ProvInfo { provInfoData     :: Map.Map Obs [Prov]
@@ -129,13 +141,13 @@ type ProvTag = Int
 -}
 xpProvInfo :: PU ProvInfo
 xpProvInfo =
-  xpElem "provenanceinformation" $
+  xpElem "PROVENANCEINFORMATION" $
   xpWrap ( \ ((pidata, pilasttag)) -> ProvInfo pidata pilasttag
     , \ t -> (provInfoData t,
               provInfoLastTag t)
     ) $
   xpPair  xpProvInfoData
-          (xpAttr "total" xpPrim)
+          (xpAttr "TOTAL" xpPrim)
 
 {-
 provInfoData     :: Map.Map Obs [Prov]
@@ -144,7 +156,7 @@ xpProvInfoData :: PU (Map Obs [Prov])
 xpProvInfoData = 
   xpWrap ( fromList, toList ) $
   xpList $
-  xpElem "provinfo" $
+  xpElem "PROVINFO" $
   xpPair  xpObs
           (xpList xpProv)
 
@@ -154,11 +166,11 @@ data Obs = Eql Term Term  -- Two terms are equal
 -}
 xpObs :: PU Obs
 xpObs = 
-  xpElem "obs" $
+  xpElem "OBS" $
   xpWrap ( \ ((obstype, t1, t2, atom)) -> implodeObs (obstype, t1, t2, atom)
       , \ t -> (explodeObs t)
   ) $
-  xp4Tuple  (xpAttr "type" xpText)
+  xp4Tuple  (xpAttr "TYPE" xpText)
             (xpOption xpSkolemTerm)
             (xpOption xpSkolemTerm)
             (xpOption xpAtom)
@@ -177,12 +189,12 @@ data Atom = R Sym [Term]
 -}
 xpAtom :: PU Atom
 xpAtom =
-  xpElem "atom" $
+  xpElem "ATOM" $
   xpWrap ( \ ((atomtype, name, terms)) -> implodeAtom (atomtype, name, terms)
       , \ t -> (explodeAtom t)
   ) $
-  xpTriple  (xpAttr "type" xpText)
-            (xpAttr "name" xpText)
+  xpTriple  (xpAttr "TYPE" xpText)
+            (xpAttr "NAME" xpText)
             (xpList xpSkolemTerm)
 -- Maps an atom to a xml-friendly value tuple
 explodeAtom :: Atom -> (String, String, [Term])
@@ -201,22 +213,22 @@ type ID = Int
 -}
 xpProv :: PU Prov
 xpProv =
-  xpElem "prov" $
+  xpElem "PROV" $
   xpWrap ( \ ((provtype, tag, i, sub)) -> implodeProv (provtype, tag, i, sub)
       , \ t -> (explodeProv t)
   ) $
-  xp4Tuple  (xpAttr "type" xpText)
-            (xpOption (xpAttr "tag" xpPrim))
-            (xpOption (xpAttr "id" xpPrim))
+  xp4Tuple  (xpAttr "TYPE" xpText)
+            (xpOption (xpAttr "TAG" xpPrim))
+            (xpOption (xpAttr "ID" xpPrim))
             (xpOption xpSub)
 -- Maps a provenance to a xml-friendly value tuple
 explodeProv :: Prov -> (String, Maybe Int, Maybe Int, Maybe Sub)
-explodeProv (ChaseProv tag i sub)             = ("Chase", Just tag, Just i, Just sub)
-explodeProv (UserProv)              = ("User", Nothing, Nothing, Nothing)
+explodeProv (ChaseProv tag i sub) = ("Chase", Just tag, Just i, Just sub)
+explodeProv (UserProv)            = ("User", Nothing, Nothing, Nothing)
 -- Unmaps a provenance from a xml-friendly value tuple
 implodeProv :: (String, Maybe Int, Maybe Int, Maybe Sub) -> Prov
 implodeProv ("Chase", Just tag, Just i, Just sub) = (ChaseProv tag i sub) 
-implodeProv ("User", Nothing, Nothing, Nothing) = (UserProv)
+implodeProv ("User", Nothing, Nothing, Nothing)   = (UserProv)
 
 {-
 type Sub = Map Var Term
@@ -226,8 +238,8 @@ xpSub :: PU Sub
 xpSub =
   xpWrap ( fromList, toList ) $
   xpList $
-  xpElem "sub" $
-  xpPair  (xpAttr "var" xpText)
+  xpElem "SUB" $
+  xpPair  (xpAttr "VAR" xpText)
           (xpSkolemTerm)
 
 {-
@@ -238,7 +250,7 @@ xpElemHistories = (xpList xpElemHistory)
 
 xpElemHistory :: PU (Elem, SkolemTerm)
 xpElemHistory =
-  xpElem "history" $
+  xpElem "HISTORY" $
   xpWrap ( \ ((e, st)) -> (e, st)
     , \ t -> (fst t, snd t)
     ) $
@@ -254,12 +266,12 @@ data Term = Var Var
 -}
 xpSkolemTerm :: PU SkolemTerm
 xpSkolemTerm = 
-  xpElem "term" $
+  xpElem "TERM" $
   xpWrap ( \ ((termtype, value, moreterms)) -> implodeSkolemTerm (termtype, value, moreterms)
     , \ t -> (explodeSkolemTerm t)
     ) $
-  xpTriple  (xpAttr "type" xpText)
-            (xpAttr "value" xpText)
+  xpTriple  (xpAttr "TYPE" xpText)
+            (xpAttr "VALUE" xpText)
             (xpList xpSkolemTerm)
 -- Maps a skolem term to a xml-friendly value tuple
 explodeSkolemTerm :: SkolemTerm -> (String, String, [Term])

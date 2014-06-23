@@ -46,7 +46,7 @@ getmodels inputFileName = do
   
 -- Runs the chase according to given parameters
 runChase :: Config -> Theory -> [Elem] -> String
-runChase config fmlas elems = showPickled [] $ chase config fmlas
+runChase config fmlas elems = showPickled [] (Models (chase config fmlas))
                 
 -- Loads geometric formulas from an input file
 geoFormulas :: String -> IO (Maybe Theory)
