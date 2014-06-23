@@ -1,8 +1,5 @@
 default: 
 
-xml-test: directories
-	ghc -rtsopts -odir binaries -hidir binaries --make xml-test.hs -optl-w -o bin/xml-test
-
 windows: directories
 	ghc --make -odir binaries -hidir binaries -no-hs-main -shared -static -fno-shared-implib -lHSrts-ghc7.6.3 -optl-Wl,-rpath,"/cygdrive/c/Program Files (x86)/Haskell Platform/2013.2.0.0/lib" ffi.hs -o bin/ffi.dll
 

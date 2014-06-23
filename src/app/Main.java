@@ -13,6 +13,7 @@ public class Main
 		NativePipe pipe = new NativePipe();
 		// TODO if the haskell library throws an error, there's no way to handle it in java
 		String rawxml = pipe.getModels(getFile());
+		System.out.println("Raw XML = " + rawxml);
 		// Try processing the XML into the corresponding java classes
 		try
 		{
