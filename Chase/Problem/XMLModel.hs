@@ -246,7 +246,7 @@ xpSub =
 type ElemHistory = [(Elem, SkolemTerm)]
 -}
 xpElemHistories :: PU ElemHistory
-xpElemHistories = (xpList xpElemHistory)
+xpElemHistories = xpElem "ELEMENTHISTORIES" (xpList xpElemHistory)
 
 xpElemHistory :: PU (Elem, SkolemTerm)
 xpElemHistory =

@@ -13,6 +13,8 @@ public class Model
 	List<Table> tables;
 	@XmlElement(name = "PROVENANCEINFORMATION")
 	ProvenanceInformation provenanceInformation;
+	@XmlElement(name = "ELEMENTHISTORIES")
+	ElementHistories elementHistories;
 	
 	public Model()
 	{
@@ -35,7 +37,7 @@ public class Model
 		// provenance information
 		out += Pretty.tabString(tabDepth, "\n" + provenanceInformation.toString(tabDepth));
 		// element history
-		
+		out += Pretty.tabString(tabDepth, "\n" + elementHistories.toString(tabDepth));
 		// done
 		return out;
 	}
