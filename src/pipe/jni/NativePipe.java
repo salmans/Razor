@@ -1,5 +1,6 @@
 package pipe.jni;
 
+import com.sun.jna.Pointer;
 import com.sun.jna.StringArray;
 import com.sun.jna.ptr.IntByReference;
 import com.sun.jna.ptr.PointerByReference;
@@ -31,9 +32,17 @@ public class NativePipe
 	/**
 	 * Prints out the models found for the given file
 	 * @param file	Location of the theory file
+	 * @return The XML representation of the models generated
 	 */
-	public void getModels(String file)
+	public String getModels(String file)
 	{
-		HaskellFFI.INSTANCE.hs_getmodels(file);
+		// get pointer to cstring from haskell ffi call
+		Pointer cstring = HaskellFFI.INSTANCE.hs_getmodels(file);
+		// get a java string from the memory allocated in haskell
+		String xmlModels = cstring.getString(0);
+		// free the haskell allocation now that we've copied the data
+		HaskellFFI.INSTANCE.hs_free_cstring(cstring);
+		// return the models
+		return xmlModels;
 	}
 }

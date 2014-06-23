@@ -1,7 +1,6 @@
 {-
   This module defines an instance of a Chase Model serialized into/outof an XML String
   NOTE: Going from XML to Haskell Data Structures has not been tested
-  TODO: Type Attributes should somehow be removed (possibly by becoming the element name)
 -}
 module Chase.Problem.XMLModel where
 
@@ -20,6 +19,7 @@ import qualified RelAlg.DB as DB
 import Text.XML.HXT.Arrow.Pickle
 import Text.XML.HXT.Core
 
+instance XmlPickler Model where xpickle = xpModel
 {-
   data Model = Model
   {
@@ -28,7 +28,6 @@ import Text.XML.HXT.Core
         modelElemHist :: ElemHistory
   }
 -}
-instance XmlPickler Model where xpickle = xpModel
 xpModel :: PU Model
 xpModel =
   xpElem "model" $
@@ -68,7 +67,14 @@ xpTableRef =
     ) $
   xpPair  (xpAttr "type" xpText)
           (xpOption (xpAttr "name" xpText))
--- TODO: I think there's a way to avoid using the two following functions for disjunct types
+{- 
+TODO: I think there's a way to avoid using the two following functions for disjunct types
+      I tried avoiding doing this for data types with clauses (disjunct types in Coq); didn't work
+      The problem lies within how the clause is treated. The clause isn't really its own type or data constructor, 
+      so I don't think there is a way to make its own pickler. 
+      This means the clause "type" has to be an attribute instead of it's own element.
+      Good or bad? I don't know at this point.
+-}
 -- Maps a TableRef to an XML friendly tuple
 explodeTableRef :: TableRef -> (String, Maybe Sym)
 explodeTableRef (ConTable s)  = ("Constant", Just s)
@@ -123,7 +129,7 @@ type ProvTag = Int
 -}
 xpProvInfo :: PU ProvInfo
 xpProvInfo =
-  xpElem "provenanceinfos" $
+  xpElem "provenanceinformation" $
   xpWrap ( \ ((pidata, pilasttag)) -> ProvInfo pidata pilasttag
     , \ t -> (provInfoData t,
               provInfoLastTag t)
@@ -156,7 +162,6 @@ xpObs =
             (xpOption xpSkolemTerm)
             (xpOption xpSkolemTerm)
             (xpOption xpAtom)
--- TODO: again, better way to do this?
 -- Maps an observation to a xml-friendly value tuple
 explodeObs :: Obs -> (String, Maybe Term, Maybe Term, Maybe Atom)
 explodeObs (Eql t1 t2)         = ("Equality", Just t1, Just t2, Nothing)
@@ -179,7 +184,6 @@ xpAtom =
   xpTriple  (xpAttr "type" xpText)
             (xpAttr "name" xpText)
             (xpList xpSkolemTerm)
--- TODO: again, better way to do this?
 -- Maps an atom to a xml-friendly value tuple
 explodeAtom :: Atom -> (String, String, [Term])
 explodeAtom (R s terms)              = ("Relation", s, terms)
@@ -205,7 +209,6 @@ xpProv =
             (xpOption (xpAttr "tag" xpPrim))
             (xpOption (xpAttr "id" xpPrim))
             (xpOption xpSub)
--- TODO: again, better way to do this?
 -- Maps a provenance to a xml-friendly value tuple
 explodeProv :: Prov -> (String, Maybe Int, Maybe Int, Maybe Sub)
 explodeProv (ChaseProv tag i sub)             = ("Chase", Just tag, Just i, Just sub)
@@ -258,7 +261,6 @@ xpSkolemTerm =
   xpTriple  (xpAttr "type" xpText)
             (xpAttr "value" xpText)
             (xpList xpSkolemTerm)
--- TODO: again, better way to do this?
 -- Maps a skolem term to a xml-friendly value tuple
 explodeSkolemTerm :: SkolemTerm -> (String, String, [Term])
 explodeSkolemTerm (Var v)         = ("Variable", v, [])

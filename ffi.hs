@@ -24,36 +24,30 @@ import Text.XML.HXT.Core
 -- FFI Modules
 import Foreign.C.Types
 import Foreign.C.String
+import Foreign.Marshal.Alloc
 
-hs_getmodels :: CString -> IO ()
+hs_getmodels :: CString -> IO (CString)
 hs_getmodels cs = do
   s <- peekCString cs
-  getmodels s
+  xmlModels <- getmodels s
+  cModels <- (newCString xmlModels)
+  return cModels
 
-getmodels :: String -> IO ()
+hs_free_cstring :: CString -> IO ()
+hs_free_cstring p = free p
+
+getmodels :: String -> IO (String)
 getmodels inputFileName = do
   -- Get the geometric formulas from the input file
   geoFmlas <- geoFormulas inputFileName
   case geoFmlas of
-    Just fs -> runChase defaultConfig fs []
-    Nothing -> error "The input is not geometric!"
+    Just fs -> return (runChase defaultConfig fs [])
+    Nothing -> return ""
   
-
 -- Runs the chase according to given parameters
-runChase :: Config -> Theory -> [Elem] -> IO ()
-runChase config fmlas elems = printModels $ chase config fmlas
+runChase :: Config -> Theory -> [Elem] -> String
+runChase config fmlas elems = showPickled [] $ chase config fmlas
                 
--- Sends a list of models to IO
-printModels :: [Model.Model] -> IO ()
-printModels []   = putStrLn "No models found!"
-printModels mdls = do
-  mapM_ (\m -> do 
-          putStrLn ("PRETTY")
-          putStrLn (show m)
-          putStrLn ("XML")
-          putStrLn (showPickled [] m)
-          putStrLn ("\n" ++ "--------------------")) mdls
-
 -- Loads geometric formulas from an input file
 geoFormulas :: String -> IO (Maybe Theory)
 geoFormulas fName = do
@@ -63,4 +57,5 @@ geoFormulas fName = do
       inputFmlas = mapM (parseFolToSequent False) realLines
   return $ concat <$> inputFmlas
 
-foreign export ccall hs_getmodels :: CString -> IO ()
+foreign export ccall hs_getmodels :: CString -> IO (CString)
+foreign export ccall hs_free_cstring :: CString -> IO ()

@@ -2,6 +2,7 @@ package pipe.jni;
 
 import com.sun.jna.Library;
 import com.sun.jna.Native;
+import com.sun.jna.Pointer;
 import com.sun.jna.ptr.IntByReference;
 import com.sun.jna.ptr.PointerByReference;
 
@@ -23,8 +24,14 @@ interface HaskellFFI extends Library
 	/**
 	 * Prints out the models found for the given file
 	 * @param file	Location of the theory file
+	 * @return The XML representation of the models generated
 	 */
-	void hs_getmodels(String file);
+	Pointer hs_getmodels(String file);
+	/**
+	 * Frees a cstring originally passed to java from haskell
+	 * @param haskellOriginatedString Must be a reference to an original string passed back to java from haskell
+	 */
+	void hs_free_cstring(Pointer haskellOriginatedString);
 	/**
 	 * Exits the haskell FFI environment
 	 */
