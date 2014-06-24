@@ -8,14 +8,14 @@ import javax.xml.bind.annotation.*;
 import util.Pretty;
 
 @XmlAccessorType(XmlAccessType.FIELD)
-public class ProvenanceInformation
+class ProvenanceInformation
 {
 	@XmlAttribute(name = "TOTAL")
 	int total;
 	@XmlElement(name = "PROVINFO")
 	List<ProvInfo> provinfos;
 	
-	public ProvenanceInformation()
+	ProvenanceInformation()
 	{
 		this.provinfos = new ArrayList<ProvInfo>();
 	}

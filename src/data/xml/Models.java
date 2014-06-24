@@ -19,7 +19,7 @@ public class Models
 	@XmlElement(name = "MODEL")
 	List<Model> models;
 	
-	public Models()
+	Models()
 	{
 		this.models = new ArrayList<Model>();
 	}

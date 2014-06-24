@@ -8,7 +8,7 @@ import javax.xml.bind.annotation.XmlElement;
 import util.Pretty;
 
 @XmlAccessorType(XmlAccessType.FIELD)
-public class Substitution
+class Substitution
 {
 	@XmlAttribute(name = "VAR")
 	String variable;

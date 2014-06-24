@@ -8,12 +8,12 @@ import javax.xml.bind.annotation.*;
 import util.Pretty;
 
 @XmlAccessorType(XmlAccessType.FIELD)
-public class Record
+class Record
 {
 	@XmlElement(name = "ELT")
 	List<Element> elements;
 	
-	public Record()
+	Record()
 	{
 		this.elements = new ArrayList<Element>();
 	}

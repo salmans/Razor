@@ -5,7 +5,7 @@ import javax.xml.bind.annotation.*;
 import util.Pretty;
 
 @XmlAccessorType(XmlAccessType.FIELD)
-public class Observation
+class Observation
 {
 	@XmlAttribute(name = "TYPE")
 	String type;

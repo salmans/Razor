@@ -4,7 +4,7 @@ import javax.xml.bind.annotation.XmlElement;
 
 import util.Pretty;
 
-public class ElementHistory
+class ElementHistory
 {
 	@XmlElement(name = "ELT")
 	Element elt;

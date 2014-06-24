@@ -5,7 +5,6 @@ import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBException;
 import javax.xml.bind.Unmarshaller;
 
-
 /**
  * Generic XML processor
  * @author Ryan Danas

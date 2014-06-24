@@ -8,7 +8,7 @@ import javax.xml.bind.annotation.*;
 import util.Pretty;
 
 @XmlAccessorType(XmlAccessType.FIELD)
-public class Atom
+class Atom
 {
 	@XmlAttribute(name = "TYPE")
 	String type;
@@ -17,11 +17,12 @@ public class Atom
 	@XmlElement(name = "TERM")
 	List<Term> terms;
 	
-	public Atom()
+	Atom()
 	{
 		this.terms = new ArrayList<Term>();
 	}
 	
+	@Override
 	public String toString()
 	{
 		return this.toString(0);

@@ -8,7 +8,7 @@ import javax.xml.bind.annotation.*;
 import util.Pretty;
 
 @XmlAccessorType(XmlAccessType.FIELD)
-public class Table
+class Table
 {
 	@XmlAttribute(name = "TYPE")
 	String type;
@@ -17,7 +17,7 @@ public class Table
 	@XmlElement(name = "RECORD")
 	List<Record> records;
 	
-	public Table()
+	Table()
 	{
 		this.records = new ArrayList<Record>();
 	}
