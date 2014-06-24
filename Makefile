@@ -10,6 +10,6 @@ clean:
 	-rm -f binaries/*.hi binaries/*.o *.h
 
 realclean: clean
-	-rm -rf bin
+	-rm -f bin/*.dll bin/*.so
 
 rc: realclean

@@ -2,9 +2,9 @@ package app;
 
 import java.util.Scanner;
 
+import pipe.jni.NativePipe;
 import data.xml.Models;
 import data.xml.XmlProcessor;
-import pipe.jni.NativePipe;
 
 public class Main
 {

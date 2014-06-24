@@ -5,6 +5,13 @@ import java.util.List;
 
 import javax.xml.bind.annotation.*;
 
+/**
+ * Current XML representation of a model
+ * TODO This doesn't really match how a model should be organized / represented in the ui
+ * Build an app.model and hope the next iteration of the haskell program can match / agree upon a better structure
+ * @author Ryan Danas
+ *
+ */
 @XmlRootElement(name = "MODELS")
 @XmlAccessorType(XmlAccessType.FIELD)
 public class Models
