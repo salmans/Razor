@@ -45,4 +45,12 @@ public class NativePipe
 		// return the models
 		return xmlModels;
 	}
+	
+	/**
+	 * Closes the native pipe
+	 */
+	public void close()
+	{
+		HaskellFFI.INSTANCE.hs_exit();
+	}
 }

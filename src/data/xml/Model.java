@@ -7,7 +7,7 @@ import javax.xml.bind.annotation.*;
 import util.Pretty;
 
 @XmlAccessorType(XmlAccessType.FIELD)
-class Model
+public class Model
 {
 	@XmlElement(name = "TABLE")
 	List<Table> tables;

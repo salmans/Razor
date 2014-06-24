@@ -24,6 +24,16 @@ public class Models
 		this.models = new ArrayList<Model>();
 	}
 	
+	public List<Model> getModels()
+	{
+		List<Model> clone = new ArrayList<Model>();
+		for(Model m : this.models)
+		{
+			clone.add(m);
+		}
+		return clone;
+	}
+	
 	@Override
 	public String toString()
 	{

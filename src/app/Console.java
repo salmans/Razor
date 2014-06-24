@@ -6,7 +6,7 @@ import pipe.jni.NativePipe;
 import data.xml.Models;
 import data.xml.XmlProcessor;
 
-public class Main
+public class Console
 {
 	public static void main(String[] args)
 	{
