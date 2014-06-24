@@ -25,8 +25,11 @@
 	    </HBox>
 	</GridPane>
     
-    <HBox spacing="10" alignment="bottom_center" GridPane.columnIndex="1" GridPane.rowIndex="2">
-    	<Text text="Waiting for theory" fx:id="modelText"/>
-    </HBox>
+    <ScrollPane prefWidth="720" prefHeight="480" GridPane.columnIndex="1" GridPane.rowIndex="2">
+		    <VBox>
+			    	<Text text="Waiting for theory" fx:id="modelText"/>
+		    </VBox>
+	    
+	</ScrollPane>
     
 </GridPane>

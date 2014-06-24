@@ -15,6 +15,7 @@ public class GUI extends Application
 	
 	public static void main(String[] args) 
 	{
+		System.out.println("Starting...");
 		// init environment
 		try
 		{
@@ -40,6 +41,7 @@ public class GUI extends Application
 		try
 		{
 			thePipe.close();
+			System.out.println("Shutdown Successful");
 		}
 		catch(Exception e)
 		{
@@ -51,6 +53,7 @@ public class GUI extends Application
 	@Override
 	public void start(Stage primaryStage) throws IOException 
 	{
+		// TODO is FXML the best way to make these views?
 		Parent root = FXMLLoader.load(getClass().getResource("view/primary.fxml"));
         Scene scene = new Scene(root);
         primaryStage.setTitle("");

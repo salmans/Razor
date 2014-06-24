@@ -6,7 +6,6 @@ import java.util.Collection;
 import java.util.List;
 
 import app.GUI;
-import pipe.jni.NativePipe;
 import data.xml.Models;
 import data.xml.XmlProcessor;
 import javafx.event.ActionEvent;
