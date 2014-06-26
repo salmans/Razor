@@ -16,7 +16,7 @@ Package = XML
 Haskell Integration Tidbits
 	> The makefile may need some tweaks to be portable to other OSs; there's a ghc article on shared library management; this is due to the current pipe choice and needing to make a shared library
 	> Currently the haskell shared library is statically linked, except for ghc; ghc library installed and location must be updated when switching environments
-Java GUI Choices
+GUI = Java FX 8 (specifically WebView)
 	> JavaFX 8 seems like a nice choice; it's Oracles hopeful replacement for Swing / AWT
 	> We may even be able to write webpages to be displayed like an app instead of proprietary UI views (good for portability to different GUI platforms)
 

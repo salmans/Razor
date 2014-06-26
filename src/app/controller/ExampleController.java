@@ -48,7 +48,7 @@ public class ExampleController
 		FileChooser fc = new FileChooser();
 		fc.setTitle(prompt);
 		fc.getExtensionFilters().addAll(allowedExtensions);
-		// TODO what window should be passed in and why
+		// what window should be passed in and why
 		File selected = fc.showOpenDialog(null);
 		if(selected != null)
 		{

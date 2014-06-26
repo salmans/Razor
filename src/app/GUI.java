@@ -2,16 +2,17 @@ package app;
 
 import java.io.IOException;
 
+import app.view.Primary;
 import pipe.jni.NativePipe;
 import javafx.application.Application;
-import javafx.fxml.FXMLLoader;
-import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
 
 public class GUI extends Application 
 {
 	public static NativePipe thePipe;
+	Stage mainStage;
+	Scene mainScene;
 	
 	public static void main(String[] args) 
 	{
@@ -19,7 +20,6 @@ public class GUI extends Application
 		// init environment
 		try
 		{
-			
 			thePipe = new NativePipe();
 		}
 		catch(Exception e)
@@ -51,15 +51,11 @@ public class GUI extends Application
 	}
 
 	@Override
-	public void start(Stage primaryStage) throws IOException 
+	public void start(Stage stage) throws IOException 
 	{
-		// TODO is FXML the best way to make these views?
-		Parent root = FXMLLoader.load(getClass().getResource("view/primary.fxml"));
-        Scene scene = new Scene(root);
-        primaryStage.setTitle("");
-        primaryStage.setScene(scene);
-        primaryStage.setMinHeight(480);
-        primaryStage.setMinWidth(640);
-        primaryStage.show();
+		this.mainStage = stage;
+		this.mainScene = new Scene(new Primary());
+		this.mainStage.setScene(this.mainScene);
+		this.mainStage.show();
 	}
 }
