@@ -10,6 +10,7 @@ import javafx.stage.Stage;
 
 public class GUI extends Application 
 {
+	// TODO change this static pipe setup
 	public static NativePipe thePipe;
 	Stage mainStage;
 	Scene mainScene;
