@@ -5,3 +5,5 @@ binaries/
 *.o
 *.hi
 *.exe
+*.class
+*.jar
