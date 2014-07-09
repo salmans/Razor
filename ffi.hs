@@ -37,9 +37,9 @@ hs_free_cstring :: CString -> IO ()
 hs_free_cstring p = free p
 
 getmodels :: String -> IO (String)
-getmodels inputFileName = do
-  -- Get the geometric formulas from the input file
-  geoFmlas <- geoFormulas inputFileName
+getmodels inputTheory = do
+  -- Get the geometric formulas
+  geoFmlas <- geoFormulas inputTheory
   case geoFmlas of
     Just fs -> return (runChase defaultConfig fs [])
     Nothing -> return ""
@@ -48,11 +48,10 @@ getmodels inputFileName = do
 runChase :: Config -> Theory -> [Elem] -> String
 runChase config fmlas elems = showPickled [] (Models (chase config fmlas))
                 
--- Loads geometric formulas from an input file
+-- Loads geometric formulas from an input theory
 geoFormulas :: String -> IO (Maybe Theory)
-geoFormulas fName = do
-  src <- readFile fName
-  let inputLines = lines src
+geoFormulas theory = do
+  let inputLines = lines theory
       realLines  = filter isRealLine inputLines
       inputFmlas = mapM (parseFolToSequent False) realLines
   return $ concat <$> inputFmlas

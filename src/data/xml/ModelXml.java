@@ -7,7 +7,7 @@ import javax.xml.bind.annotation.*;
 import util.Pretty;
 
 @XmlAccessorType(XmlAccessType.FIELD)
-public class Model
+public class ModelXml
 {
 	@XmlElement(name = "TABLE")
 	List<Table> tables;
@@ -16,7 +16,7 @@ public class Model
 	@XmlElement(name = "ELEMENTHISTORIES")
 	ElementHistories elementHistories;
 	
-	Model()
+	ModelXml()
 	{
 		this.tables = new ArrayList<Table>();
 	}

@@ -30,14 +30,14 @@ public class NativePipe
 	}
 	
 	/**
-	 * Prints out the models found for the given file
-	 * @param file	Location of the theory file
+	 * Prints out the models found for the given theory
+	 * @param theory	Geometric theory as a string
 	 * @return The XML representation of the models generated
 	 */
-	public String getModels(String file)
+	public String getModels(String theory)
 	{
 		// get pointer to cstring from haskell ffi call
-		Pointer cstring = HaskellFFI.INSTANCE.hs_getmodels(file);
+		Pointer cstring = HaskellFFI.INSTANCE.hs_getmodels(theory);
 		// get a java string from the memory allocated in haskell
 		String xmlModels = cstring.getString(0);
 		// free the haskell allocation now that we've copied the data

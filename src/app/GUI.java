@@ -2,6 +2,7 @@ package app;
 
 import java.io.IOException;
 
+import app.model.Model;
 import app.view.Primary;
 import pipe.jni.NativePipe;
 import javafx.application.Application;
@@ -10,8 +11,9 @@ import javafx.stage.Stage;
 
 public class GUI extends Application 
 {
-	// TODO change this static pipe setup
+	// XXX change this static setup?
 	public static NativePipe thePipe;
+	public static Model theModel;
 	Stage mainStage;
 	Scene mainScene;
 	
@@ -22,6 +24,7 @@ public class GUI extends Application
 		try
 		{
 			thePipe = new NativePipe();
+			theModel = new Model();
 		}
 		catch(Exception e)
 		{

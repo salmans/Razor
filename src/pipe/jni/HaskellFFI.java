@@ -22,11 +22,11 @@ interface HaskellFFI extends Library
 	 */
 	void hs_init(IntByReference argc, PointerByReference argv);
 	/**
-	 * Prints out the models found for the given file
-	 * @param file	Location of the theory file
+	 * Prints out the models found for the given theory
+	 * @param theory	Geometric theory
 	 * @return The XML representation of the models generated
 	 */
-	Pointer hs_getmodels(String file);
+	Pointer hs_getmodels(String theory);
 	/**
 	 * Frees a cstring originally passed to java from haskell
 	 * @param haskellOriginatedString Must be a reference to an original string passed back to java from haskell
