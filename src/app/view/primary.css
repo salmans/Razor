@@ -50,10 +50,10 @@ textarea {
 
 #theory,#model{
     border: 1px solid rgb(169,169,169);
-    width: 47%;
-    height: 96%;
-    margin: .25em;
-    padding: .25em;
+    width: 49%;
+    height: 98%;
+    margin: .1em;
+    padding: .1em;
     text-align: center;
 }
 #theory{
@@ -98,4 +98,5 @@ textarea {
     background-color: rgb(169,169,169);
     z-index: 42;
     position: absolute;
+    cursor: default;
 }    

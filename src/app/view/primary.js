@@ -28,6 +28,8 @@ function showElemHist(e, elem)
 	var y = (window.Event) ? e.pageY : event.clientY + (document.documentElement.scrollTop ? document.documentElement.scrollTop : document.body.scrollTop);
 	var overlay = document.createElement("textarea");
 	overlay.setAttribute("id", "overlay");
+	overlay.setAttribute("wrap", "off");
+	overlay.setAttribute("readonly", "true");
 	overlay.setAttribute("onclick", "remElemHist();");
 	overlay.innerHTML = ModelController.getHistory(elem);
 	overlay.style.top = y;
