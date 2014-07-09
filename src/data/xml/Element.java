@@ -22,6 +22,7 @@ class Element
 	
 	String toHtml()
 	{
-		return "<div class=\"element\" id=\""+this.name+"\"onclick=\"elementHistory('"+this.name+"');\">"+this.name+"</div>";
+		
+		return "<div class=\"element\" id=\""+this.name+"\" onclick=\"showElemHist(event,'"+this.name+"');\">"+this.name+"</div>";
 	}
 }

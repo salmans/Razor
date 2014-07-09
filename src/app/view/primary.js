@@ -21,9 +21,24 @@ function nextModel()
 	GlobalController.next();
 }
 
-function elementHistory(elem)
+function showElemHist(e, elem)
 {
-	ElementHistoryController.getHistory(elem);
+	remElemHist();
+	var x = (window.Event) ? e.pageX : event.clientX + (document.documentElement.scrollLeft ? document.documentElement.scrollLeft : document.body.scrollLeft);
+	var y = (window.Event) ? e.pageY : event.clientY + (document.documentElement.scrollTop ? document.documentElement.scrollTop : document.body.scrollTop);
+	var overlay = document.createElement("textarea");
+	overlay.setAttribute("id", "overlay");
+	overlay.setAttribute("onclick", "remElemHist();");
+	overlay.innerHTML = ModelController.getHistory(elem);
+	overlay.style.top = y;
+	overlay.style.left = x;
+	document.body.appendChild(overlay);
+}
+
+function remElemHist()
+{
+	var overlay = document.getElementById("overlay");
+	if(overlay) overlay.parentNode.removeChild(overlay);
 }
 
 // ######################

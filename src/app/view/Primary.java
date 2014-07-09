@@ -1,11 +1,12 @@
 package app.view;
 
 import java.net.URL;
-import app.controller.ElementHistoryController;
+
 import app.controller.GlobalController;
 import app.controller.ModelController;
 import app.controller.TheoryController;
 import netscape.javascript.JSObject;
+import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.concurrent.Worker.State;
 import javafx.scene.layout.Region;
@@ -33,28 +34,27 @@ public class Primary extends Region
 			// load the page
 			engine.load(url.toExternalForm());
 			// load up any java interactive elements for this page
-			engine.getLoadWorker().stateProperty().addListener(
-					(ObservableValue<? extends State> ov, State oldState, State newState) -> 
-					{
-						// When the page loads fully
-						if (newState == State.SUCCEEDED) 
-						{
-							// Get the window
-							JSObject win = (JSObject) engine.executeScript("window");
-							// Add the controllers
-							Object c0 = new ModelController();
-							Object c1 = new TheoryController(engine);
-							Object c2 = new GlobalController(engine);
-							Object c3 = new ElementHistoryController();
-							win.setMember(c0.getClass().getSimpleName(), c0);
-							win.setMember(c1.getClass().getSimpleName(), c1);
-							win.setMember(c2.getClass().getSimpleName(), c2);
-							win.setMember(c3.getClass().getSimpleName(), c3);
-						}
-					});
+			ChangeListener<? super State> stateListener = 
+					(ObservableValue<? extends State> ov, State oldState, State newState) ->
+			{
+				// When the page loads fully
+				if (newState == State.SUCCEEDED) 
+				{
+					// Get the window
+					JSObject win = (JSObject) engine.executeScript("window");
+					// Add the controllers
+					Object c0 = new ModelController();
+					Object c1 = new TheoryController(engine);
+					Object c2 = new GlobalController(engine);
+					win.setMember(c0.getClass().getSimpleName(), c0);
+					win.setMember(c1.getClass().getSimpleName(), c1);
+					win.setMember(c2.getClass().getSimpleName(), c2);
+				}
+			};
+			engine.getLoadWorker().stateProperty().addListener(stateListener);
 		}
 	}
-	
+
 	public void setWidth(double w)
 	{
 		this.setPrefWidth(w);

@@ -35,4 +35,9 @@ public class ModelController
 			return "No model available";
 		}
 	}
+	
+	public String getHistory(String element)
+	{
+		return GUI.theModel.getHistory(element);
+	}
 }

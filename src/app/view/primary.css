@@ -25,16 +25,10 @@ input:active{
 }
 
 textarea {
+    border: 0px none;
     font-size: 10pt;
     margin: .1em;
     padding: .1em;
-    border: 0px none;
-    background-color: rgb(32,32,32);
-    margin-left: auto;
-    margin-right: auto;
-    width:100%;
-    height:100%;
-    resize: none;
     outline: none;
     text-align: justify;
     -webkit-touch-callout: none;
@@ -45,12 +39,21 @@ textarea {
     user-select: none;
 }
 
+#theorytext{
+    resize: none;
+    background-color: rgb(32,32,32);
+    margin-left: auto;
+    margin-right: auto;
+    width:100%;
+    height:100%;
+}
+
 #theory,#model{
     border: 1px solid rgb(169,169,169);
-    width: 48%;
-    height: 97%;
-    margin: .2em;
-    padding: .2em;
+    width: 47%;
+    height: 96%;
+    margin: .25em;
+    padding: .25em;
     text-align: center;
 }
 #theory{
@@ -89,3 +92,10 @@ textarea {
 .element:hover{
     font-weight: bold;
 }
+
+#overlay{
+    color: rgb(64,64,64);
+    background-color: rgb(169,169,169);
+    z-index: 42;
+    position: absolute;
+}    
