@@ -13,7 +13,7 @@ html, body
 }
 
 input {
-    border: 1px solid rgb(222,222,222);
+    border: 1px solid rgb(169,169,169);
     padding: 1em;
     background: rgb(32,32,32);
 }
@@ -37,10 +37,16 @@ textarea {
     resize: none;
     outline: none;
     text-align: justify;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
 }
 
 #theory,#model{
-    border: 1px solid rgb(222,222,222);
+    border: 1px solid rgb(169,169,169);
     width: 48%;
     height: 97%;
     margin: .2em;
@@ -62,7 +68,24 @@ textarea {
 
 #modelText{
     text-align: justify;
-    font-size: 10pt;
+    font-size: 11pt;
     overflow: scroll;
+    resize: none;
+    outline: none;
     height: 90%;
+    white-space: nowrap;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    cursor: default;
+}
+
+.element{
+    display: inline;
+}
+.element:hover{
+    font-weight: bold;
 }

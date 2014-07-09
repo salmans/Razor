@@ -50,8 +50,10 @@ class Table
 					{
 						out += e.toHtml() + ",";
 					}
+					out = out.substring(0, out.length()-1);
 					out += ") , ";
 				}
+				out = out.substring(0, out.length()-3);
 				out += "</div>";
 			}
 		}
@@ -64,8 +66,10 @@ class Table
 				{
 					out += e.toHtml() + "->";
 				}
+				out = out.substring(0, out.length()-2);
 				out += " , ";
 			}
+			out = out.substring(0, out.length()-3);
 			out += "</div>";
 		}
 		else if(this.type.equals("Domain"))
@@ -78,6 +82,7 @@ class Table
 					out += e.toHtml() + ",";
 				}
 			}
+			out = out.substring(0, out.length()-2);
 			out += "</div>";
 		}
 		else
