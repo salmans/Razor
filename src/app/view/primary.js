@@ -21,6 +21,11 @@ function nextModel()
 	GlobalController.next();
 }
 
+function elementHistory(elem)
+{
+	ElementHistoryController.getHistory(elem);
+}
+
 // ######################
 // # controller -> view #
 // ######################

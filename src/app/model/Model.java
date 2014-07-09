@@ -56,7 +56,7 @@ public class Model
 	
 	public String getCurrentModel()
 	{
-		return this.models.get(currentNum-1).toString();
+		return this.models.get(currentNum-1).toHtml();
 	}
 
 	public boolean prev()
@@ -83,5 +83,10 @@ public class Model
 		{
 			return false;
 		}
+	}
+	
+	public String getHistory(String e)
+	{
+		return this.models.get(currentNum-1).getElementHistory(e);
 	}
 }

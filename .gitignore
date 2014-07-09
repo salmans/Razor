@@ -2,3 +2,6 @@
 .dist-buildwrapper/
 binaries/
 *.h
+*.o
+*.hi
+*.exe

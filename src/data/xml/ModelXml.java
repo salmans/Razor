@@ -15,12 +15,12 @@ public class ModelXml
 	ProvenanceInformation provenanceInformation;
 	@XmlElement(name = "ELEMENTHISTORIES")
 	ElementHistories elementHistories;
-	
+
 	ModelXml()
 	{
 		this.tables = new ArrayList<Table>();
 	}
-	
+
 	@Override
 	public String toString()
 	{
@@ -40,5 +40,27 @@ public class ModelXml
 		out += Pretty.tabString(tabDepth, "\n" + elementHistories.toString(tabDepth));
 		// done
 		return out;
+	}
+
+	public String toHtml()
+	{
+		String out = "";
+		for(Table t : this.tables)
+		{
+			out += t.toHtml() + "\n";
+		}
+		return out;
+	}
+
+	public String getElementHistory(String elt)
+	{
+		for(ElementHistory eh : elementHistories.histories)
+		{
+			if(eh.elt.name.equals(elt))
+			{
+				return eh.toString();
+			}
+		}
+		return "none";
 	}
 }

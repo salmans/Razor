@@ -4,6 +4,8 @@ import java.net.URL;
 
 
 
+
+import app.controller.ElementHistoryController;
 import app.controller.GlobalController;
 import app.controller.ModelController;
 import app.controller.TheoryController;
@@ -48,9 +50,11 @@ public class Primary extends Region
 							Object c0 = new ModelController();
 							Object c1 = new TheoryController(engine);
 							Object c2 = new GlobalController(engine);
+							Object c3 = new ElementHistoryController();
 							win.setMember(c0.getClass().getSimpleName(), c0);
 							win.setMember(c1.getClass().getSimpleName(), c1);
 							win.setMember(c2.getClass().getSimpleName(), c2);
+							win.setMember(c3.getClass().getSimpleName(), c3);
 						}
 					});
 		}

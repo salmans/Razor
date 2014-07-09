@@ -19,4 +19,9 @@ class Element
 	{
 		return Pretty.tabString(tabDepth, this.name);
 	}
+	
+	String toHtml()
+	{
+		return "<div onclick=\"elementHistory('"+this.name+"');\">"+this.name+"</div>";
+	}
 }
