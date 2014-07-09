@@ -1,5 +1,7 @@
 package pipe.jni;
 
+import com.sun.jna.Library;
+import com.sun.jna.Native;
 import com.sun.jna.Pointer;
 import com.sun.jna.StringArray;
 import com.sun.jna.ptr.IntByReference;
@@ -12,11 +14,13 @@ import com.sun.jna.ptr.PointerByReference;
  */
 public class NativePipe 
 {
+	static HaskellFFI INSTANCE;
 	/**
 	 * Initializes the native pipe by calling hs_init
 	 */
-	public NativePipe()
+	public NativePipe(String libpath)
 	{
+		INSTANCE = (HaskellFFI) Native.synchronizedLibrary((Library)Native.loadLibrary(libpath, HaskellFFI.class));
 		// int* argc
 		IntByReference pArgc = new IntByReference();
 		pArgc.setValue(1);
@@ -26,7 +30,7 @@ public class NativePipe
 		// char*** pArgv
 		PointerByReference pArgv = new PointerByReference();
 		pArgv.setPointer(argv);
-		HaskellFFI.INSTANCE.hs_init(pArgc, pArgv);
+		INSTANCE.hs_init(pArgc, pArgv);
 	}
 	
 	/**
@@ -37,11 +41,11 @@ public class NativePipe
 	public String getModels(String theory)
 	{
 		// get pointer to cstring from haskell ffi call
-		Pointer cstring = HaskellFFI.INSTANCE.hs_getmodels(theory);
+		Pointer cstring = INSTANCE.hs_getmodels(theory);
 		// get a java string from the memory allocated in haskell
 		String xmlModels = cstring.getString(0);
 		// free the haskell allocation now that we've copied the data
-		HaskellFFI.INSTANCE.hs_free_cstring(cstring);
+		INSTANCE.hs_free_cstring(cstring);
 		// return the models
 		return xmlModels;
 	}
@@ -51,6 +55,6 @@ public class NativePipe
 	 */
 	public void close()
 	{
-		HaskellFFI.INSTANCE.hs_exit();
+		INSTANCE.hs_exit();
 	}
 }

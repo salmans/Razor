@@ -1,7 +1,6 @@
 package pipe.jni;
 
 import com.sun.jna.Library;
-import com.sun.jna.Native;
 import com.sun.jna.Pointer;
 import com.sun.jna.ptr.IntByReference;
 import com.sun.jna.ptr.PointerByReference;
@@ -13,7 +12,6 @@ import com.sun.jna.ptr.PointerByReference;
  */
 interface HaskellFFI extends Library
 {
-	HaskellFFI INSTANCE = (HaskellFFI) Native.loadLibrary("ffi", HaskellFFI.class);
 	/**
 	 * Initializes the haskell FFI environment
 	 * Must be called before any other method
