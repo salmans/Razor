@@ -1,20 +1,23 @@
 <html>
+<head>
+<link type="text/css" rel="stylesheet" href="primary.css">
+</head>
 <script type="text/javascript" src="primary.js"></script>
 <body>
 	<div id="theory">
 		<div id="theoryLoader">
 			<input type="submit" value="Load Theory File" onclick="loadTheory();"/>
 		</div>
-		<textarea id="theoryText" style="display:none"></textarea>
+		<textarea id="theoryText" wrap="off" readonly="true" style="display:none"></textarea>
 	</div>
 	<div id="model">
 		<div id="modelGenerator" style="display:none">
 			<input type="submit" value="Generate Models" onclick="generateModels();"/>
 		</div>
 		<div id="modelControls" style="display:none">
-			<input type="submit" value="<<prev" onclick="prevModel();"/>
-			<div id="modelCount"></div>
-			<input type="submit" value="next>>" onclick="nextModel();"/>
+			<input id="prev" type="submit" value="<< prev" onclick="prevModel();"/>
+			<input id="count" type="submit" disabled="true" value=""/>
+			<input id="next" type="submit" value="next >>" onclick="nextModel();"/>
 		</div>
 		<div id="modelText" style="display:none"></div>
 	</div>

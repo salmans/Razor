@@ -42,7 +42,7 @@ class Table
 		{
 			if(!this.name.startsWith("@"))
 			{
-				out += "<div><p>" + this.name + "= ";
+				out += "<div>" + this.name + "= ";
 				for(Record r : records)
 				{
 					out += "(";
@@ -52,12 +52,12 @@ class Table
 					}
 					out += ") , ";
 				}
-				out += "</p></div>";
+				out += "</div>";
 			}
 		}
 		else if(this.type.equals("Function"))
 		{
-			out += "<div><p>" + this.name + "= ";
+			out += "<div>" + this.name + "= ";
 			for(Record r : records)
 			{
 				for(Element e : r.elements)
@@ -66,11 +66,11 @@ class Table
 				}
 				out += " , ";
 			}
-			out += "</p></div>";
+			out += "</div>";
 		}
 		else if(this.type.equals("Domain"))
 		{
-			out += "<div><p>" + this.type + ": ";
+			out += "<div>" + this.type + ": ";
 			for(Record r : records)
 			{
 				for(Element e : r.elements)
@@ -78,7 +78,7 @@ class Table
 					out += e.toHtml() + ",";
 				}
 			}
-			out += "</p></div>";
+			out += "</div>";
 		}
 		else
 		{

@@ -58,7 +58,7 @@ function updateModel(curmdl, nummdls, mdltxt)
 	var nummdls = ModelController.getNumModels();
 	var mdltxt = ModelController.getCurrentModel();
 	// update the model count
-	document.getElementById("modelCount").innerHTML = curmdl+" of "+nummdls;
+	document.getElementById("count").value = curmdl+" of "+nummdls;
 	// update the model text
 	document.getElementById("modelText").innerHTML = mdltxt;
 }
