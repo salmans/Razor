@@ -3,6 +3,8 @@ package app.view;
 import java.net.URL;
 
 
+
+import app.controller.GlobalController;
 import app.controller.ModelController;
 import app.controller.TheoryController;
 import netscape.javascript.JSObject;
@@ -43,8 +45,10 @@ public class Primary extends Region
 							// Get the window
 							JSObject win = (JSObject) engine.executeScript("window");
 							// Add the controllers
+							Object c0 = new ModelController();
 							Object c1 = new TheoryController(engine);
-							Object c2 = new ModelController(engine);
+							Object c2 = new GlobalController(engine);
+							win.setMember(c0.getClass().getSimpleName(), c0);
 							win.setMember(c1.getClass().getSimpleName(), c1);
 							win.setMember(c2.getClass().getSimpleName(), c2);
 						}

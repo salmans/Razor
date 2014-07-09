@@ -1,30 +1,38 @@
 package app.controller;
 
-import javafx.scene.web.WebEngine;
 import app.GUI;
-import data.xml.Models;
-import data.xml.XmlProcessor;
 
+/**
+ * Controller in charge of the view's model access
+ * @author Ryan Danas
+ *
+ */
 public class ModelController
 {
-	WebEngine view;
-
-	public ModelController(WebEngine engine)
+	public String getTheoryText()
 	{
-		this.view = engine;
+		return GUI.theModel.getTheory();
 	}
 	
-	public void generate() throws Exception
+	public int getNumModels()
 	{
-		// Get the models generated from the theory as raw xml
-		String rawxml = GUI.thePipe.getModels(GUI.theModel.getTheory());
-		// Process the xml
-		XmlProcessor<Models> processor = new XmlProcessor<Models>(Models.class);
-		Models xmlModels = processor.unwrap(rawxml);
-		// Update the model
-		GUI.theModel.addModels(xmlModels.getModels());
-		// update the view
-		String js = "startModels("+GUI.theModel.getNumModels()+");";
-		view.executeScript(js);
+		return GUI.theModel.getNumModels();
+	}
+	
+	public int getCurrentNum()
+	{
+		return GUI.theModel.getCurrentNum();
+	}
+	
+	public String getCurrentModel()
+	{
+		if(GUI.theModel.isModelAvailable())
+		{
+			return GUI.theModel.getCurrentModel();
+		}
+		else
+		{
+			return "No model available";
+		}
 	}
 }

@@ -58,6 +58,7 @@ public class GUI extends Application
 	public void start(Stage stage) throws IOException 
 	{
 		this.mainStage = stage;
+		this.mainStage.setTitle("Razor GUI Proof-of-Concept");
 		this.mainScene = new Scene(new Primary());
 		this.mainStage.setScene(this.mainScene);
 		this.mainStage.show();
