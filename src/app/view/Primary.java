@@ -1,10 +1,6 @@
 package app.view;
 
 import java.net.URL;
-
-
-
-
 import app.controller.ElementHistoryController;
 import app.controller.GlobalController;
 import app.controller.ModelController;
@@ -29,7 +25,6 @@ public class Primary extends Region
 
 	public Primary()
 	{
-		// TODO make the brower resize with the main app window
 		browser = new WebView();
 		this.getChildren().add(browser);
 		engine = browser.getEngine();
@@ -58,5 +53,16 @@ public class Primary extends Region
 						}
 					});
 		}
+	}
+	
+	public void setWidth(double w)
+	{
+		this.setPrefWidth(w);
+		this.browser.setPrefWidth(w);
+	}
+	public void setHeight(double h)
+	{
+		this.setPrefHeight(h);
+		this.browser.setPrefHeight(h);
 	}
 }
