@@ -20,18 +20,19 @@ import javafx.scene.web.WebView;
  */
 public class Primary extends Region
 { 
-	static final URL url = Primary.class.getResource(Primary.class.getSimpleName()+".html");
+	static final URL url = Primary.class.getResource(Primary.class.getSimpleName().toLowerCase()+".html");
 	final WebView browser;
 	final WebEngine engine; 
 
 	public Primary()
 	{
+		System.out.println();
 		browser = new WebView();
 		this.getChildren().add(browser);
 		engine = browser.getEngine();
+		// load the page
 		if(url != null)
 		{
-			// load the page
 			engine.load(url.toExternalForm());
 			// load up any java interactive elements for this page
 			ChangeListener<? super State> stateListener = 

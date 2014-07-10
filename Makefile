@@ -1,4 +1,4 @@
-default: directories ffi java
+default: directories ffi java notes
 	
 ffi: 
 	@ printf \
@@ -20,6 +20,9 @@ java:
 	cd bin/; \
 	jar xf ../lib/jna-4.1.0.jar; \
 	jar cfve GUI.jar app.GUI *
+
+notes:
+	@ printf "\n***MAKE SURE THE JAR AND THE SHARED LIBRARY ARE IN THE SAME DIRECTORY***\n"
 
 directories:
 	-mkdir bin

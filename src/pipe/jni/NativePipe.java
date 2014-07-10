@@ -1,5 +1,8 @@
 package pipe.jni;
 
+import java.io.File;
+import java.io.IOException;
+
 import com.sun.jna.Library;
 import com.sun.jna.Native;
 import com.sun.jna.Pointer;
@@ -17,10 +20,11 @@ public class NativePipe
 	static HaskellFFI INSTANCE;
 	/**
 	 * Initializes the native pipe by calling hs_init
+	 * @throws IOException 
 	 */
 	public NativePipe(String libpath)
 	{
-		INSTANCE = (HaskellFFI) Native.synchronizedLibrary((Library)Native.loadLibrary(libpath, HaskellFFI.class));
+		INSTANCE = (HaskellFFI) Native.synchronizedLibrary((Library)Native.loadLibrary(libpath+File.separator+"haskell", HaskellFFI.class));
 		// int* argc
 		IntByReference pArgc = new IntByReference();
 		pArgc.setValue(1);
