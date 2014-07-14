@@ -6,7 +6,7 @@ ffi:
 	THESE ARE A PART OF GHC... HERE ARE SOME PATH EXAMPLES...\n\
 	WINDOWS: /cygdrive/c/Program Files (x86)/Haskell Platform/2013.2.0.0/lib\n\
 	LINUX: /usr/lib/ghc/\n\
-	MAC: /opt/local/lib/ghc-x.x.x/\n\
+	MAC: /Library/Frameworks/GHC.framework/Versions/Current/usr/lib/ghc-x.x.x/\n\
 	\n\
 	Please enter your path: ";\
 	read GHC_LIB_PATH;\
