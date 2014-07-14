@@ -13,7 +13,7 @@ ffi:
 	printf \
 	"\nPlease enter the common shared library extension for this OS (dll, so, ...): ";\
 	read SHARED_LIB_EXT;\
-	ghc --make -odir binaries -hidir binaries -no-hs-main -shared -static -fno-shared-implib -optl-Wl,-rpath,$GHC_LIB_PATH ffi.hs -o bin/haskell.$$SHARED_LIB_EXT
+	ghc --make -package hxt -odir binaries -hidir binaries -no-hs-main -shared -static -fno-shared-implib -optl-Wl,-rpath,$GHC_LIB_PATH ffi.hs -o bin/haskell.$$SHARED_LIB_EXT
 
 java:
 	javac src/app/GUI.java -sourcepath src/ -cp lib/jna-4.1.0.jar -d bin/
