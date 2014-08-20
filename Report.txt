@@ -1,0 +1,197 @@
+CHAPTER 1: BACKGROUND
+
+Section 1: Scenario Generation
+
+Scenario generation, referred to elsewhere in the literature as model finding, is an approach within formal methods. Its purpose is to discover properties of something that can be formally specified, such as security policies, protocols, and software designs. Scenario generation is an alternative to logical deduction; instead of directly determining the logical consequences of a formal theory, the problem is framed as finding scenarios, or models, which are consistent with that theory.
+
+Historically, most formal methods tools have not been readily usable by non-experts in formal logic, but in recent years there has been an emerging class of formal methods tools designed to be usable by non-experts; this area is known as lightweight formal methods. Scenario generation is a useful approach in lightweight formal methods because it benefits from concreteness.
+
+Previous work in model finding has included the Alloy Analyzer developed by Jackson et al. at MIT; the Margrave Policy Analyzer (based on Alloy), developed by Dougherty, Fisler, Krishnamurthi, and Nelson at WPI and Brown University; and Aluminum, developed by Dougherty, Fisler, Krishnamurthi, Nelson, and Saghafi at WPI and Brown. There have also been various tools for model finding in classical logic.
+
+Section 2: Hominy
+
+Hominy is a lightweight model finding utility. It offers three advantages over other model-finding tools:
+
+ - Hominy can find first-order models of unbounded size. Other model-finding tools such as Alloy require a maximum model size to be specified; these tools work by reducing first-order theories to propositional theories (which can be done only if the model size is bounded), and then finding models using an off-the-shelf SAT solver. Hominy instead uses the Chase algorithm, which does not require the model size to be bounded.
+ - Hominy can trace the provenance of a fact or domain element in a model; that is, it can identify which components of the theory require that fact or element to be present in the model.
+ - Hominy provides interactivity. The focus of this project has been to add this functionality.
+
+Users are able to interact with Hominy by navigating different possible models of a theory after that theory has been specified. Given a particular model, the user can augment that model by adding new observations or model elements. Hominy will then follow the logical consequences of these augmentations and present the user with the resulting augmented model, if one can be generated. Observations can be specified in the language of the theory, with the additional facility of being able to reference specific elements of the model to be augmented.
+
+CHAPTER 2: MODEL FINDING AND AUGMENTATION
+
+Section 1: Geometric Logic
+
+Geometric logic is a restricted subset of first-order logic. A theory of geometric logic consists of one or more sequents, where each sequent is of the form T1 & ... & Tn => ? a1 ... an . (T1 & ... & Tn) | ...
+
+That is, each sequent consists of a body (on the left side of the formula) and a head (on the right side). There is an implication relation between the body and head; if the body is true in a model of the theory, then the head must be true as well. The body consists of the conjunction of zero or more (but only finitely many) atomic facts. The head consists of the disjunction of zero or more such conjunctions of atomic facts. (Geometric logic permits infinite disjunction, but all disjunctions in Hominy are finite.) Conjunctions of atomic facts in the head of a sequent may be existentially quantified. Terms in a sequent can be function symbols (with the appropriate number of arguments; constant symbols are function symbols of arity zero) and variables. All variables which are not explicitly existentially quantified are implicitly universally quantified over the entire sequent.
+
+For example, the following geometric theory might be used to specify the characteristics of a filesystem:
+
+Truth => ? f . File(f)
+File(f) => Symlink(f) | Regular(f)
+Symlink(s) => ? f . LinkTo(s, f)
+
+A model of a theory can be specified by a 2-tuple consisting of a domain and a set of facts. The domain is a set (always finite in Hominy) of elements, each of which is identified by a natural number. (Hominy allows the domain of a theory to be empty, even though standard first-order logic does not.) Each fact in the set of facts consists of a predicate or function symbol from the signature of the theory and a number of elements from the domain equal to the arity of that symbol (plus one for function symbols).
+
+In this report, a model that satisfies a theory is referred to as a complete model. A model that does not necessarily satisfy the theory is referred to as a partial model.
+
+Some complete models of the above theory include:
+
+({e1}, {File(e1), Regular(e1)})
+({e1, e2}, {File(e1), Symlink(e1), LinkTo(e1, e2)})
+({e1, e2}, {File(e1), Symlink(e1), Regular(e1), LinkTo(e1, e2)})
+({e1, e2}, {File(e1), File(e2), Symlink(e1), Regular(e2), LinkTo(e1, e2)})
+({e1, e2, e3}, {File(e1), File(e2), Symlink(e1), Symlink(e2), LinkTo(e1, e2), LinkTo(e2, e3)})
+
+Section 2: Minimality and Homomorphism
+
+Homomorphism defines a preordering on all models of a theory. For two models A and B of a theory, A <= B iff, for each element in A, there exists an element in B such that, if each occurrence of each element in the set of facts in A is replaced with the corresponding element in B, the resulting set of facts is a subset of the set of facts in B.
+
+Two models of a theory A and B are isomorphic iff A <= B and B <= A.
+
+A model A is minimal iff, for every model B such that B <= A, A and B are isomorphic.
+
+In the above example, the first two models are minimal. The third model <= the first one, and the fourth and fifth models each <= the second one.
+
+Section 3: The Chase
+
+A model stream is a partial function of type Nat -> Model.
+
+The Chase is a function of type Theory -> Model -> ModelStream. The model must be a partial model of the theory.
+
+The set of models in the resulting model stream is the smallest* set with the following properties:
+ - Every model in the stream is a complete model of the theory.
+ - Every model in the stream is a superset of the partial model provided to the Chase. (That is, every such model's domain is a superset of the partial model's domain, and its set of facts is a superset of the partial model's set of facts.)
+ - For every complete model A of the theory, if A is a superset of the partial model, the stream contains a model B such that B <= A.
+
+* There is no such set of lower cardinality than this set, and every such set with the same cardinality as this set is isomorphic to it; that is, every model in the other set is isomorphic to some model in this set.
+
+Model streams may be finite or infinite. A finite model stream accepts only an index less than its length.
+
+The Chase is a fix-point algorithm that has previously been used in databases. It works by selecting a sequent which the current partial model does not satisfy. The Chase is not guaranteed to terminate. (Since every formula in first-order logic is equisatisfiable with some geometric theory, no algorithm that finds models for geometric theories can be guaranteed to halt, as the satisfiability of an arbitrary formula in first-order logic is undecidable.)
+
+Section 4: Specifying Models and Augmentations
+
+A complete model is specified by specifying a model stream and an index into that stream, which is a natural number provided to the function representing the stream. Because the models in a stream are generated deterministically, 
+
+The set of all minimal models of a geometric theory can be generated in a single stream by running the Chase on that theory with the empty model (the model whose domain and set of facts are both the empty set). Since every model is a superset of the empty model, for every complete model A of the theory, there exists a model B in the resulting stream such that B <= A. The set of models in this stream is called the set of support of the theory.
+
+A model stream can also be specified by specifying another complete model of the same theory and an augmentation to be performed on that model. The resulting models are all supersets of the specified model. The augmentation also specifies an additional property which must be true of all such models. Finally, all such models must be complete; this means that more new facts and/or elements than are specified in the augmentation may have to be added to the model in order to ensure consistency with the theory. The Chase serves to run the consequences
+
+Section 5: Semantics of Augmentations
+
+Augmentations can be specified using the Add and NewElement functions.
+
+An observation is a sentence in first-order logic that consists of the conjunction of zero or more (but only finitely many) atomic facts. The conjunction may be existentially quantified. Terms in an observation may be function symbols, existentially quantified variables, or model element symbols. Each model element symbol is a natural number, and corresponds to the model element of the same natural number. Observations cannot include disjunction or universal quantification (implicit or explicit).
+
+An observation is true in a model if, for each existentially quantified variable in the observation, there exists an element in the model such that, if each occurrence of each variable in each atomic fact in the conjunction is replaced with the symbol of the model element corresponding to that variable, each resulting atomic fact is in the model's set of facts.
+
+Add is a function of type Theory -> Model -> Observation -> ModelStream. The model must be a model of the theory, and the observation must contain only function and relation symbols that are in the signature of the theory, and model element symbols corresponding to the elements of the model. Furthermore, the observation must not already be true in the model.
+
+For each existentially quantified variable in the observation, a new model element is added to the domain of the model. Each occurrence of each of those variables in each atomic fact in the conjunction is replaced with the symbol of the corresponding model element. The resulting facts are added to the model's set of facts. The Chase is then run with the theory on the resulting partial model.
+
+All models in the resulting stream are complete models of the theory, are supersets of the original model, and the given observation is true in each of them.
+
+In the above example, the third model is generated by augmenting the first model with the observation Symlink(e1). The fourth and fifth models are each generated by augmenting the second model with the observation File(e2).
+
+NewElement is a function of type Theory -> Model -> ModelStream. The model must be a model of the theory.
+
+A new model element is added to the domain of the model. The Chase is then run with the theory on the resulting partial model.
+
+All models in the resulting stream are complete models of the theory, are supersets of the original model, and each of their domains is a proper superset of the domain of the original model.
+
+CHAPTER 3: USER INTERFACES
+
+Section 1: The Model-Space Graph
+
+[A diagram like the one from the PowerPoint presentation will be included in this section.]
+
+The space of all models satisfying a theory can be thought of as an infinite graph. (For the purposes of this chapter, sets of models which are isomorphic are treated as a single model.) A single model corresponds to a node in the graph, and a stream of models corresponds to a row. The bottom row of the graph is the set of support for the theory.
+
+Each possible augmentation of a model provides a connection from that model to a new row of the graph, which corresponds to the stream produced by applying that augmentation to a model. Rows with augmentations are above the models they originated from. Because there are many possible augmentations that can be applied to any model, each model is connected to many rows above it.
+
+For instance, given the theory [ Truth => exists f. File(f); File(f) => Symlink(f) | Regular(f); Symlink(s) => exists f. LinkTo(s, f) ], the above diagram shows part of the model-space graph for this theory.
+
+Hominy’s user interfaces are centered around exploration of the model-space graph. Users are able to navigate back and forth between models within a stream, and to move up and down in the graph by applying and removing augmentations.
+
+When a user is visiting a particular model, in order for them to navigate back and forth in the stream and downwards (i.e., removing previously applied augmentations), it is necessary to keep track not only of which model the user is visiting, but also of how they got there. A model in the graph can be specified with a 3-tuple consisting of the theory, a starting index, and a sequence of 2-tuples each consisting of an augmentation and an index. To find the model so specified, Hominy generates the given theory's set of support and identifies the model at the starting index. For each augmentation, it then applies that augmentation, generating a new model stream, and uses the model at the corresponding index in that stream as the basis for the next augmentation.
+
+Section 2: The Command-Line Interface
+
+The Hominy command-line interface takes the form of a read-eval-print loop, or REPL. Users are prompted to enter a command in the terminal, the command is executed, and the results are displayed in the terminal if applicable. This process repeats until the user exits.
+
+The Hominy command language has the following syntax in Extended Backus-Naur Form:
+
+command = expression | assignment | "exit" ;
+assignment = identifier, ":=", expression | "save", identifier ;
+expression = theory_literal | string_literal | "@", identifier | "~" | [ expression, "." ], operation | quantified ;
+operation = "add", quantified | "new_element" | "next" | "previous" | "first" | "remove_last" | "remove_all" ;
+theory_literal = "[", sequent, { ";", sequent }, "]" ;
+sequent = [ conjunction, "=>" ], disjunction ;
+disjunction = "Falsehood" | quantified, { "|", quantified } ;
+quantified = [ "exists", identifier, { identifier }, "." ], conjunction ;
+conjunction = "Truth" | atom, { "&", atom } ;
+atom = relational_fact | equality ;
+relational_fact = identifier, [ "(", [ term, { ",", term } ], ")" ] ;
+equality = term, "=", term ;
+term = identifier | function_value | "#", natural_number ;
+function_value = identifier, "(", [ term, { ",", term } ], ")" ;
+
+The lexical syntax of the Hominy command language, including the definitions of identifier and string_literal, is the same as that of Haskell except that a command cannot span more than one line. natural_number is a lexeme defined as a sequence of one or more ASCII decimal digits.
+
+An expression evaluates to a model. (More precisely, an expression evaluates to a location in a graph, specified as described in the previous section. The evaluation function is a partial function, as some expressions do not evaluate to a valid location.) If an expression evaluates to nothing, a message is displayed explaining why.
+
+An expression entered by itself causes the resulting model to be displayed in the terminal. An assignment command causes the resulting model to be saved in a variable under the given name; save <identifier> is syntactic sugar for <identifier> := ~. exit closes the program.
+
+A theory literal evaluates to the first model in the stream generated from that theory, with no augmentations. If that stream is empty, it evaluates to nothing.
+
+A string literal is treated as a file path, and is equivalent to a theory literal containing the theory in that file. The file should contain one or more sequents, as specified in the above grammar, separated by newlines or semicolons. If the file cannot be read or does not contain a syntactically valid theory, the string literal evaluates to nothing.
+
+A model variable reference ("@" <identifier>) evaluates to the last model saved under the given name. If no model has been saved under that name, it evaluates to nothing.
+
+The last model reference ("~") evaluates to the last model displayed in the terminal. If no model has been displayed in the terminal, it evaluates to nothing.
+
+The various operations all navigate in the model-space graph:
+ - add <quantified> applies an Add augmentation with the given observation to the model being operated on.
+ - new_element applies a NewElement augmentation to the model being operated on.
+ - next visits the next model in the current stream, if there is one.
+ - previous visits the previous model in the current stream, if the current index is not zero.
+ - first visits the model with index 0 in the current stream.
+ - remove_last undoes the last applied augmentation, if there is one.
+ - remove_all undoes all applied augmentations and resets the initial index to 0.
+
+Formally, in terms of 3-tuple graph locations:
+ - add (theory, index, augmentations) observation = (theory, 0, (index, Add observation) : augmentations)
+ - new_element (theory, index, augmentations) = (theory, 0, (index, NewElement) : augmentations)
+ - next (theory, index, augmentations) = (theory, index + 1, augmentations)
+ - previous (theory, 0, augmentations) = undefined
+ - previous (theory, index + 1, augmentations) = (theory, index, augmentations)
+ - first (theory, index, augmentations) = (theory, 0, augmentations)
+ - remove_last (theory, index, []) = undefined
+ - remove_last (theory, index, (prev_index, augment) : augmentations) = (theory, prev_index, augmentations)
+ - remove_all (theory, index, augmentations) = (theory, 0, [])
+
+An <operation> by itself is syntactic sugar for ~.<operation>. A <quantified> by itself is syntactic sugar for ~.add <quantified>.
+
+Section 3: The Web Interface
+
+Hominy offers a Web-based graphical user interface. A user can access it by running the software as a local web server on their own computer, or it can be hosted on an external server. The server-side code is written in pure Haskell using the Happstack framework.
+
+The Hominy Web interface is completely stateless; it does not use cookies or any other mechanism for including state over HTTP, and no data is stored on the server except for caching, which is not relied on to ensure correctness. Each node in the model-space graph has its own URL; a text representation of that model's 3-tuple is passed as a query parameter in the URL. Visiting the same URL (relative to the host) always returns the same page, regardless of how much time has passed or whether the same instance of the server process is running. As a result, a user who uses the Back button in their browser will find that it works as expected, and users can bookmark model pages and (if Hominy is hosted on an external server) send model URLs to one another, and these URLs will return the same results in the future and for other users as they did the first time.
+
+At the home page, the user can enter a theory or upload it as a file. When the theory is submitted, if it is a syntactically valid theory, the user is redirected to the page for the first model in the initial stream for that theory. If not, they are redirected to an error page.
+
+At the page for a node in the model-space graph, if there is a model at that node, that model's domain and a list of all facts true in that model are displayed. If there is no model at that node, a message is displayed to this effect. In addition, buttons are displayed corresponding to the operations in section 2; the Add button is accompanied by a text box to allow the user to enter an augmentation, and the Previous and Remove Last buttons are disabled if these respective operations cannot be applied to the current node. Each button redirects the user to the page for the model that would be returned by that operation.
+
+To prevent unnecessary recalculation of previously calculated models, the Hominy web server caches the model corresponding to each model URL requested. If the same URL is requested again, the server generates the page based on the cached model instead of running the Chase again. If the server has been restarted or the cache is otherwise unavailable, the server will run the Chase again and the same results will be returned; caching serves only to speed up responses to multiple requests for the same model.
+
+CHAPTER 4: CONCLUSIONS
+
+Section 1: Future Work
+
+Potential future improvements to the interactive scenario generation facilities of Hominy could include the following:
+ - The Web interface is currently fairly primitive and could be substantially improved with respect to user experience. In particular, it would be useful to provide graphical representations of models instead of only offering relatively user-unfriendly lists of facts. Graphical representations of logical models are an area of ongoing research.
+ - Visit Pataranutaporn has done work in tracing the provenance of a fact or element in a model, so as to answer the question of what part of the theory logically requires that fact or element to be present in the model. If this were integrated into the interactive facilities of Hominy, users could query the provenance of facts or elements of models.
+ - Users might wish to attach names to model elements and refer to them in augmentations by these names instead of by not-particularly-meaningful numbers.
+ - Users might wish to see the consequences of removing a fact or element from a model, similarly to how they can currently see the consequences of adding a fact or element. The major work to be done here is in determining what the semantics of such an operation would be, as it is not immediately clear.
