@@ -1,0 +1,15 @@
+# IDEAS
+* We can use the work in DB for relevant and irrelevant updates to identify sequents that are changed after a database update.
+* Query optimization techniques can be very helpful. The current RelAlg expressions that we are creating are very inefficient.
+
+# TODO
+* Write tests for helper functions in Chase.HerbrandBase.RelAlg.ILang
+* Remove header from RelExp
+* Write tests for IHerbrandBsae functions
+* Make existential formula on left resulting from function symbols more efficient (if relevant)
+* Add equality axioms
+* Refine the definition of failSequent for relational sequents (failRelSequent)
+
+
+# REMINDERS
+* After implementing provenance, do not forget to initialize provenance for elements in emptyDatabaseWithConstants as in emptyModelWithElems of the previous implementation.

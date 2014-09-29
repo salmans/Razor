@@ -1,0 +1,617 @@
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE Rank2Types #-}
+{-# LANGUAGE FlexibleContexts #-}
+
+{- Razor
+   Module      : SAT.RelSMT
+   Description : The module provides an interface to work with SMT solvers for
+   model-finding. The connection to the SMT solver is provided by SBV package.
+   Also, in this particular implementation, functions are translated as 
+   relations in presense of additional exioms for guaranteeing their integrity.
+   Maintainer  : Salman Saghafi -}
+
+module SAT.RelSMT where
+
+-- Standard
+import Data.List (intercalate, sortBy, groupBy, union)
+import qualified Data.Map as Map
+import Data.Maybe
+import qualified Data.Text as Text
+import System.IO.Unsafe
+
+-- Control
+import Control.Applicative
+import Control.Monad
+import qualified Control.Monad.State.Lazy as State
+
+-- SBV
+import Data.SBV
+
+-- Syntax
+import Syntax.GeometricUtils ( FnSym, RelSym, Atom (..), Element (..), Term (..)
+                             , termToElement )
+
+-- Common
+import Common.Observation (Observation (..), ObservationSequent (..))
+
+-- SAT
+import SAT.Data
+
+-- Tools
+import qualified Tools.ExtendedSet as ExSet
+import Tools.Trace
+
+-- Error Messages
+unitName = "SAT.RelSMT"
+error_InvalidFnArity         = "invalid function arity!"
+error_InvalidRelArity        = "invalid relation arity!"
+
+{-|Solver Interface Types -}
+type SATTheoryType = SMTTheory
+type SATInfoType   = SMT ()
+ 
+
+{- A name equivalent to an 'Element' in SMT solving -}
+type SMTElement = String
+
+{- Creates an 'SMTElement' from an 'Element' -}
+smtElement :: Element -> SMTElement
+smtElement (Element e) = e
+
+{- A name equivalent to an 'Atom' in SMT solving -}
+type SMTAtom    = String
+
+{- Creates an instance of 'SMTAtom' from a relational 'Atom'. -}
+smtAtom :: Atom -> SMTAtom
+smtAtom (Rel r ts) = 
+    let elms = fromJust <$> termToElement <$> ts
+               -- Expecting only flat terms
+    in  "R_" ++ r ++ "-" ++ (intercalate "-" $ smtElement <$> elms)
+smtAtom (FnRel r ts) = 
+    let elms = fromJust <$> termToElement <$> ts
+               -- Expecting only flat terms
+    in  "F_" ++ r ++ "-" ++ (intercalate "-" $ smtElement <$> elms)
+
+{- SMTObservation represents an 'Observation' in SMT solving:
+
+   [@SMTFact@] represents a relational fact
+   [@SMTFn@] represents a functional fact.
+   [@SMTEq@]   denotes equality among two elements.
+-} 
+data SMTObservation = SMTFact SMTAtom
+                    | SMTFn   SMTAtom
+                    | SMTEq   SMTElement SMTElement
+                      deriving Show
+
+instance SATAtom SMTObservation where
+    emptySATTheory = emptySMTTheory
+    storeSequent   = addToSMTTheory
+
+
+{- Creates an instance of 'SMTObservation' from an input 'Observation'. -}
+smtObservation :: Observation -> SMTObservation
+smtObservation (Obs (Rel "=" ts@[t1, t2])) = 
+    let es       = fromJust <$> termToElement <$> ts
+        [e1, e2] = smtElement <$> es
+    in  SMTEq e1 e2
+smtObservation (Obs atm@(Rel r ts))        =
+    SMTFact (smtAtom atm)
+smtObservation (Obs atm@(FnRel f ts))      =
+    SMTFn (smtAtom atm)
+
+{- SMTObsSequent is a 'SATSequent' for SMTObservation. -}
+type SMTSequent = SATSequent SMTObservation
+
+{-| A theory of sequents in SMT solving is a an instance of 'SATTheory' family.
+  This type is essentially a wrapper around a computation context of type SMT.  
+ -}
+data instance SATTheory SMTObservation = SMTTheory (SMT ())
+
+{- A convenient name for working with SMT theories -}
+type SMTTheory = SATTheory SMTObservation
+
+{- Empty 'SMTObsTheory' -}
+emptySMTTheory :: SMTTheory
+emptySMTTheory = SMTTheory (State.put emptySMTContainer)
+                 -- The computation context is initialized with an empty 
+                 -- instance of SMTContainer. 
+
+{- Converts an 'ObservationSequent' to 'SMTObsSequent' and adds it to an 
+   existing SMTTheory -}
+addToSMTTheory :: SMTTheory -> ObservationSequent -> SMTTheory
+addToSMTTheory (SMTTheory context) seq = 
+    SMTTheory (do context
+                  addObservationSequent seq)
+--------------------------------------------------------------------------------
+-- Translation
+--------------------------------------------------------------------------------
+-- In the current implementation, the state of symbolic information for SMT 
+-- solving is stored in a container inside the 'SMT' context. Moreover, the 
+-- the constraints for SMT solving are constructed in the 'SMT' context, as 
+-- an 'ObservationSequent' is being translated.
+
+{- Translates the input observational sequent inside a symbolic computation of
+   type SMT: the computation introduces a constraint to the solver's input. -}
+addObservationSequent :: ObservationSequent -> SMT ()
+addObservationSequent (ObservationSequent bodies heads) = do
+  bodiesVals      <- mapM tranObservation bodies
+  headsVals       <- mapM (mapM tranObservation) heads
+  let bodiesValue =  foldr (&&&) true bodiesVals
+  let headsValue' =  map (foldr (&&&) true) headsVals
+  let headsValue  =  foldr (|||) false headsValue'
+  liftSymbolic $ constrain (bodiesValue ==> headsValue)
+
+{- Given an input observation, creates a symbolic value of type SBool inside a 
+   symbolic computation of type SMT. The result of this function is used by 
+   'addObservationSequent' to build a constraint for the input of SMT solver. -}
+tranObservation :: Observation -> SMT SBool
+tranObservation obs@(Obs (Rel "=" _)) = do
+  let smtObs@(SMTEq e1 e2)   = smtObservation obs
+  [v1, v2]                  <- mapM elementValue [e1, e2]
+  return (v1 .== v2)
+tranObservation obs@(Obs atm@(Rel r ts)) = do
+  let (SMTFact atom) = smtObservation obs
+  unintRel  <- unintRelValue r (length ts) 
+               -- Not good! symbols must have their arities with themselves. 
+               -- This is subject to refactoring. 
+  let elms  =  smtElement <$> (\(Elem e) -> e) <$> ts
+  vals      <- mapM elementValue elms
+  val       <- atomValue r atom unintRel vals
+  return (val .== true)
+tranObservation obs@(Obs atm@(FnRel f ts)) = do
+  let (SMTFn atom) = smtObservation obs
+  unintRel  <- unintRelValue f (length ts) 
+  integ     <- integrityAxioms f (length ts)
+  liftSymbolic $ constrain integ
+  let elms  =  smtElement <$> (\(Elem e) -> e) <$> ts
+  vals      <- mapM elementValue elms
+  val       <- atomValue f atom unintRel vals
+  return (val .== true)
+
+-- Translating the results back to first-order observations:
+{- Converts a solution created by the SMT solver to a set of 'Observation's. -}
+translateSolution :: SatResult -> Maybe [Observation]
+translateSolution (SatResult (Unsatisfiable _))     = Nothing                                                      
+translateSolution (SatResult res@(Satisfiable _ _)) = 
+    Just $ translateDictionary (getModelDictionary res)
+
+{- A helper for 'translateSolution' -}
+translateDictionary :: Map.Map String CW -> [Observation]
+translateDictionary dic = 
+    let (_, rels)    = Map.partitionWithKey (\k _ -> isElementString k) dic
+        revDic       = Map.fromList $ (\(es, cw) -> (cw, head es)) 
+                       <$> equivalenceClasses dic
+    in Map.elems $ Map.mapWithKey (\k _ -> obsFromSMTAtom k) 
+           (Map.filter (\cw -> fromCW cw == True) rels)
+
+{- Given an 'SMTAtom' string denoting a relational fact, creates an observation.
+   In some sense, this funciton undoes what 'smtAtom' does (also converts the
+   resulting atom to an observation). -}
+obsFromSMTAtom :: SMTAtom -> Observation
+obsFromSMTAtom str = 
+    let strs = Text.unpack <$> Text.splitOn (Text.pack "-") (Text.pack str)
+        sym  = getSym (head strs)
+        es   = tail strs
+    in  Obs $ sym $ (Elem . Element) <$> es
+    where getSym str = let (relOrFun, sym) = splitAt 2 str
+                       in  if relOrFun == "R_" then Rel sym else FnRel sym
+
+{- This function constructs equivalence classes on elements of the domain, 
+   (represented by 'SMTElement' instances) based on the the result of 
+   SMT solving. The input is simply a map from 'SMTElement's to the values that
+   they have in the SMT result and the output is their equivalence classes 
+   together with their values in the SMT result. 
+   This function is useful when
+     a. translating the solution to a set of 'Observation's
+     b. constructing additional constraints for reducing an initial result from
+     the SMT solver to a minimal result. -}
+equivalenceClasses :: Map.Map SMTElement CW -> [([SMTElement], CW)]
+equivalenceClasses dic = 
+    let elems    = Map.filterWithKey (\k _ -> isElementString k) dic
+        list     = sortBy (\(x, y) (x', y') -> 
+                               case compare x x' of
+                                 EQ -> compare y y'
+                                 c  -> c) $ Map.toList elems
+        classes  = groupBy (\(_, x) (_, y) -> x == y) list
+    in  (\c -> (fst <$> c, snd (head c))) <$> classes
+
+-- arity of the functional relation, not the function itself
+integrityAxioms :: FnSym -> Int -> SMT SBool
+integrityAxioms fn arity = do
+  container <- liftContainer State.get
+  let contRels  = containerRels container
+  let fnPred    = fromJust $ Map.lookup fn contRels
+  args <- replicateM (arity - 1) $ liftSymbolic (forall_ :: Symbolic SElement)
+  -- val1 <- liftSymbolic (forall_ :: Symbolic SElement)
+  -- val2 <- liftSymbolic forall_
+  -- return $ (applyUnintRel fnPred (args ++ [val1]) &&&
+  --                  applyUnintRel fnPred (args ++ [val2])) ==> (val1 .== val2)
+  -- return $ applyUnintRel fnPred (args ++ [val1]) .== true
+  return true
+--------------------------------------------------------------------------------
+-- SBV Implementation
+--------------------------------------------------------------------------------
+-- Every element, term and atomic formula must be assigned to a value of a type
+-- that is supported by SBV. We assign elements (represented by type SMTElement)
+-- and terms (of type SMTTerm) to values of type SElement. 
+
+{- Values of elements are of type SWord16 -}
+type SElement = SWord16
+
+{- Symbolic domain is a map from 'SMTElement' to their values of type
+   symbolic word 'SWord16'. -}
+type SDomain = Map.Map SMTElement SElement
+
+{- SAtoms is a map from 'SMTAtom' to values of type 'SBool' -}
+type SAtoms  = Map.Map SMTAtom SBool
+
+{- UninterpretRel presents symbolic relations that are used in SBV for creating 
+   the input query to the SMT solver. Because these relations are Haskell 
+   functions that operate on symbolic values, their types must be fixed; 
+   that is, we cannot have relations of arbitrary arities. -}
+data UninterpretRel = UnintRel1 (SElement -> SBool)
+                     | UnintRel2 (SElement -> SElement -> SBool)
+                     | UnintRel3 (SElement -> SElement -> SElement -> SBool)
+                     | UnintRel4 (SElement -> SElement -> SElement -> SElement
+                                  -> SBool)
+                     | UnintRel5 (SElement -> SElement -> SElement -> SElement
+                                  -> SElement -> SBool)
+                     | UnintRel6 (SElement -> SElement -> SElement -> SElement
+                                  -> SElement -> SElement -> SBool)
+                     | UnintRel7 (SElement -> SElement -> SElement -> SElement
+                                  -> SElement -> SElement -> SElement -> SBool)
+
+{- Show instance for 'UninterpretRel' -}
+instance Show UninterpretRel where
+    show (UnintRel1 _) = "UnintRel1"
+    show (UnintRel2 _) = "UnintRel2"
+    show (UnintRel3 _) = "UnintRel3"
+    show (UnintRel4 _) = "UnintRel4"
+    show (UnintRel5 _) = "UnintRel5"
+    show (UnintRel6 _) = "UnintRel6"
+    show (UnintRel7 _) = "UnintRel7"
+
+{- Creating 'UninterpretRel' for a given arity -}
+uninterpretRel :: FnSym -> Int -> UninterpretRel
+uninterpretRel rel 1 = UnintRel1 (uninterpret rel)
+uninterpretRel rel 2 = UnintRel2 (uninterpret rel)
+uninterpretRel rel 3 = UnintRel3 (uninterpret rel)
+uninterpretRel rel 4 = UnintRel4 (uninterpret rel)
+uninterpretRel rel 5 = UnintRel5 (uninterpret rel)
+uninterpretRel rel 6 = UnintRel6 (uninterpret rel)
+uninterpretRel rel 7 = UnintRel7 (uninterpret rel)
+
+{- Returns the arity of a given 'UninterpretRel' -}
+unintRelArity :: UninterpretRel -> Int
+unintRelArity (UnintRel1 _) = 1
+unintRelArity (UnintRel2 _) = 2
+unintRelArity (UnintRel3 _) = 3
+unintRelArity (UnintRel4 _) = 4
+unintRelArity (UnintRel5 _) = 5
+unintRelArity (UnintRel6 _) = 6
+unintRelArity (UnintRel7 _) = 7
+
+{- Applies an instance of 'UninterpretRel' to a list of symbolic arguments. -}
+applyUnintRel :: UninterpretRel -> [SElement] -> SBool
+applyUnintRel (UnintRel1 f) [x1] 
+    = f x1
+applyUnintRel (UnintRel2 f) [x1, x2] 
+    = f x1 x2
+applyUnintRel (UnintRel3 f) [x1, x2, x3] 
+    = f x1 x2 x3
+applyUnintRel (UnintRel4 f) [x1, x2, x3, x4] 
+    = f x1 x2 x3 x4
+applyUnintRel (UnintRel5 f) [x1, x2, x3, x4, x5]
+    = f x1 x2 x3 x4 x5
+applyUnintRel (UnintRel6 f) [x1, x2, x3, x4, x5, x6] 
+    = f x1 x2 x3 x4 x5 x6
+applyUnintRel (UnintRel7 f) [x1, x2, x3, x4, x5, x6, x7] 
+    = f x1 x2 x3 x4 x5 x6 x7
+applyUnintRel _ _ = error $ unitName ++ ".applyUnintRel: " 
+                    ++ error_InvalidRelArity
+
+{- SMTContainer contains all the symbolic values and names for addressing them 
+   in SMT solivng comprising the following:
+
+   [@containerDomain@] contains the set of all elements in the domain
+   [@containerFns@] is a map from function symbols to their equivalent symbolic
+   uninterpreted functions.
+   [@containerRels@] is a map from relation symbols to their equivalent symbolic
+   uninterpreted functions.
+   [@containerTerms@]  is a map from a function symbol to the terms of that
+   symbol (of type 'STerms') 
+   [@containerAtoms@]  is a map from a relation symbol to the atoms of that
+   symbol (of type 'SAtoms')  -}
+data SMTContainer     = SMTContainer 
+    { containerDomain :: SDomain
+    , containerRels   :: Map.Map RelSym UninterpretRel
+    , containerAtoms  :: Map.Map RelSym SAtoms 
+    }
+
+{- Initial empty container -}
+emptySMTContainer :: SMTContainer 
+emptySMTContainer  = 
+    SMTContainer Map.empty Map.empty Map.empty
+
+{- 'SMT' is the computation context for translation to SMT and storing SMT 
+   queries, a context for sending 'Observation's to symbolic values and running 
+   the SMT solver. -}
+type SMT = State.StateT SMTContainer Symbolic
+
+{- Lifting functions for SMT -}
+liftContainer = id
+
+liftSymbolic :: (Monad m, State.MonadTrans t) => m a -> t m a
+liftSymbolic  = liftContainer.State.lift
+
+{- Returns the symbolic value of an element name of type 'SMTElement' inside an
+   SMT computation. The symbolic value will be fetched from the 'SMTContaiener'
+   inside the computation or will be created (and inserted into the container)
+   if it doesn't exist. -} 
+elementValue :: SMTElement -> SMT SElement
+elementValue elm = do
+  container <- liftContainer State.get
+  let domMap = containerDomain container
+  sym       <- case Map.lookup elm domMap of
+                 Nothing -> liftSymbolic $ sWord16 elm
+                 Just s  -> return s
+  let domMap' = Map.insertWith (flip const) elm sym domMap
+  liftContainer $ State.modify (\c -> c { containerDomain = domMap' })
+  return sym
+
+{- Returns the symbolic relation for a relation symbol of the given arity inside
+   an SMT computation. This creates a new UninterpretRel value if it already 
+   does not exists in the container of computation.-}
+unintRelValue :: RelSym -> Int -> SMT UninterpretRel
+unintRelValue rel arity = do
+  container   <- liftContainer State.get
+  let relMap   = containerRels container
+  let unintRel = Map.findWithDefault (uninterpretRel rel arity) rel relMap
+  -- update container:
+  let relMap'  = Map.insertWith (flip const) rel unintRel relMap
+                 -- do not insert if exists
+  liftContainer $ State.modify (\c -> c { containerRels = relMap' })
+  return unintRel
+
+{- For an atomic relation of type 'SMTAtom', returns a symbolic boolean value
+   inside an SMT computation. If such value does not exists, it will apply the
+   given uninterpreted function to the given symbolic elements to create the
+   value and add it to the container of computation. -}
+atomValue :: RelSym -> SMTAtom -> UninterpretRel -> [SElement] -> SMT SBool
+atomValue rel term unintRel sParams = do
+  container   <- liftContainer State.get
+  let relMap  =  containerAtoms container
+  let termMap =  Map.findWithDefault Map.empty rel relMap
+  sym         <- case Map.lookup term termMap of
+                   Nothing -> do
+                     s <- liftSymbolic $ sBool term
+                     liftSymbolic $ constrain 
+                              $ (applyUnintRel unintRel sParams) .== s
+                     return s
+                   Just s  -> return s
+  -- update container:
+  let termMap' = Map.insertWith (flip const) term sym termMap 
+                 -- do not insert if exists
+  let relMap'  = Map.insertWith (flip const) rel termMap' relMap
+                 -- do not insert if exists
+  liftContainer $ State.modify (\c -> c { containerAtoms = relMap' })
+  return sym
+
+--------------------------------------------------------------------------------
+-- SMT Solving and Model Generation
+-- !! The efficiency of this section may be improved.
+--------------------------------------------------------------------------------
+{- Defining a SATSolver instance that does SMT solving. The 'SMTAtom' type of 
+   this implementation is SMTObservation and the type of SMT solving data is 
+   SMT (). -}
+instance SATSolver SMTObservation (SMT ()) where
+    satInitialize (SMTTheory context) = context
+    satSolve context = let (res, context') = minimumResult context
+                       in  (translateSolution res, context')
+
+{- Given a query of type SMT, executes the SMT and returns the result. It also
+   returns a new 'SMT' computation where the homomorphism cone of the minimum 
+   result is eliminated. -}
+minimumResult :: SMT () -> (SatResult, SMT ())
+minimumResult context = 
+    let context'   = do
+          context
+          liftSymbolic $ solve []
+        
+        run        = State.evalStateT context' emptySMTContainer
+        res        = unsafePerformIO $ satWith z3 run
+        minRes     = fst $ reduce context res
+        newContext = do
+          context
+          constraint <- nextResult res
+          liftSymbolic $ constrain constraint
+    in  (minRes, newContext)
+
+{- This recursively reduces the initial result of the SMT solver to construct a 
+   minimal model based on an Aluminum-like algorithm. The result of the function
+   is the minimal result as well as a new computation context that contains the
+   additional constraints for reducing the input result. -}
+reduce :: SMT() -> SatResult -> (SatResult, SMT ())
+reduce context res@(SatResult (Satisfiable _ _)) = 
+    let context'  = do
+          context
+          constraint <- minimizeResult res
+          liftSymbolic $ constrain constraint
+        run       = State.evalStateT 
+                    (do context'
+                        liftSymbolic $ solve [])
+                    emptySMTContainer
+        res'      = unsafePerformIO $ satWith z3 run
+    in  case res' of
+          SatResult (Unsatisfiable _) -> (res, context')
+          SatResult (Satisfiable _ _) -> reduce context' res'
+reduce context res = (res, context)
+
+{- Constructs the a set of constraints for minimizing the result returned by the
+   SMT solver and returns their corresponding value of type SBool in the context
+   of an SMT computation. These constraints are four-fold:
+   
+     1. Negative Axioms: these constraints force the negative facts in the 
+     current instance of 'SatResult' to remain false. For instance, if 
+     @P(e1, e2)@ is not true in the current result, it should never become true 
+     after minimization. 
+     2. Equality Negative Axioms: these axioms are similar to Negative Axioms 
+     but are constructed for equations among elements. For instance, if 
+     @e1 /= e2@ in the current result, they must not become equal after 
+     minimization.
+     3. Flip Axioms: the purpose of this group of axioms is to examine whether
+     any of the positive facts in the current model can be ignored or not. For 
+     instance, if @P(e1, e2)@ is true in the current model, the Flip Axiom tests
+     the possibility of making @P(e1, e2)@ false after minimization.
+     4. Equality Flip Axioms: these axioms are similar to Flip Axioms but they
+     are applied on equations in the current instance of 'SatResult'.
+
+   The four set of axioms above are combined as the following:
+   Negative Axioms & 
+   Equality Negative Axioms & 
+   (Flip Axioms | Equality Flip Axioms)
+-}
+minimizeResult :: SatResult -> SMT SBool
+minimizeResult res = do
+  container   <- liftContainer State.get
+  let domain   = containerDomain container
+  let rels     = Map.toList $ containerRels container
+  let dic      = getModelDictionary res
+  let classes  = equivalenceClasses dic
+  let sClasses = ((\e -> fromJust $ Map.lookup e domain) <$>) 
+                 <$> (fst <$> classes)
+  let factStrs = Map.keys $ Map.filter (\s -> fromCW s == True ) dic
+  let symAtoms = Map.toList $ smtSymAtomMap factStrs
+  let eqNegAx  = equalityNegativeAxioms sClasses
+  let eqFlipAx = foldr (|||) false $ equalityFlipAxioms <$> sClasses  
+  negs  <- mapM (\(r, unintRel) -> 
+                     let as = fromMaybe [] (lookup r symAtoms)
+                     in  negativeAxioms unintRel as) rels
+  flips <- mapM (\(r, unintRel) -> 
+                     let as = fromMaybe [] (lookup r symAtoms)
+                     in  flipAxioms unintRel as) rels
+  let negAx    = foldr (&&&) true negs
+  let flipAx   = foldr (|||) false flips
+  return $ negAx &&& eqNegAx &&& (flipAx ||| eqFlipAx)
+
+{- This function creates Negative Axioms for a set of facts that are named by
+   a list of SMTAtom instances: every SMTAtom names a *positive* fact in a 
+   result from the SMT solver. In order to improve the efficiency of 
+   computation, the function assumes that all the SMTAtom instances belong to
+   a relation whose symbolic uninterpreted value is also given to the function. 
+   This function will be called once for every relational symbol in the 
+   container of the current SMT computation.
+
+   Example. Assuming that the function is called for relation @R@ and two 
+   positive atomic facts @[R(e1, e2), R(e2, e3)]@, it creates an axiom like the
+   following:
+   @forall x, y. ~R(x, y) | (x = e1 & y = e2) | (x = e2 & y = e3)@
+-}
+negativeAxioms :: UninterpretRel -> [SMTAtom] -> SMT SBool
+negativeAxioms unintRel atoms = do
+  container <- liftContainer State.get
+  let arity  = unintRelArity unintRel
+  vars      <- replicateM arity $ liftSymbolic forall_
+  allArgs   <- mapM symAtomArgs atoms
+  let pairs  = map (\args -> zipWith (.==) vars args) allArgs
+  let cons   = map (foldr (&&&) true) pairs
+  let disj   = foldr (|||) false cons  
+  return $ (bnot (applyUnintRel unintRel vars)) ||| disj
+
+{- This function creates Flip Axioms for a set of facts that are named by a list
+   of SMTAtom instances. Just like 'negativeAxioms', the function assumes that
+   all the SMTAtom instances belong to the same relation whose symbolic 
+   uninterpreted function is given to the function. -}
+flipAxioms :: UninterpretRel -> [SMTAtom] -> SMT SBool
+flipAxioms unintRel atoms = do
+  container   <- liftContainer State.get
+  allArgs     <- mapM symAtomArgs atoms
+  let negApps  = bnot.(applyUnintRel unintRel) <$> allArgs
+  return $ foldr (|||) false negApps
+
+{- Given a set of equivalence classes on all elements, creates the set of 
+   Equality Negative Axioms. The function recursively makes sure that the 
+   elements of an equivalence class will never be equal to the elements of 
+   other equivalence class. -}
+equalityNegativeAxioms :: [[SElement]] -> SBool
+equalityNegativeAxioms []            = true
+equalityNegativeAxioms (cls:classes) =
+    let this = foldr (&&&) true [differentClasses cls cls' | cls' <- classes]
+    in  this &&& equalityNegativeAxioms classes
+
+{- As a helper for 'equalityNegativeAxioms', creates a constraint for two sets 
+   of elements in different equivalence classes that prevents them from being
+   equal after minimization. -}
+differentClasses :: [SElement] -> [SElement] -> SBool
+differentClasses cls1 cls2 =
+    foldr (&&&) true [e1 ./= e2 | e1 <- cls1, e2 <- cls2]
+
+{- Given an equivalence class of elements, creates an axiom to test whether any 
+   of the two elements in the class may be unequal after minimization or not. -}
+equalityFlipAxioms :: [SElement] -> SBool
+equalityFlipAxioms []     = false
+equalityFlipAxioms (e:es) = 
+    let this = foldr (|||) false [e ./= e' | e' <- es]
+    in  this ||| equalityFlipAxioms es
+
+{- Given a list of atom names of type 'SMTAtom', returns a map from the relation
+   symbols to their corresponding atom names.  -}
+smtSymAtomMap :: [SMTAtom] -> Map.Map String [SMTAtom]
+smtSymAtomMap atoms = 
+    let list = (\a -> (symOf a, [a])) <$> atoms
+    in  Map.fromListWith (++) list
+    where symOf atm = Text.unpack 
+                      $ head (Text.splitOn (Text.pack "-") (Text.pack atm))
+
+{- When iterating through minimal models, we need additional constraints to
+   ensure that the next models returned by the SMT solver are not in the 
+   homomorphism cone of any of the previously generated models. This function
+   adds a set of Flip Axioms and a set of Equality Flip Axioms to eliminate the
+   homomorphism cone of the given 'SatResult' instance that corresponds to a 
+   minimal model.
+-}
+nextResult :: SatResult -> SMT SBool
+nextResult res = do
+  container   <- liftContainer State.get
+  let domain   = containerDomain container
+  let rels     = Map.toList $ containerRels container
+  let dic      = getModelDictionary res
+  let classes  = equivalenceClasses dic
+  let sClasses = ((\e -> fromJust $ Map.lookup e domain) <$>) 
+                 <$> (fst <$> classes)
+  let factStrs = Map.keys $ Map.filter (\s -> fromCW s == True ) dic
+  let symAtoms = Map.toList $ smtSymAtomMap factStrs
+  let eqFlipAx = foldr (|||) false $ equalityFlipAxioms <$> sClasses  
+  flips <- mapM (\(r, unintRel) -> 
+                     let as = fromMaybe [] (lookup r symAtoms)
+                     in  flipAxioms unintRel as) rels
+  let flipAx   = foldr (|||) false flips
+  return $ flipAx ||| eqFlipAx
+  
+{- Given the name of an atomic fact as an instance of type 'SMTAtom', returns 
+   the symbolic values of the arguments of the fact in the current SMT 
+   computation.  -}
+symAtomArgs :: SMTAtom -> SMT [SElement]
+symAtomArgs smtAtom = do
+  container   <- liftContainer State.get
+  let domain   = containerDomain container
+  let (_:args) = Text.unpack <$> 
+                 Text.splitOn (Text.pack "-") (Text.pack smtAtom)
+  return $ (\elm -> fromJust $ Map.lookup elm domain) <$> args
+
+{- Does the name of a symbolic value correspond to an element of the model? -}
+isElementString :: String -> Bool
+isElementString ('e':'#':_) = True
+isElementString _           = False
+
+
+-- Test
+test = do 
+  addObservationSequent 
+       (ObservationSequent [] [ [Obs $ Rel "P" [Elem $ Element "e#0"]]
+                              , [Obs $ Rel "R" [Elem $ Element "e#0", Elem $ Element "e#10"]]])
+  addObservationSequent (ObservationSequent 
+                         [Obs $ Rel "P" [Elem $ Element "e#0"]] 
+                            [[Obs $ Rel "Q" [Elem $ Element "e#1"]]])
