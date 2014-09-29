@@ -190,7 +190,7 @@ runRazor config fmlas consts =
     case configInputType config of
       GeoLog -> let (b, provs, propThy) = chase config fmlas
                     it                  = satInitialize propThy
-                    (modelObs, it')     = satSolve solverInfo
+                    (modelObs, it')     = satSolve it
                     (modelObs', it'')   = satSolve it'
                     (modelObs'', it''') = satSolve it''
                     (modelObs''', _)    = satSolve it'''
