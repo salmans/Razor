@@ -89,10 +89,9 @@ instance Show (SATTheory a) where
   
   [@satInitialize@] constructs an iterator for fetching models from the current
   state of a 'SATTheory' instance.
-  [@satSolve@] given an iterator of type @b@, returns a list of 'Observation's 
-  as the facts of a model (if exists) and a new iterator for fetching the next 
-  model.
+  [@satSolve@] given an iterator of type @b@, returns a 'Model' (if exists) and
+  a new iterator for fetching the next model.
 -}
 class (SATAtom a) => SATSolver a b | b -> a where
     satInitialize :: SATTheory a -> b
-    satSolve      :: b -> (Maybe [Observation], b)
+    satSolve      :: b -> (Maybe Model, b)

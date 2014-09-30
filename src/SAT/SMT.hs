@@ -33,6 +33,7 @@ import Syntax.GeometricUtils ( FnSym, RelSym, Atom (..), Element (..), Term (..)
 
 -- Common
 import Common.Observation (Observation (..), ObservationSequent (..))
+import Common.Model (Model, createModel)
 
 -- SAT
 import SAT.Data
@@ -192,25 +193,30 @@ tranObservation obs@(Obs atm@(FnRel f ts)) = do
 
 -- Translating the results back to first-order observations:
 {- Converts a solution created by the SMT solver to a set of 'Observation's. -}
-translateSolution :: SatResult -> Maybe [Observation]
-translateSolution (SatResult (Unsatisfiable _))     = Nothing                                                      
+translateSolution :: SatResult -> Maybe Model
+translateSolution (SatResult (Unsatisfiable _))     = Nothing
 translateSolution (SatResult res@(Satisfiable _ r)) = 
     Just $ translateDictionary (getModelDictionary res)
 
 {- A helper for 'translateSolution' -}
-translateDictionary :: Map.Map String CW -> [Observation]
+translateDictionary :: Map.Map String CW -> Model
 translateDictionary dic = 
     let (_, obss)    = Map.partitionWithKey (\k _ -> isElementString k) dic
         (rels, funs) = Map.partition (\cw -> cwKind cw == KBool) obss
-        revDic       = Map.map head $ equivalenceClasses dic
-        relObss      = Map.elems $ Map.mapWithKey 
-                       (\k _ -> obsFromSMTAtom k) 
+        eqClasses    = equivalenceClasses dic
+        revDic       = Map.map head eqClasses
+        relObss      = Map.elems $ Map.mapWithKey (\k _ -> obsFromSMTAtom k) 
                        (Map.filter (\cw -> fromCW cw == True) rels)
         funObss      = Map.elems $ Map.mapWithKey 
                        (\k cw -> (obsFromSMTTerm k) <$> (Map.lookup cw revDic))
                        funs
         funObss'     = fromJust <$> filter isJust funObss
-    in  relObss `union` funObss'
+        domain       = let lists = Map.elems eqClasses
+                           pairs = (\l -> (Element (head l), Element <$> l)) 
+                                   <$> lists
+                       in  Map.fromList pairs
+    in  createModel domain $ relObss `union` funObss'
+
 
 {- Given an 'SMTAtom' string denoting a relational fact, creates an observation.
    In some sense, this funciton undoes what 'smtAtom' does (also converts the
@@ -529,7 +535,7 @@ termValue fn term unintFunc sParams = do
    this implementation is SMTObservation and the type of SMT solving data is 
    SMT (). -}
 instance SATSolver SMTObservation (SMT ()) where
-    satInitialize (SMTTheory context) = context
+    satInitialize (SMTTheory context)      = context
     satSolve context = let (res, context') = minimumResult context
                        in  (translateSolution res, context')
 

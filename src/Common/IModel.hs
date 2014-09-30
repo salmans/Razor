@@ -5,7 +5,8 @@
 module Common.IModel where
 
 -- Standard
-import Data.List (partition, groupBy, intercalate, sort)
+import Data.List (partition, groupBy, intercalate, sort, nub)
+import qualified Data.Map as Map
 
 -- Control
 import Control.Applicative
@@ -16,18 +17,41 @@ import Syntax.GeometricUtils ( FnSym, RelSym, Element (..)
 
 -- Common
 import Common.Observation (Observation (Obs))
-import Common.Provenance (ProvInfo, emptyProvInfo )
 
-{-| A model consists of a set of a list of 'Observation's for facts and an 
-  instance of 'ProvInfo' for provenance information for elements and 
-  observations.-}
-data Model = Model { modelObservations :: [Observation]
-                   , modelProvInfo     :: ProvInfo
-                   }
+{-| A model consists of a list of 'Observation's and a map from a representative
+  element to a list of elements that are in the same euivalence class. -}
+data Model = Model { modelElements     :: Map.Map Element [Element]
+                   , modelObservations :: [Observation] }
 
 {-| Empty Model -}
 emptyModel :: Model
-emptyModel =  Model [] emptyProvInfo
+emptyModel =  createModel Map.empty []
+
+{-| createModel is the primary constructor for 'Model'. -}
+createModel :: Map.Map Element [Element] -> [Observation] -> Model
+createModel elemMap obss = 
+    let obss' = normalizeObservations elemMap obss
+    in  Model elemMap $ nub obss'
+
+normalizeObservations :: Map.Map Element [Element] -> [Observation]
+                      -> [Observation]
+normalizeObservations elemMap obss = 
+    let list  = Map.toList elemMap
+        fList = concat $ (\(k, es) -> (\e -> (e, k)) <$> es) <$> list
+        fMap  = Map.fromList fList
+    in normalizeObservation fMap <$> obss
+
+normalizeObservation :: Map.Map Element Element -> Observation -> Observation
+normalizeObservation elemMap (Obs atm) = Obs $ normalizeAtom elemMap atm
+
+normalizeAtom :: Map.Map Element Element -> Atom -> Atom
+normalizeAtom elemMap (Rel s ts)   = Rel s (normalizeTerm elemMap <$> ts)
+normalizeAtom elemMap (FnRel s ts) = FnRel s (normalizeTerm elemMap <$> ts)
+
+normalizeTerm :: Map.Map Element Element -> Term -> Term
+normalizeTerm elemMap (Elem e) = Elem $ Map.findWithDefault e e elemMap
+normalizeTerm _       t        = t
+
 
 {- Show Instance for Model -}
 instance Show Model where
@@ -35,10 +59,11 @@ instance Show Model where
 
 {- Displaying Models -}
 prettyModel :: Model -> String
-prettyModel mdl@(Model obs _) = 
+prettyModel mdl@(Model dom obs) = 
     let (elemObs, otherObs) = partition chooseElements obs
         groupedObs          = groupBy sameRelation $ sort otherObs
-    in  prettyDomain elemObs ++ "\n" ++ 
+    in  (show dom) ++ "\n" ++
+        prettyDomain elemObs ++ "\n" ++ 
         intercalate "\n" (showObservationGroup <$> groupedObs) ++ "\n"
     where chooseElements = (\o -> case o of
                                     Obs (Rel "@Element" _) -> True

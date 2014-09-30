@@ -10,7 +10,7 @@ module SAT.Impl ( SATTheoryType, SATIteratorType,
 
 
 -- Common
-import Common.Observation (Observation)
+import Common.Model (Model)
 
 -- Control
 import qualified Control.Monad.State.Lazy as State
@@ -32,8 +32,7 @@ type SATIteratorState = State.State SATIteratorType
 satInitialize :: SATTheoryType -> SATIteratorType
 satInitialize = SAT.Data.satInitialize
 
-{-| Given an instance of the selected iterator type, returns a list of
-  observations (if there is a solution) and an iterator for getting the next
-  list of observations. -}
-satSolve :: SATIteratorType -> (Maybe [Observation], SATIteratorType)
+{-| Given an instance of the selected iterator type, returns a model (if a 
+  solution exists) and an iterator for getting the next list of observations. -}
+satSolve :: SATIteratorType -> (Maybe Model, SATIteratorType)
 satSolve =  SAT.Data.satSolve

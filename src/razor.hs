@@ -190,15 +190,15 @@ runRazor config fmlas consts =
     case configInputType config of
       GeoLog -> let (b, provs, propThy) = chase config fmlas
                     it                  = satInitialize propThy
-                    (modelObs, it')     = satSolve it
-                    (modelObs', it'')   = satSolve it'
-                    (modelObs'', it''') = satSolve it''
-                    (modelObs''', _)    = satSolve it'''
+                    (model', it')       = satSolve it
+                    (model'', it'')     = satSolve it'
+                    (model''', it''')   = satSolve it''
+                    (model'''', _)      = satSolve it'''
                 in do                  
-                  putStrLn $ show $ (\obs -> Model obs provs) <$> modelObs
-                  putStrLn $ show $ (\obs -> Model obs provs) <$> modelObs'
-                  putStrLn $ show $ (\obs -> Model obs provs) <$> modelObs''
-                  putStrLn $ show $ (\obs -> Model obs provs) <$> modelObs'''
+                  putStrLn $ show model'
+                  putStrLn $ show model''
+                  putStrLn $ show model'''
+                  putStrLn $ show model''''
       _      -> error "The input type is not currently supported!"
           -- let seqMap = sequentMap fmlas :: SequentMap RelSequent
           -- in  putStrLn 
