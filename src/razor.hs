@@ -4,7 +4,8 @@
   Razor
   Module      : Main
   Description : This is the primary interface to 'Razor'.
-  Maintainer  : Salman Saghafi -}
+  Maintainer  : Salman Saghafi 
+-}
 
 module Main where
 
@@ -34,8 +35,7 @@ import Chase.Impl
 import SAT.Impl
 
 -- Syntax
-import Syntax.GeometricUtils ( Theory, Sequent, Constant, Element
-                             , parseSequent)
+import Syntax.GeometricUtils ( Theory, Sequent, Constant, Element, parseSequent)
 
 -- Tools
 import Tools.Utils (isRealLine)
@@ -136,10 +136,8 @@ main :: IO ()
 main = do
   -- get the arguments
   args <- getArgs
-
   -- Parse options, getting a list of option actions
   let (actions, nonOptions, errors) = getOpt RequireOrder options args
- 
   -- Here we thread startOptions through all supplied option actions
   config <- foldl (>>=) (return defaultConfig) actions
  

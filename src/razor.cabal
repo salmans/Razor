@@ -25,10 +25,10 @@ cabal-version:       >=1.8
 
 
 executable razor
-  main-is:          razor.hs
+  main-is:          UI/repl.hs
   hs-source-dirs:   .
   -- other-modules:
 --  ghc-options: 	    -rtsopts -prof -fprof-auto -auto-all -caf-all
-  build-depends:       base ==4.6.*, filepath ==1.3.*, old-time ==1.1.*, containers ==0.5.*, parsec ==3.1.*, mtl ==2.1.*, deepseq ==1.3.*, QuickCheck ==2.6.*, directory ==1.2.*, vector==0.10.*, sbv, text==0.11.*, bimap==0.2.*, picosat==0.1.*
+  build-depends:       base ==4.6.*, filepath ==1.3.*, old-time ==1.1.*, containers ==0.5.*, parsec ==3.1.*, mtl ==2.1.*, deepseq ==1.3.*, QuickCheck ==2.6.*, directory ==1.2.*, vector==0.10.*, sbv, text==0.11.*, bimap==0.2.*, haskeline==0.7.*
 --, logic-TPTP ==0.4.*, picosat==0.1.*
 
