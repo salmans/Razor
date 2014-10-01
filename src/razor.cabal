@@ -25,7 +25,7 @@ cabal-version:       >=1.8
 
 
 executable razor
-  main-is:          UI/repl.hs
+  main-is:          REPL/main.hs
   hs-source-dirs:   .
   -- other-modules:
 --  ghc-options: 	    -rtsopts -prof -fprof-auto -auto-all -caf-all

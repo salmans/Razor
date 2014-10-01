@@ -9,6 +9,7 @@ module Main where
 import API
 import Common.Model (Model (..))
 import Data.Maybe
+import REPL.Syntax
 import SAT.Impl
 import System.Console.Haskeline
 import System.Environment
@@ -41,16 +42,28 @@ main = do
   stream <- modelStream prop 
   (first, stream') <- nextModel stream
   -- get the first model and enter repl loop
-  runInputT defaultSettings (loop first stream')
+  runInputT defaultSettings (loop stream)
 
-loop :: Maybe Model -> SATIteratorType -> InputT IO ()
-loop model stream = do
-    -- display current model
-    outputStrLn $ show model
-    -- get user input
-    minput <- getInputLine "% "
-    case minput of
-        Nothing -> return ()
-        Just "quit" -> return ()
-        Just input -> do outputStrLn $ "Input was: " ++ input
-                         loop model stream
+loop :: SATIteratorType -> InputT IO ()
+loop stream = do
+  let continue = loop stream
+  minput <- getInputLine "% "
+  case minput of
+      Nothing -> return ()
+      Just command -> case (parseCommand command) of
+        Nothing -> outputStrLn "syntax error" >> continue
+        Just cmd -> case cmd of
+          Go explore -> do
+            case explore of
+              Next -> continue
+              Augment term -> continue
+            -- show model
+            continue
+          Ask question -> case question of
+            Name term -> continue
+            Blame term -> continue
+          Other utility -> case utility of
+            Help -> do
+              outputStrLn helpCommand
+              continue
+            Exit -> return ()
