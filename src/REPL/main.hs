@@ -37,16 +37,14 @@ main = do
   putStrLn "Theory: "
   mapM_ (putStrLn.show) theory
   putStrLn $ "<><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>" ++ "\n"
-  -- generate G* and the model stream and the first model from the parsed theory
-  (base, prov, prop) <- generateGS config theory
-  stream <- modelStream prop 
-  (first, stream') <- nextModel stream
-  -- get the first model and enter repl loop
-  runInputT defaultSettings (loop stream)
+  -- generate G*, get the model stream, and enter the repl
+  let (base, prov, prop) = generateGS config theory
+  let stream = modelStream prop 
+  runInputT defaultSettings (loop (Nothing, stream))
 
-loop :: SATIteratorType -> InputT IO ()
-loop stream = do
-  let continue = loop stream
+loop :: (Maybe Model, SATIteratorType) -> InputT IO ()
+loop (model, stream) = do
+  let continue = loop (model, stream)
   minput <- getInputLine "% "
   case minput of
       Nothing -> return ()
@@ -54,11 +52,8 @@ loop stream = do
         Nothing -> outputStrLn "syntax error" >> continue
         Just cmd -> case cmd of
           Go explore -> do
-            case explore of
-              Next -> continue
-              Augment term -> continue
-            -- show model
-            continue
+            (model', stream') <- updateState (model, stream) explore 
+            outputStrLn (show model') >> loop (model', stream')
           Ask question -> case question of
             Name term -> continue
             Blame term -> continue
@@ -67,3 +62,12 @@ loop stream = do
               outputStrLn helpCommand
               continue
             Exit -> return ()
+
+updateState :: (Maybe Model, SATIteratorType) -> Explore -> InputT IO (Maybe Model, SATIteratorType)
+updateState (model, stream) explore = do
+  return $ case explore of
+    Next -> do
+      nextModel stream
+    Augment term -> do
+      -- TODO actually augment here
+      (model, stream)

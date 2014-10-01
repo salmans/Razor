@@ -130,18 +130,15 @@ parseTheory config input = do
 
 -- In: configuration, theory
 -- Out: G*, which consists of ground facts, provenance info, and a propositional theory
-generateGS :: Config -> Theory -> IO (ChaseHerbrandBaseType, ProvInfo, SATTheoryType)
-generateGS config theory = do
-  return (chase config theory)
+generateGS :: Config -> Theory -> (ChaseHerbrandBaseType, ProvInfo, SATTheoryType)
+generateGS config theory = chase config theory
 
 -- In: a propositional theory
 -- Out: an iterator that can be used to sequentially generate models (model stream)
-modelStream :: SATTheoryType -> IO SATIteratorType
-modelStream propThy = do
-  return (satInitialize propThy)
+modelStream :: SATTheoryType -> SATIteratorType
+modelStream propThy = satInitialize propThy
 
 -- In: a model stream
 -- Out: an updated model stream and the next model
-nextModel :: SATIteratorType -> IO (Maybe Model, SATIteratorType)
-nextModel it = do
-  return (satSolve it)
+nextModel :: SATIteratorType -> (Maybe Model, SATIteratorType)
+nextModel it = (satSolve it)
