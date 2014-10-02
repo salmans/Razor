@@ -13,7 +13,7 @@ import Control.Applicative
 
 -- Syntax
 import Syntax.GeometricUtils ( Sequent (..), Formula (..), Atom (..), Term (..)
-                             , RelationBased (..)
+                             , RelationBased (..), Constant (..)
                              , isVariable, isConstant)
 
 -- Common

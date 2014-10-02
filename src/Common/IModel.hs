@@ -12,10 +12,11 @@ import qualified Data.Map as Map
 import Control.Applicative
 
 -- Syntax
-import Syntax.GeometricUtils ( FnSym, RelSym, Element (..) 
+import Syntax.GeometricUtils ( FnSym, RelSym, Element (..), Constant (..)
                              , Term (..), Atom (..))
 
 -- Common
+import Common.Data (ConstantValueMap)
 import Common.Observation (Observation (Obs))
 
 {-| A model consists of a list of 'Observation's and a map from a representative
@@ -33,6 +34,8 @@ createModel elemMap obss =
     let obss' = normalizeObservations elemMap obss
     in  Model elemMap $ nub obss'
 
+{- Normalizes a list of observations based on the equivalence relation among the
+   elements of the model. -}
 normalizeObservations :: Map.Map Element [Element] -> [Observation]
                       -> [Observation]
 normalizeObservations elemMap obss = 
@@ -53,17 +56,22 @@ normalizeTerm elemMap (Elem e) = Elem $ Map.findWithDefault e e elemMap
 normalizeTerm _       t        = t
 
 
+addConstants :: Model -> ConstantValueMap -> Model
+addConstants (Model es obss) cvMap =
+    let cvList = Map.toList cvMap
+        cObss  = (\(Constant c, e) -> Obs $ FnRel c [Elem e]) <$> cvList
+    in  Model es $ obss ++ (normalizeObservations es cObss)
+
 {- Show Instance for Model -}
 instance Show Model where
     show = prettyModel
 
 {- Displaying Models -}
 prettyModel :: Model -> String
-prettyModel mdl@(Model dom obs) = 
+prettyModel mdl@(Model _ obs) = 
     let (elemObs, otherObs) = partition chooseElements obs
         groupedObs          = groupBy sameRelation $ sort otherObs
-    in  (show dom) ++ "\n" ++
-        prettyDomain elemObs ++ "\n" ++ 
+    in  prettyDomain elemObs ++ "\n" ++ 
         intercalate "\n" (showObservationGroup <$> groupedObs) ++ "\n"
     where chooseElements = (\o -> case o of
                                     Obs (Rel "@Element" _) -> True
@@ -86,8 +94,9 @@ prettyDomain obs = let elems = (\(Obs (Rel "@Element" e)) -> show e) <$> obs
 showObservationGroup :: [Observation] -> String
 showObservationGroup []  = ""
 showObservationGroup obs = case head obs of
-                             (Obs (Rel sym _))    -> showRelationObs sym obs
-                             (Obs (FnRel sym _))  -> showFunctionObs sym obs
+                             (Obs (Rel sym _))     -> showRelationObs sym obs
+                             (Obs (FnRel sym [_])) -> showConstantObs (head obs)
+                             (Obs (FnRel sym _))   -> showFunctionObs sym obs
 
 {- Displays a list of relational tuples. -}
 showRelationObs :: RelSym -> [Observation] -> String
@@ -101,12 +110,16 @@ showRelationObs sym obs =
     let elems  = (\(Obs (Rel _ ts)) -> showTuple ts) <$> obs
     in  (show sym) ++ " = {" ++ intercalate ", " elems ++ "}"
 
+showConstantObs :: Observation -> String
+showConstantObs (Obs (FnRel sym [Elem (Element t)])) =
+    sym ++ " = " ++ t
+
 {- Displays a list of functional tuples. -}
 showFunctionObs :: FnSym -> [Observation] -> String
-showFunctionObs sym obs = let elems  = (\(Obs (FnRel _ ts)) -> 
-                                            showTuple ts) <$> obs
-                          in  (show sym) ++ " = {" 
-                                  ++ intercalate ", " elems ++ "}"
+showFunctionObs sym obss  = let elems  = (\(Obs (FnRel _ ts)) -> 
+                                              showTuple ts) <$> obss
+                            in  (show sym) ++ " = {" 
+                                    ++ intercalate ", " elems ++ "}"
 
 {- A helper for 'showFunctionObs' and 'showRelationObs' for displaying tuples. 
    Note that the funciton displays elements independent of Show instance for 

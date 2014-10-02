@@ -28,7 +28,7 @@ import qualified Control.Monad.RWS.Lazy as RWS
 
 -- Common
 import Common.Basic (Id)
-import Common.Data ( SequentLike (..) )
+import Common.Data ( SequentLike (..), ConstantValueMap )
 import Common.Provenance (ProvInfo)
 import Common.Observation (ObservationSequent)
 
@@ -38,6 +38,7 @@ import SAT.Data (SATAtom, SATTheory)
 -- Tools
 import Tools.Counter (Counter, CounterT)
 import Tools.Config (Config, ConfigMonad)
+
 
 {-| HerbrandBase is the class of types that can act as a container for facts
   in some implementation of the Chase, e.g. a database or a term rewrite system.
@@ -56,7 +57,7 @@ class Show a => HerbrandBase a where
     unionBases             :: a -> a -> a
     diffBases              :: a -> a -> a
     baseSize               :: a -> Int
-
+    baseConstants          :: a -> ConstantValueMap
 
 {-| 'SequentMap' is a map from 'Id's to instances of a 'SequenceLike' type. -}
 type SequentMap s = (SequentLike s) => Map.Map Id s

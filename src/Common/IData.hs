@@ -16,6 +16,17 @@ import Syntax.GeometricUtils
 -- Common
 import Common.Basic
 
+
+{-| Since the input theory is assumed to be flattened and relationalized, every
+  'Constant' of the original theory (if shows up in a model) is always equal
+  to some 'Element' of the model. Therefore, it is slightly more efficient and 
+  the implementation is cleaner to not pass the constants of the original theory
+  to the SMT/SAT solver. Rather, we keep a map from constants to the elements
+  that represents them. After a model is returned by the SAT/SMT solver, we 
+  extend the model with values for constants in the original theory.
+-}
+type ConstantValueMap = Map.Map Constant Element
+
 {-| The SequentLike type class captures types that represent geometric 
   'Sequent's in 'HerbrandBase'. This allows for different implementations of 
   'HerbrandBase' with different algorithms. 

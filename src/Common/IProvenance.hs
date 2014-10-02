@@ -34,6 +34,9 @@ type SkolemTerm = Term
 type ElementProvs = ( Map.Map Element [SkolemTerm]
                     , Map.Map SkolemTerm Element)
 
+
+
+
 {-| ProvInfo contains provenance information for elements and facts. -}
 data ProvInfo = ProvInfo { elementProvs :: ElementProvs
                          } deriving (Show, Eq)
