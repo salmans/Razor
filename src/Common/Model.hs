@@ -4,6 +4,6 @@
   Description : Model is a data-structure to contain the models of a theory.
   Maintainer  : Salman Saghafi -}
 module Common.Model ( Model (modelElements, modelObservations)
-                    , emptyModel, createModel, addConstants ) where
+                    , emptyModel, createModel ) where
 
 import Common.IModel

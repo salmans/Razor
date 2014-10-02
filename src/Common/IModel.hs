@@ -12,12 +12,13 @@ import qualified Data.Map as Map
 import Control.Applicative
 
 -- Syntax
-import Syntax.GeometricUtils ( FnSym, RelSym, Element (..), Constant (..)
+import Syntax.GeometricUtils ( FnSym, RelSym, Element (..)
                              , Term (..), Atom (..))
 
 -- Common
-import Common.Data (ConstantValueMap)
 import Common.Observation (Observation (Obs))
+
+import Tools.Trace
 
 {-| A model consists of a list of 'Observation's and a map from a representative
   element to a list of elements that are in the same euivalence class. -}
@@ -56,12 +57,6 @@ normalizeTerm elemMap (Elem e) = Elem $ Map.findWithDefault e e elemMap
 normalizeTerm _       t        = t
 
 
-addConstants :: Model -> ConstantValueMap -> Model
-addConstants (Model es obss) cvMap =
-    let cvList = Map.toList cvMap
-        cObss  = (\(Constant c, e) -> Obs $ FnRel c [Elem e]) <$> cvList
-    in  Model es $ obss ++ (normalizeObservations es cObss)
-
 {- Show Instance for Model -}
 instance Show Model where
     show = prettyModel
@@ -94,9 +89,8 @@ prettyDomain obs = let elems = (\(Obs (Rel "@Element" e)) -> show e) <$> obs
 showObservationGroup :: [Observation] -> String
 showObservationGroup []  = ""
 showObservationGroup obs = case head obs of
-                             (Obs (Rel sym _))     -> showRelationObs sym obs
-                             (Obs (FnRel sym [_])) -> showConstantObs (head obs)
-                             (Obs (FnRel sym _))   -> showFunctionObs sym obs
+                             (Obs (Rel sym _))   -> showRelationObs sym obs
+                             (Obs (FnRel sym _)) -> showFunctionObs sym obs
 
 {- Displays a list of relational tuples. -}
 showRelationObs :: RelSym -> [Observation] -> String
@@ -110,19 +104,16 @@ showRelationObs sym obs =
     let elems  = (\(Obs (Rel _ ts)) -> showTuple ts) <$> obs
     in  (show sym) ++ " = {" ++ intercalate ", " elems ++ "}"
 
-showConstantObs :: Observation -> String
-showConstantObs (Obs (FnRel sym [Elem (Element t)])) =
-    sym ++ " = " ++ t
-
 {- Displays a list of functional tuples. -}
 showFunctionObs :: FnSym -> [Observation] -> String
-showFunctionObs sym obss  = let elems  = (\(Obs (FnRel _ ts)) -> 
-                                              showTuple ts) <$> obss
-                            in  (show sym) ++ " = {" 
-                                    ++ intercalate ", " elems ++ "}"
+-- showFunctionObs sym [obs] = (show sym) ++ " = " ++ (show obs)
+showFunctionObs sym obss  = 
+    let elems  = (\(Obs (FnRel _ ts)) -> showTuple ts) <$> obss
+    in  (show sym) ++ " = {" ++ intercalate ", " elems ++ "}"
 
 {- A helper for 'showFunctionObs' and 'showRelationObs' for displaying tuples. 
    Note that the funciton displays elements independent of Show instance for 
    'Element'. -}
 showTuple :: [Term] -> String
+showTuple [] = ""
 showTuple es = "(" ++ intercalate "," ((\(Elem (Element e)) -> e) <$> es) ++ ")"

@@ -26,8 +26,7 @@ import Control.Applicative
 
 -- Common
 import Common.Provenance (ProvInfo)
-import Common.Model (Model (..), addConstants)
-import Chase.Data (baseConstants)
+import Common.Model (Model (..))
 
 -- Chase
 import Chase.Impl
@@ -188,17 +187,16 @@ runRazor :: Config -> Theory -> [Constant] -> IO ()
 runRazor config fmlas consts =   
     case configInputType config of
       GeoLog -> let (b, provs, propThy) = chase config fmlas
-                    cvMap               = Just $ baseConstants b
                     it                  = satInitialize propThy
                     (model', it')       = satSolve it
                     (model'', it'')     = satSolve it'
                     (model''', it''')   = satSolve it''
                     (model'''', _)      = satSolve it'''
                 in do                  
-                  putStrLn $ show (addConstants <$> model' <*> cvMap)
-                  putStrLn $ show (addConstants <$> model'' <*> cvMap)
-                  putStrLn $ show (addConstants <$> model''' <*> cvMap)
-                  putStrLn $ show (addConstants <$> model'''' <*> cvMap)
+                  putStrLn $ show model'
+                  putStrLn $ show model''
+                  putStrLn $ show model'''
+                  putStrLn $ show model''''
       _      -> error "The input type is not currently supported!"
           -- let seqMap = sequentMap fmlas :: SequentMap RelSequent
           -- in  putStrLn 

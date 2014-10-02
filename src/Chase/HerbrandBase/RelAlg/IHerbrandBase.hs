@@ -27,7 +27,7 @@ import qualified Control.Monad.State as State
 import Syntax.GeometricUtils
 
 -- Common
-import Common.Data ( SequentLike (..), ConstantValueMap )
+import Common.Data ( SequentLike (..) )
 import Common.Observation (ObservationSequent, buildObservationSequent)
 import Common.Provenance
 
@@ -117,7 +117,6 @@ instance HerbrandBase Database where
     unionBases             = unionDatabases
     diffBases              = diffDatabases
     baseSize               = databaseSize
-    baseConstants          = databaseConstants
 
 {- RelSequent acts like a sequent -}
 instance SequentLike RelSequent where
@@ -379,15 +378,3 @@ createExistsSub tup elmProvs skFuns =
     in  if   all (isJust.snd) skElems
         then Just $ Map.fromList $ (Elem . fromJust <$>) <$> skElems
         else Nothing
-
-
-databaseConstants :: Database -> ConstantValueMap
-databaseConstants db = 
-    let csMap  = Map.filterWithKey (\k _ -> filterConstants k) db
-        csList = Map.toList csMap
-        pairs  = (\(ConstTable c, t) -> (c, extractVal t)) <$> csList
-    in  Map.fromList pairs
-    where filterConstants ref = case ref of
-                                  ConstTable _ -> True
-                                  otherwise    -> False
-          extractVal          =  Vect.head.tupleElems.ExSet.findMin.DB.contents

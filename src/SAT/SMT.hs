@@ -28,7 +28,8 @@ import qualified Control.Monad.State.Lazy as State
 import Data.SBV
 
 -- Syntax
-import Syntax.GeometricUtils ( FnSym, RelSym, Atom (..), Element (..), Term (..)
+import Syntax.GeometricUtils ( FnSym, RelSym, Atom (..), Term (..)
+                             , Element (..), Constant (..)
                              , termToElement )
 
 -- Common
@@ -67,7 +68,8 @@ type SMTTerm    = String
 
 {- Creates an instance of 'SMTTerm' from a functional 'Atom'. -}
 smtTerm :: Atom -> SMTTerm
-smtTerm (FnRel f ts) = 
+smtTerm (FnRel c [_]) = c
+smtTerm (FnRel f ts)  = 
     let elms = fromJust <$> termToElement <$> (init ts)
                -- Expecting only flat terms
     in  f ++ "-" ++ (intercalate "-" $ smtElement <$> elms)
@@ -152,7 +154,7 @@ addToSMTTheory (SMTTheory context) seq =
 addObservationSequent :: ObservationSequent -> SMT ()
 addObservationSequent seq@(ObservationSequent bodies heads) = do
   let bodies'     = filter (filterFunc) bodies
-  let heads'      = (filter filterFunc) <$> heads
+  let heads'      = heads -- (filter filterFunc) <$> heads
   bodiesVals      <- mapM tranObservation bodies'
   headsVals       <- mapM (mapM tranObservation) heads'
   let bodiesValue =  foldr (&&&) true bodiesVals
@@ -180,7 +182,7 @@ tranObservation obs@(Obs atm@(Rel r ts)) = do
   vals      <- mapM elementValue elms
   val       <- atomValue r atom unintRel vals
   return (val .== true)
-tranObservation obs@(Obs atm@(FnRel f ts)) = do
+tranObservation obs@(Obs atm@(FnRel f ts))  = do
   let (SMTFn term elm) = smtObservation obs
                          -- smtObservation drops the last parameter for 
                          -- functions
@@ -235,7 +237,7 @@ obsFromSMTTerm str e =
     let strs = Text.unpack <$> Text.splitOn (Text.pack "-") (Text.pack str)
         sym  = head strs
         es   = tail strs
-    in  Obs $ Rel sym $ (Elem . Element) <$> (es ++ [e])
+    in  Obs $ FnRel sym $ (Elem . Element) <$> (es ++ [e])
 
 {- This function constructs equivalence classes on elements of the domain, 
    (represented by 'SMTElement' instances) based on the the result of 
@@ -281,7 +283,8 @@ type SAtoms  = Map.Map SMTAtom SBool
    the input query to the SMT solver. Because these functions are Haskell 
    functions that operate on symbolic values, their types must be fixed; 
    that is, we cannot have functions of arbitrary arities. -}
-data UninterpretFn = UnintFn1 (SElement -> SElement)
+data UninterpretFn = UnintFn0 SElement -- Functions of arity 0 are constants
+                     | UnintFn1 (SElement -> SElement)
                      | UnintFn2 (SElement -> SElement -> SElement)
                      | UnintFn3 (SElement -> SElement -> SElement -> SElement)
                      | UnintFn4 (SElement -> SElement -> SElement -> SElement 
@@ -305,6 +308,7 @@ instance Show UninterpretFn where
 
 {- Creating 'UninterpretFn' for a given arity -}
 uninterpretFn :: FnSym -> Int -> UninterpretFn
+uninterpretFn fn 0 = UnintFn0 (uninterpret fn)
 uninterpretFn fn 1 = UnintFn1 (uninterpret fn)
 uninterpretFn fn 2 = UnintFn2 (uninterpret fn)
 uninterpretFn fn 3 = UnintFn3 (uninterpret fn)
@@ -325,6 +329,8 @@ unintFnArity (UnintFn7 _) = 7
 
 {- Applies an instance of 'UninterpretFn' to a list of symbolic arguments -}
 applyUnintFn :: UninterpretFn -> [SElement] -> SElement
+applyUnintFn (UnintFn0 f) []
+    = f -- constant
 applyUnintFn (UnintFn1 f) [x1] 
     = f x1
 applyUnintFn (UnintFn2 f) [x1, x2] 
