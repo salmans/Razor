@@ -6,6 +6,7 @@
   Maintainer  : Salman Saghafi -}
 module Syntax.Geometric ( RelSym
                         , Atom (..), Formula (..), Sequent (..), Theory
-                        , parseSequent, parseFormula) where
+                        , parseSequent, parseFormula
+                        , xparseSequent, xparseFormula ) where
 
 import Syntax.IGeometric

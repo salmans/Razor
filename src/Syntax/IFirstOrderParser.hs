@@ -11,12 +11,17 @@ import Text.Parsec.Token ( TokenParser )
 import qualified Text.Parsec.Token as Token
 import Text.ParserCombinators.Parsec.Language ( haskellStyle )
 
+
+basicOpNames = [ "~", "&", "|", "=>", "<=>", "." ]
+basicNames   = [ "forall", "Forall", "exists", "Exists", "Truth", "Falsehood" ] 
+
+basicLanguage = haskellStyle 
+                { Token.reservedOpNames = basicOpNames
+                , Token.reservedNames   = basicNames
+                }
+
 lexer :: TokenParser ()
-lexer = Token.makeTokenParser $ haskellStyle
-    { Token.reservedOpNames = [ "~", "&", "|", "=>", "<=>", "."]
-    , Token.reservedNames = [ "forall", "Forall", "exists", "Exists"
-                            , "Truth", "Falsehood" ]
-    }
+lexer = Token.makeTokenParser $ basicLanguage
 
 -- Token parsers provided by Text.Parsec.Token
 whiteSpace = Token.whiteSpace lexer
@@ -26,3 +31,4 @@ identifier = Token.identifier lexer
 reserved   = Token.reserved lexer
 reservedOp = Token.reservedOp lexer
 commaSep   = Token.commaSep lexer
+natural    = Token.natural lexer

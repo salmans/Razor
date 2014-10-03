@@ -119,6 +119,14 @@ parseTerm str =
            Left err -> error (show err)
            Right val -> val
 
+{- Parses terms over the extended language -}
+xparseTerm :: String -> Term
+xparseTerm str =
+ let pResult =  parse xpTerm "parsing Term" str
+    in case pResult of
+           Left err -> error (show err)
+           Right val -> val
+
 {- Parses the identifier and then lets the next thing decide whether its a
    variable name or a function name (depending on whether there is an argument
    list) -}
@@ -126,11 +134,22 @@ pTerm :: Parser Term
 pTerm = pConstant <|> (identifier >>= pTermWithIden)
     <?> "term"
 
+{- parsing 'Element's -}
+pElement :: Parser Term
+pElement = do
+  symbol "e#" -- for now
+  number <- natural
+  return $ Elem $ Element $ "e#" ++ (show number)
+
+{- Extends pTerm, allows for parsing elements -}
+xpTerm :: Parser Term
+xpTerm = pElement <|> pConstant <|> (identifier >>= xpTermWithIden)
+         <?> "term"
+
 -- pVariable :: Parser Term
 -- pVariable = do
 --   elem   <- identifier
 --   return $ Var $ Variable elem
-
 
 {- Parses a constant -}
 pConstant :: Parser Term
@@ -147,9 +166,20 @@ pTermWithIden name
     = Fn name <$> pTermList
     <|> return (Var (Variable name))
 
+{- Like pTermWithIden but works on the extended language. -}
+xpTermWithIden :: String -> Parser Term
+xpTermWithIden name
+    = Fn name <$> xpTermList
+    <|> return (Var (Variable name))
+
 {- A list of terms separated by commas. -}
 pTermList :: Parser [Term]
 pTermList = (parens $ commaSep pTerm)
+         <?> "list of terms"
+
+{- Like pTermList but works on the extended language. -}
+xpTermList :: Parser [Term]
+xpTermList = (parens $ commaSep xpTerm)
          <?> "list of terms"
 --------------------------------------------------------------------------------
 {-| TermBased is the class of types that are formed by 'Term's or have 'Term's 

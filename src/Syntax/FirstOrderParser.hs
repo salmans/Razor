@@ -6,6 +6,6 @@
   Maintainer  : Salman Saghafi -}
 
 module Syntax.FirstOrderParser ( lexer, whiteSpace, symbol, parens, identifier
-                               , reserved, reservedOp, commaSep) where
+                               , reserved, reservedOp, commaSep, natural) where
 
 import Syntax.IFirstOrderParser

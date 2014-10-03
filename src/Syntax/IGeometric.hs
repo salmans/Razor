@@ -123,14 +123,29 @@ parseFormula input = let pResult =  parse pFormula "parsing Formula" input
                           Left err -> error (show err)
                           Right val -> val
 
+xparseFormula :: String -> Formula
+xparseFormula input = let pResult =  parse xpFormula "parsing Formula" input
+                      in case pResult of
+                           Left err -> error (show err)
+                           Right val -> val
+
 -- scans initial whitespace and tests that input string is exhausted
 pFormula :: Parser Formula
 pFormula = do { whiteSpace; f <- pFmla; eof; return f }
+
+-- Like pFormula but over the extended language
+xpFormula :: Parser Formula
+xpFormula = do { whiteSpace; f <- xpFmla; eof; return f }
 
 -- | Parser for formulas.
 pFmla :: Parser Formula
 pFmla = Expr.buildExpressionParser table pFactor
         <?> "formula"
+
+-- | Like pFmla but over the extended language
+xpFmla :: Parser Formula
+xpFmla = Expr.buildExpressionParser table xpFactor
+         <?> "formula"
 
 -- | Operator table for formulas.
 table = [ [binOp "&" And Expr.AssocLeft]
@@ -162,6 +177,25 @@ pQuantified = (quantWithFn "exists" Exists <|> quantWithFn "Exists" Exists)
                         fmla <- pFmla
                         return $ (foldr ($) fmla ((f (Just fn)) <$> vars'))
 
+xpQuantified :: Parser Formula
+xpQuantified = (quantWithFn "exists" Exists <|> quantWithFn "Exists" Exists)
+               +++ (quant "exists" Exists <|> quant "Exists" Exists)
+    where quant q f =  do
+                        reserved q
+                        vars <- many1 identifier
+                        let vars' = map Variable vars
+                        reservedOp "."
+                        fmla <- xpFmla
+                        return $ (foldr ($) fmla ((f Nothing) <$> vars'))
+          quantWithFn q f =  do
+                        reserved q
+                        fn <- identifier
+                        vars <- many1 identifier
+                        let vars' = map Variable vars
+                        reservedOp "."
+                        fmla <- xpFmla
+                        return $ (foldr ($) fmla ((f (Just fn)) <$> vars'))
+
 -- | factors of a formula.
 pFactor :: Parser Formula
 pFactor = parens pFmla
@@ -172,11 +206,26 @@ pFactor = parens pFmla
           -- <|> pAtom
           <?> "formula"
 
+-- | Like pFactor but over the extended language
+xpFactor :: Parser Formula
+xpFactor = parens pFmla
+          <|> pTru
+          <|> pFls
+          <|> xpQuantified
+          <|> (xpEql +++ xpAtom)
+          -- <|> pAtom
+          <?> "formula"
+
 -- | Parser for atomic formulas. Works like parsing a term, except that it is an
 -- atom either way. Atoms with no arguments need not provide parens, however.
 pAtom :: Parser Formula
 pAtom = identifier >>= pAtomWithIden
      <?> "atom"
+
+-- | Like pAtom but over the extended language
+xpAtom :: Parser Formula
+xpAtom = identifier >>= xpAtomWithIden
+         <?> "atom"
 
 -- | Parser for atomic formulas with the leading identifier already parsed.
 pAtomWithIden :: RelSym -> Parser Formula
@@ -184,12 +233,28 @@ pAtomWithIden name = makeAtom name <$> pTermList
                     <|>
                     (return $ Atm (Rel name []))
 
+-- | Like pAtomWithIden but over the extended langauge
+xpAtomWithIden :: RelSym -> Parser Formula
+xpAtomWithIden name = makeAtom name <$> xpTermList
+                      <|>
+                      (return $ Atm (Rel name []))
+
 makeAtom :: RelSym -> [Term] -> Formula
 makeAtom  x y = Atm (Rel x y)
 
 -- |  equalities
 pEql :: Parser Formula
-pEql = do {t1 <- pTerm; (symbol "=") ; t2 <- pTerm; return (makeAtom "=" [t1, t2])}
+pEql = do { t1 <- pTerm
+          ; (symbol "=") 
+          ; t2 <- pTerm
+          ; return (makeAtom "=" [t1, t2])}
+
+-- | Like pEql but over the extended language
+xpEql :: Parser Formula
+xpEql = do { t1 <- xpTerm
+           ; (symbol "=") 
+           ; t2 <- xpTerm
+           ; return (makeAtom "=" [t1, t2])}
 
 pTru :: Parser Formula
 pTru  = do { reserved "Truth";   return Tru }
@@ -205,9 +270,20 @@ parseSequent input =
            Left err -> error (show err)
            Right val -> val
 
+xparseSequent :: String -> Sequent
+xparseSequent input =
+    let pResult =  parse xpSequent "parsing sequent" input
+    in case pResult of
+         Left err -> error (show err)
+         Right val -> val
+
 pSequent :: Parser Sequent
 pSequent = pSeqBoth +++ pSeqLeft +++ pSeqRight
            <?> "sequent"
+
+xpSequent :: Parser Sequent
+xpSequent = xpSeqBoth +++ xpSeqLeft +++ xpSeqRight
+            <?> "sequent"
 
 pSeqBoth :: Parser Sequent
 pSeqBoth = do {whiteSpace; 
@@ -216,13 +292,31 @@ pSeqBoth = do {whiteSpace;
                h <- pFmla;
                return (Sequent b h)}
 
+xpSeqBoth :: Parser Sequent
+xpSeqBoth = do {whiteSpace; 
+                b <- xpFmla; 
+                reservedOp "=>";
+                h <- xpFmla;
+                return (Sequent b h)}
+
 pSeqLeft :: Parser Sequent
 pSeqLeft = do {whiteSpace;
                reservedOp "~";
                b <- pFmla;
                return (Sequent b Fls)}
 
+xpSeqLeft :: Parser Sequent
+xpSeqLeft = do {whiteSpace;
+                reservedOp "~";
+                b <- xpFmla;
+                return (Sequent b Fls)}
+
 pSeqRight :: Parser Sequent
 pSeqRight = do {whiteSpace;
                 b <- pFmla;
                 return (Sequent Tru b)}
+
+xpSeqRight :: Parser Sequent
+xpSeqRight = do {whiteSpace;
+                 b <- xpFmla;
+                 return (Sequent Tru b)}

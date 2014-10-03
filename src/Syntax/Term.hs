@@ -12,6 +12,7 @@ module Syntax.Term ( FnSym, Variable (..), Constant (..), Element (..)
                    , isVariable, isConstant, termToVariable, termToConstant
                    , termToElement
                    , parseTerm, pTerm, pTermList -- for parsing terms
+                   , xpTerm, xpTermList
                    ) where
 
 import Syntax.ITerm
