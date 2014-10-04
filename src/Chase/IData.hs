@@ -16,7 +16,7 @@ module Chase.IData where
 import qualified Data.Map as Map
 
 -- Syntax
-import Syntax.Term (Constant)
+import Syntax.Term (Constant, Variable)
 import Syntax.Geometric (Theory, Sequent(..), Formula (..))
 
 -- Control
@@ -91,12 +91,13 @@ evalPullM = runPullM
 
 {-| PushM is the context of computation for building a HerbrandBase. It is a
   Counter monad for keeping track of indices of the new elements wrapped in
-  a State transformer to carry provenance infromation. The combination is then 
+  a State transformer to carry the Id of sequent being pushed, variables in the 
+  body of the sequent, and provenance infromation,. The combination is then 
   wrapped inside another State transformer that contains the old database of
   type 'HerbrandBase', which was computed in the previous iteration. -}
 type PushM h t a = (HerbrandBase h, SATAtom t) => 
     State.StateT h 
-             (State.StateT ProvInfo 
+             (State.StateT (Id, [Variable], ProvInfo)
                        (CounterT (State.StateT (SATTheory t) ConfigMonad))) a
 
 {-| Lifting the monads in the 'PushM' stack -}
@@ -123,19 +124,19 @@ liftPushMConfig :: ( Monad (t1 (t2 (t3 m))), Monad (t2 (t3 m))
 liftPushMConfig =  liftPushMSATTheory.State.lift
 
 {-| Runs a 'PushM' stack of monads. -}
-runPushM :: (HerbrandBase h, SATAtom t) => PushM h t a -> h -> ProvInfo
+runPushM :: (HerbrandBase h, SATAtom t) => PushM h t a -> h -> (Id, ProvInfo)
          -> Int -> SATTheory t -> Config -> (a, ProvInfo, Int, SATTheory t)
-runPushM pFn base provs cnt propThy cfg = 
+runPushM pFn base (id, provs) cnt propThy cfg = 
     let runBase = State.evalStateT pFn base
-        runProv = State.runStateT runBase provs
+        runProv = State.runStateT runBase (id, [], provs)
         runCntr = State.runStateT runProv cnt
         runThy  = State.runStateT runCntr propThy
     in  flatTup $ State.runState runThy cfg
-    where flatTup = \((((v, w), x), y), z) -> (v, w, x, y)
+    where flatTup = \((((v, (_, _, w)), x), y), z) -> (v, w, x, y)
 
 {-| Evaluates a 'PushM' stack of monads and returns the resulting 
   'HerbrandBase'-}
-evalPushM :: (HerbrandBase h, SATAtom t) => PushM h t a -> h -> ProvInfo 
+evalPushM :: (HerbrandBase h, SATAtom t) => PushM h t a -> h -> (Id, ProvInfo)
           -> Int -> SATTheory t -> Config -> a
 evalPushM pFn base provs cnt propThy cfg = 
     let (x, _, _, _) = runPushM pFn base provs cnt propThy cfg in x

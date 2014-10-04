@@ -4,7 +4,7 @@
   Description : Defines provenance information and offers functions to work with
   provenance information.
   Maintainer  : Salman Saghafi -}
-module Common.Provenance ( ProvInfo (..), ElementProvs
+module Common.Provenance ( ProvInfo (..), ElementProvs, Blame (..)
                          , addElementProv, getElementProv
                          , findElementWithProv, modifyElementProvs
                          , emptyProvInfo, emptyProvInfoWithConstants ) where

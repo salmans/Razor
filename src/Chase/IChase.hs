@@ -206,7 +206,8 @@ iterateBalance seqs base dlt provs cnt propThy cfg =
     -- traceShow (baseSize dlt)
     -- $
     let uni = unionBases base dlt
-    in  Map.foldl' (\(n, p, c, pt) s -> balance s base dlt uni n p c pt cfg) 
+    in  Map.foldlWithKey' 
+            (\(n, p, c, pt) k s -> balance k s base dlt uni n p c pt cfg) 
             (emptyBase, provs, cnt, propThy) seqs
 
 {- As a helper for iterateBalance, returns all the new information that may be
@@ -236,13 +237,13 @@ iterateBalance seqs base dlt provs cnt propThy cfg =
    - New propositional theory after pushing new information
  -}
 balance :: (HerbrandImpl h s r, SATAtom t) => 
-           s -> h -> h -> h -> h -> ProvInfo -> Int
+           Id -> s -> h -> h -> h -> h -> ProvInfo -> Int
            -> SATTheory t -> Config -> (h, ProvInfo, Int, SATTheory t)
-balance seq base dlt uni new provs cnt propThy cfg = 
+balance id seq base dlt uni new provs cnt propThy cfg = 
     let res = -- traceShow "----------"
               -- traceShow (toSequent seq)
               -- traceShow provs
               -- traceEval
               -- $
               evalPullM (pull seq base dlt) uni provs
-    in  runPushM (push seq res new) uni provs cnt propThy cfg
+    in  runPushM (push seq res new) uni (id, provs) cnt propThy cfg

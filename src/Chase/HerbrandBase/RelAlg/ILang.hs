@@ -66,6 +66,10 @@ type TupleSub  = TupleD ExistsSub
 tuple :: Tup -> Tuple
 tuple t = Tuple t ()
 
+{-| Forgets the decoration of a 'Tuple' -}
+undecorate :: TupleD a -> Tuple
+undecorate (Tuple tup _) = Tuple tup ()
+
 {-| Reads a 'Tuple' from a list. -}
 tupleFromList :: [Element] -> Tuple
 tupleFromList = tuple . Vect.fromList

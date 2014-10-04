@@ -14,11 +14,11 @@ import Data.Maybe
 import Control.Applicative
 
 -- Syntax
-import Syntax.Term (Term (..), Element (..), Constant (..), FnSym)
+import Syntax.Term (Term (..), Element (..), Constant (..), Sub, FnSym)
 
--- Tools
-import Tools.Trace
-
+-- Common
+import Common.Basic (Id)
+import Common.Observation (Observation)
 
 unitName               = "Common.Provenance"
 error_missingProv      = "provenance information for element is missing"
@@ -34,11 +34,19 @@ type SkolemTerm = Term
 type ElementProvs = ( Map.Map Element [SkolemTerm]
                     , Map.Map SkolemTerm Element)
 
+{-| Blaming information for an 'Observation' is a sequent of the theory (or the
+  extended theory after augmentation), which is identified by its 'Id', together
+  with a binding from its free variables to elements of the model. -}
+data Blame = TheoryBlame Id Sub
+           deriving (Show, Eq, Ord)
 
-
+{-| Provenance information for observations is a map from 'Observation's to 
+  'Blame'. -}
+type ObservationProvs = Map.Map Observation Blame 
 
 {-| ProvInfo contains provenance information for elements and facts. -}
-data ProvInfo = ProvInfo { elementProvs :: ElementProvs
+data ProvInfo = ProvInfo { elementProvs     :: ElementProvs
+                         , observationProvs :: ObservationProvs
                          } deriving (Show, Eq)
 
 {-| Modifies the provenance information for elements given an update function.-}
@@ -49,7 +57,7 @@ modifyElementProvs f provs =
 
 {-| Empty provenance information -}
 emptyProvInfo :: ProvInfo
-emptyProvInfo =  ProvInfo (Map.empty, Map.empty)
+emptyProvInfo =  ProvInfo (Map.empty, Map.empty) Map.empty
 
 {-| Empty provenance information with initial provenance for given constants -}
 emptyProvInfoWithConstants :: [Constant] -> ProvInfo
@@ -58,6 +66,7 @@ emptyProvInfoWithConstants consts =
         cs   = Cons <$> consts
     in  ProvInfo ( Map.fromList $ zip elms (pure <$> cs)
                  , Map.fromList $ zip cs elms )
+                 Map.empty
 
 
 {-| Returns the skolem term, i.e., the provenance information, for the input

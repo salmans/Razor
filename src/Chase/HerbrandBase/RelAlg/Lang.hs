@@ -8,7 +8,8 @@
 module Chase.HerbrandBase.RelAlg.Lang 
     ( TableRef (..), Header, RelExp(..), Tup
     , Column, TupleD (..), Tuple (..), TuplePair (..), TupleSub (..)
-    , TableD, Table, TablePair, TableSub, Database (..), tuple
+    , TableD, Table, TablePair, TableSub, Database (..)
+    , tuple, undecorate
     , emptyTableD, fullTableD, nullTableD, fullTableHeader
     , emptyTable, fullTable, nullTable
     , decorateTable, undecorateTable

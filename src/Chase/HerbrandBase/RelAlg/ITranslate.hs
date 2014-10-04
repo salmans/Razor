@@ -35,9 +35,10 @@ import Syntax.GeometricUtils
     , freshElement)
 
 -- Common
-import Common.Provenance ( ProvInfo (..), addElementProv
-                         , modifyElementProvs
-                         , getElementProv )
+import Common.Basic (Id)
+import Common.Observation (Observation (..))
+import Common.Provenance ( ProvInfo (..), Blame (..)
+                         , addElementProv, modifyElementProvs, getElementProv )
 
 -- Chase
 import Chase.Data ( PushM, PullM, liftPushMBase, liftPushMProvs
@@ -440,7 +441,6 @@ evaluateRelExpNoDelta db (Join lExp rExp heads) =
                $ DB.contents (DB.join cond lSet rSet)
 -- mergeJoinTables (DB.join cond lSet rSet) $ snd <$> ps
 --------------------------------------------------------------------------------
-
 -- Inserting tuples for relational expressions:
 
 {- Inserts the tuples of a 'Table' @t@ to a view for relational expression @e@
@@ -460,23 +460,53 @@ insertTuples _ TblFull db  _ = return db
 insertTuples tblPair exp@(Tbl ref vars heads) db _
     | nullTablePair tblPair = return db
     | otherwise             = do
-  let totalColumns = length vars -- + length consts
+  let totalColumns = length vars
   
   let inject tup = \i -> tup ! (fromJust $ lookup i vars)
       
+  -- let content' = ExSet.map
+  --                (\(Tuple _ tup2) -> 
+  --                     tuple (Vect.map (inject tup2)
+  --                            (Vect.fromList [0..(totalColumns - 1)])))
+  --                (DB.contents tblPair)
+
+  (id, vars, _) <- liftPushMProvs State.get
+
   let content' = ExSet.map
-                 (\(Tuple _ tup2) -> 
-                      tuple (Vect.map (inject tup2)
-                             (Vect.fromList [0..(totalColumns - 1)])))
+                 (\(Tuple tup1 tup2) -> 
+                      Tuple (Vect.map (inject tup2)
+                             (Vect.fromList [0..(totalColumns - 1)]))
+                      (TheoryBlame id $ Map.fromList $ zip vars 
+                                      $ termsOf (Vect.toList tup1)))
                  (DB.contents tblPair)
+
 
   -- Filter the tuples that already exist in uni
   uni <- liftPushMBase $ State.get
   let tableInUni = DB.contents $ Map.findWithDefault emptyTable ref uni
-  let content''  = ExSet.filter (\t -> not $ ExSet.member t tableInUni) content'
+  let content''  = ExSet.filter 
+                   (\t -> let t' = undecorate t 
+                          in  not $ ExSet.member t' tableInUni) content'
 
-  return $ Map.insertWith unionTables ref (DB.Set content'') db
+  let newProvs = Map.fromList 
+                 $ (\(Tuple tup blm) -> (obsOf ref (Vect.toList tup), blm)) 
+                 <$> (ExSet.toList content'')
+
+  liftPushMProvs $ State.modify
+                 $ \(_, _, ps) -> 
+                     let oldProvs = observationProvs ps                         
+                     in  ( id
+                         , vars
+                         , ps { observationProvs = Map.union oldProvs newProvs })
+
+  return $ Map.insertWith unionTables ref 
+             (undecorateTable $ DB.Set content'') db
     -- inserting with DB.union here does not allow for duplicate entries.
+    where obsOf (ConstTable c) [e] = Obs $ Rel "=" [Cons c, Elem e]
+          obsOf (RelTable r) es    = Obs $ Rel r $ termsOf es
+          obsOf (FnTable f ) es    = Obs $ Rel f $ termsOf es
+          termsOf es   = Elem <$> es
+
 
 insertTuples tblPair exp@(Proj innerExp col heading skFn unqExp) db depth
     | nullTablePair tblPair = return db
@@ -506,7 +536,8 @@ insertTuples tblPair exp@(Proj innerExp col heading skFn unqExp) db depth
                -- Create a function for injecting the projected out columns.
                -- The function depends on the value of unique expression.
 
-  provs <- (liftM elementProvs) (liftPushMProvs State.get)
+  (_, _, allProvs) <- (liftPushMProvs State.get)
+  let provs = elementProvs allProvs
   new   <- ExSet.foldM (\set (Tuple tup1 tup2) -> do
                           let ds = maximum <$>
                                    (termDepth <$>) <$>
@@ -521,7 +552,7 @@ insertTuples tblPair exp@(Proj innerExp col heading skFn unqExp) db depth
            ExSet.empty diff
 
   liftPushMProvs $ State.modify 
-                 $ newElementsProvs new skFn col
+                 $ \(id, vs, ps) -> (id, vs, newElementsProvs new skFn col ps)
 
   insertTuples (DB.Set new) innerExp db depth
 

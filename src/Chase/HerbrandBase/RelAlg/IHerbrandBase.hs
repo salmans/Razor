@@ -280,17 +280,24 @@ insertRelSequent seq resSet db = do
   let hds   = relSequentHead seq
   let tbls  = newResultTuples resSet
   cfg       <- liftPushMConfig State.get
+  let body  = relSequentBody seq
+  let vars  = case body of
+                TblEmpty -> []
+                TblFull  -> []
+                _        -> Map.keys $ header body
+  liftPushMProvs $ State.modify 
+                 $ \(id, _, ps) -> (id, vars, ps) 
   let depth = configSkolemDepth cfg
   result    <- (liftM removeEmptyTables)              
                $ foldM ( \d (e, t) -> insertTuples t e d depth) db 
                $ zip (fst <$> hds) tbls
                -- Fold the deduce facts for all heads- 
                -- eventually remove references to empty tables
-  provs     <- liftPushMProvs State.get
+  (_, _, provs) <- liftPushMProvs State.get
   uni       <- liftPushMBase  State.get
   propThy   <- liftPushMSATTheory State.get
 
-  let propSeqs = relSequentInstances seq db result resSet provs -- uni result resSet provs
+  let propSeqs = relSequentInstances seq db result resSet provs
   let propThy' = foldr (flip storeSequent) propThy propSeqs
 
   liftPushMSATTheory (State.put propThy')
