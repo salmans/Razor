@@ -310,8 +310,6 @@ filterTable t = if t == tableFromList [[]]
 relSequentInstances :: RelSequent -> Database -> Database -> RelResultSet 
                     -> ProvInfo -> [ObservationSequent]
 relSequentInstances relSeq uni new resSet provs = 
-    traceEval
-    $
     let subs = createSubs relSeq uni new (allResultTuples resSet) provs
     in  [ fromJust seq | 
           (s, cs, es) <- subs
