@@ -116,9 +116,12 @@ processHead (And p q)       =
                            ++ ".processHead: " 
                            ++ error_innerDisjunction
 processHead (Or p q)        = 
-    let p' = processHead p
-        q' = processHead q
-    in  filter (not.null) <$> ((++) <$> p' <*> q')
+    let res = case (processHead p, processHead q) of
+                (Nothing, Nothing) -> Nothing
+                (p'     , Nothing) -> p'
+                (Nothing, q'     ) -> q'
+                (p'     , q'     ) -> (++) <$> p' <*> q'
+    in  filter (not.null) <$> res -- ((++) <$> p' <*> q')
 processHead (Exists _ _ p)  = processHead p
 processHead (Lone _ _ p _)  = processHead p
 processHead (Atm atm)       = pure <$> pure <$> toObservation atm

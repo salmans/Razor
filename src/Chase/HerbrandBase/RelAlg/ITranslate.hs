@@ -455,21 +455,21 @@ evaluateRelExpNoDelta db (Join lExp rExp heads) =
    to a delta 'Database' (unlike evaluateRelExp). -}
 insertTuples :: TablePair -> RelExp -> Database -> Int 
              -> PushM Database t Database
-insertTuples _ TblEmpty db _ = return db
-insertTuples _ TblFull db  _ = return db
-insertTuples tblPair exp@(Tbl ref vars heads) db _
+insertTuples a b c d = do
+      result <- insertTuples' a b c d 
+      return result
+
+insertTuples' :: TablePair -> RelExp -> Database -> Int 
+              -> PushM Database t Database
+insertTuples' _ TblEmpty db _ = return db
+insertTuples' _ TblFull db  _ = return db
+insertTuples' tblPair exp@(Tbl ref vars heads) db _
     | nullTablePair tblPair = return db
     | otherwise             = do
   let totalColumns = length vars
   
   let inject tup = \i -> tup ! (fromJust $ lookup i vars)
       
-  -- let content' = ExSet.map
-  --                (\(Tuple _ tup2) -> 
-  --                     tuple (Vect.map (inject tup2)
-  --                            (Vect.fromList [0..(totalColumns - 1)])))
-  --                (DB.contents tblPair)
-
   (id, vars, _) <- liftPushMProvs State.get
 
   let content' = ExSet.map
@@ -508,7 +508,7 @@ insertTuples tblPair exp@(Tbl ref vars heads) db _
           termsOf es   = Elem <$> es
 
 
-insertTuples tblPair exp@(Proj innerExp col heading skFn unqExp) db depth
+insertTuples' tblPair exp@(Proj innerExp col heading skFn unqExp) db depth
     | nullTablePair tblPair = return db
     | otherwise             = do
   let totalColumns          = length $ Map.keys $ header innerExp
@@ -521,14 +521,15 @@ insertTuples tblPair exp@(Proj innerExp col heading skFn unqExp) db depth
   let existTbl@(DB.Set existSet) = 
           unionTables (undecorateTable (evaluateRelExpNoDelta db exp))
                       (undecorateTable (evaluateRelExpNoDelta uni exp))
-      -- for expression @exp@, these are the existing set
-      -- of tuples, from the database in the previous 
-      -- iteration (uni) and the new database that is 
-      -- currently being built (db)
+      for expression @exp@, these are the existing set
+      of tuples, from the database in the previous 
+      iteration (uni) and the new database that is 
+      currently being built (db)
 
   let diff = ExSet.filter (\(Tuple tup1 tup2) -> 
                                ExSet.notMember (tuple tup2)  existSet) 
              $ DB.contents tblPair
+
              -- tuples to insert (tuples that already do not exists)
   let inject = case unqExp of
                  Nothing -> insertProjInject col
@@ -556,7 +557,7 @@ insertTuples tblPair exp@(Proj innerExp col heading skFn unqExp) db depth
 
   insertTuples (DB.Set new) innerExp db depth
 
-insertTuples tbl@(DB.Set set) (Sel exp colPairs _) db depth = do
+insertTuples' tbl@(DB.Set set) (Sel exp colPairs _) db depth = do
     let mapTup tup  = (inject tup) <$> Vect.fromList colPairs
     let new         = ExSet.map (\(Tuple tup1 tup2) -> Tuple tup1 (mapTup tup2))
                       set
@@ -567,7 +568,7 @@ insertTuples tbl@(DB.Set set) (Sel exp colPairs _) db depth = do
                                                error_invalidRelExp
                                     Just j  -> tup ! j
              
-insertTuples tbl@(DB.Set set) exp@(Join lExp rExp heads) db depth = do
+insertTuples' tbl@(DB.Set set) exp@(Join lExp rExp heads) db depth = do
   let lTran = unjoinTupleTransformer (header lExp) heads
   let rTran = unjoinTupleTransformer (header rExp) heads
   let lSet  = ExSet.map (\(Tuple tup1 tup2) -> Tuple tup1 (lTran tup2)) set
@@ -575,9 +576,9 @@ insertTuples tbl@(DB.Set set) exp@(Join lExp rExp heads) db depth = do
 
   db' <- insertTuples (DB.Set lSet) lExp db depth
   insertTuples (DB.Set rSet) rExp db' depth
-insertTuples tbl (Delta _ _)          _  _ = 
+insertTuples' tbl (Delta _ _)          _  _ = 
     error $ unitName ++ ".insertTuples: " ++ error_insertIntoDeltaView
-insertTuples tbl (Union _ _ _ _ _   ) _  _ =
+insertTuples' tbl (Union _ _ _ _ _   ) _  _ =
     error $ unitName ++ ".insertTuples: " ++ error_insertIntoUnionView
 
 {- Acts as a helper for 'insertTuple' when inserting into a Proj expression.
@@ -625,7 +626,7 @@ insertProjUniqueInject db uni unqExp heading col tup@(Tuple vs _) =
         fetch       = \ftbl -> 
                       fetchUnique tup heading (header unqExp) col ftbl
     in \i -> if   i == col
-             then case ((fetch unqTblInNew) <|> (fetch unqTblInUni)) of
+             then case (fetch unqTblInNew) <|> (fetch unqTblInUni) of
                     Nothing  -> liftPushMCounter freshElement
                     Just elm -> return elm
              else let j = if i > col then i - 1 else i
@@ -636,6 +637,9 @@ fetchUnique :: Tuple -> Header -> Header -> Column
             -> Table -> Maybe Element
 fetchUnique (Tuple vs _) tupHdr expHdr projCol tbl = 
     let hdr     = Map.intersection tupHdr expHdr        
+        -- creating pairs of positions in the unique expression and the values
+        -- that they are supposed to get (conisdering the tuple that is about
+        -- to be inserted):
         colVals = Map.elems $ Map.mapWithKey (\a c -> 
                                           ( fromJust $ Map.lookup a expHdr
                                           , vs ! c ) ) hdr

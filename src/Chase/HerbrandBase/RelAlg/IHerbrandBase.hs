@@ -190,16 +190,23 @@ evaluateRelSequent seq@(RelSequent bdy hds bdyDlt _ _ _ _) db dlt = do
                                          (\(Tuple t _) -> Tuple t (tran t))  
                                      bdyDltSet
                               , evaluateRelExpNoDelta uni hd)) hds
+                         -- hdTbls contains the head expression, transformation
+                         -- of body table in a way that it matches with the
+                         -- schema of the head and the entire head table in 
+                         -- uni database.
   let mapper           = map (\(_, tranTbl, hdTbl) -> (tranTbl, hdTbl)) hdTbls
+                         -- mapper is like hdTbls but doesn't have the expression
   let bdyDltExTbl'     = helper bdyDltExTbl mapper
 
   let setPairs         = map (\(hd, tranTbl, hdTbl) -> 
                                   ( hd
                                   , tranTbl
                                   , undecorateTable hdTbl)) hdTbls
+
   let pairs            = 
           map (\(hd, tranTbl, hdTbl) -> 
                diffSequentTables (bdyDlt, tranTbl) (hd, hdTbl)) setPairs
+
   return $ RelResultSet bdyDltExTbl' pairs
 
 
@@ -225,21 +232,6 @@ helper bdyTbl hdTblPairs =
               in  if   ExSet.null result
                   then ExSet.singleton (Tuple tup sub)
                   else result
-
--- evaluateRelSequent seq@(RelSequent bdy hds bdyDlt _ _ _ _) db dlt =
---   -- traceShow "PULL"
---   -- $
---   do  
---   provs <- liftPullMProvs State.get
---   uni <- liftPullMBase State.get
---   let bdyDltExTbl     = evaluateRelExp db dlt bdyDlt Nothing
---   let bdyDltTbl       = unextendTable bdyDltExTbl
---   let pairs           = 
---           map (\(hd, trans) ->
---                let hdTbl  = unextendTable 
---                             $ evaluateRelExpNoDelta uni hd (Just provs)
---                in diffSequentTables (bdyDlt, bdyDltTbl) (hd, hdTbl) trans) hds
---   return $ RelResultSet bdyDltExTbl pairs
 
 {- Given two tables @bdyTable@ and @hdTable@ that respectively correspond to 
    the body and the head of a 'RelSequent' in a snapshot of the current base,
@@ -318,6 +310,8 @@ filterTable t = if t == tableFromList [[]]
 relSequentInstances :: RelSequent -> Database -> Database -> RelResultSet 
                     -> ProvInfo -> [ObservationSequent]
 relSequentInstances relSeq uni new resSet provs = 
+    traceEval
+    $
     let subs = createSubs relSeq uni new (allResultTuples resSet) provs
     in  [ fromJust seq | 
           (s, cs, es) <- subs
