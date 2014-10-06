@@ -18,6 +18,8 @@ import Tools.Config
 
 main :: IO ()
 main = do
+  -- init display
+  displayInit
   -- get configuration
   args <- getArgs
   config <- API.parseConfig args
@@ -51,6 +53,8 @@ main = do
       prettyPrint (show model') fmodel
       -- enter the repl
       runInputT defaultSettings (loop (model', stream'))
+  -- exit display
+  displayExit
 
 loop :: (Maybe Model, SATIteratorType) -> InputT IO ()
 loop (model, stream) = do
