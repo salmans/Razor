@@ -28,7 +28,7 @@ helpCommand =
     "    //example: name ???" ++ "\n" ++ 
     "  blame fact: ???" ++ "\n" ++ 
     "    //example: blame ???" ++ "\n" ++ 
-    "  exit: close the REPL"
+    "  exit: close the REPL\n"
 
 parseCommand :: String -> Maybe Command
 parseCommand input = 

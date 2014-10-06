@@ -1,32 +1,27 @@
 {- Razor
-   Module      : UI.Ansi.IDisplay
+   Module      : REPL.Ansi.IDisplay
    Description : Internal implementation for display.
    Maintainer  : Salman Saghafi -}
 
-module UI.Ansi.IDisplay where
+module REPL.Ansi.IDisplay where
 
--- Standard
-import Data.List
-import Control.Applicative
--- Syntax
-import Syntax.Term
+import Control.Monad.Trans
+import System.Console.Haskeline
+import System.Console.ANSI
 
+fmodel = [SetColor Foreground Dull Green, SetConsoleIntensity BoldIntensity]
+finfo = [SetColor Foreground Dull Blue, SetConsoleIntensity BoldIntensity]
+fwarning = [SetColor Foreground Dull Yellow, SetConsoleIntensity BoldIntensity]
+ferror = [SetColor Foreground Dull Red, SetConsoleIntensity BoldIntensity]
 
+prettyPrint :: String -> [SGR] -> IO ()
+prettyPrint str format = do
+	setSGR format
+	putStr str
+	setSGR []
 
-instance Show Element where
-    show (Element e) = "[" ++ e ++ "]"
-
-instance Show Variable where
-    show (Variable v) = v
-
-instance Show Constant where
-    show (Constant c) = c
-
-instance Show Term where
-    show t = prettyTerm t
-
-prettyTerm :: Term -> String
-prettyTerm (Var v)   = show v
-prettyTerm (Cons c)  = show c
-prettyTerm (Elem e)  = show e
-prettyTerm (Fn f ts) = f ++ "(" ++ (intercalate "," (prettyTerm <$> ts)) ++ ")"
+prettyREPL :: String -> [SGR] -> InputT IO ()
+prettyREPL str format = lift $ do
+	setSGR format
+	putStr str
+	setSGR []

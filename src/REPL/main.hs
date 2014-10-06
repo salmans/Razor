@@ -10,11 +10,12 @@ import API
 import Common.Model (Model (..))
 import Data.Maybe
 import REPL.Syntax
+import REPL.Ansi.Display
 import SAT.Impl
 import System.Console.Haskeline
 import System.Environment
 import Tools.Config
- 
+
 main :: IO ()
 main = do
   -- get configuration
@@ -31,16 +32,25 @@ main = do
     Just thy -> return thy
     Nothing -> error "Unable to parse input theory!"
   -- print preprocess information
-  putStrLn $ "\n" ++ "<><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>"
+  putStrLn $ "<><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>"
   putStrLn "Input Options: "
   putStrLn (show config)
   putStrLn "Theory: "
   mapM_ (putStrLn.show) theory
-  putStrLn $ "<><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>" ++ "\n"
-  -- generate G*, get the model stream, and enter the repl
+  putStrLn $ "<><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>"
+  -- generate G*, get the model stream
   let (base, prov, prop) = generateGS config theory
   let stream = modelStream prop 
-  runInputT defaultSettings (loop (Nothing, stream))
+  -- get the first model
+  (model', stream') <- return (nextModel stream)
+  case model' of
+    -- dont repl if no models
+    Nothing -> error "No models found!"
+    Just mdl -> do
+      -- display the first model
+      prettyPrint (show model') fmodel
+      -- enter the repl
+      runInputT defaultSettings (loop (model', stream'))
 
 loop :: (Maybe Model, SATIteratorType) -> InputT IO ()
 loop (model, stream) = do
@@ -49,17 +59,19 @@ loop (model, stream) = do
   case minput of
       Nothing -> return ()
       Just command -> case (parseCommand command) of
-        Nothing -> outputStrLn "syntax error" >> continue
+        Nothing -> prettyREPL "syntax error\n" ferror >> continue
         Just cmd -> case cmd of
           Go explore -> do
             (model', stream') <- updateState (model, stream) explore 
-            outputStrLn (show model') >> loop (model', stream')
+            case model' of
+              Nothing -> prettyREPL "no next model\n" fwarning >> loop (model, stream)
+              Just mdl -> prettyREPL (show model') fmodel >> loop (model', stream')
           Ask question -> case question of
             Name term -> continue
             Blame term -> continue
           Other utility -> case utility of
             Help -> do
-              outputStrLn helpCommand
+              prettyREPL helpCommand finfo
               continue
             Exit -> return ()
 
