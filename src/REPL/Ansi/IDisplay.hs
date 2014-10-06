@@ -11,9 +11,9 @@ import System.Console.ANSI
 
 fdefault = []
 fmodel = [SetColor Foreground Dull White, SetConsoleIntensity BoldIntensity]
-finfo = [SetColor Foreground Vivid Blue, SetConsoleIntensity BoldIntensity]
-fwarning = [SetColor Foreground Vivid Yellow, SetConsoleIntensity BoldIntensity]
-ferror = [SetColor Foreground Vivid Red, SetConsoleIntensity BoldIntensity]
+finfo = [SetColor Foreground Dull Blue, SetConsoleIntensity BoldIntensity]
+fwarning = [SetColor Foreground Dull Yellow, SetConsoleIntensity BoldIntensity]
+ferror = [SetColor Foreground Dull Red, SetConsoleIntensity BoldIntensity]
 
 displayInit :: IO()
 displayInit = setSGR fdefault
@@ -21,15 +21,15 @@ displayInit = setSGR fdefault
 displayExit :: IO()
 displayExit = setSGR []
 
-prettyPrint :: String -> [SGR] -> IO ()
-prettyPrint str format = do
+prettyPrint :: [SGR] -> String -> IO ()
+prettyPrint format str = do
 	setSGR format
 	putStr str
 	setSGR []
 	setSGR fdefault
 
-prettyREPL :: String -> [SGR] -> InputT IO ()
-prettyREPL str format = lift $ do
+prettyREPL :: [SGR] -> String -> InputT IO ()
+prettyREPL format str = lift $ do
 	setSGR format
 	putStr str
 	setSGR []

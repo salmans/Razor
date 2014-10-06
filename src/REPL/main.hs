@@ -8,6 +8,7 @@
 module Main where
 import API
 import Common.Model (Model (..))
+import Common.Provenance
 import Data.Maybe
 import REPL.Syntax
 import REPL.Ansi.Display
@@ -50,34 +51,39 @@ main = do
     Nothing -> error "No models found!"
     Just mdl -> do
       -- display the first model
-      prettyPrint (show model') fmodel
+      prettyPrint fmodel (show model')
       -- enter the repl
-      runInputT defaultSettings (loop (model', stream'))
+      runInputT defaultSettings (loop (model', stream') prov)
   -- exit display
   displayExit
 
-loop :: (Maybe Model, SATIteratorType) -> InputT IO ()
-loop (model, stream) = do
-  let continue = loop (model, stream)
+loop :: (Maybe Model, SATIteratorType) -> ProvInfo -> InputT IO ()
+loop (model, stream) prov = do
+  let continue = loop (model, stream) prov
   minput <- getInputLine "% "
   case minput of
       Nothing -> return ()
       Just command -> case (parseCommand command) of
-        Nothing -> prettyREPL "syntax error\n" ferror >> continue
+        Nothing -> prettyREPL ferror "syntax error\n" >> continue
         Just cmd -> case cmd of
           Go explore -> do
             (model', stream') <- updateState (model, stream) explore 
             case model' of
-              Nothing -> prettyREPL "no next model\n" fwarning >> loop (model, stream)
-              Just mdl -> prettyREPL (show model') fmodel >> loop (model', stream')
+              Nothing -> prettyREPL fwarning "no next model\n" >> continue
+              Just mdl -> prettyREPL fmodel (show model') >> loop (model', stream') prov
           Ask question -> case question of
-            Name term -> continue
+            Name term -> do
+              let hist = nameElement prov term
+              prettyREPL finfo ((show hist) ++ "\n")
+              continue
             Blame term -> continue
           Other utility -> case utility of
             Help -> do
-              prettyREPL helpCommand finfo
+              prettyREPL finfo helpCommand
               continue
-            Exit -> return ()
+            Exit -> do
+              prettyREPL finfo "exiting...\n"
+              return ()
 
 updateState :: (Maybe Model, SATIteratorType) -> Explore -> InputT IO (Maybe Model, SATIteratorType)
 updateState (model, stream) explore = do

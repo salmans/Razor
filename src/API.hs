@@ -12,7 +12,7 @@
 -}
 module API where
 import Chase.Impl
-import Common.Provenance (ProvInfo)
+import Common.Provenance
 import Common.Model (Model (..))
 import Control.Applicative
 import Control.Monad
@@ -20,6 +20,7 @@ import Data.Maybe
 import Data.List
 import SAT.Impl
 import Syntax.GeometricUtils (Theory, Sequent)
+import Syntax.Term
 import System.Console.GetOpt
 import System.Environment
 import System.Exit (exitWith, ExitCode (..))
@@ -142,3 +143,11 @@ modelStream propThy = satInitialize propThy
 -- Out: an updated model stream and the next model
 nextModel :: SATIteratorType -> (Maybe Model, SATIteratorType)
 nextModel it = (satSolve it)
+
+-- In: prov info for a theory, term in question
+-- Out: if element is in model, skolem term naming the element history; nothing otherwise
+nameElement :: ProvInfo -> Term -> [Term]
+nameElement prov term = do
+  case (termToElement term) of
+    Nothing -> []
+    Just elm -> (getElementProv elm (elementProvs prov))

@@ -69,7 +69,7 @@ pQuestion = pName <|> pBlame
 pName :: Parser Question
 pName = do
   symbol "name"
-  Name <$> pTerm
+  Name <$> xpTerm
 
 pBlame :: Parser Question
 pBlame = do
