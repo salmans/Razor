@@ -196,9 +196,11 @@ tranObservation obs@(Obs atm@(FnRel f ts))  = do
 -- Translating the results back to first-order observations:
 {- Converts a solution created by the SMT solver to a set of 'Observation's. -}
 translateSolution :: SatResult -> Maybe Model
-translateSolution (SatResult (Unsatisfiable _))     = Nothing
-translateSolution (SatResult res@(Satisfiable _ r)) = 
-    Just $ translateDictionary (getModelDictionary res)
+translateSolution res =
+  case res of
+    SatResult (Unsatisfiable _) -> Nothing
+    SatResult (Satisfiable _ _) -> Just $ translateDictionary (getModelDictionary res)
+    _ -> error "Z3 SMT Solver not found"
 
 {- A helper for 'translateSolution' -}
 translateDictionary :: Map.Map String CW -> Model
