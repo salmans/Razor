@@ -454,7 +454,7 @@ evaluateRelExpNoDelta db (Join lExp rExp heads) =
    NOTE: the function assumes that the expression does not have any reference
    to a delta 'Database' (unlike evaluateRelExp). -}
 insertTuples :: TablePair -> RelExp -> Database -> Int 
-             -> PushM Database t Database
+              -> PushM Database t Database
 insertTuples _ TblEmpty db _ = return db
 insertTuples _ TblFull db  _ = return db
 insertTuples tblPair exp@(Tbl ref vars heads) db _
@@ -464,12 +464,6 @@ insertTuples tblPair exp@(Tbl ref vars heads) db _
   
   let inject tup = \i -> tup ! (fromJust $ lookup i vars)
       
-  -- let content' = ExSet.map
-  --                (\(Tuple _ tup2) -> 
-  --                     tuple (Vect.map (inject tup2)
-  --                            (Vect.fromList [0..(totalColumns - 1)])))
-  --                (DB.contents tblPair)
-
   (id, vars, _) <- liftPushMProvs State.get
 
   let content' = ExSet.map
@@ -529,6 +523,7 @@ insertTuples tblPair exp@(Proj innerExp col heading skFn unqExp) db depth
   let diff = ExSet.filter (\(Tuple tup1 tup2) -> 
                                ExSet.notMember (tuple tup2)  existSet) 
              $ DB.contents tblPair
+
              -- tuples to insert (tuples that already do not exists)
   let inject = case unqExp of
                  Nothing -> insertProjInject col
@@ -625,7 +620,7 @@ insertProjUniqueInject db uni unqExp heading col tup@(Tuple vs _) =
         fetch       = \ftbl -> 
                       fetchUnique tup heading (header unqExp) col ftbl
     in \i -> if   i == col
-             then case ((fetch unqTblInNew) <|> (fetch unqTblInUni)) of
+             then case (fetch unqTblInNew) <|> (fetch unqTblInUni) of
                     Nothing  -> liftPushMCounter freshElement
                     Just elm -> return elm
              else let j = if i > col then i - 1 else i
@@ -636,6 +631,9 @@ fetchUnique :: Tuple -> Header -> Header -> Column
             -> Table -> Maybe Element
 fetchUnique (Tuple vs _) tupHdr expHdr projCol tbl = 
     let hdr     = Map.intersection tupHdr expHdr        
+        -- creating pairs of positions in the unique expression and the values
+        -- that they are supposed to get (conisdering the tuple that is about
+        -- to be inserted):
         colVals = Map.elems $ Map.mapWithKey (\a c -> 
                                           ( fromJust $ Map.lookup a expHdr
                                           , vs ! c ) ) hdr

@@ -96,24 +96,39 @@ showObservationGroup obs = case head obs of
 showRelationObs :: RelSym -> [Observation] -> String
 showRelationObs "=" obs = 
     let obs'   = filter (\(Obs (Rel _ [t1, t2])) -> t1 /= t2) obs
-        elems  = (\(Obs (Rel _ ts)) -> showTuple ts) <$> obs'
+        elems  = (\(Obs (Rel _ ts)) -> showRelationTuple ts) <$> obs'
     in  if   null obs'
         then ""
         else (show "=") ++ " = {" ++ intercalate ", " elems ++ "}"
 showRelationObs sym obs = 
-    let elems  = (\(Obs (Rel _ ts)) -> showTuple ts) <$> obs
+    let elems  = (\(Obs (Rel _ ts)) -> showRelationTuple ts) <$> obs
     in  (show sym) ++ " = {" ++ intercalate ", " elems ++ "}"
 
 {- Displays a list of functional tuples. -}
 showFunctionObs :: FnSym -> [Observation] -> String
 -- showFunctionObs sym [obs] = (show sym) ++ " = " ++ (show obs)
 showFunctionObs sym obss  = 
-    let elems  = (\(Obs (FnRel _ ts)) -> showTuple ts) <$> obss
+    let elems  = (\(Obs (FnRel _ ts)) -> showFunctionTuple ts) <$> obss
     in  (show sym) ++ " = {" ++ intercalate ", " elems ++ "}"
 
-{- A helper for 'showFunctionObs' and 'showRelationObs' for displaying tuples. 
-   Note that the funciton displays elements independent of Show instance for 
-   'Element'. -}
-showTuple :: [Term] -> String
-showTuple [] = ""
-showTuple es = "(" ++ intercalate "," ((\(Elem (Element e)) -> e) <$> es) ++ ")"
+{- A helper for 'showRelationObs' for displaying tuples. 
+   ** Notice that the funciton displays elements independent of Show instance 
+   for 'Element'. -}
+showRelationTuple :: [Term] -> String
+showRelationTuple [] = ""
+showRelationTuple es = "(" ++ 
+                       intercalate "," ((\(Elem (Element e)) -> e) <$> es) ++ 
+                       ")"
+
+{- A helper for 'showFunctionObs' for displaying tuples. 
+   ** Notice that the funciton displays elements independent of Show instance 
+   for 'Element'. -}
+showFunctionTuple :: [Term] -> String
+showFunctionTuple []  = ""
+showFunctionTuple [e] = let Elem (Element res) = e in res
+showFunctionTuple es  = 
+    let args               = init es
+        Elem (Element res) = last es
+    in  "(" ++ 
+        intercalate "," ((\(Elem (Element e)) -> e) <$> args) ++ 
+        ") -> " ++ res
