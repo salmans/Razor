@@ -19,7 +19,7 @@ import Control.Monad
 import Data.Maybe
 import Data.List
 import SAT.Impl
-import Syntax.GeometricUtils (Theory, Sequent)
+import Syntax.GeometricUtils
 import Syntax.Term
 import System.Console.GetOpt
 import System.Environment
@@ -144,10 +144,27 @@ modelStream propThy = satInitialize propThy
 nextModel :: SATIteratorType -> (Maybe Model, SATIteratorType)
 nextModel it = (satSolve it)
 
--- In: prov info for a theory, term in question
--- Out: if element is in model, skolem term naming the element history; nothing otherwise
-nameElement :: ProvInfo -> Term -> [Term]
-nameElement prov term = do
+-- In: theory, prov of that theory, and an element
+-- Out: if element is in prov info, return a theory naming the element in the proper sequents
+-- TODO; clean this up after getting feedback
+nameElement :: Theory -> ProvInfo -> Term -> IO ()
+nameElement thy prov term = do
   case (termToElement term) of
-    Nothing -> []
-    Just elm -> (getElementProv elm (elementProvs prov))
+    Nothing -> putStrLn "nothing\n"
+    Just elm -> nameTheory thy (head (getElementProv elm (elementProvs prov)))
+
+nameTheory :: Theory -> Term -> IO ()
+nameTheory thy skolemhead = do
+  mapM_ (nameSequent skolemhead) (preprocess thy)
+  putStrLn "done\n"
+
+nameSequent :: Term -> Sequent -> IO ()
+nameSequent elmSkolem (Sequent bdy hd) = do
+  let seqSkolems = formulaExistentials hd
+  case null (filter (doesmatch elmSkolem) seqSkolems) of
+    True -> putStrLn (show (Sequent bdy hd))
+    False -> putStrLn "no match"
+
+doesmatch :: Term -> FnSym -> Bool
+doesmatch (Fn fsym _) s = (fsym == s)
+doesmatch _ _ = False

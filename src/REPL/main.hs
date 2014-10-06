@@ -12,10 +12,15 @@ import Common.Provenance
 import Data.Maybe
 import REPL.Syntax
 import REPL.Ansi.Display
+import Syntax.GeometricUtils (Theory)
 import SAT.Impl
 import System.Console.Haskeline
 import System.Environment
 import Tools.Config
+
+
+import Control.Monad.Trans
+
 
 main :: IO ()
 main = do
@@ -53,34 +58,35 @@ main = do
       -- display the first model
       prettyPrint fmodel (show model')
       -- enter the repl
-      runInputT defaultSettings (loop (model', stream') prov)
+      runInputT defaultSettings (loop (model', stream') prov theory)
   -- exit display
   displayExit
 
-loop :: (Maybe Model, SATIteratorType) -> ProvInfo -> InputT IO ()
-loop (model, stream) prov = do
-  let continue = loop (model, stream) prov
+loop :: (Maybe Model, SATIteratorType) -> ProvInfo -> Theory -> InputT IO ()
+loop (model, stream) prov thy = do
+  let sameLoop = loop (model, stream) prov thy
+  let newLoop (model', stream') = prettyREPL fmodel (show model') >> loop (model', stream') prov thy
   minput <- getInputLine "% "
   case minput of
       Nothing -> return ()
       Just command -> case (parseCommand command) of
-        Nothing -> prettyREPL ferror "syntax error\n" >> continue
+        Nothing -> prettyREPL ferror "syntax error\n" >> sameLoop
         Just cmd -> case cmd of
           Go explore -> do
             (model', stream') <- updateState (model, stream) explore 
             case model' of
-              Nothing -> prettyREPL fwarning "no next model\n" >> continue
-              Just mdl -> prettyREPL fmodel (show model') >> loop (model', stream') prov
+              Nothing -> prettyREPL fwarning "no model found; exploration not applied\n" >> sameLoop
+              Just mdl -> newLoop (model', stream)
           Ask question -> case question of
             Name term -> do
-              let hist = nameElement prov term
-              prettyREPL finfo ((show hist) ++ "\n")
-              continue
-            Blame term -> continue
+              lift (nameElement thy prov term)
+              --prettyREPL finfo ((show hist) ++ "\n")
+              sameLoop
+            Blame term -> sameLoop
           Other utility -> case utility of
             Help -> do
               prettyREPL finfo helpCommand
-              continue
+              sameLoop
             Exit -> do
               prettyREPL finfo "exiting...\n"
               return ()
