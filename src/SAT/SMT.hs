@@ -81,6 +81,7 @@ type SMTAtom    = String
 
 {- Creates an instance of 'SMTAtom' from a relational 'Atom'. -}
 smtAtom :: Atom -> SMTAtom
+smtAtom (Rel r []) = r
 smtAtom (Rel r ts) = 
     let elms = fromJust <$> termToElement <$> ts
                -- Expecting only flat terms
@@ -199,7 +200,8 @@ translateSolution :: SatResult -> Maybe Model
 translateSolution res =
   case res of
     SatResult (Unsatisfiable _) -> Nothing
-    SatResult (Satisfiable _ _) -> Just $ translateDictionary (getModelDictionary res)
+    SatResult (Satisfiable _ _) -> Just $ translateDictionary 
+                                        $ getModelDictionary res
     _ -> error "Z3 SMT Solver not found"
 
 {- A helper for 'translateSolution' -}
@@ -254,12 +256,11 @@ equivalenceClasses :: Map.Map SMTElement CW -> Map.Map CW [SMTElement]
 equivalenceClasses dic = 
     let elems    = Map.filterWithKey (\k _ -> isElementString k) dic
         list     = sortBy (\(x, y) (x', y') -> 
-                               case compare x x' of
-                                 EQ -> compare y y'
+                               case compare y y' of
+                                 EQ -> compare x x'
                                  c  -> c) $ Map.toList elems
         classes  = groupBy (\(_, x) (_, y) -> x == y) list
     in Map.fromList $ (\c -> (snd (head c), fst <$> c)) <$> classes
-    -- in  (\c -> (fst <$> c, snd (head c))) <$> classes
 --------------------------------------------------------------------------------
 -- SBV Implementation
 --------------------------------------------------------------------------------
@@ -321,6 +322,7 @@ uninterpretFn fn 7 = UnintFn7 (uninterpret fn)
 
 {- Returns the arity of a given 'UninterpretFn' -}
 unintFnArity :: UninterpretFn -> Int
+unintFnArity (UnintFn0 _) = 0
 unintFnArity (UnintFn1 _) = 1
 unintFnArity (UnintFn2 _) = 2
 unintFnArity (UnintFn3 _) = 3
@@ -351,6 +353,8 @@ applyUnintFn _ _ = error $ unitName ++ ".applyUnintFn: " ++ error_InvalidFnArity
 
 {- Applies an instance of 'UninterpretRel' to a list of symbolic arguments. -}
 applyUnintRel :: UninterpretRel -> [SElement] -> SBool
+applyUnintRel (UnintRel0 p) []
+    = p
 applyUnintRel (UnintRel1 f) [x1] 
     = f x1
 applyUnintRel (UnintRel2 f) [x1, x2] 
@@ -365,27 +369,30 @@ applyUnintRel (UnintRel6 f) [x1, x2, x3, x4, x5, x6]
     = f x1 x2 x3 x4 x5 x6
 applyUnintRel (UnintRel7 f) [x1, x2, x3, x4, x5, x6, x7] 
     = f x1 x2 x3 x4 x5 x6 x7
-applyUnintRel _ _ = error $ unitName ++ ".applyUnintRel: " 
-                    ++ error_InvalidRelArity
+applyUnintRel f a = error $ (show f) ++ (show a)
+-- applyUnintRel _ _ = error $ unitName ++ ".applyUnintRel: " 
+--                     ++ error_InvalidRelArity
 
 {- UninterpretRel presents symbolic relations that are used in SBV for creating 
    the input query to the SMT solver. Because these relations are Haskell 
    functions that operate on symbolic values, their types must be fixed; 
    that is, we cannot have relations of arbitrary arities. -}
-data UninterpretRel = UnintRel1 (SElement -> SBool)
-                     | UnintRel2 (SElement -> SElement -> SBool)
-                     | UnintRel3 (SElement -> SElement -> SElement -> SBool)
-                     | UnintRel4 (SElement -> SElement -> SElement -> SElement
-                                  -> SBool)
-                     | UnintRel5 (SElement -> SElement -> SElement -> SElement
-                                  -> SElement -> SBool)
-                     | UnintRel6 (SElement -> SElement -> SElement -> SElement
-                                  -> SElement -> SElement -> SBool)
-                     | UnintRel7 (SElement -> SElement -> SElement -> SElement
-                                  -> SElement -> SElement -> SElement -> SBool)
+data UninterpretRel = UnintRel0 SBool
+                    | UnintRel1 (SElement -> SBool)
+                    | UnintRel2 (SElement -> SElement -> SBool)
+                    | UnintRel3 (SElement -> SElement -> SElement -> SBool)
+                    | UnintRel4 (SElement -> SElement -> SElement -> SElement
+                                 -> SBool)
+                    | UnintRel5 (SElement -> SElement -> SElement -> SElement
+                                 -> SElement -> SBool)
+                    | UnintRel6 (SElement -> SElement -> SElement -> SElement
+                                 -> SElement -> SElement -> SBool)
+                    | UnintRel7 (SElement -> SElement -> SElement -> SElement
+                                 -> SElement -> SElement -> SElement -> SBool)
 
 {- Show instance for 'UninterpretRel' -}
 instance Show UninterpretRel where
+    show (UnintRel0 _) = "UnintRel0"
     show (UnintRel1 _) = "UnintRel1"
     show (UnintRel2 _) = "UnintRel2"
     show (UnintRel3 _) = "UnintRel3"
@@ -396,6 +403,7 @@ instance Show UninterpretRel where
 
 {- Creating 'UninterpretRel' for a given arity -}
 uninterpretRel :: FnSym -> Int -> UninterpretRel
+uninterpretRel rel 0 = UnintRel0 (uninterpret rel)
 uninterpretRel rel 1 = UnintRel1 (uninterpret rel)
 uninterpretRel rel 2 = UnintRel2 (uninterpret rel)
 uninterpretRel rel 3 = UnintRel3 (uninterpret rel)
@@ -406,6 +414,7 @@ uninterpretRel rel 7 = UnintRel7 (uninterpret rel)
 
 {- Returns the arity of a given 'UninterpretRel' -}
 unintRelArity :: UninterpretRel -> Int
+unintRelArity (UnintRel0 _) = 0
 unintRelArity (UnintRel1 _) = 1
 unintRelArity (UnintRel2 _) = 2
 unintRelArity (UnintRel3 _) = 3
@@ -624,7 +633,7 @@ minimizeResult res = do
 
   let symAtoms = Map.toList $ smtSymAtomMap factStrs
   let eqNegAx  = equalityNegativeAxioms sClasses
-  let eqFlipAx = foldr (|||) false $ equalityFlipAxioms <$> sClasses  
+  let eqFlipAx = foldr (|||) false $ equalityFlipAxioms <$> sClasses
   negs  <- mapM (\(r, unintRel) -> 
                      let as = fromMaybe [] (lookup r symAtoms)
                      in  negativeAxioms unintRel as) rels
@@ -787,13 +796,3 @@ symAtomArgs smtAtom = do
 isElementString :: String -> Bool
 isElementString ('e':'#':_) = True
 isElementString _           = False
-
-
--- Test
-test = do 
-  addObservationSequent 
-       (ObservationSequent [] [ [Obs $ Rel "P" [Elem $ Element "e#0"]]
-                              , [Obs $ Rel "R" [Elem $ Element "e#0", Elem $ Element "e#10"]]])
-  addObservationSequent (ObservationSequent 
-                         [Obs $ Rel "P" [Elem $ Element "e#0"]] 
-                            [[Obs $ Rel "Q" [Elem $ Element "e#1"]]])

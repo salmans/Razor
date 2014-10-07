@@ -47,8 +47,6 @@ import Chase.HerbrandBase.RelAlg.Lang -- import everything
 import qualified Chase.HerbrandBase.RelAlg.DB as DB
 import qualified Tools.ExtendedSet as ExSet
 
-import Tools.Trace
-
 
 -- Error Messages:
 unitName               = "Chase.HerbrandSet.RelAlg.Translate"
@@ -512,6 +510,8 @@ insertTuples tblPair exp@(Proj innerExp col heading skFn unqExp) db depth
                           -- the Chase
   provs <- liftPushMProvs $ State.get
 
+  -- < MONITOR
+  {-
   let existTbl@(DB.Set existSet) = 
           unionTables (undecorateTable (evaluateRelExpNoDelta db exp))
                       (undecorateTable (evaluateRelExpNoDelta uni exp))
@@ -523,7 +523,10 @@ insertTuples tblPair exp@(Proj innerExp col heading skFn unqExp) db depth
   let diff = ExSet.filter (\(Tuple tup1 tup2) -> 
                                ExSet.notMember (tuple tup2)  existSet) 
              $ DB.contents tblPair
+  -}
 
+  let diff = DB.contents tblPair
+  -- MONITOR >
              -- tuples to insert (tuples that already do not exists)
   let inject = case unqExp of
                  Nothing -> insertProjInject col
@@ -548,7 +551,7 @@ insertTuples tblPair exp@(Proj innerExp col heading skFn unqExp) db depth
 
   liftPushMProvs $ State.modify 
                  $ \(id, vs, ps) -> (id, vs, newElementsProvs new skFn col ps)
-
+                                    
   insertTuples (DB.Set new) innerExp db depth
 
 insertTuples tbl@(DB.Set set) (Sel exp colPairs _) db depth = do
@@ -639,7 +642,11 @@ fetchUnique (Tuple vs _) tupHdr expHdr projCol tbl =
                                           , vs ! c ) ) hdr
    in let sel           = columnValuesSelector colVals
           (DB.Set set') = if null colVals 
+                          -- < MONITOR
+                          -- If we decide to be generous with creating new 
+                          -- elements, this has to be emptyTable:
                           then tbl
+                          -- MONITOR >
                           else DB.select sel tbl
       in  if   ExSet.null set'
           then Nothing

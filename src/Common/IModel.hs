@@ -63,7 +63,7 @@ instance Show Model where
 
 {- Displaying Models -}
 prettyModel :: Model -> String
-prettyModel mdl@(Model _ obs) = 
+prettyModel mdl@(Model eqs obs) = 
     let (elemObs, otherObs) = partition chooseElements obs
         groupedObs          = groupBy sameRelation $ sort otherObs
     in  prettyDomain elemObs ++ "\n" ++ 

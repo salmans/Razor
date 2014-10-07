@@ -169,21 +169,62 @@ relationalizeTheory thy = mapM relationalizeSequent thy
 {- Eliminates all function symbols in a 'Sequent' and replaces them with 
    relational symbols. -}
 relationalizeSequent :: Sequent -> Counter Sequent
-relationalizeSequent (Sequent bdy hd) = 
-    relationalizeFormula bdy >>= 
-    (\bdyres -> (relationalizeFormula hd >>=
-    (\hdres  -> return $ Sequent (makeExists bdyres) (makeExists hdres))))
+relationalizeSequent (Sequent bdy hd) = do
+  bdyres <- relationalizeFormula bdy
+  hdres  <- relationalizeFormula hd
+  return $ Sequent (makeExists bdyres) (makeExists hdres)
     where makeExists (fmla, skvs) = 
-              foldl (\f (sk, lfmla, v) -> 
-                         case lfmla of
-                           Nothing -> Exists sk v f
-                           Just lf -> Lone sk v f lf) fmla skvs
+              let (vs', fmla') = takeExistsOut fmla
+              in putExistsBack vs'
+                     $ foldl (\f (sk, lfmla, v)  -> 
+                              case lfmla of
+                                Nothing -> Exists sk v f
+                                Just lf -> Lone sk v f lf) fmla' skvs
+
+
+-------TAKE EXISTS OUT ----------
+-- THIS IS A TEMPORARY SOLUTION
+data VarTree = VarTreeLeaf [(Variable, Maybe FnSym)]
+             | VarTreeNode VarTree VarTree
+             deriving Show
+
+takeExistsOut :: Formula -> (VarTree, Formula)
+takeExistsOut Tru = (VarTreeLeaf [], Tru)
+takeExistsOut Fls = (VarTreeLeaf [], Fls)
+takeExistsOut a@(Atm _) = (VarTreeLeaf [], a)
+takeExistsOut (And f1 f2) =
+    -- No disjunction inside conjunction!
+    let (VarTreeLeaf vs1, f1') = takeExistsOut f1
+        (VarTreeLeaf vs2, f2') = takeExistsOut f2
+    in  (VarTreeLeaf (vs1 ++ vs2), And f1' f2')
+takeExistsOut (Or f1 f2) =
+    let (vs1, f1') = takeExistsOut f1
+        (vs2, f2') = takeExistsOut f2
+    in  (VarTreeNode vs1 vs2, Or f1' f2')
+takeExistsOut (Exists fn v f) =
+    -- No disjunctions inside existentials
+    let (VarTreeLeaf vs, f') = takeExistsOut f
+    in  (VarTreeLeaf ((v, fn):vs), f')
+takeExistsOut (Lone fn v f unq) = 
+    let (vs, f') = takeExistsOut f
+    in  (vs, Lone fn v f' unq)
+
+putExistsBack :: VarTree -> Formula -> Formula
+putExistsBack (VarTreeNode t1 t2) (Or f1 f2) =
+    let f1' = putExistsBack t1 f1
+        f2' = putExistsBack t2 f2
+    in  Or f1' f2'
+putExistsBack (VarTreeLeaf vs) f = foldr (\(v, fn) f -> Exists fn v f) f vs
+
+--------------------------------
+
+
 
 {- Eliminates all function symbols in a formula and replaces them with 
   relational symbols. It also retruns a list of skolem functions, unique 
   formulas and existential variable pairs introduced in this way. -}
 relationalizeFormula :: Formula -> 
-                        Counter (Formula, [( Maybe FnSym
+                        Counter ( Formula, [( Maybe FnSym
                                            , Maybe Formula
                                            , Variable)])
 relationalizeFormula Tru                = return (Tru, [])

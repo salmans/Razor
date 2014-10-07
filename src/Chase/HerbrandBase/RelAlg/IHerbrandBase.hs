@@ -17,6 +17,7 @@ import qualified Data.Bimap as Bimap
 import qualified Data.Vector as Vect
 import Data.Vector ((!))
 import Data.Maybe
+import Data.List (nub)
 
 -- Control
 import Control.Applicative
@@ -47,7 +48,6 @@ import SAT.Data (SATAtom (..))
 -- Tools
 import Tools.Config (Config (..))
 import qualified Tools.ExtendedSet as ExSet
-import Tools.Trace
 
 
 unitName                 = "Chase.HerbrandSet.RelAlg.HerbrandBase"
@@ -203,9 +203,13 @@ evaluateRelSequent seq@(RelSequent bdy hds bdyDlt _ _ _ _) db dlt = do
                                   , tranTbl
                                   , undecorateTable hdTbl)) hdTbls
 
+  -- < MONITOR
+  -- We probably shouldn't look at the head of the sequent at all: consider
+  -- working for diffSequentTables' temporarily
   let pairs            = 
           map (\(hd, tranTbl, hdTbl) -> 
-               diffSequentTables (bdyDlt, tranTbl) (hd, hdTbl)) setPairs
+               diffSequentTables' (bdyDlt, tranTbl) (hd, hdTbl)) setPairs
+  -- MONITOR >
 
   return $ RelResultSet bdyDltExTbl' pairs
 
@@ -242,6 +246,12 @@ helper bdyTbl hdTblPairs =
    the tuples in the head and the body of a sequent, therefore, the behavior of 
    the function on 'TblFull' and 'TblEmpty' has been tuned accordingly.
  -}
+-- < MONITOR
+-- A temporarily function until we make sure that we have to look at the head
+-- of sequents or not.
+diffSequentTables' (_, bdyTable@(DB.Set bdySet)) _ = bdyTable
+-- MONITOR >
+
 diffSequentTables :: (RelExp, TablePair) -> (RelExp, Table) -> TablePair
 diffSequentTables _  (TblFull, _)          = 
     error $ unitName ++ ".diffSequentTables: " ++ error_TblFullInHead
@@ -290,7 +300,11 @@ insertRelSequent seq resSet db = do
   propThy   <- liftPushMSATTheory State.get
 
   let propSeqs = relSequentInstances seq db result resSet provs
+
+  -- MONITOR
+  -- Is @db@ enough or we should use @uni@ or even @unionDatabases uni result@?
   let propThy' = foldr (flip storeSequent) propThy propSeqs
+  -- MONITOR
 
   liftPushMSATTheory (State.put propThy')
   return result
@@ -311,15 +325,18 @@ relSequentInstances :: RelSequent -> Database -> Database -> RelResultSet
                     -> ProvInfo -> [ObservationSequent]
 relSequentInstances relSeq uni new resSet provs = 
     let subs = createSubs relSeq uni new (allResultTuples resSet) provs
-    in  [ fromJust seq | 
-          (s, cs, es) <- subs
-        , let seq =  buildObservationSequent (instantiate s cs es)
-        , isJust seq ]
+    in  nub [ fromJust seq | 
+              (s, cs, es) <- subs
+            , let seq =  buildObservationSequent (instantiate s cs es)
+            , isJust seq ]
     where seq                           = toSequent relSeq                    
           instantiate sub consSub exSub = 
               let seq' = ((substituteConstants consSub).(substitute sub)) seq
               in  case exSub of
-                    Nothing -> Sequent (sequentBody seq') Fls
+                    -- < MONITOR
+                    Nothing -> Sequent (sequentBody seq') 
+                               (Atm $ Rel "Incomplete" [])
+                    -- MONITOR >
                     Just s  -> sequentExistsSubstitute s seq'
 
 
@@ -331,13 +348,19 @@ createSubs seq uni new (DB.Set set) provs =
               ( emptySub
               , createConstantSub consts uni new 
               , case createExistsSub tup elmProvs skFuns of
-                  Nothing -> Just exSub
+                  -- < MONITOR
+                  Nothing -> Nothing -- Just Map.empty
+                  -- Nothing -> Just exSub
+                  -- MONITOR >
                   Just es -> Just (Map.union es exSub))) <$> ExSet.toList set
     else (\(Tuple tup exSub) -> 
               ( createSub tup heads
               , createConstantSub consts uni new
               , case createExistsSub tup elmProvs skFuns of
-                  Nothing -> Just exSub
+                  -- < MONITOR
+                  Nothing -> Nothing -- Just Map.empty
+                  -- Nothing -> Just exSub
+                  -- MONITOR >
                   Just es -> Just (Map.union es exSub))) <$> ExSet.toList set
     where elmProvs = elementProvs provs
           bodyExp  = relSequentBodyDelta seq

@@ -19,8 +19,6 @@ import Syntax.GeometricUtils ( Sequent (..), Formula (..), Atom (..), Term (..)
 -- Common
 import Common.Data (SequentLike (..))
 
-import Tools.Trace
-
 -------------------------
 unitName = "Common.Observation"
 error_innerDisjunction   = "disjunctions can appear only at the top level."
@@ -121,7 +119,7 @@ processHead (Or p q)        =
                 (p'     , Nothing) -> p'
                 (Nothing, q'     ) -> q'
                 (p'     , q'     ) -> (++) <$> p' <*> q'
-    in  filter (not.null) <$> res -- ((++) <$> p' <*> q')
+    in  filter (not.null) <$> res
 processHead (Exists _ _ p)  = processHead p
 processHead (Lone _ _ p _)  = processHead p
 processHead (Atm atm)       = pure <$> pure <$> toObservation atm
