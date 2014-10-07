@@ -5,13 +5,13 @@
   				use for interacting with the functional core of Razor
   Maintainer  : Salman Saghafi, Ryan Danas
 -}
-{-|
+{-| API Cleanup TODO
 	make this an interface and this module the implementation?
 	options should not call exit?
-	is there anyway to return a descript error instead of Nothing? not a big fan of using Maybe.
 -}
 module API where
 import Chase.Impl
+import Common.Basic
 import Common.Provenance
 import Common.Model (Model (..))
 import Control.Applicative
@@ -144,27 +144,43 @@ modelStream propThy = satInitialize propThy
 nextModel :: SATIteratorType -> (Maybe Model, SATIteratorType)
 nextModel it = (satSolve it)
 
--- In: theory, prov of that theory, and an element
--- Out: if element is in prov info, return a theory naming the element in the proper sequents
--- TODO; clean this up after getting feedback
-nameElement :: Theory -> ProvInfo -> Term -> IO ()
-nameElement thy prov term = do
+-- In: prov of a theory, and a term representing an element
+-- Out: the head of the skolem tree if it exists 
+getSkolemHead :: ProvInfo -> Term -> Maybe (Element, FnSym)
+getSkolemHead prov term = do
+  -- turn the parsed term into an element
   case (termToElement term) of
-    Nothing -> putStrLn "nothing\n"
-    Just elm -> nameTheory thy (head (getElementProv elm (elementProvs prov)))
-
-nameTheory :: Theory -> Term -> IO ()
-nameTheory thy skolemhead = do
-  mapM_ (nameSequent skolemhead) (preprocess thy)
-  putStrLn "done\n"
-
-nameSequent :: Term -> Sequent -> IO ()
-nameSequent elmSkolem (Sequent bdy hd) = do
-  let seqSkolems = formulaExistentials hd
-  case null (filter (doesmatch elmSkolem) seqSkolems) of
-    True -> putStrLn (show (Sequent bdy hd))
-    False -> putStrLn "no match"
-
-doesmatch :: Term -> FnSym -> Bool
-doesmatch (Fn fsym _) s = (fsym == s)
-doesmatch _ _ = False
+    Nothing -> Nothing
+    Just elm -> do
+      -- get the provenance skolem tree for this element
+      case (getElementProv elm (elementProvs prov)) of
+        [] -> Nothing
+        skolemtree -> do
+          -- get just the head of the skolem tree
+          case (head skolemtree) of
+            (Fn skolemhead _) -> Just (elm, skolemhead)
+            (Cons (Constant skolemhead)) -> Just (elm, skolemhead)
+            _ -> Nothing
+          
+-- In: theory, skolem function name
+-- Out: a (find-variable, replace-element) pair for each sequent in the theory
+nameTheory :: Element -> FnSym -> Theory -> [Maybe(Sym, Sym)]
+nameTheory elm skolemFn thy = map (nameSequent elm skolemFn) (preprocess thy)
+-- In: sequent, skolem function name
+-- Out: a (find-variable, replace-element) pair
+nameSequent :: Element -> FnSym -> Sequent -> (Maybe(Sym, Sym))
+nameSequent (Element elm) skolemFn (Sequent bdy hd) = nameHead elm skolemFn hd
+-- In: formula, skolem function name
+-- Out: a (find-variable, replace-element) pair
+nameHead :: Sym -> FnSym -> Formula -> (Maybe(Sym, Sym))
+nameHead elm skolemFn (Exists (Just fn) (Variable v) f) = do 
+  case (fn == skolemFn) of
+    True -> Just (v, elm)
+    False -> nameHead elm skolemFn f
+nameHead elm skolemFn (Exists Nothing _ f) = nameHead elm skolemFn f
+nameHead elm skolemFn (Lone (Just fn) (Variable v) f _) = do 
+  case (fn == skolemFn) of
+    True -> Just (v, elm)
+    False -> nameHead elm skolemFn f
+nameHead elm skolemFn (Lone Nothing _ f _) = nameHead elm skolemFn f
+nameHead _ _ _ = Nothing

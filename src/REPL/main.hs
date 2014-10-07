@@ -79,9 +79,9 @@ loop (model, stream) prov thy = do
               Just mdl -> newLoop (model', stream)
           Ask question -> case question of
             Name term -> do
-              lift (nameElement thy prov term)
-              --prettyREPL finfo ((show hist) ++ "\n")
-              sameLoop
+              case (getSkolemHead prov term) of
+                Nothing -> prettyREPL ferror ("no prov information for " ++ (show term) ++ "\n") >> sameLoop
+                Just (elm, skolemFn) -> prettyREPL finfo ((show (nameTheory elm skolemFn thy)) ++ "\n") >> sameLoop
             Blame term -> sameLoop
           Other utility -> case utility of
             Help -> do
