@@ -65,30 +65,35 @@ main = do
 loop :: (Maybe Model, SATIteratorType) -> ProvInfo -> Theory -> InputT IO ()
 loop (model, stream) prov thy = do
   let sameLoop = loop (model, stream) prov thy
-  let newLoop (model', stream') = prettyREPL fmodel (show model') >> loop (model', stream') prov thy
+  let newLoop (model', stream') = (lift $ prettyPrint fmodel (show model')) >> loop (model', stream') prov thy
   minput <- getInputLine "% "
   case minput of
       Nothing -> return ()
       Just command -> case (parseCommand command) of
-        Nothing -> prettyREPL ferror "syntax error\n" >> sameLoop
+        Nothing -> (lift $ prettyPrint ferror "syntax error\n") >> sameLoop
         Just cmd -> case cmd of
           Go explore -> do
             (model', stream') <- updateState (model, stream) explore 
             case model' of
-              Nothing -> prettyREPL fwarning "no model found; exploration not applied\n" >> sameLoop
+              Nothing -> (lift $ prettyPrint fwarning "no model found; exploration not applied\n") >> sameLoop
               Just mdl -> newLoop (model', stream)
           Ask question -> case question of
             Name term -> do
               case (getSkolemHead prov term) of
-                Nothing -> prettyREPL ferror ("no prov information for " ++ (show term) ++ "\n") >> sameLoop
-                Just (elm, skolemFn) -> prettyREPL finfo ((show (nameTheory elm skolemFn thy)) ++ "\n") >> sameLoop
+                Nothing -> (lift $ (prettyPrint ferror ("no prov information for " ++ (show term) ++ "\n"))) >> sameLoop
+                Just (elm, skolemFn) -> do
+                  let subs = (nameTheory elm skolemFn thy)
+                  let strs = (map show thy)
+                  let replacements = (zip subs strs)
+                  mapM (\x -> lift $ (prettyReplace x)) replacements
+                  sameLoop
             Blame term -> sameLoop
           Other utility -> case utility of
             Help -> do
-              prettyREPL finfo helpCommand
+              (lift $ prettyPrint finfo helpCommand)
               sameLoop
             Exit -> do
-              prettyREPL finfo "exiting...\n"
+              (lift $ prettyPrint finfo "exiting...\n")
               return ()
 
 updateState :: (Maybe Model, SATIteratorType) -> Explore -> InputT IO (Maybe Model, SATIteratorType)

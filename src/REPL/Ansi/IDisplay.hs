@@ -5,12 +5,15 @@
 
 module REPL.Ansi.IDisplay where
 
+import Common.Basic
 import Control.Monad.Trans
 import System.Console.Haskeline
 import System.Console.ANSI
+import qualified Data.Text as T
 
 fdefault = []
 fmodel = [SetColor Foreground Dull White, SetConsoleIntensity BoldIntensity]
+fhigh = [SetColor Foreground Vivid Cyan, SetConsoleIntensity BoldIntensity]
 finfo = [SetColor Foreground Dull Blue, SetConsoleIntensity BoldIntensity]
 fwarning = [SetColor Foreground Dull Yellow, SetConsoleIntensity BoldIntensity]
 ferror = [SetColor Foreground Dull Red, SetConsoleIntensity BoldIntensity]
@@ -28,9 +31,12 @@ prettyPrint format str = do
 	setSGR []
 	setSGR fdefault
 
-prettyREPL :: [SGR] -> String -> InputT IO ()
-prettyREPL format str = lift $ do
-	setSGR format
-	putStr str
-	setSGR []
-	setSGR fdefault
+prettyReplace :: (Maybe(String, String), String) -> IO ()
+prettyReplace (sub, str) = case sub of
+	Nothing -> prettyPrint fmodel str
+	Just (f, r) -> do
+		let pieces = T.splitOn (T.pack f) (T.pack str)
+		mapM_ (\s -> do
+			prettyPrint fmodel (T.unpack s)
+			prettyPrint fhigh r
+			prettyPrint fmodel "\n") pieces
