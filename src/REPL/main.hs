@@ -7,12 +7,12 @@
 
 module Main where
 import API
-import Common.Model (Model (..))
+import Common.Model
 import Common.Provenance
 import Data.Maybe
 import REPL.Syntax
 import REPL.Ansi.Display
-import Syntax.GeometricUtils (Theory)
+import Syntax.GeometricUtils 
 import SAT.Impl
 import System.Console.Haskeline
 import System.Environment
@@ -81,11 +81,9 @@ loop (model, stream) prov thy = do
             Name term -> do
               case (getSkolemHead prov term) of
                 Nothing -> (lift $ (prettyPrint ferror ("no prov information for " ++ (show term) ++ "\n"))) >> sameLoop
-                Just (elm, skolemFn) -> do
-                  let subs = (nameTheory elm skolemFn thy)
-                  let strs = (map show thy)
-                  let replacements = (zip subs strs)
-                  mapM (\x -> lift $ (prettyReplace x)) replacements
+                Just ((Element elm), skolemFn) -> do
+                  let subthy = (nameTheory (Element elm) skolemFn thy)
+                  lift $ mapM_ (\s -> prettyHighlight elm ((show s)++"\n")) subthy
                   sameLoop
             Blame term -> sameLoop
           Other utility -> case utility of

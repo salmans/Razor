@@ -162,25 +162,25 @@ getSkolemHead prov term = do
             (Cons (Constant skolemhead)) -> Just (elm, skolemhead)
             _ -> Nothing
           
--- In: theory, skolem function name
--- Out: a (find-variable, replace-element) pair for each sequent in the theory
-nameTheory :: Element -> FnSym -> Theory -> [Maybe(Sym, Sym)]
-nameTheory elm skolemFn thy = map (nameSequent elm skolemFn) (preprocess thy)
--- In: sequent, skolem function name
--- Out: a (find-variable, replace-element) pair
-nameSequent :: Element -> FnSym -> Sequent -> (Maybe(Sym, Sym))
-nameSequent (Element elm) skolemFn (Sequent bdy hd) = nameHead elm skolemFn hd
--- In: formula, skolem function name
--- Out: a (find-variable, replace-element) pair
-nameHead :: Sym -> FnSym -> Formula -> (Maybe(Sym, Sym))
-nameHead elm skolemFn (Exists (Just fn) (Variable v) f) = do 
+-- In: element, skolem function name, theory
+-- Out: a theory with the associated exists variable in every related sequent replaced by the element
+nameTheory :: Element -> FnSym -> Theory -> Theory
+nameTheory elm skolemFn thy = map (nameSequent elm skolemFn) (zip thy (preprocess thy))
+-- In: element, skolem function name, sequent in theory
+-- Out: a sequent with the associated exists variable in the head replaced by the element
+nameSequent :: Element -> FnSym -> (Sequent, Sequent) -> Sequent
+nameSequent elm skolemFn ((Sequent obdy ohd), (Sequent bdy hd)) = (Sequent obdy (nameHead elm skolemFn ohd hd))
+-- In: element, skolem function name, head formula in sequent
+-- Out: a formula with the associated exists variable replaced by the element
+nameHead :: Element -> FnSym -> Formula -> Formula -> Formula
+nameHead (Element elm) skolemFn (Exists ofn ov off) (Exists (Just fn) v ff) = do 
   case (fn == skolemFn) of
-    True -> Just (v, elm)
-    False -> nameHead elm skolemFn f
-nameHead elm skolemFn (Exists Nothing _ f) = nameHead elm skolemFn f
-nameHead elm skolemFn (Lone (Just fn) (Variable v) f _) = do 
+    True -> (Exists ofn (Variable elm) (nameHead (Element elm) skolemFn off ff))
+    False -> (Exists ofn ov (nameHead (Element elm) skolemFn off ff))
+nameHead (Element elm) skolemFn (Lone ofn ov off ofs) (Lone (Just fn) v ff fs) = do 
   case (fn == skolemFn) of
-    True -> Just (v, elm)
-    False -> nameHead elm skolemFn f
-nameHead elm skolemFn (Lone Nothing _ f _) = nameHead elm skolemFn f
-nameHead _ _ _ = Nothing
+    True -> (Lone ofn (Variable elm) (nameHead (Element elm) skolemFn off ff) ofs)
+    False -> (Lone ofn ov (nameHead (Element elm) skolemFn off ff) ofs)
+nameHead elm skolemFn (Exists ofn ov off) (Exists Nothing v ff) = (Exists ofn ov (nameHead elm skolemFn off ff))
+nameHead elm skolemFn (Lone ofn ov off ofs) (Lone Nothing v ff fs) = (Lone ofn ov (nameHead elm skolemFn off ff) ofs)
+nameHead e sfn ofml fml = ofml

@@ -31,12 +31,9 @@ prettyPrint format str = do
 	setSGR []
 	setSGR fdefault
 
-prettyReplace :: (Maybe(String, String), String) -> IO ()
-prettyReplace (sub, str) = case sub of
-	Nothing -> prettyPrint fmodel str
-	Just (f, r) -> do
-		let pieces = T.splitOn (T.pack f) (T.pack str)
+prettyHighlight :: String -> String -> IO ()
+prettyHighlight high str = do
+		let pieces = T.splitOn (T.pack high) (T.pack str)
 		mapM_ (\s -> do
 			prettyPrint fmodel (T.unpack s)
-			prettyPrint fhigh r
-			prettyPrint fmodel "\n") pieces
+			prettyPrint fhigh high) pieces
