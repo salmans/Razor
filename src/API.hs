@@ -172,7 +172,6 @@ nameSequent :: Element -> FnSym -> (Sequent, Sequent) -> Sequent
 nameSequent elm skolemFn ((Sequent obdy ohd), (Sequent bdy hd)) = (Sequent obdy (nameHead elm skolemFn ohd hd))
 -- In: element, skolem function name, head formula in sequent
 -- Out: a formula with the associated exists variable replaced by the element
--- TODO; once the proper exists variable has been found, any occurances of the var further in the formula should be replaced as well
 nameHead :: Element -> FnSym -> Formula -> Formula -> Formula
 -- Junctions
 nameHead elm skolemFn (And of1 of2) (And f1 f2) = (And (nameHead elm skolemFn of1 f1) (nameHead elm skolemFn of2 f2))
@@ -180,14 +179,33 @@ nameHead elm skolemFn (Or of1 of2) (Or f1 f2) = (Or (nameHead elm skolemFn of1 f
 -- Exists
 nameHead (Element elm) skolemFn (Exists ofn ov off) (Exists (Just fn) v ff) = do 
   case (fn == skolemFn) of
-    True -> (Exists ofn (Variable elm) (nameHead (Element elm) skolemFn off ff))
+    True -> (Exists ofn (Variable elm) (nameRest (Element elm) ov off))
     False -> (Exists ofn ov (nameHead (Element elm) skolemFn off ff))
 nameHead elm skolemFn (Exists ofn ov off) (Exists Nothing v ff) = (Exists ofn ov (nameHead elm skolemFn off ff))
 -- Lone
 nameHead (Element elm) skolemFn (Lone ofn ov off ofs) (Lone (Just fn) v ff fs) = do 
   case (fn == skolemFn) of
-    True -> (Lone ofn (Variable elm) (nameHead (Element elm) skolemFn off ff) ofs)
+    True -> (Lone ofn (Variable elm) (nameRest (Element elm) ov off) ofs)
     False -> (Lone ofn ov (nameHead (Element elm) skolemFn off ff) ofs)
 nameHead elm skolemFn (Lone ofn ov off ofs) (Lone Nothing v ff fs) = (Lone ofn ov (nameHead elm skolemFn off ff) ofs)
 -- Everything else
-nameHead elm skolemFn ofml fml = ofml 
+nameHead elm skolemFn ofml fml = ofml
+-- In: element to replace variable, the variable, formula
+-- Out: input formula with replacement of variable names
+nameRest :: Element -> Variable -> Formula -> Formula
+-- Junctions
+nameRest elm var (And f1 f2) = (And (nameRest elm var f1) (nameRest elm var f2))
+nameRest elm var (Or f1 f2) = (Or (nameRest elm var f1) (nameRest elm var f2))
+-- Exists / Lone
+nameRest elm var (Exists fn v f) = (Exists fn v (nameRest elm var f))
+nameRest elm var (Lone fn v f fs) = (Lone fn v (nameRest elm var f) fs)
+-- Atoms
+nameRest elm var (Atm (Rel rsym terms)) = (Atm (Rel rsym (map (nameTerm elm var) terms)))
+nameRest elm var (Atm (FnRel fsym terms)) = (Atm (FnRel fsym (map (nameTerm elm var) terms)))
+-- Everything else
+nameRest elm var fml = fml
+-- In: element to replace variable, the variable, term
+-- Out: input term with the replacement of variable names
+nameTerm :: Element -> Variable -> Term -> Term
+nameTerm (Element elm) (Variable var) (Var (Variable termvar)) = (Var (Variable elm))
+nameTerm _ _ term = term
