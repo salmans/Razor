@@ -174,14 +174,20 @@ nameSequent elm skolemFn ((Sequent obdy ohd), (Sequent bdy hd)) = (Sequent obdy 
 -- Out: a formula with the associated exists variable replaced by the element
 -- TODO; once the proper exists variable has been found, any occurances of the var further in the formula should be replaced as well
 nameHead :: Element -> FnSym -> Formula -> Formula -> Formula
+-- Junctions
+nameHead elm skolemFn (And of1 of2) (And f1 f2) = (And (nameHead elm skolemFn of1 f1) (nameHead elm skolemFn of2 f2))
+nameHead elm skolemFn (Or of1 of2) (Or f1 f2) = (Or (nameHead elm skolemFn of1 f1) (nameHead elm skolemFn of2 f2))
+-- Exists
 nameHead (Element elm) skolemFn (Exists ofn ov off) (Exists (Just fn) v ff) = do 
   case (fn == skolemFn) of
     True -> (Exists ofn (Variable elm) (nameHead (Element elm) skolemFn off ff))
     False -> (Exists ofn ov (nameHead (Element elm) skolemFn off ff))
+nameHead elm skolemFn (Exists ofn ov off) (Exists Nothing v ff) = (Exists ofn ov (nameHead elm skolemFn off ff))
+-- Lone
 nameHead (Element elm) skolemFn (Lone ofn ov off ofs) (Lone (Just fn) v ff fs) = do 
   case (fn == skolemFn) of
     True -> (Lone ofn (Variable elm) (nameHead (Element elm) skolemFn off ff) ofs)
     False -> (Lone ofn ov (nameHead (Element elm) skolemFn off ff) ofs)
-nameHead elm skolemFn (Exists ofn ov off) (Exists Nothing v ff) = (Exists ofn ov (nameHead elm skolemFn off ff))
 nameHead elm skolemFn (Lone ofn ov off ofs) (Lone Nothing v ff fs) = (Lone ofn ov (nameHead elm skolemFn off ff) ofs)
-nameHead e sfn ofml fml = ofml
+-- Everything else
+nameHead elm skolemFn ofml fml = ofml 

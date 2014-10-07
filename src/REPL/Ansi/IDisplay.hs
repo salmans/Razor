@@ -13,8 +13,7 @@ import qualified Data.Text as T
 import Data.List
 
 fdefault = []
-fmodel = [SetColor Foreground Dull White, SetConsoleIntensity BoldIntensity]
-fhigh = [SetColor Foreground Vivid Cyan, SetConsoleIntensity BoldIntensity]
+fhighlight = [SetColor Foreground Vivid Cyan, SetConsoleIntensity BoldIntensity]
 finfo = [SetColor Foreground Dull Blue, SetConsoleIntensity BoldIntensity]
 fwarning = [SetColor Foreground Dull Yellow, SetConsoleIntensity BoldIntensity]
 ferror = [SetColor Foreground Dull Red, SetConsoleIntensity BoldIntensity]
@@ -39,5 +38,5 @@ prettyHighlight high str = do
 	mapM_ (\p -> case (elemIndex p highpieces) of
 		Nothing -> return ()
 		Just i -> if (even i)
-			then prettyPrint fmodel (T.unpack p)
-			else prettyPrint fhigh (T.unpack p)) highpieces
+			then prettyPrint finfo (T.unpack p)
+			else prettyPrint fhighlight (T.unpack p)) highpieces

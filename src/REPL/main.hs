@@ -56,7 +56,7 @@ main = do
     Nothing -> error "No models found!"
     Just mdl -> do
       -- display the first model
-      prettyPrint fmodel (show model')
+      prettyPrint finfo (show model')
       -- enter the repl
       runInputT defaultSettings (loop (model', stream') prov theory)
   -- exit display
@@ -65,7 +65,7 @@ main = do
 loop :: (Maybe Model, SATIteratorType) -> ProvInfo -> Theory -> InputT IO ()
 loop (model, stream) prov thy = do
   let sameLoop = loop (model, stream) prov thy
-  let newLoop (model', stream') = (lift $ prettyPrint fmodel (show model')) >> loop (model', stream') prov thy
+  let newLoop (model', stream') = (lift $ prettyPrint finfo (show model')) >> loop (model', stream') prov thy
   minput <- getInputLine "% "
   case minput of
       Nothing -> return ()
