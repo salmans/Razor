@@ -172,6 +172,7 @@ nameSequent :: Element -> FnSym -> (Sequent, Sequent) -> Sequent
 nameSequent elm skolemFn ((Sequent obdy ohd), (Sequent bdy hd)) = (Sequent obdy (nameHead elm skolemFn ohd hd))
 -- In: element, skolem function name, head formula in sequent
 -- Out: a formula with the associated exists variable replaced by the element
+-- TODO; once the proper exists variable has been found, any occurances of the var further in the formula should be replaced as well
 nameHead :: Element -> FnSym -> Formula -> Formula -> Formula
 nameHead (Element elm) skolemFn (Exists ofn ov off) (Exists (Just fn) v ff) = do 
   case (fn == skolemFn) of

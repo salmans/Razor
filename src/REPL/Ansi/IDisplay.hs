@@ -10,6 +10,7 @@ import Control.Monad.Trans
 import System.Console.Haskeline
 import System.Console.ANSI
 import qualified Data.Text as T
+import Data.List
 
 fdefault = []
 fmodel = [SetColor Foreground Dull White, SetConsoleIntensity BoldIntensity]
@@ -33,7 +34,10 @@ prettyPrint format str = do
 
 prettyHighlight :: String -> String -> IO ()
 prettyHighlight high str = do
-		let pieces = T.splitOn (T.pack high) (T.pack str)
-		mapM_ (\s -> do
-			prettyPrint fmodel (T.unpack s)
-			prettyPrint fhigh high) pieces
+	let pieces = T.splitOn (T.pack high) (T.pack str)
+	let highpieces = intersperse (T.pack high) pieces 
+	mapM_ (\p -> case (elemIndex p highpieces) of
+		Nothing -> return ()
+		Just i -> if (even i)
+			then prettyPrint fmodel (T.unpack p)
+			else prettyPrint fhigh (T.unpack p)) highpieces
