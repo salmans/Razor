@@ -4,6 +4,14 @@
   Description : The module provides a REPL for user interaction with Razor.
   Maintainer  : Salman Saghafi, Ryan Danas
 -}
+{-| TODO
+  element origin from constants doesnt work
+  switch origin to new display setup (original sequent and replaced sequent)
+  initial blaming
+  
+  origin* in BFS order of skolem tree
+  e#0... is ugly
+-}
 
 module Main where
 import API
@@ -50,19 +58,16 @@ main = do
   let (base, prov, prop) = generateGS config theory
   let stream = modelStream prop 
   -- get the first model
-  (model', stream') <- return (nextModel stream)
-  case model' of
-    -- dont repl if no models
-    Nothing -> error "No models found!"
-    Just mdl -> do
-      -- display the first model
-      prettyPrint finfo (show model')
+  case (nextModel stream) of
+    (Nothing, stream') -> (prettyPrint ferror "no models found\n")
+    (Just model', stream') -> do
+      (prettyPrint finfo (show model'))
       -- enter the repl
       runInputT defaultSettings (loop (model', stream') prov theory)
   -- exit display
   displayExit
 
-loop :: (Maybe Model, SATIteratorType) -> ProvInfo -> Theory -> InputT IO ()
+loop :: (Model, SATIteratorType) -> ProvInfo -> Theory -> InputT IO ()
 loop (model, stream) prov thy = do
   let sameLoop = loop (model, stream) prov thy
   let newLoop (model', stream') = (lift $ prettyPrint finfo (show model')) >> loop (model', stream') prov thy
@@ -72,20 +77,27 @@ loop (model, stream) prov thy = do
       Just command -> case (parseCommand command) of
         Nothing -> (lift $ prettyPrint ferror "syntax error\n") >> sameLoop
         Just cmd -> case cmd of
-          Go explore -> do
-            (model', stream') <- updateState (model, stream) explore 
-            case model' of
-              Nothing -> (lift $ prettyPrint fwarning "no model found; exploration not applied\n") >> sameLoop
-              Just mdl -> newLoop (model', stream)
+          Go explore -> case explore of
+            Next -> do
+              case (nextModel stream) of
+                (Nothing, stream') -> (lift $ prettyPrint ferror "no more minimal models available\n") >> sameLoop
+                (Just model', stream') -> do
+                  (lift $ prettyPrint finfo (show model'))
+                  newLoop (model', stream')
+            Augment term -> do
+              (lift $ prettyPrint ferror "not implemented\n")
+              sameLoop 
           Ask question -> case question of
-            Name term -> do
+            Name isrec term -> do
               case (getSkolemHead prov term) of
                 Nothing -> (lift $ (prettyPrint ferror ("no prov information for " ++ (show term) ++ "\n"))) >> sameLoop
                 Just ((Element elm), skolemFn) -> do
                   let subthy = (nameTheory (Element elm) skolemFn thy)
                   lift $ mapM_ (\s -> prettyHighlight elm ((show s)++"\n")) subthy
                   sameLoop
-            Blame term -> sameLoop
+            Blame term -> do
+              (lift $ prettyPrint ferror "not implemented\n")
+              sameLoop
           Other utility -> case utility of
             Help -> do
               (lift $ prettyPrint finfo helpCommand)
@@ -94,11 +106,3 @@ loop (model, stream) prov thy = do
               (lift $ prettyPrint finfo "exiting...\n")
               return ()
 
-updateState :: (Maybe Model, SATIteratorType) -> Explore -> InputT IO (Maybe Model, SATIteratorType)
-updateState (model, stream) explore = do
-  return $ case explore of
-    Next -> do
-      nextModel stream
-    Augment term -> do
-      -- TODO actually augment here
-      (model, stream)

@@ -15,17 +15,19 @@ import qualified Text.ParserCombinators.Parsec.Expr as Expr
 
 data Command = Go Explore | Ask Question | Other Utility
 data Explore = Next | Augment Formula
-data Question = Name Term | Blame Term
+data Question = Name Bool Term | Blame Term
 data Utility = Help | Exit
 
 helpCommand :: String
 helpCommand = 
 	"Available commands..." ++ "\n" ++ 
-    "  next: show the next model if available" ++ "\n" ++ 
+    "  next: show the next minimal model if available" ++ "\n" ++ 
     "  aug seq: ???" ++ "\n" ++ 
     "    //example: aug ???" ++ "\n" ++ 
-    "  name elt: ???" ++ "\n" ++ 
-    "    //example: name ???" ++ "\n" ++ 
+    "  origin elm: display the sequents responsible for the existence of the specified element" ++ "\n" ++ 
+    "    //example: origin e#7" ++ "\n" ++ 
+    "  origin* elm: recursively displays element origins down to the ground facts, starting with the specified element" ++ "\n" ++ 
+    "    //example: origin* e#42" ++ "\n" ++ 
     "  blame fact: ???" ++ "\n" ++ 
     "    //example: blame ???" ++ "\n" ++ 
     "  exit: close the REPL\n"
@@ -67,9 +69,17 @@ pQuestion :: Parser Question
 pQuestion = pName <|> pBlame
 
 pName :: Parser Question
-pName = do
-  symbol "name"
-  Name <$> xpTerm
+pName = pNameHead +++ pNameRec
+
+pNameHead :: Parser Question
+pNameHead = do
+  symbol "origin"
+  Name False <$> xpTerm
+
+pNameRec :: Parser Question
+pNameRec = do
+  symbol "origin*"
+  Name True <$> xpTerm
 
 pBlame :: Parser Question
 pBlame = do

@@ -13,10 +13,11 @@ import qualified Data.Text as T
 import Data.List
 
 fdefault = []
-fhighlight = [SetColor Foreground Vivid Cyan, SetConsoleIntensity BoldIntensity]
-finfo = [SetColor Foreground Dull Blue, SetConsoleIntensity BoldIntensity]
-fwarning = [SetColor Foreground Dull Yellow, SetConsoleIntensity BoldIntensity]
-ferror = [SetColor Foreground Dull Red, SetConsoleIntensity BoldIntensity]
+fhighc = [SetColor Foreground Vivid Cyan, SetConsoleIntensity BoldIntensity]
+fhighm = [SetColor Foreground Vivid Magenta, SetConsoleIntensity BoldIntensity]
+fhighy = [SetColor Foreground Vivid Yellow, SetConsoleIntensity BoldIntensity]
+finfo = [SetColor Foreground Dull White, SetConsoleIntensity BoldIntensity]
+ferror = [SetColor Foreground Vivid Red, SetConsoleIntensity BoldIntensity]
 
 displayInit :: IO()
 displayInit = setSGR fdefault
@@ -39,4 +40,4 @@ prettyHighlight high str = do
 		Nothing -> return ()
 		Just i -> if (even i)
 			then prettyPrint finfo (T.unpack p)
-			else prettyPrint fhighlight (T.unpack p)) highpieces
+			else prettyPrint fhighm (T.unpack p)) highpieces
