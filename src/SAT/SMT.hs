@@ -369,9 +369,8 @@ applyUnintRel (UnintRel6 f) [x1, x2, x3, x4, x5, x6]
     = f x1 x2 x3 x4 x5 x6
 applyUnintRel (UnintRel7 f) [x1, x2, x3, x4, x5, x6, x7] 
     = f x1 x2 x3 x4 x5 x6 x7
-applyUnintRel f a = error $ (show f) ++ (show a)
--- applyUnintRel _ _ = error $ unitName ++ ".applyUnintRel: " 
---                     ++ error_InvalidRelArity
+applyUnintRel _ _ = error $ unitName ++ ".applyUnintRel: " 
+                    ++ error_InvalidRelArity
 
 {- UninterpretRel presents symbolic relations that are used in SBV for creating 
    the input query to the SMT solver. Because these relations are Haskell 
@@ -402,7 +401,7 @@ instance Show UninterpretRel where
     show (UnintRel7 _) = "UnintRel7"
 
 {- Creating 'UninterpretRel' for a given arity -}
-uninterpretRel :: FnSym -> Int -> UninterpretRel
+uninterpretRel :: RelSym -> Int -> UninterpretRel
 uninterpretRel rel 0 = UnintRel0 (uninterpret rel)
 uninterpretRel rel 1 = UnintRel1 (uninterpret rel)
 uninterpretRel rel 2 = UnintRel2 (uninterpret rel)
