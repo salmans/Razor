@@ -369,7 +369,7 @@ addElementPreds seq =
           bdyVars = freeVars bdy
           hdFVars = hdVars \\ bdyVars
           allVars = hdVars `union` bdyVars
-          elementPred = \x -> Rel "Element" [x]
+          elementPred = \x -> Rel "@Element" [x]
           andFunc  Tru x = x
           andFunc  x Tru = x
           andFunc  x y   = And x y
@@ -407,7 +407,7 @@ addElementPredToRight _ fmla = fmla -- again, the sequent is in standard form
 {- A helper for addElementPred. It constructs an @Element predicate for the 
    input term. -}
 elementPred :: Term -> Atom
-elementPred =  \x -> Rel "Element" [x]
+elementPred =  \x -> Rel "@Element" [x]
 
 
 {- Returns true if the input 'Sequent' has any free variable in its head, which

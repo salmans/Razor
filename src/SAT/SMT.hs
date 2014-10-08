@@ -81,13 +81,24 @@ type SMTAtom    = String
 
 {- Creates an instance of 'SMTAtom' from a relational 'Atom'. -}
 smtAtom :: Atom -> SMTAtom
-smtAtom (Rel r []) = r
+smtAtom (Rel r []) = smtRelSym r
 smtAtom (Rel r ts) = 
     let elms = fromJust <$> termToElement <$> ts
                -- Expecting only flat terms
-    in  r ++ "-" ++ (intercalate "-" $ smtElement <$> elms)
+        r'   = smtRelSym r
+    in  r' ++ "-" ++ (intercalate "-" $ smtElement <$> elms)
 smtAtom _          = error $ unitName ++ ".smtAtom: " 
                      ++ error_RelationalAtomExpected
+
+{- This function translates special relation symbols to symbols that are 
+   accepted by the SMT solver. -}
+smtRelSym :: RelSym -> RelSym
+smtRelSym "@Element" = "Element0000"
+smtRelSym r          = r
+
+relSymFromSMT :: RelSym -> RelSym
+relSymFromSMT "Element0000" = "@Element"
+relSymFromSMT r             = r
 
 {- SMTObservation represents an 'Observation' in SMT solving:
 
@@ -176,12 +187,13 @@ tranObservation obs@(Obs (Rel "=" _)) = do
   return (v1 .== v2)
 tranObservation obs@(Obs atm@(Rel r ts)) = do
   let (SMTFact atom) = smtObservation obs
-  unintRel  <- unintRelValue r (length ts) 
+  let r' = smtRelSym r
+  unintRel  <- unintRelValue r' (length ts) 
                -- Not good! symbols must have their arities with themselves. 
                -- This is subject to refactoring. 
   let elms  =  smtElement <$> (\(Elem e) -> e) <$> ts
   vals      <- mapM elementValue elms
-  val       <- atomValue r atom unintRel vals
+  val       <- atomValue r' atom unintRel vals
   return (val .== true)
 tranObservation obs@(Obs atm@(FnRel f ts))  = do
   let (SMTFn term elm) = smtObservation obs
@@ -232,7 +244,8 @@ obsFromSMTAtom str =
     let strs = Text.unpack <$> Text.splitOn (Text.pack "-") (Text.pack str)
         sym  = head strs
         es   = tail strs
-    in  Obs $ Rel sym $ (Elem . Element) <$> es
+        sym' = relSymFromSMT sym
+    in  Obs $ Rel sym' $ (Elem . Element) <$> es
 
 {- Similar to 'obsFromSMTAtom', but constructs an observatin for a relational 
    fact.  -}
