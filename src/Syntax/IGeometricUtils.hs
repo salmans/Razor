@@ -181,7 +181,6 @@ relationalizeSequent (Sequent bdy hd) = do
                                 Nothing -> Exists sk v f
                                 Just lf -> Lone sk v f lf) fmla' skvs
 
-
 -------TAKE EXISTS OUT ----------
 -- THIS IS A TEMPORARY SOLUTION
 data VarTree = VarTreeLeaf [(Variable, Maybe FnSym)]

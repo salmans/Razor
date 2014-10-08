@@ -299,12 +299,13 @@ insertRelSequent seq resSet db = do
   uni       <- liftPushMBase  State.get
   propThy   <- liftPushMSATTheory State.get
 
-  let propSeqs = relSequentInstances seq db result resSet provs
 
   -- MONITOR
   -- Is @db@ enough or we should use @uni@ or even @unionDatabases uni result@?
-  let propThy' = foldr (flip storeSequent) propThy propSeqs
+  let propSeqs = relSequentInstances seq db result resSet provs
   -- MONITOR
+
+  let propThy' = foldr (flip storeSequent) propThy propSeqs
 
   liftPushMSATTheory (State.put propThy')
   return result

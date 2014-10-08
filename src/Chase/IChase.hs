@@ -35,7 +35,6 @@ import SAT.Data
 -- Tools
 import Tools.Config (Config (..), defaultConfig)
 import Tools.FolToGeo (parseFolToSequents)
-import Tools.Trace
 
 
 {-| Runs the Chase algorithm and returns the resulting base and the resulting 
@@ -242,6 +241,9 @@ balance :: (HerbrandImpl h s r, SATAtom t) =>
 balance id seq base dlt uni new provs cnt propThy cfg = 
     let res = -- traceShow "----------"
               -- traceShow (toSequent seq)
+              -- traceShow base
+              -- traceShow dlt
+              -- traceShow uni
               -- traceShow provs
               -- traceEval
               -- $

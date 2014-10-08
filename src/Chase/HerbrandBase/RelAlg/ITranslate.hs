@@ -91,9 +91,9 @@ removeBodyEquations fmla =
         diff  = (freeVars fmla) \\ (freeVars fmla')
     in  case (fmla', diff) of
           (f  , []) -> f
-          (Tru, vs) -> let rels = (\v -> Atm $ Rel "Element" [Var v]) <$> vs
+          (Tru, vs) -> let rels = (\v -> Atm $ Rel "@Element" [Var v]) <$> vs
                        in foldr1 And rels
-          (f  , vs) -> let rels = (\v -> Atm $ Rel "Element" [Var v]) <$> vs
+          (f  , vs) -> let rels = (\v -> Atm $ Rel "@Element" [Var v]) <$> vs
                        in foldr And f rels
 
 removeBodyEquationsHelper :: Formula -> Formula
