@@ -285,7 +285,7 @@ relationalizeTerm (Fn f ts) = do
   ind <- increment -- get an index to add to the corresponding skolem function
   return $ Just (andFmlas fs' (Atm (FnRel f (ts' ++ [var])))
                 , var
-                , ( Just $ f ++ "#" ++ (show ind)
+                , ( Just $ f ++ "^" ++ (show ind)
                   , Just $ Atm (FnRel f (ts' ++ [var]))
                   , v):skvs')
     where andFmlas  = \fmlas fmla -> foldr (\f1 f2 -> And f1 f2) fmla fmlas

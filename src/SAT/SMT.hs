@@ -806,5 +806,5 @@ symAtomArgs smtAtom = do
 
 {- Does the name of a symbolic value correspond to an element of the model? -}
 isElementString :: String -> Bool
-isElementString ('e':'#':_) = True
+isElementString ('e':'^':_) = True
 isElementString _           = False
