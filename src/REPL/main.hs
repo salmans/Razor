@@ -5,8 +5,9 @@
   Maintainer  : Salman Saghafi, Ryan Danas
 -}
 {-| TODO
-  initial blaming
+  naming for functions (lone replace functions)
   origin* in BFS order of skolem tree
+  squash blaming bugs
 -}
 
 module Main where
@@ -48,6 +49,7 @@ main = do
   putStrLn "Theory: "
   mapM_ (putStrLn.show) theory
   putStrLn $ "<><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>"
+  mapM_ (putStrLn.show) (preprocess theory)
   -- generate G*, get the model stream
   let (base, prov, prop) = generateGS config theory
   let stream = modelStream prop 
@@ -84,11 +86,10 @@ loop (model, stream) prov thy = do
               -- origin*
               then do
                 (lift $ prettyPrint ferror "not implemented\n")
-                sameLoop 
               -- origin
               else do
                 case (getSkolemTree prov term) of
-                  Nothing -> (lift $ (prettyPrint ferror ("no provenance information for " ++ (show term) ++ "\n"))) >> sameLoop
+                  Nothing -> (lift $ (prettyPrint ferror ("no provenance information for " ++ (show term) ++ "\n")))
                   Just ((Element elm), skolemhead, skolemrest) -> do
                     let namedthy = (nameTheory (Element elm) skolemhead (map (getSkolemElement prov) skolemrest) thy)
                     lift $ mapM_ (\(sequent, namedsequent) 
@@ -97,9 +98,18 @@ loop (model, stream) prov thy = do
                         else do
                           prettyPrint finfo ((show sequent)++"\n")
                           prettyHighlight elm ((show namedsequent)++"\n")) (zip thy namedthy)
-                    sameLoop
+            -- blame
             Blame atom -> do
-              lift $ prettyPrint finfo ((show (getBlame prov model atom))++"\n")
+              case (getBlame prov model atom) of
+                [] -> (lift $ prettyPrint ferror ("no provenance information for "++(show atom)++"\n"))
+                blames -> do
+                  let blamedthy = (blameTheory thy blames)
+                  lift $ mapM_ (\(sequent, blamedsequent) 
+                      -> case blamedsequent of
+                        Just blamed -> do
+                          prettyPrint finfo ((show (fromJust sequent))++"\n")
+                          prettyHighlight (show atom) ((show blamed)++"\n")
+                        Nothing -> return ()) (zip (map Just thy) blamedthy)
               sameLoop
           Other utility -> case utility of
             Help -> do

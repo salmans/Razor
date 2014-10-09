@@ -222,16 +222,33 @@ lookupLone skolemFn fml = Nothing
 --
 --
 getBlame :: ProvInfo -> Model -> Formula -> [Blame]
-getBlame prov mdl fml = do
-  case fml of
-    (Atm (Rel rsym terms)) -> do
-      eqterms <- (map (\t->case t of
-        (Elem e) -> do
-          eqelms <- (maybeToList (Map.lookup e (modelElements mdl)))
-          map (\elm->(Elem elm)) eqelms
-        _ -> []) terms)
-      let atoms = (Rel rsym eqterms)
-      case (toObservation atoms) of 
-        Just obv -> maybeToList (findObservationWithProv obv (observationProvs prov))
-        Nothing -> []
-    _ -> []
+getBlame prov mdl fml = case fml of
+  (Atm (Rel rsym terms)) -> do
+      choices <- (map (\t -> 
+        case (termToElement t) of
+          Nothing -> [t]
+          Just e -> case (Map.lookup e (modelElements mdl)) of
+            Nothing -> [(Elem e)]
+            Just es -> (map (\e->(Elem e)) es)) terms)
+      choice <- (permBlame (return choices))
+      let obv = fromMaybe (Obs (Rel "" [])) (toObservation (Rel rsym choice))
+      concat $ return (maybeToList (findObservationWithProv obv (observationProvs prov)))
+  _ -> []
+permBlame :: [[Term]] -> [[Term]]
+permBlame [l] = do
+  choose <- l
+  return (return choose)
+permBlame (l:ls) = do
+  choose <- l
+  rest <- (permBlame ls)
+  return (choose : rest)
+blameTheory :: Theory -> [Blame] -> [Maybe Sequent]
+blameTheory thy blames = do
+  let replacements = Map.fromList (map (\(TheoryBlame i s)->(i, s)) blames)
+  sequent <- thy
+  newsequent <- case (elemIndex sequent thy) of
+    Nothing -> return Nothing
+    Just i -> case (Map.lookup i replacements) of
+      Nothing -> return Nothing
+      Just sub -> return (Just (substitute sub sequent))
+  return newsequent
