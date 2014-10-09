@@ -230,7 +230,9 @@ instance TermBased Term where
     substituteConstants env t@(Fn c []) = case Map.lookup (Constant c) env of
                                             Just t' -> t'
                                             Nothing -> t
-    substituteConstants env t@(Fn f ts) = Fn f $ (substituteConstants env) <$> ts
+    substituteConstants env t@(Fn f ts) = case Map.lookup (Constant f) env of
+                                            Just t' -> t'
+                                            Nothing -> Fn f $ (substituteConstants env) <$> ts
 --------------------------------------------------------------------------------
 -- Functions to work with Terms
 

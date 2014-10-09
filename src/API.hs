@@ -203,7 +203,9 @@ nameHead elm skolemFn (Exists ofn ov off) (Exists (Just fn) v ff) = do
 -- Lone / Constants
 nameHead elm skolemFn ofml (Lone fn v ff fs) = do
   case (lookupLone skolemFn (Lone fn v ff fs)) of
-    Just (Variable var) -> substituteConstants (Map.fromList [((Constant (T.unpack (head (T.splitOn (T.pack "^") (T.pack skolemFn))))), (Elem elm))]) ofml
+    Just (Variable var) -> do
+      let lonename = (T.unpack (head (T.splitOn (T.pack "^") (T.pack skolemFn))))
+      substituteConstants (Map.fromList [((Constant lonename), (Elem elm))]) ofml
     Nothing -> ofml
 -- Everything else aka Nothing to replace
 nameHead elm skolemFn ofml fml = ofml
