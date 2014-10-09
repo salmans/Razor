@@ -207,5 +207,7 @@ nameRest elm var fml = fml
 -- In: element to replace variable, the variable, term
 -- Out: input term with the replacement of variable names
 nameTerm :: Element -> Variable -> Term -> Term
-nameTerm (Element elm) (Variable var) (Var (Variable termvar)) = (Var (Variable elm))
+nameTerm (Element elm) (Variable var) (Var (Variable termvar)) = if (var==termvar)
+  then (Var (Variable elm))
+  else (Var (Variable termvar))
 nameTerm _ _ term = term

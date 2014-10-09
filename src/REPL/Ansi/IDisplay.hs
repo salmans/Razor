@@ -39,5 +39,5 @@ prettyHighlight high str = do
 	mapM_ (\p -> case (elemIndex p highpieces) of
 		Nothing -> return ()
 		Just i -> if (even i)
-			then prettyPrint finfo (T.unpack p)
+			then prettyPrint fhighy (T.unpack p)
 			else prettyPrint fhighm (T.unpack p)) highpieces

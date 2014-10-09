@@ -6,9 +6,8 @@
 -}
 {-| TODO
   element origin from constants doesnt work
-  switch origin to new display setup (original sequent and replaced sequent)
+  naming for the body
   initial blaming
-  
   origin* in BFS order of skolem tree
   e#0... is ugly
 -}
@@ -81,19 +80,22 @@ loop (model, stream) prov thy = do
             Next -> do
               case (nextModel stream) of
                 (Nothing, stream') -> (lift $ prettyPrint ferror "no more minimal models available\n") >> sameLoop
-                (Just model', stream') -> do
-                  (lift $ prettyPrint finfo (show model'))
-                  newLoop (model', stream')
+                (Just model', stream') -> newLoop (model', stream')
             Augment term -> do
               (lift $ prettyPrint ferror "not implemented\n")
               sameLoop 
           Ask question -> case question of
             Name isrec term -> do
               case (getSkolemHead prov term) of
-                Nothing -> (lift $ (prettyPrint ferror ("no prov information for " ++ (show term) ++ "\n"))) >> sameLoop
+                Nothing -> (lift $ (prettyPrint ferror ("no provenance information for " ++ (show term) ++ "\n"))) >> sameLoop
                 Just ((Element elm), skolemFn) -> do
-                  let subthy = (nameTheory (Element elm) skolemFn thy)
-                  lift $ mapM_ (\s -> prettyHighlight elm ((show s)++"\n")) subthy
+                  let namedthy = (nameTheory (Element elm) skolemFn thy)
+                  lift $ mapM_ (\(sequent, namedsequent) 
+                    -> if (sequent==namedsequent)
+                      then return ()
+                      else do
+                        prettyPrint finfo ((show sequent)++"\n")
+                        prettyHighlight elm ((show namedsequent)++"\n")) (zip thy namedthy)
                   sameLoop
             Blame term -> do
               (lift $ prettyPrint ferror "not implemented\n")
