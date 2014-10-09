@@ -99,7 +99,7 @@ loop (model, stream) prov thy = do
                           prettyHighlight elm ((show namedsequent)++"\n")) (zip thy namedthy)
                     sameLoop
             Blame atom -> do
-              lift $ prettyPrint finfo ((show (getBlame prov atom))++"\n")
+              lift $ prettyPrint finfo ((show (getBlame prov model atom))++"\n")
               sameLoop
           Other utility -> case utility of
             Help -> do

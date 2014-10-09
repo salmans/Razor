@@ -13,11 +13,12 @@ module API where
 import Chase.Impl
 import Common.Basic
 import Common.Provenance
-import Common.Observation
+import Common.IObservation
 import Common.Model (Model (..))
 import Control.Applicative
 import Control.Monad
 import Data.Maybe
+import qualified Data.Map as Map
 import Data.List
 import qualified Data.Text as T
 import SAT.Impl
@@ -182,29 +183,29 @@ nameTheory elm skolemhead skolemrest thy = map (nameSequent elm skolemhead skole
 nameSequent :: Element -> FnSym -> [Element] -> (Sequent, Sequent) -> Sequent
 nameSequent elm skolemhead skolemrest ((Sequent obdy ohd), (Sequent bdy hd)) = do
   let (Sequent nbdy nhd) = Sequent obdy (nameHead elm skolemhead ohd hd)
-  let frees = map (\v->(Var v)) (freeVars (Sequent bdy hd))
-  let elms = map (\(Element e)->e) skolemrest
-  let replacements = zip frees elms
+  let frees = (freeVars (Sequent bdy hd))
+  let elms = map (\e->(Elem e)) skolemrest
+  let replacements = Map.fromList (zip frees elms)
   if ((Sequent nbdy nhd) == (Sequent obdy ohd))
     then (Sequent obdy ohd)
-    else (Sequent (nameTerms replacements nbdy) (nameTerms replacements nhd))
+    else (Sequent (substitute replacements nbdy) (substitute replacements nhd))
 -- In: element, skolem function name, head formula in sequent
 -- Out: a formula with the associated exists variable replaced by the element
 nameHead :: Element -> FnSym -> Formula -> Formula -> Formula
--- Junctions
+-- Junctions aka Keep looking
 nameHead elm skolemFn (And of1 of2) (And f1 f2) = (And (nameHead elm skolemFn of1 f1) (nameHead elm skolemFn of2 f2))
 nameHead elm skolemFn (Or of1 of2) (Or f1 f2) = (Or (nameHead elm skolemFn of1 f1) (nameHead elm skolemFn of2 f2))
 -- Exists
-nameHead (Element elm) skolemFn (Exists ofn ov off) (Exists (Just fn) v ff) = do 
+nameHead elm skolemFn (Exists ofn ov off) (Exists (Just fn) v ff) = do 
   case (fn == skolemFn) of
-    True -> nameTerms [((Var ov), elm)] off
-    False -> (Exists ofn ov (nameHead (Element elm) skolemFn off ff))
--- Lone
-nameHead (Element elm) skolemFn ofml (Lone fn v ff fs) = do
+    True -> substitute (Map.fromList [(ov, (Elem elm))]) off
+    False -> (Exists ofn ov (nameHead elm skolemFn off ff))
+-- Lone / Constants
+nameHead elm skolemFn ofml (Lone fn v ff fs) = do
   case (lookupLone skolemFn (Lone fn v ff fs)) of
-    Just (Variable var) -> nameTerms [((Cons (Constant (T.unpack (head (T.splitOn (T.pack "^") (T.pack skolemFn)))))), elm)] ofml
+    Just (Variable var) -> substituteConstants (Map.fromList [((Constant (T.unpack (head (T.splitOn (T.pack "^") (T.pack skolemFn))))), (Elem elm))]) ofml
     Nothing -> ofml
--- Everything else
+-- Everything else aka Nothing to replace
 nameHead elm skolemFn ofml fml = ofml
 -- In:
 -- Out:
@@ -215,37 +216,22 @@ lookupLone skolemFn (Lone (Just fn) v ff fs) = do
     False -> (lookupLone skolemFn ff)
 lookupLone skolemFn (Lone fn v ff fs) = (lookupLone skolemFn ff)
 lookupLone skolemFn fml = Nothing
--- In:
--- Out:
-nameTerms :: [(Term, Sym)] -> Formula -> Formula
--- Junctions
-nameTerms replacements (And f1 f2) = (And (nameTerms replacements f1) (nameTerms replacements f2))
-nameTerms replacements (Or f1 f2) = (Or (nameTerms replacements f1) (nameTerms replacements f2))
--- Exists
-nameTerms replacements (Exists fn v f) = (Exists fn v (nameTerms replacements f))
--- Atoms
-nameTerms replacements (Atm (Rel rsym terms)) = (Atm (Rel rsym (map (nameTerm replacements) terms)))
-nameTerms replacements (Atm (FnRel fsym terms)) = (Atm (FnRel fsym (map (nameTerm replacements) terms)))
--- Everything else
-nameTerms replacements fml = fml
--- In: element to replace variable, the variable, term
--- Out: input term with the replacement of variable names
-nameTerm :: [(Term, Sym)] -> Term -> Term
-nameTerm replacements (Fn fnsym terms) = case (lookup (Cons (Constant fnsym)) replacements) of
-  Nothing -> (Fn fnsym terms)
-  Just newname -> (Var (Variable newname))
-nameTerm replacements term = case (lookup term replacements) of
-  Nothing -> term
-  Just newname -> (Var (Variable newname))
 
 
 
 --
 --
-getBlame :: ProvInfo -> Formula -> [[Maybe Blame]]
-getBlame prov hd = do
-  case (buildObservationSequent (Sequent Tru hd)) of
-    Nothing -> []
-    Just obsseq -> do 
-      let obvss = observationSequentHead obsseq
-      map (\obvs->(map (\obv->(findObservationWithProv obv (observationProvs prov)))) obvs) obvss
+getBlame :: ProvInfo -> Model -> Formula -> [Blame]
+getBlame prov mdl fml = do
+  case fml of
+    (Atm (Rel rsym terms)) -> do
+      eqterms <- (map (\t->case t of
+        (Elem e) -> do
+          eqelms <- (maybeToList (Map.lookup e (modelElements mdl)))
+          map (\elm->(Elem elm)) eqelms
+        _ -> []) terms)
+      let atoms = (Rel rsym eqterms)
+      case (toObservation atoms) of 
+        Just obv -> maybeToList (findObservationWithProv obv (observationProvs prov))
+        Nothing -> []
+    _ -> []
