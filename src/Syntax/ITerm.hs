@@ -137,9 +137,9 @@ pTerm = pConstant <|> (identifier >>= pTermWithIden)
 {- parsing 'Element's -}
 pElement :: Parser Term
 pElement = do
-  symbol "e#" -- for now
+  symbol "e^" -- for now
   number <- natural
-  return $ Elem $ Element $ "e#" ++ (show number)
+  return $ Elem $ Element $ "e^" ++ (show number)
 
 {- Extends pTerm, allows for parsing elements -}
 xpTerm :: Parser Term
@@ -256,7 +256,7 @@ freshConstant = State.get >>=
 freshElement :: Monad m => CounterT m Element
 freshElement = State.get >>= 
                (\c -> State.put (c + 1) >> 
-               (return $ Element $ "e#" ++ (show c)))
+               (return $ Element $ "e^" ++ (show c)))
 
 {-| Returns True if an input term is a 'Variable', otherwise returns False. -}
 isVariable :: Term -> Bool
