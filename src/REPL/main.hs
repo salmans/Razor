@@ -5,7 +5,7 @@
   Maintainer  : Salman Saghafi, Ryan Danas
 -}
 {-| TODO
-  element origin from constants doesnt work
+  origin for constants needs to do replacement
   naming for the body
   initial blaming
   origin* in BFS order of skolem tree
@@ -85,18 +85,22 @@ loop (model, stream) prov thy = do
               (lift $ prettyPrint ferror "not implemented\n")
               sameLoop 
           Ask question -> case question of
-            Name isrec term -> do
-              case (getSkolemHead prov term) of
-                Nothing -> (lift $ (prettyPrint ferror ("no provenance information for " ++ (show term) ++ "\n"))) >> sameLoop
-                Just ((Element elm), skolemFn) -> do
-                  let namedthy = (nameTheory (Element elm) skolemFn thy)
-                  lift $ mapM_ (\(sequent, namedsequent) 
-                    -> if (sequent==namedsequent)
-                      then return ()
-                      else do
-                        prettyPrint finfo ((show sequent)++"\n")
-                        prettyHighlight elm ((show namedsequent)++"\n")) (zip thy namedthy)
-                  sameLoop
+            Name isrec term -> if isrec
+              then do
+                (lift $ prettyPrint ferror "not implemented\n")
+                sameLoop 
+              else do
+                case (getSkolemHead prov term) of
+                  Nothing -> (lift $ (prettyPrint ferror ("no provenance information for " ++ (show term) ++ "\n"))) >> sameLoop
+                  Just ((Element elm), skolemFn) -> do
+                    let namedthy = (nameTheory (Element elm) skolemFn thy)
+                    lift $ mapM_ (\(sequent, namedsequent) 
+                      -> if (sequent==namedsequent)
+                        then return ()
+                        else do
+                          prettyPrint finfo ((show sequent)++"\n")
+                          prettyHighlight elm ((show namedsequent)++"\n")) (zip thy namedthy)
+                    sameLoop
             Blame term -> do
               (lift $ prettyPrint ferror "not implemented\n")
               sameLoop

@@ -22,7 +22,7 @@ helpCommand :: String
 helpCommand = 
 	"Available commands..." ++ "\n" ++ 
     "  next: show the next minimal model if available" ++ "\n" ++ 
-    "  aug seq: ???" ++ "\n" ++ 
+    "  aug seq: Not Implemented" ++ "\n" ++ 
     "    //example: aug ???" ++ "\n" ++ 
     "  origin elm: display the sequents responsible for the existence of the specified element" ++ "\n" ++ 
     "    //example: origin e#7" ++ "\n" ++ 
