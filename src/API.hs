@@ -185,15 +185,12 @@ nameHead (Element elm) skolemFn (Exists ofn ov off) (Exists (Just fn) v ff) = do
 -- Lone
 nameHead (Element elm) skolemFn ofml (Lone fn v ff fs) = do
   case (nameLone skolemFn (Lone fn v ff fs)) of
-    Just (Variable var) -> (Atm (Rel ("TheConstant"++(T.unpack (head (T.splitOn (T.pack "#") (T.pack skolemFn))))) [])) -- TODO do replacement
+    Just (Variable var) -> nameConstant (Element elm) (Constant (T.unpack (head (T.splitOn (T.pack "^") (T.pack skolemFn))))) ofml
     Nothing -> ofml
 -- Everything else
 nameHead elm skolemFn ofml fml = ofml
-
-
-
--- In
--- Out
+-- In:
+-- Out:
 nameLone :: FnSym -> Formula -> Maybe Variable
 nameLone skolemFn (Lone (Just fn) v ff fs) = do
   case (fn == skolemFn) of
@@ -201,10 +198,19 @@ nameLone skolemFn (Lone (Just fn) v ff fs) = do
     False -> (nameLone skolemFn ff)
 nameLone skolemFn (Lone fn v ff fs) = (nameLone skolemFn ff)
 nameLone skolemFn fml = Nothing
-
-
-
-
+-- In:
+-- Out:
+nameConstant :: Element -> Constant -> Formula -> Formula
+-- Junctions
+nameConstant elm cnst (And f1 f2) = (And (nameConstant elm cnst f1) (nameConstant elm cnst f2))
+nameConstant elm cnst (Or f1 f2) = (Or (nameConstant elm cnst f1) (nameConstant elm cnst f2))
+-- Exists
+nameConstant elm cnst (Exists fn v f) = (Exists fn v (nameConstant elm cnst f))
+-- Atoms
+nameConstant elm cnst (Atm (Rel rsym terms)) = (Atm (Rel rsym (map (nameTerm elm (Cons cnst)) terms)))
+nameConstant elm cnst (Atm (FnRel fsym terms)) = (Atm (FnRel fsym (map (nameTerm elm (Cons cnst)) terms)))
+-- Everything else
+nameConstant elm cnst fml = fml
 -- In: element to replace variable, the variable, formula
 -- Out: input formula with replacement of variable names
 nameVariable :: Element -> Variable -> Formula -> Formula
@@ -214,14 +220,17 @@ nameVariable elm var (Or f1 f2) = (Or (nameVariable elm var f1) (nameVariable el
 -- Exists
 nameVariable elm var (Exists fn v f) = (Exists fn v (nameVariable elm var f))
 -- Atoms
-nameVariable elm var (Atm (Rel rsym terms)) = (Atm (Rel rsym (map (nameTerm elm var) terms)))
-nameVariable elm var (Atm (FnRel fsym terms)) = (Atm (FnRel fsym (map (nameTerm elm var) terms)))
+nameVariable elm var (Atm (Rel rsym terms)) = (Atm (Rel rsym (map (nameTerm elm (Var var)) terms)))
+nameVariable elm var (Atm (FnRel fsym terms)) = (Atm (FnRel fsym (map (nameTerm elm (Var var)) terms)))
 -- Everything else
 nameVariable elm var fml = fml
 -- In: element to replace variable, the variable, term
 -- Out: input term with the replacement of variable names
-nameTerm :: Element -> Variable -> Term -> Term
-nameTerm (Element elm) (Variable var) (Var (Variable termvar)) = if (var==termvar)
+nameTerm :: Element -> Term -> Term -> Term
+nameTerm (Element elm) (Var (Variable var)) (Var (Variable termvar)) = if (var==termvar)
   then (Var (Variable elm))
   else (Var (Variable termvar))
+nameTerm (Element elm) (Cons (Constant cnst)) (Fn fnsym terms) = if (cnst==fnsym)
+  then (Var (Variable elm))
+  else (Fn fnsym terms)
 nameTerm _ _ term = term

@@ -5,7 +5,6 @@
   Maintainer  : Salman Saghafi, Ryan Danas
 -}
 {-| TODO
-  origin for constants needs to do replacement
   naming for the body
   initial blaming
   origin* in BFS order of skolem tree
