@@ -7,6 +7,7 @@
 module Common.Provenance ( ProvInfo (..), ElementProvs, Blame (..)
                          , addElementProv, getElementProv
                          , findElementWithProv, modifyElementProvs
+                         , findObservationWithProv
                          , emptyProvInfo, emptyProvInfoWithConstants ) where
 
 import Common.IProvenance

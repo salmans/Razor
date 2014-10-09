@@ -13,6 +13,7 @@ module API where
 import Chase.Impl
 import Common.Basic
 import Common.Provenance
+import Common.Observation
 import Common.Model (Model (..))
 import Control.Applicative
 import Control.Monad
@@ -30,6 +31,8 @@ import Text.Read (readMaybe)
 import Tools.Config
 import Tools.FolToGeo (parseFolToSequents)
 import Tools.Utils (isRealLine)
+
+
 
 -- In: command line args
 -- Out: configuration options structure
@@ -121,7 +124,6 @@ parseConfig args = do
   -- Here we thread startOptions through all supplied option actions
   config <- foldl (>>=) (return defaultConfig) actions
   return config
-
 -- In: configuration options, user input theory
 -- Out: a theory if parsing success
 parseTheory :: Config -> String -> IO (Maybe Theory)
@@ -130,20 +132,22 @@ parseTheory config input = do
 	let sequents = mapM (parseFolToSequents False) (filter isRealLine inputLines)
 	return $ concat <$> sequents
 
+
+
 -- In: configuration, theory
 -- Out: G*, which consists of ground facts, provenance info, and a propositional theory
 generateGS :: Config -> Theory -> (ChaseHerbrandBaseType, ProvInfo, SATTheoryType)
 generateGS config theory = chase config theory
-
 -- In: a propositional theory
 -- Out: an iterator that can be used to sequentially generate models (model stream)
 modelStream :: SATTheoryType -> SATIteratorType
 modelStream propThy = satInitialize propThy
-
 -- In: a model stream
 -- Out: an updated model stream and the next model
 nextModel :: SATIteratorType -> (Maybe Model, SATIteratorType)
 nextModel it = (satSolve it)
+
+
 
 -- In: prov of a theory, and a term representing an element
 -- Out: the skolem tree if it exists 
@@ -169,7 +173,6 @@ getSkolemElement :: ProvInfo -> Term -> Element
 getSkolemElement prov skolemterm = case (findElementWithProv skolemterm (elementProvs prov)) of
   Just elm -> elm
   Nothing -> (Element "")
-
 -- In: element, skolem function name, theory
 -- Out: a theory with the associated exists variable in every related sequent replaced by the element
 nameTheory :: Element -> FnSym -> [Element] -> Theory -> Theory
@@ -234,3 +237,15 @@ nameTerm replacements (Fn fnsym terms) = case (lookup (Cons (Constant fnsym)) re
 nameTerm replacements term = case (lookup term replacements) of
   Nothing -> term
   Just newname -> (Var (Variable newname))
+
+
+
+--
+--
+getBlame :: ProvInfo -> Formula -> [[Maybe Blame]]
+getBlame prov hd = do
+  case (buildObservationSequent (Sequent Tru hd)) of
+    Nothing -> []
+    Just obsseq -> do 
+      let obvss = observationSequentHead obsseq
+      map (\obvs->(map (\obv->(findObservationWithProv obv (observationProvs prov)))) obvs) obvss

@@ -15,7 +15,7 @@ import qualified Text.ParserCombinators.Parsec.Expr as Expr
 
 data Command = Go Explore | Ask Question | Other Utility
 data Explore = Next | Augment Formula
-data Question = Name Bool Term | Blame Term
+data Question = Name Bool Term | Blame Formula
 data Utility = Help | Exit
 
 helpCommand :: String
@@ -84,7 +84,7 @@ pNameRec = do
 pBlame :: Parser Question
 pBlame = do
   symbol "blame"
-  Blame <$> pTerm
+  Blame <$> xpAtom
 
 {-|||||||||||||
 || Utilities ||

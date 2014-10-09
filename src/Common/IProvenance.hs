@@ -104,3 +104,6 @@ insertProv elm terms (elemProvs, provElems) =
   function. -}
 findElementWithProv :: SkolemTerm -> ElementProvs -> Maybe Element
 findElementWithProv term (_, provs) =  Map.lookup term provs
+
+findObservationWithProv :: Observation -> ObservationProvs -> Maybe Blame
+findObservationWithProv obs provs = Map.lookup obs provs

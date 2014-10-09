@@ -98,8 +98,8 @@ loop (model, stream) prov thy = do
                           prettyPrint finfo ((show sequent)++"\n")
                           prettyHighlight elm ((show namedsequent)++"\n")) (zip thy namedthy)
                     sameLoop
-            Blame term -> do
-              (lift $ prettyPrint ferror "not implemented\n")
+            Blame atom -> do
+              lift $ prettyPrint finfo ((show (getBlame prov atom))++"\n")
               sameLoop
           Other utility -> case utility of
             Help -> do
