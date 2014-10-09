@@ -5,10 +5,8 @@
   Maintainer  : Salman Saghafi, Ryan Danas
 -}
 {-| TODO
-  naming for the body
   initial blaming
   origin* in BFS order of skolem tree
-  e#0... is ugly
 -}
 
 module Main where
@@ -16,6 +14,7 @@ import API
 import Common.Model
 import Common.Provenance
 import Data.Maybe
+import Data.List
 import REPL.Syntax
 import REPL.Ansi.Display
 import Syntax.GeometricUtils 
@@ -23,10 +22,7 @@ import SAT.Impl
 import System.Console.Haskeline
 import System.Environment
 import Tools.Config
-
-
 import Control.Monad.Trans
-
 
 main :: IO ()
 main = do
@@ -85,14 +81,16 @@ loop (model, stream) prov thy = do
               sameLoop 
           Ask question -> case question of
             Name isrec term -> if isrec
+              -- origin*
               then do
                 (lift $ prettyPrint ferror "not implemented\n")
                 sameLoop 
+              -- origin
               else do
-                case (getSkolemHead prov term) of
+                case (getSkolemTree prov term) of
                   Nothing -> (lift $ (prettyPrint ferror ("no provenance information for " ++ (show term) ++ "\n"))) >> sameLoop
-                  Just ((Element elm), skolemFn) -> do
-                    let namedthy = (nameTheory (Element elm) skolemFn thy)
+                  Just ((Element elm), skolemhead, skolemrest) -> do
+                    let namedthy = (nameTheory (Element elm) skolemhead (map (getSkolemElement prov) skolemrest) thy)
                     lift $ mapM_ (\(sequent, namedsequent) 
                       -> if (sequent==namedsequent)
                         then return ()

@@ -146,9 +146,9 @@ nextModel :: SATIteratorType -> (Maybe Model, SATIteratorType)
 nextModel it = (satSolve it)
 
 -- In: prov of a theory, and a term representing an element
--- Out: the head of the skolem tree if it exists 
-getSkolemHead :: ProvInfo -> Term -> Maybe (Element, FnSym)
-getSkolemHead prov term = do
+-- Out: the skolem tree if it exists 
+getSkolemTree :: ProvInfo -> Term -> Maybe (Element, FnSym, [Term])
+getSkolemTree prov term = do
   -- turn the parsed term into an element
   case (termToElement term) of
     Nothing -> Nothing
@@ -156,21 +156,35 @@ getSkolemHead prov term = do
       -- get the provenance skolem tree for this element
       case (getElementProv elm (elementProvs prov)) of
         [] -> Nothing
-        skolemtree -> do
-          -- get just the head of the skolem tree
-          case (head skolemtree) of
-            (Fn skolemhead _) -> Just (elm, skolemhead)
-            (Cons (Constant skolemhead)) -> Just (elm, skolemhead)
-            _ -> Nothing
-          
+        trees -> case (getSkolemHead (head trees)) of
+          Nothing -> Nothing
+          Just (skolemhead, skolemrest) -> Just (elm, skolemhead, skolemrest)
+getSkolemHead :: Term -> Maybe (FnSym, [Term])
+getSkolemHead skolemtree = do
+  case skolemtree of
+    (Fn skolemhead skolemrest) -> Just (skolemhead, skolemrest)
+    (Cons (Constant skolemhead)) -> Just (skolemhead, [])
+    _ -> Nothing
+getSkolemElement :: ProvInfo -> Term -> Element
+getSkolemElement prov skolemterm = case (findElementWithProv skolemterm (elementProvs prov)) of
+  Just elm -> elm
+  Nothing -> (Element "")
+
 -- In: element, skolem function name, theory
 -- Out: a theory with the associated exists variable in every related sequent replaced by the element
-nameTheory :: Element -> FnSym -> Theory -> Theory
-nameTheory elm skolemFn thy = map (nameSequent elm skolemFn) (zip thy (preprocess thy))
+nameTheory :: Element -> FnSym -> [Element] -> Theory -> Theory
+nameTheory elm skolemhead skolemrest thy = map (nameSequent elm skolemhead skolemrest) (zip thy (preprocess thy))
 -- In: element, skolem function name, sequent in theory
 -- Out: a sequent with the associated exists variable in the head replaced by the element
-nameSequent :: Element -> FnSym -> (Sequent, Sequent) -> Sequent
-nameSequent elm skolemFn ((Sequent obdy ohd), (Sequent bdy hd)) = (Sequent obdy (nameHead elm skolemFn ohd hd))
+nameSequent :: Element -> FnSym -> [Element] -> (Sequent, Sequent) -> Sequent
+nameSequent elm skolemhead skolemrest ((Sequent obdy ohd), (Sequent bdy hd)) = do
+  let (Sequent nbdy nhd) = Sequent obdy (nameHead elm skolemhead ohd hd)
+  let frees = map (\v->(Var v)) (freeVars (Sequent bdy hd))
+  let elms = map (\(Element e)->e) skolemrest
+  let replacements = zip frees elms
+  if ((Sequent nbdy nhd) == (Sequent obdy ohd))
+    then (Sequent obdy ohd)
+    else (Sequent (nameTerms replacements nbdy) (nameTerms replacements nhd))
 -- In: element, skolem function name, head formula in sequent
 -- Out: a formula with the associated exists variable replaced by the element
 nameHead :: Element -> FnSym -> Formula -> Formula -> Formula
@@ -180,57 +194,43 @@ nameHead elm skolemFn (Or of1 of2) (Or f1 f2) = (Or (nameHead elm skolemFn of1 f
 -- Exists
 nameHead (Element elm) skolemFn (Exists ofn ov off) (Exists (Just fn) v ff) = do 
   case (fn == skolemFn) of
-    True -> (nameVariable (Element elm) ov off)
+    True -> nameTerms [((Var ov), elm)] off
     False -> (Exists ofn ov (nameHead (Element elm) skolemFn off ff))
 -- Lone
 nameHead (Element elm) skolemFn ofml (Lone fn v ff fs) = do
-  case (nameLone skolemFn (Lone fn v ff fs)) of
-    Just (Variable var) -> nameConstant (Element elm) (Constant (T.unpack (head (T.splitOn (T.pack "^") (T.pack skolemFn))))) ofml
+  case (lookupLone skolemFn (Lone fn v ff fs)) of
+    Just (Variable var) -> nameTerms [((Cons (Constant (T.unpack (head (T.splitOn (T.pack "^") (T.pack skolemFn)))))), elm)] ofml
     Nothing -> ofml
 -- Everything else
 nameHead elm skolemFn ofml fml = ofml
 -- In:
 -- Out:
-nameLone :: FnSym -> Formula -> Maybe Variable
-nameLone skolemFn (Lone (Just fn) v ff fs) = do
+lookupLone :: FnSym -> Formula -> Maybe Variable
+lookupLone skolemFn (Lone (Just fn) v ff fs) = do
   case (fn == skolemFn) of
     True -> Just v
-    False -> (nameLone skolemFn ff)
-nameLone skolemFn (Lone fn v ff fs) = (nameLone skolemFn ff)
-nameLone skolemFn fml = Nothing
+    False -> (lookupLone skolemFn ff)
+lookupLone skolemFn (Lone fn v ff fs) = (lookupLone skolemFn ff)
+lookupLone skolemFn fml = Nothing
 -- In:
 -- Out:
-nameConstant :: Element -> Constant -> Formula -> Formula
+nameTerms :: [(Term, Sym)] -> Formula -> Formula
 -- Junctions
-nameConstant elm cnst (And f1 f2) = (And (nameConstant elm cnst f1) (nameConstant elm cnst f2))
-nameConstant elm cnst (Or f1 f2) = (Or (nameConstant elm cnst f1) (nameConstant elm cnst f2))
+nameTerms replacements (And f1 f2) = (And (nameTerms replacements f1) (nameTerms replacements f2))
+nameTerms replacements (Or f1 f2) = (Or (nameTerms replacements f1) (nameTerms replacements f2))
 -- Exists
-nameConstant elm cnst (Exists fn v f) = (Exists fn v (nameConstant elm cnst f))
+nameTerms replacements (Exists fn v f) = (Exists fn v (nameTerms replacements f))
 -- Atoms
-nameConstant elm cnst (Atm (Rel rsym terms)) = (Atm (Rel rsym (map (nameTerm elm (Cons cnst)) terms)))
-nameConstant elm cnst (Atm (FnRel fsym terms)) = (Atm (FnRel fsym (map (nameTerm elm (Cons cnst)) terms)))
+nameTerms replacements (Atm (Rel rsym terms)) = (Atm (Rel rsym (map (nameTerm replacements) terms)))
+nameTerms replacements (Atm (FnRel fsym terms)) = (Atm (FnRel fsym (map (nameTerm replacements) terms)))
 -- Everything else
-nameConstant elm cnst fml = fml
--- In: element to replace variable, the variable, formula
--- Out: input formula with replacement of variable names
-nameVariable :: Element -> Variable -> Formula -> Formula
--- Junctions
-nameVariable elm var (And f1 f2) = (And (nameVariable elm var f1) (nameVariable elm var f2))
-nameVariable elm var (Or f1 f2) = (Or (nameVariable elm var f1) (nameVariable elm var f2))
--- Exists
-nameVariable elm var (Exists fn v f) = (Exists fn v (nameVariable elm var f))
--- Atoms
-nameVariable elm var (Atm (Rel rsym terms)) = (Atm (Rel rsym (map (nameTerm elm (Var var)) terms)))
-nameVariable elm var (Atm (FnRel fsym terms)) = (Atm (FnRel fsym (map (nameTerm elm (Var var)) terms)))
--- Everything else
-nameVariable elm var fml = fml
+nameTerms replacements fml = fml
 -- In: element to replace variable, the variable, term
 -- Out: input term with the replacement of variable names
-nameTerm :: Element -> Term -> Term -> Term
-nameTerm (Element elm) (Var (Variable var)) (Var (Variable termvar)) = if (var==termvar)
-  then (Var (Variable elm))
-  else (Var (Variable termvar))
-nameTerm (Element elm) (Cons (Constant cnst)) (Fn fnsym terms) = if (cnst==fnsym)
-  then (Var (Variable elm))
-  else (Fn fnsym terms)
-nameTerm _ _ term = term
+nameTerm :: [(Term, Sym)] -> Term -> Term
+nameTerm replacements (Fn fnsym terms) = case (lookup (Cons (Constant fnsym)) replacements) of
+  Nothing -> (Fn fnsym terms)
+  Just newname -> (Var (Variable newname))
+nameTerm replacements term = case (lookup term replacements) of
+  Nothing -> term
+  Just newname -> (Var (Variable newname))
