@@ -244,13 +244,13 @@ permBlame (l:ls) = do
   choose <- l
   rest <- (permBlame ls)
   return (choose : rest)
-blameTheory :: Theory -> [Blame] -> [Maybe Sequent]
+blameTheory :: Theory -> [Blame] -> Theory
 blameTheory thy blames = do
   let replacements = Map.fromList (map (\(TheoryBlame i s)->(i, s)) blames)
   sequent <- thy
   newsequent <- case (elemIndex sequent thy) of
-    Nothing -> return Nothing
-    Just i -> case (Map.lookup i replacements) of
-      Nothing -> return Nothing
-      Just sub -> return (Just (substitute sub sequent))
+    Nothing -> return sequent
+    Just i -> case (Map.lookup (i+1) replacements) of
+      Nothing -> return sequent
+      Just blamesub -> return (substitute blamesub sequent)
   return newsequent

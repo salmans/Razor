@@ -30,7 +30,7 @@ helpCommand =
     "    //example: origin* e#42" ++ "\n" ++ 
     "  blame fact: ???" ++ "\n" ++ 
     "    //example: blame ???" ++ "\n" ++ 
-    "  exit: close the REPL\n"
+    "  quit: close the REPL\n"
 
 parseCommand :: String -> Maybe Command
 parseCommand input = 
@@ -99,4 +99,4 @@ pHelp :: Parser Utility
 pHelp = symbol "help" >> return Help
 
 pExit :: Parser Utility
-pExit = symbol "exit" >> return Exit
+pExit = symbol "quit" >> return Exit
