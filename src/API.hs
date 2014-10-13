@@ -159,7 +159,7 @@ getEqualElements mdl term = case term of
   _ -> []
 -- In: prov of a theory, and a term representing an element
 -- Out: the skolem tree if it exists 
-getSkolemTree :: ProvInfo -> Term -> Maybe (Element, FnSym, [Term])
+getSkolemTree :: ProvInfo -> Term -> Maybe (Element, FnSym, [Element])
 getSkolemTree prov term = do
   -- turn the parsed term into an element
   case (termToElement term) of
@@ -170,61 +170,51 @@ getSkolemTree prov term = do
         [] -> Nothing
         trees -> case (getSkolemHead (head trees)) of
           Nothing -> Nothing
-          Just (skolemhead, skolemrest) -> Just (elm, skolemhead, skolemrest)
+          Just (skolemhead, skolemrest) -> Just (elm, skolemhead, (concatMap (\t->(maybeToList (getSkolemElement prov t))) skolemrest))
 getSkolemHead :: Term -> Maybe (FnSym, [Term])
 getSkolemHead skolemtree = do
   case skolemtree of
     (Fn skolemhead skolemrest) -> Just (skolemhead, skolemrest)
     (Cons (Constant skolemhead)) -> Just (skolemhead, [])
     _ -> Nothing
-getSkolemElement :: ProvInfo -> Term -> Element
-getSkolemElement prov skolemterm = case (findElementWithProv skolemterm (elementProvs prov)) of
-  Just elm -> elm
-  Nothing -> (Element "")
+getSkolemElement :: ProvInfo -> Term -> Maybe Element
+getSkolemElement prov skolemterm = (findElementWithProv skolemterm (elementProvs prov))
+
+
+
 -- In: element, skolem function name, theory
 -- Out: a theory with the associated exists variable in every related sequent replaced by the element
-nameTheory :: Theory -> (Element, FnSym , [Element]) -> Theory
-nameTheory thy (elm, skolemhead, skolemrest) = map (nameSequent elm skolemhead skolemrest) (zip thy (preprocess thy))
+nameTheory :: Theory -> [(Element, FnSym, [Element])] -> Theory
+nameTheory thy names = map (nameSequent names) (zip thy (preprocess thy))
 -- In: element, skolem function name, sequent in theory
 -- Out: a sequent with the associated exists variable in the head replaced by the element
-nameSequent :: Element -> FnSym -> [Element] -> (Sequent, Sequent) -> Sequent
-nameSequent elm skolemhead skolemrest ((Sequent obdy ohd), (Sequent bdy hd)) = do
-  let (Sequent nbdy nhd) = Sequent obdy (nameHead elm skolemhead ohd hd)
+nameSequent :: [(Element, FnSym, [Element])] -> (Sequent, Sequent) -> Sequent
+nameSequent names ((Sequent obdy ohd), (Sequent bdy hd)) = do
+  let headnames = map (\(e, h, r)->(h, e)) names
+  let rests = map (\(e, h, r)->r) names
+  let (Sequent nbdy nhd) = Sequent obdy (nameHead headnames ohd hd)
   let frees = (freeVars (Sequent bdy hd))
-  let elms = map (\e->(Elem e)) skolemrest
-  let replacements = Map.fromList (zip frees elms)
-  if ((Sequent nbdy nhd) == (Sequent obdy ohd))
+  let elms = map (\e->(Elem e)) (concat rests)
+  let freesubs = Map.fromList (zip frees elms)
+  let constsubs = Map.fromList (map (\(e, h, r)->((Constant (T.unpack (head (T.splitOn (T.pack "^") (T.pack h))))), (Elem e))) names)
+  -- Only return a substituted sequent if the head was named or there were constants to be replaced
+  if ((Sequent nbdy nhd) == (Sequent obdy (substituteConstants constsubs ohd)))
     then (Sequent obdy ohd)
-    else (Sequent (substitute replacements nbdy) (substitute replacements nhd))
+    else (Sequent (substituteConstants constsubs (substitute freesubs nbdy)) (substituteConstants constsubs (substitute freesubs nhd)))
 -- In: element, skolem function name, head formula in sequent
 -- Out: a formula with the associated exists variable replaced by the element
-nameHead :: Element -> FnSym -> Formula -> Formula -> Formula
+nameHead :: [(FnSym, Element)] -> Formula -> Formula -> Formula
 -- Junctions aka Keep looking
-nameHead elm skolemFn (And of1 of2) (And f1 f2) = (And (nameHead elm skolemFn of1 f1) (nameHead elm skolemFn of2 f2))
-nameHead elm skolemFn (Or of1 of2) (Or f1 f2) = (Or (nameHead elm skolemFn of1 f1) (nameHead elm skolemFn of2 f2))
+nameHead names (And of1 of2) (And f1 f2) = (And (nameHead names of1 f1) (nameHead names of2 f2))
+nameHead names (Or of1 of2) (Or f1 f2) = (Or (nameHead names of1 f1) (nameHead names of2 f2))
 -- Exists
-nameHead elm skolemFn (Exists ofn ov off) (Exists (Just fn) v ff) = do 
-  case (fn == skolemFn) of
-    True -> substitute (Map.fromList [(ov, (Elem elm))]) off
-    False -> (Exists ofn ov (nameHead elm skolemFn off ff))
--- Lone / Constants
-nameHead elm skolemFn ofml (Lone fn v ff fs) = do
-  case (lookupLone skolemFn (Lone fn v ff fs)) of
-    Just (Variable var) -> do
-      let lonename = (T.unpack (head (T.splitOn (T.pack "^") (T.pack skolemFn))))
-      substituteConstants (Map.fromList [((Constant lonename), (Elem elm))]) ofml
-    Nothing -> ofml
+nameHead names (Exists ofn ov off) (Exists (Just fn) v ff) = do 
+  let skolemMap = Map.fromList names
+  case (Map.lookup fn skolemMap) of
+    Just elm -> substitute (Map.fromList [(ov, (Elem elm))]) (nameHead names off ff)
+    Nothing -> (Exists ofn ov (nameHead names off ff))
 -- Everything else aka Nothing to replace
-nameHead elm skolemFn ofml fml = ofml
--- In:
--- Out:
-lookupLone :: FnSym -> Formula -> Maybe Variable
-lookupLone skolemFn (Lone (Just fn) v ff fs) = do
-  case (fn == skolemFn) of
-    True -> Just v
-    False -> (lookupLone skolemFn ff)
-lookupLone skolemFn (Lone fn v ff fs) = (lookupLone skolemFn ff)
-lookupLone skolemFn fml = Nothing
+nameHead _ ofml _ = ofml
 
 
 
@@ -252,19 +242,18 @@ permBlame (l:ls) = do
   choose <- l
   rest <- (permBlame ls)
   return (choose : rest)
-blameTheory :: ProvInfo -> Theory -> [Term] -> [Blame] -> Theory
-blameTheory prov thy terms blames = do
-  -- name
-  (e, f, r) <- concatMap (\t -> (maybeToList (getSkolemTree prov t))) terms
-  let names = (e, f, (map (getSkolemElement prov) r))
-  -- blame
+
+
+
+blameTheory :: Theory -> [(Element, FnSym , [Element])] -> [Blame] -> Theory
+blameTheory thy names blames = do
+  let namedthy = nameTheory thy names
   let blamereplaces = Map.fromList (map (\(TheoryBlame i s)->(i, s)) blames)
-  sequent <- thy
+  (sequent, namedsequent) <- zip thy namedthy
   newsequent <- case (elemIndex sequent thy) of
     Nothing -> return sequent
     Just i -> case (Map.lookup (i+1) blamereplaces) of
       Nothing -> return sequent
       Just blamesub -> do
-        -- TODO let namedsequent = (head (foldl nameTheory [sequent] (return names)))
-        return (substitute blamesub sequent)
+        return (substitute blamesub namedsequent)
   return newsequent

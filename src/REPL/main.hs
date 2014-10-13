@@ -5,9 +5,7 @@
   Maintainer  : Salman Saghafi, Ryan Danas
 -}
 {-| TODO
-  blameTheory doesnt name elts included in blame
   getBlame does not work for equality permutations
-  how to ignore parens on user input? some places they matter
   augmentation
 -}
 
@@ -102,11 +100,10 @@ name thy prov mdl term tabs = do
     eqelms -> do
       case (getSkolemTree prov term) of
         Nothing -> (lift $ (prettyPrint tabs ferror ("no provenance information for "++(show term)++"\n"))) >> return []
-        Just ((Element elm), skolemhead, skolemrest) -> do
-          let skolemnext = (map (getSkolemElement prov) skolemrest)
-          let namedthy = (nameTheory thy ((Element elm), skolemhead, skolemnext))
-          lift $ prettyPrint tabs fhighc ("origin of "++(show (Element elm))++"... depends on origin of "++(show skolemnext)++"\n")
-          printDiff thy namedthy elm tabs
+        Just (elm, skolemhead, skolemnext) -> do
+          let namedthy = (nameTheory thy [(elm, skolemhead, skolemnext)])
+          lift $ prettyPrint tabs fhighc ("origin of "++(show elm)++"... depends on origin of "++(show skolemnext)++"\n")
+          printDiff thy namedthy (show elm) tabs
           return (map (\e->(Elem e)) skolemnext)
 
 -- Blaming
@@ -115,7 +112,7 @@ justify theory prov model atom = case (getBlame prov model atom) of
   (_, []) -> (lift $ prettyPrint 0 ferror ("no provenance information for "++(show atom)++"\n")) >> return ()
   (terms, blames) -> do
     lift $ prettyPrint 0 fhighc ("justification of "++(show atom)++"\n")
-    printDiff theory (blameTheory prov theory terms blames) (show atom) 0
+    printDiff theory (blameTheory theory (concatMap (\t->maybeToList (getSkolemTree prov t)) terms) blames) (show atom) 0
 
 -- Misc 
 printDiff :: Theory -> Theory -> String -> Int -> InputT IO()
