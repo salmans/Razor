@@ -34,13 +34,15 @@ type ConstantValueMap = Map.Map Constant Element
   [@fromSequent@] creates a SequentLike instance for an input 'Sequent'. 
   [@toSequent@] returns the original 'Sequent' for a 'SequentLike' instance.
   [@skolemFunctions@] returns a list of Skolem functions assigned to the 
-  existential quantifiers of an instance of type @s@.
+  existential quantifiers of an instance of type @s@. Left values are Skolem 
+  functions for ordinary existential quantifiers and Right values are Skolem 
+  functions for Lone quantifiers. 
   [@failSequent@] returns true if the head of the sequent is empty. 
   [@startSequent@] returns true if the body of the sequent is empty. -}
 class (Show s) => SequentLike s where
     fromSequent      :: Sequent -> s
     toSequent        :: s -> Sequent
-    skolemFunctions  :: s -> [FnSym]
+    skolemFunctions  :: s -> [Either FnSym (FnSym, Atom)]
     sequentConstants :: s -> [Constant]
     startSequent     :: s -> Bool
     failSequent      :: s -> Bool

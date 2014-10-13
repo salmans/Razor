@@ -18,6 +18,7 @@ import qualified Data.Vector as Vect
 import Data.Vector ((!))
 import Data.Maybe
 import Data.List (nub)
+import Data.Either
 
 -- Control
 import Control.Applicative
@@ -49,6 +50,7 @@ import SAT.Data (SATAtom (..))
 import Tools.Config (Config (..))
 import qualified Tools.ExtendedSet as ExSet
 
+import Tools.Trace
 
 unitName                 = "Chase.HerbrandSet.RelAlg.HerbrandBase"
 error_TblEmptyInBody     = "TblEmpty cannot appear in the body of a sequent"
@@ -80,14 +82,15 @@ type TransFunc = (Tup -> Tup)
  assigned to the existential quantifiers of 'relSequentOrigin'. 
  [@relSequentConstants@] maintains a list of 'Constant's in 'relSequentOrigin'.
  -}
-data RelSequent = RelSequent { relSequentBody       :: RelExp
-                             , relSequentHead       :: [(RelExp, TransFunc)]
-                             , relSequentBodyDelta  :: RelExp
-                             , relSequentBodyRefs   :: [TableRef]
-                             , relSequentOrigin     :: Sequent
-                             , relSequentExists     :: [FnSym]
-                             , relSequentConstants  :: [Constant]
-                             }
+data RelSequent = 
+    RelSequent { relSequentBody       :: RelExp
+               , relSequentHead       :: [(RelExp, TransFunc)]
+               , relSequentBodyDelta  :: RelExp
+               , relSequentBodyRefs   :: [TableRef]
+               , relSequentOrigin     :: Sequent
+               , relSequentExists     :: [Either FnSym (FnSym, Atom)]
+               , relSequentConstants  :: [Constant]
+               }
 
 instance Show RelSequent where
     show (RelSequent bdy hd _ _ _ _ _) = 
@@ -302,7 +305,7 @@ insertRelSequent seq resSet db = do
 
   -- MONITOR
   -- Is @db@ enough or we should use @uni@ or even @unionDatabases uni result@?
-  let propSeqs = relSequentInstances seq db result resSet provs
+  let propSeqs = relSequentInstances seq uni result resSet provs
   -- MONITOR
 
   let propThy' = foldr (flip storeSequent) propThy propSeqs
@@ -327,27 +330,30 @@ relSequentInstances :: RelSequent -> Database -> Database -> RelResultSet
 relSequentInstances relSeq uni new resSet provs = 
     let subs = createSubs relSeq uni new (allResultTuples resSet) provs
     in  nub [ fromJust seq | 
-              (s, cs, es) <- subs
-            , let seq =  buildObservationSequent (instantiate s cs es)
+              (s, es) <- subs
+            , let seq =  buildObservationSequent (instantiate s es)
             , isJust seq ]
     where seq                           = toSequent relSeq                    
-          instantiate sub consSub exSub = 
-              let seq' = ((substituteConstants consSub).(substitute sub)) seq
+          instantiate sub exSub = 
+              let seq' = substitute sub seq
               in  case exSub of
                     -- < MONITOR
                     Nothing -> Sequent (sequentBody seq') 
                                (Atm $ Rel "Incomplete" [])
                     -- MONITOR >
-                    Just s  -> sequentExistsSubstitute s seq'
-
+                    Just s  ->
+                        let seq''      = sequentExistsSubstitute s seq'
+                            loneSkFuns = rights $ skolemFunctions seq''
+                        in  applyLoneSubs uni new 
+                                (Map.fromList loneSkFuns)
+                                seq''
 
 createSubs :: RelSequent -> Database -> Database -> TableSub
-           -> ProvInfo -> [(Sub, ConsSub, Maybe ExistsSub)]
+           -> ProvInfo -> [(Sub, Maybe ExistsSub)]
 createSubs seq uni new (DB.Set set) provs = 
     if   bodyExp == TblFull
     then (\(Tuple tup exSub) -> 
               ( emptySub
-              , createConstantSub consts uni new 
               , case createExistsSub tup elmProvs skFuns of
                   -- < MONITOR
                   Nothing -> Nothing -- Just Map.empty
@@ -356,36 +362,21 @@ createSubs seq uni new (DB.Set set) provs =
                   Just es -> Just (Map.union es exSub))) <$> ExSet.toList set
     else (\(Tuple tup exSub) -> 
               ( createSub tup heads
-              , createConstantSub consts uni new
               , case createExistsSub tup elmProvs skFuns of
                   -- < MONITOR
-                  Nothing -> Nothing -- Just Map.empty
+                  Nothing ->  Nothing -- Just Map.empty
                   -- Nothing -> Just exSub
                   -- MONITOR >
                   Just es -> Just (Map.union es exSub))) <$> ExSet.toList set
     where elmProvs = elementProvs provs
           bodyExp  = relSequentBodyDelta seq
           heads    = header bodyExp
-          skFuns   = skolemFunctions seq
+          skFuns   = lefts $ skolemFunctions seq
           consts   = relSequentConstants seq
 
 
 createSub :: Tup -> Header -> Sub
 createSub tup heads = Map.map (\i -> Elem (tup ! i)) heads
-
-createConstantSub :: [Constant] -> Database -> Database -> ConsSub
-createConstantSub consts uni new = 
-    Map.fromList $ (\c -> (c, elemOf c)) <$> consts
-    where extractElem  = Elem . Vect.head.tupleElems.ExSet.findMin.DB.contents
-          elemOf const = let ref = ConstTable const
-                         in  case Map.lookup ref uni of
-                               Nothing -> case Map.lookup ref new of
-                                            Nothing -> 
-                                                error $ unitName 
-                                                     ++ ".createConstantSub: "
-                                                     ++ error_noValueForConstant
-                                            Just t  -> extractElem t
-                               Just t  -> extractElem t
 
 createExistsSub :: Tup -> ElementProvs -> [FnSym] -> Maybe ExistsSub
 createExistsSub tup elmProvs skFuns = 
@@ -401,3 +392,47 @@ createExistsSub tup elmProvs skFuns =
     in  if   all (isJust.snd) skElems
         then Just $ Map.fromList $ (Elem . fromJust <$>) <$> skElems
         else Nothing
+
+
+applyLoneSubs :: Database -> Database -> Map.Map FnSym Atom -> Sequent
+                 -> Sequent
+applyLoneSubs uni new skMap seq = 
+    if   Map.null skMap
+    then seq
+    else let subPairs = 
+                 Map.elems $ Map.mapWithKey (\k a@(FnRel _ ts) 
+                                     -> let e       = lookupElement a
+                                            (Var v) = last ts 
+                                        in  ( Map.singleton v (Elem e)
+                                            , Map.singleton k (Elem e))) 
+                 completeAtoms
+             (subList, exSubList) = unzip subPairs
+             sub                  = Map.unions subList
+             rest'                = Map.map (substitute sub) rest
+             existsSub'           = Map.unions exSubList
+         in  applyLoneSubs uni new rest' 
+                 $ sequentExistsSubstitute existsSub' seq
+    where (completeAtoms, rest) = Map.partition completeAtom skMap
+          completeAtom (FnRel _ ts) = not $ any isVariable (init ts)
+          lookupElement atm = 
+              case (lookupElementInDB atm uni) of
+                Just e  -> e
+                Nothing -> case (lookupElementInDB atm new) of
+                             Just e  -> e
+                             Nothing -> error $ "function value not found"
+          lookupElementInDB (FnRel f ts) db = 
+              let ref = case ts of
+                          [_] -> ConstTable (Constant f)
+                          _   -> FnTable f
+              in case Map.lookup ref db of
+                   Nothing           -> Nothing
+                   Just (DB.Set set) -> 
+                       let tups = 
+                               ExSet.filter (\(Tuple es _) -> 
+                                             ((\e -> Elem e) <$> 
+                                              (init (Vect.toList es))) 
+                                             == (init ts)) set 
+                       in  if   ExSet.null tups
+                           then Nothing
+                           else Just $ (\(Tuple es _) -> Vect.last es) 
+                                     $ ExSet.findMin tups

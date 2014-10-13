@@ -95,12 +95,12 @@ prettyFormula (And p q)    =  "(" ++ (prettyFormula p) ++
 prettyFormula (Or p q)     =  "(" ++ (prettyFormula p) ++ 
                               " | " ++ (prettyFormula q) ++ ")"
 prettyFormula (Exists fn v fmla) 
-                           = quantName ++ show v ++ "." ++ (prettyFormula fmla)
+    = quantName ++ show v ++ "." ++ (prettyFormula fmla)
     where quantName = case fn of
                         Nothing -> "exists "
                         Just f  -> "exists " ++ show f ++ " "
 prettyFormula (Lone fn v fmla lfmla)
-                           = quantName ++ show v ++ "." ++ (prettyFormula fmla)
+    = quantName ++ show v ++ "." ++ (prettyFormula fmla)
     where quantName = case fn of
                         Nothing -> "lone "
                         Just f  -> "lone " ++ show f ++ " "

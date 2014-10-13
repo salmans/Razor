@@ -29,7 +29,7 @@ import Syntax.Geometric
 
 -- Tools
 import Tools.Utils (unions)
-import Tools.Counter (Counter, increment)
+import Tools.Counter (Counter)
 import Tools.Trace
 
 
@@ -282,10 +282,9 @@ relationalizeTerm (Fn f ts) = do
   (fs', ts', skvs') <- foldM foldFunc ([], [], []) ts
   v               <- freshVariable
   let var         =  Var v
-  ind <- increment -- get an index to add to the corresponding skolem function
   return $ Just (andFmlas fs' (Atm (FnRel f (ts' ++ [var])))
                 , var
-                , ( Just $ f ++ "^" ++ (show ind)
+                , ( Just $ f
                   , Just $ Atm (FnRel f (ts' ++ [var]))
                   , v):skvs')
     where andFmlas  = \fmlas fmla -> foldr (\f1 f2 -> And f1 f2) fmla fmlas
@@ -419,14 +418,18 @@ hasFreeHeadVar seq = (not.null) $ hdVars \\ bdyVars
           bdyVars = freeVars bdy
 
 {-| Given an input geometric 'Sequent', returns a list of Skolem functions for
-  existential quantifiers in the sequent. -}
-sequentExistentials :: Sequent -> [FnSym]
+  existential quantifiers in the sequent. Left values are Skolem functions for
+  ordinary existential quantifiers and Right values are Skolem functions for 
+  Lone quantifiers and their unique expression. -}
+sequentExistentials :: Sequent -> [Either FnSym (FnSym, Atom)]
 sequentExistentials (Sequent bdy hd) =  
     formulaExistentials bdy ++ formulaExistentials hd
 
 {-| Given an input geometric 'Formula', returns a list of Skolem functions for 
-  its existential quantifiers.-}
-formulaExistentials :: Formula -> [FnSym]
+  its existential quantifiers. Left values are Skolem functions for ordinary 
+  existential quantifiers and Right values are Skolem functions for Lone 
+  quantifiers and their unique expression. -}
+formulaExistentials :: Formula -> [Either FnSym (FnSym, Atom)]
 formulaExistentials Tru                    = []
 formulaExistentials Fls                    = []
 formulaExistentials (And f1 f2)            = 
@@ -434,9 +437,11 @@ formulaExistentials (And f1 f2)            =
 formulaExistentials (Or f1 f2)             = 
     formulaExistentials f1 ++ formulaExistentials f2
 formulaExistentials (Atm a)                = []
-formulaExistentials (Exists (Just fn) _ f) = fn:(formulaExistentials f)
+formulaExistentials (Exists (Just fn) _ f) = (Left fn):(formulaExistentials f)
 formulaExistentials (Exists Nothing _ f)   = formulaExistentials f
-formulaExistentials (Lone (Just fn) _ f _) = fn:(formulaExistentials f)
+formulaExistentials (Lone (Just fn) _ f unq) = 
+    let (Atm atm) = unq
+    in  (Right (fn, atm)):(formulaExistentials f)
 formulaExistentials (Lone Nothing _ f _)   = formulaExistentials f
 
 {-| Applies an existential substitution of type 'ExistsSub' to a 'Sequent'. -}
@@ -465,9 +470,11 @@ formulaExistsSubstitute env (Lone fn@(Just fnSym) x f lf) =
     case Map.lookup fnSym env of
       Just t  -> let f' = substitute (Map.singleton x t) f
                  in  formulaExistsSubstitute env f'
-      Nothing -> Lone fn x (formulaExistsSubstitute env f) lf
+      Nothing -> Lone fn x (formulaExistsSubstitute env f) 
+                           (formulaExistsSubstitute env lf)
 formulaExistsSubstitute env (Lone Nothing x f lf)   = 
-    Lone Nothing x (formulaExistsSubstitute env f) lf
+    Lone Nothing x (formulaExistsSubstitute env f) 
+                   (formulaExistsSubstitute env lf)
 
 --------------------------------------------------------------------------------
 -- TermBased class and some implementations
@@ -523,7 +530,8 @@ instance TermBased Formula where
     substitute env (And p q)       = And (substitute env p) (substitute env q)
     substitute env (Or p q)        = Or  (substitute env p) (substitute env q)
     substitute env (Exists f x p)  = subquant env (Exists f) x p
-    substitute env (Lone f x p lf) = subquant env (\v u -> Lone f v u lf) x p
+    substitute env (Lone f x p lf) = 
+        subquant env (\v u -> Lone f v u (substitute env lf)) x p
 
     substituteConstants _ Tru              = Tru
     substituteConstants _ Fls              = Fls

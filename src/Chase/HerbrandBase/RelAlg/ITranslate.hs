@@ -13,7 +13,7 @@ module Chase.HerbrandBase.RelAlg.ITranslate where
 
 -- Standard
 import Data.Tuple (swap)
-import Data.List (elemIndex, find, maximumBy, (\\))
+import Data.List (elemIndex, find, maximumBy, nub, (\\))
 import Data.Either
 import qualified Data.Vector as Vect
 import Data.Vector ((!), cons)
@@ -46,7 +46,6 @@ import Chase.Data ( PushM, PullM, liftPushMBase, liftPushMProvs
 import Chase.HerbrandBase.RelAlg.Lang -- import everything
 import qualified Chase.HerbrandBase.RelAlg.DB as DB
 import qualified Tools.ExtendedSet as ExSet
-
 
 -- Error Messages:
 unitName               = "Chase.HerbrandSet.RelAlg.Translate"
@@ -184,7 +183,7 @@ joinRelExp lExp rExp
         let lHeader    = header lExp
             rHeader    = header rExp
             newHeader  = joinHeader lHeader rHeader
-        in  Join lExp rExp newHeader
+        in Join lExp rExp newHeader
 
 {- As a helper for joinRelExp, computes the header of a join expression for two
    expressions with the two input headers -}
@@ -198,7 +197,7 @@ joinHeader lHeader rHeader =
                       -- shift the elements in the left and the right 
                       -- header, ignore the columns with no 
                       -- variable attributes
-    in  Map.unionWith const lHeader'' rHeader''
+    in Map.unionWith const lHeader'' rHeader''
 
 {- Creates a list of pairs, representing a join predicate on two input 
    'Header's. The first input is the header of the new expression 
@@ -229,8 +228,7 @@ atomRelExp (Rel   sym ts)  = atomTable (RelTable sym) ts
 atomTable :: TableRef -> [Term] -> RelExp
 atomTable ref ts = 
     let intMap  = createInternalVarMap ts
-        extMap  = createExternalVarMap ts
-        heads   = Map.map minimum extMap -- keep only last index position
+        heads   = createExternalVarMap ts
         eqPairs = equalVarPairs intMap heads
         vars    = [(i, j) | (i, t) <- (zip [0..] ts) 
                   , let v    = termToVariable t
@@ -276,13 +274,14 @@ termSchema ts = labelingFunc <$> ts
 -}
 
 {- Creates a map from variables to their positions in a list of terms.-}
-createExternalVarMap :: [Term] -> Map.Map Variable [Int]
+createExternalVarMap :: [Term] -> Map.Map Variable Int
 createExternalVarMap ts = let vs       = [ fromJust v | t <- ts
                                          , let v = termToVariable t, isJust v]
-                              varPairs = zip vs [ [i] | i <- [0..]]
-                          in  Map.fromListWith (flip (++)) varPairs
+                              varPairs = zip (nub vs) [0..]
+                          in  Map.fromList varPairs
                       -- Using flip to make sure that the indices are created
                       -- in the right order
+
 createInternalVarMap :: [Term] -> Map.Map Variable [Int]     
 createInternalVarMap ts = let termPairs = zip ts [0..]
                               varPairs  = 
@@ -555,15 +554,17 @@ insertTuples tblPair exp@(Proj innerExp col heading skFn unqExp) db depth
   insertTuples (DB.Set new) innerExp db depth
 
 insertTuples tbl@(DB.Set set) (Sel exp colPairs _) db depth = do
-    let mapTup tup  = (inject tup) <$> Vect.fromList colPairs
-    let new         = ExSet.map (\(Tuple tup1 tup2) -> Tuple tup1 (mapTup tup2))
-                      set
-    insertTuples (DB.Set new) exp db depth
-    where inject tup = \(i, j) -> case lookup i colPairs of
-                                    Nothing -> error $ 
-                                               unitName ++ ".insertTuples: " ++
-                                               error_invalidRelExp
-                                    Just j  -> tup ! j
+  let totalColumns = length colPairs
+  let inject tup = Vect.map 
+                   (\i -> case lookup i colPairs of
+                            Nothing -> error $ 
+                                       unitName ++ ".insertTuples: " ++
+                                       error_invalidRelExp
+                            Just j  -> tup ! j) 
+                   $ Vect.fromList [0..(totalColumns - 1)]
+  let new        = ExSet.map (\(Tuple tup1 tup2) -> Tuple tup1 (inject tup2))
+                   set
+  insertTuples (DB.Set new) exp db depth
              
 insertTuples tbl@(DB.Set set) exp@(Join lExp rExp heads) db depth = do
   let lTran = unjoinTupleTransformer (header lExp) heads
@@ -617,7 +618,7 @@ insertProjInject col (Tuple vs _) =
 -}
 insertProjUniqueInject :: Database -> Database -> RelExp -> Header
                        -> Int -> Tuple -> (Int -> PushM Database t Element)
-insertProjUniqueInject db uni unqExp heading col tup@(Tuple vs _) = 
+insertProjUniqueInject db uni unqExp heading col tup@(Tuple vs _) =     
     let unqTblInNew = undecorateTable (evaluateRelExpNoDelta db unqExp)
         unqTblInUni = undecorateTable (evaluateRelExpNoDelta uni unqExp)
         fetch       = \ftbl -> 
