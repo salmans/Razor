@@ -55,8 +55,6 @@ main = do
   putStrLn $ "<><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>"
   putStrLn "Input Options: "
   putStrLn (show config)
-  putStrLn "Theory: "
-  mapM_ (putStrLn.show) theory
   putStrLn $ "<><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>"
   -- generate G*, get the model stream
   let (base, prov, prop) = generateGS config theory
@@ -81,6 +79,9 @@ loop (model, stream) prov thy = do
       Just command -> case (parseCommand command) of
         Nothing -> (lift $ prettyPrint 0 ferror "syntax error\n") >> sameLoop
         Just cmd -> case cmd of
+          Display thing -> case thing of
+            TheTheory -> (lift $ mapM_ (\s-> prettyPrint 0 finfo ((show s)++"\n")) thy) >> sameLoop
+            TheModel -> newLoop (model, stream)
           Go explore -> case explore of
             Next -> do
               case (nextModel stream) of
