@@ -8,39 +8,76 @@
 module REPL.Syntax where
 import Control.Applicative
 import Syntax.IGeometric
-import Syntax.Term
+import Syntax.ITerm
 import Syntax.GeometricParser
 import Text.ParserCombinators.Parsec hiding ( (<|>) )
+import Text.Parsec.Error
+import Text.Parsec.Prim hiding ( (<|>) )
 import qualified Text.ParserCombinators.Parsec.Expr as Expr
 
-data Command = Go Explore | Ask Question | Other Utility
+data Command = Go Explore | Ask Question | Display Thing | Other Utility | SyntaxError String
+data Thing = DispTheory | DispModel
 data Explore = Next | Augment Formula
 data Question = Name Bool Term | Blame Formula
 data Utility = Help | Exit
 
+helpDisplay :: String
+helpDisplay = 
+  "  !t: show the input theory" ++ "\n" ++ 
+  "  !m: show the current model" ++ "\n"
 helpCommand :: String
 helpCommand = 
-	"Available commands..." ++ "\n" ++ 
-    "  next: show the next minimal model if available" ++ "\n" ++ 
-    "  aug seq: Not Implemented" ++ "\n" ++ 
-    "    //example: aug ???" ++ "\n" ++ 
-    "  origin elm: display the sequents responsible for the existence of the specified element" ++ "\n" ++ 
-    "    //example: origin e#7" ++ "\n" ++ 
-    "  origin* elm: recursively displays element origins down to the ground facts, starting with the specified element" ++ "\n" ++ 
-    "    //example: origin* e#42" ++ "\n" ++ 
-    "  blame fact: ???" ++ "\n" ++ 
-    "    //example: blame ???" ++ "\n" ++ 
-    "  exit: close the REPL\n"
+  "-------------" ++ "\n" ++ 
+  "-- Display --" ++ "\n" ++ 
+  "-------------" ++ "\n" ++ 
+  helpDisplay ++
+  "-----------------" ++ "\n" ++ 
+  "-- Exploration --" ++ "\n" ++ 
+  "-----------------" ++ "\n" ++
+  "  next: show the next minimal model if available" ++ "\n" ++ 
+  "  aug [seq]: Not Implemented" ++ "\n" ++ 
+  "    //example: ???" ++ "\n" ++ 
+  "-----------------" ++ "\n" ++ 
+  "-- Explanation --" ++ "\n" ++ 
+  "-----------------" ++ "\n" ++
+  "  origin [elm]: display the sequents responsible for the existence of the specified element" ++ "\n" ++ 
+  "    //example: origin e#7" ++ "\n" ++ 
+  "  origin* [elm]: recursively displays element origins down to the ground facts, starting with the specified element" ++ "\n" ++ 
+  "    //example: origin* e#42" ++ "\n" ++ 
+  "  blame [fact]: display the sequents responsible for making the given fact true" ++ "\n" ++ 
+  "    //example: blame Student(e^7)" ++ "\n" ++ 
+  "---------------------" ++ "\n" ++ 
+  "-- Other Utilities --" ++ "\n" ++ 
+  "---------------------" ++ "\n" ++
+  "  Type 'q' or 'quit' or 'exit' to close the REPL\n"
 
-parseCommand :: String -> Maybe Command
+
+parseCommand :: String -> Command
 parseCommand input = 
 	let pResult = parse pCommand "parsing user command" input
 	in case pResult of
-		Left _ -> Nothing
-		Right val -> Just val
+		Left err -> SyntaxError (show err)
+		Right val -> val
 
 pCommand :: Parser Command
-pCommand = pOther +++ pAsk +++ pGo
+pCommand = pOther +++ pDisplay +++ pAsk +++ pGo
+
+{-|||||||||||
+|| Display ||
+|||||||||||-}
+pDisplay :: Parser Command
+pDisplay = do
+  symbol "!"
+  (Display <$> pThing) 
+
+pThing :: Parser Thing
+pThing = pDispTheory +++ pDispModel
+
+pDispTheory :: Parser Thing
+pDispTheory = symbol "t" >> return DispTheory
+
+pDispModel :: Parser Thing
+pDispModel = symbol "m" >> return DispModel
 
 {-|||||||||||||||
 || Exploration ||
@@ -69,17 +106,19 @@ pQuestion :: Parser Question
 pQuestion = pName <|> pBlame
 
 pName :: Parser Question
-pName = pNameHead +++ pNameRec
+pName = do
+  symbol "origin"
+  pNameRec +++ pNameHead
 
 pNameHead :: Parser Question
 pNameHead = do
-  symbol "origin"
-  Name False <$> xpTerm
+  symbol ""
+  Name False <$> pElement
 
 pNameRec :: Parser Question
 pNameRec = do
-  symbol "origin*"
-  Name True <$> xpTerm
+  symbol "*"
+  Name True <$> pElement
 
 pBlame :: Parser Question
 pBlame = do
@@ -99,4 +138,4 @@ pHelp :: Parser Utility
 pHelp = symbol "help" >> return Help
 
 pExit :: Parser Utility
-pExit = symbol "exit" >> return Exit
+pExit = (symbol "q" <|> symbol "quit" <|> symbol "exit") >> return Exit

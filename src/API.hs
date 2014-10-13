@@ -1,8 +1,7 @@
 {-|
   Razor
   Module      : API
-  Description : The module provides a stateless API for (G)UI applications to
-  				use for interacting with the functional core of Razor
+  Description : The module provides a stateless API for (G)UI applications to use for interacting with the functional core of Razor
   Maintainer  : Salman Saghafi, Ryan Danas
 -}
 {-| API Cleanup TODO
@@ -150,6 +149,14 @@ nextModel it = (satSolve it)
 
 
 
+-- In: model of a theory, a term representing an element
+-- Out: a list of elements this model is equivalent to in the given model
+getEqualElements :: Model -> Term -> [Element]
+getEqualElements mdl term = case term of
+  (Elem e) -> case (Map.lookup e (modelElements mdl)) of
+    Nothing -> []
+    Just eqelms -> eqelms
+  _ -> []
 -- In: prov of a theory, and a term representing an element
 -- Out: the skolem tree if it exists 
 getSkolemTree :: ProvInfo -> Term -> Maybe (Element, FnSym, [Term])
@@ -176,8 +183,8 @@ getSkolemElement prov skolemterm = case (findElementWithProv skolemterm (element
   Nothing -> (Element "")
 -- In: element, skolem function name, theory
 -- Out: a theory with the associated exists variable in every related sequent replaced by the element
-nameTheory :: Element -> FnSym -> [Element] -> Theory -> Theory
-nameTheory elm skolemhead skolemrest thy = map (nameSequent elm skolemhead skolemrest) (zip thy (preprocess thy))
+nameTheory :: Theory -> (Element, FnSym , [Element]) -> Theory
+nameTheory thy (elm, skolemhead, skolemrest) = map (nameSequent elm skolemhead skolemrest) (zip thy (preprocess thy))
 -- In: element, skolem function name, sequent in theory
 -- Out: a sequent with the associated exists variable in the head replaced by the element
 nameSequent :: Element -> FnSym -> [Element] -> (Sequent, Sequent) -> Sequent
@@ -223,19 +230,20 @@ lookupLone skolemFn fml = Nothing
 
 --
 --
-getBlame :: ProvInfo -> Model -> Formula -> [Blame]
+getBlame :: ProvInfo -> Model -> Formula -> ([Term], [Blame])
 getBlame prov mdl fml = case fml of
   (Atm (Rel rsym terms)) -> do
+      {- TODO
       choices <- (map (\t -> 
         case (termToElement t) of
           Nothing -> [t]
           Just e -> case (Map.lookup e (modelElements mdl)) of
             Nothing -> [(Elem e)]
             Just es -> (map (\e->(Elem e)) es)) terms)
-      choice <- (permBlame (return choices))
-      let obv = fromMaybe (Obs (Rel "" [])) (toObservation (Rel rsym choice))
-      concat $ return (maybeToList (findObservationWithProv obv (observationProvs prov)))
-  _ -> []
+      choice <- (permBlame (return choices)) -}
+      let obv = fromMaybe (Obs (Rel "" [])) (toObservation (Rel rsym terms))
+      (terms, (maybeToList ((findObservationWithProv obv (observationProvs prov)))))
+  _ -> ([], [])
 permBlame :: [[Term]] -> [[Term]]
 permBlame [l] = do
   choose <- l
@@ -244,13 +252,19 @@ permBlame (l:ls) = do
   choose <- l
   rest <- (permBlame ls)
   return (choose : rest)
-blameTheory :: Theory -> [Blame] -> [Maybe Sequent]
-blameTheory thy blames = do
-  let replacements = Map.fromList (map (\(TheoryBlame i s)->(i, s)) blames)
+blameTheory :: ProvInfo -> Theory -> [Term] -> [Blame] -> Theory
+blameTheory prov thy terms blames = do
+  -- name
+  (e, f, r) <- concatMap (\t -> (maybeToList (getSkolemTree prov t))) terms
+  let names = (e, f, (map (getSkolemElement prov) r))
+  -- blame
+  let blamereplaces = Map.fromList (map (\(TheoryBlame i s)->(i, s)) blames)
   sequent <- thy
   newsequent <- case (elemIndex sequent thy) of
-    Nothing -> return Nothing
-    Just i -> case (Map.lookup i replacements) of
-      Nothing -> return Nothing
-      Just sub -> return (Just (substitute sub sequent))
+    Nothing -> return sequent
+    Just i -> case (Map.lookup (i+1) blamereplaces) of
+      Nothing -> return sequent
+      Just blamesub -> do
+        -- TODO let namedsequent = (head (foldl nameTheory [sequent] (return names)))
+        return (substitute blamesub sequent)
   return newsequent

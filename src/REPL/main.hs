@@ -5,8 +5,10 @@
   Maintainer  : Salman Saghafi, Ryan Danas
 -}
 {-| TODO
+  blameTheory doesnt name elts included in blame
+  getBlame does not work for equality permutations
+  how to ignore parens on user input? some places they matter
   augmentation
-  squash remaining bugs
 -}
 
 module Main where
@@ -45,17 +47,15 @@ main = do
   putStrLn $ "<><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>"
   putStrLn "Input Options: "
   putStrLn (show config)
-  putStrLn "Theory: "
-  mapM_ (putStrLn.show) theory
   putStrLn $ "<><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>"
   -- generate G*, get the model stream
   let (base, prov, prop) = generateGS config theory
   let stream = modelStream prop 
   -- get the first model
   case (nextModel stream) of
-    (Nothing, stream') -> (prettyPrint ferror "no models found\n")
+    (Nothing, stream') -> (prettyPrint 0 ferror "no models found\n")
     (Just model', stream') -> do
-      (prettyPrint finfo (show model'))
+      (prettyPrint 0 finfo (show model'))
       -- enter the repl
       runInputT defaultSettings (loop (model', stream') prov theory)
   -- exit display
@@ -64,68 +64,64 @@ main = do
 loop :: (Model, SATIteratorType) -> ProvInfo -> Theory -> InputT IO ()
 loop (model, stream) prov thy = do
   let sameLoop = loop (model, stream) prov thy
-  let newLoop (model', stream') = (lift $ prettyPrint finfo (show model')) >> loop (model', stream') prov thy
+  let newLoop (model', stream') = (lift $ prettyPrint 0 finfo (show model')) >> loop (model', stream') prov thy
   minput <- getInputLine "% "
   case minput of
       Nothing -> return ()
       Just command -> case (parseCommand command) of
-        Nothing -> (lift $ prettyPrint ferror "syntax error\n") >> sameLoop
-        Just cmd -> case cmd of
-          Go explore -> case explore of
-            Next -> do
-              case (nextModel stream) of
-                (Nothing, stream') -> (lift $ prettyPrint ferror "no more minimal models available\n") >> sameLoop
-                (Just model', stream') -> newLoop (model', stream')
-            Augment term -> do
-              (lift $ prettyPrint ferror "not implemented\n")
-              sameLoop 
-          Ask question -> case question of
-            Name isrec term -> do
-              (origin thy prov [term] isrec)
-              sameLoop
-            -- blame
-            Blame atom -> do
-              case (getBlame prov model atom) of
-                [] -> (lift $ prettyPrint ferror ("no provenance information for "++(show atom)++"\n")) >> sameLoop
-                blames -> do
-                  let blamedthy = (blameTheory thy blames)
-                  lift $ mapM_ (\(sequent, blamedsequent) 
-                      -> case blamedsequent of
-                        Just blamed -> do
-                          prettyPrint finfo ((show (fromJust sequent))++"\n")
-                          prettyHighlight (show atom) ((show blamed)++"\n")
-                        Nothing -> return ()) (zip (map Just thy) blamedthy)
-                  sameLoop
-          Other utility -> case utility of
-            Help -> do
-              (lift $ prettyPrint finfo helpCommand)
-              sameLoop
-            Exit -> do
-              (lift $ prettyPrint finfo "exiting...\n")
-              return ()
+        Display thing -> case thing of
+          DispTheory -> (lift $ mapM_ (\s-> prettyPrint 0 finfo ((show s)++"\n")) thy) >> sameLoop
+          DispModel -> newLoop (model, stream)
+        Go explore -> case explore of
+          Next -> do
+            case (nextModel stream) of
+              (Nothing, stream') -> (lift $ prettyPrint 0 ferror "no more minimal models available\n") >> sameLoop
+              (Just model', stream') -> newLoop (model', stream')
+          Augment term -> (lift $ prettyPrint 0 ferror "not implemented\n") >> sameLoop
+        Ask question -> case question of
+          Name isrec term -> (origin thy prov model [term] isrec 0) >> sameLoop
+          Blame atom -> (justify thy prov model atom) >> sameLoop
+        Other utility -> case utility of
+          Help -> (lift $ prettyPrint 0 finfo helpCommand) >> sameLoop
+          Exit -> (lift $ prettyPrint 0 finfo "closing...\n") >> return ()
+        SyntaxError err -> (lift $ prettyPrint 0 ferror (err++"\n")) >> sameLoop
 
-origin :: Theory -> ProvInfo -> [Term] -> Bool -> InputT IO ()
-origin _ _ [] _ = return ()
-origin thy prov terms bfs = do
-  nextterms <- (mapM (\t-> (name thy prov t)) terms)
+
+-- Naming
+origin :: Theory -> ProvInfo -> Model -> [Term] -> Bool -> Int -> InputT IO ()
+origin _ _ _ [] _ _ = return ()
+origin thy prov mdl terms bfs tabs = do
+  nextterms <- (mapM (\t-> (name thy prov mdl t tabs)) terms)
   if bfs
-    then (origin thy prov (concat nextterms) bfs)
+    then (origin thy prov mdl (concat nextterms) bfs (tabs+1))
     else return ()
+name :: Theory -> ProvInfo -> Model -> Term -> Int -> InputT IO ([Term])
+name thy prov mdl term tabs = do
+  case (getEqualElements mdl term) of
+    [] -> (lift $ (prettyPrint tabs ferror ("element "++(show term)++" not in the current model\n"))) >> return []
+    eqelms -> do
+      case (getSkolemTree prov term) of
+        Nothing -> (lift $ (prettyPrint tabs ferror ("no provenance information for "++(show term)++"\n"))) >> return []
+        Just ((Element elm), skolemhead, skolemrest) -> do
+          let skolemnext = (map (getSkolemElement prov) skolemrest)
+          let namedthy = (nameTheory thy ((Element elm), skolemhead, skolemnext))
+          lift $ prettyPrint tabs fhighc ("origin of "++(show (Element elm))++"... depends on origin of "++(show skolemnext)++"\n")
+          printDiff thy namedthy elm tabs
+          return (map (\e->(Elem e)) skolemnext)
 
-name :: Theory -> ProvInfo -> Term -> InputT IO ([Term])
-name thy prov term = do
-  case (getSkolemTree prov term) of
-    Nothing -> do
-      (lift $ (prettyPrint ferror ("no provenance information for " ++ (show term) ++ "\n")))
-      return []
-    Just ((Element elm), skolemhead, skolemrest) -> do
-      let skolemnext = (map (getSkolemElement prov) skolemrest)
-      let namedthy = (nameTheory (Element elm) skolemhead skolemnext thy)
-      lift $ prettyPrint fhighc ((show elm)++(show skolemnext)++"\n")
-      lift $ mapM_ (\(sequent, namedsequent) 
-        -> if (sequent==namedsequent)
-          then return ()
-          else do
-            prettyPrint finfo ((show sequent)++"\n")
-            prettyHighlight elm ((show namedsequent)++"\n")) (zip thy namedthy)
-      return (map (\e->(Elem e)) skolemnext)
+-- Blaming
+justify :: Theory -> ProvInfo -> Model -> Formula -> InputT IO()
+justify theory prov model atom = case (getBlame prov model atom) of
+  (_, []) -> (lift $ prettyPrint 0 ferror ("no provenance information for "++(show atom)++"\n")) >> return ()
+  (terms, blames) -> do
+    lift $ prettyPrint 0 fhighc ("justification of "++(show atom)++"\n")
+    printDiff theory (blameTheory prov theory terms blames) (show atom) 0
+
+-- Misc 
+printDiff :: Theory -> Theory -> String -> Int -> InputT IO()
+printDiff thy dthy diffhigh tabs = lift $ mapM_ (\(sequent, dsequent)
+  -> if (sequent==dsequent)
+    then return ()
+    else do
+      prettyPrint tabs finfo ("thy rule: "++(show sequent)++"\n")
+      prettyHighlight tabs diffhigh ("instance: "++(show dsequent)++"\n")) (zip thy dthy)
