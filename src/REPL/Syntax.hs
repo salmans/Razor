@@ -11,21 +11,26 @@ import Syntax.IGeometric
 import Syntax.ITerm
 import Syntax.GeometricParser
 import Text.ParserCombinators.Parsec hiding ( (<|>) )
+import Text.Parsec.Error
+import Text.Parsec.Prim hiding ( (<|>) )
 import qualified Text.ParserCombinators.Parsec.Expr as Expr
 
-data Command = Go Explore | Ask Question | Display Thing | Other Utility
-data Thing = TheTheory | TheModel
+data Command = Go Explore | Ask Question | Display Thing | Other Utility | SyntaxError String
+data Thing = DispTheory | DispModel
 data Explore = Next | Augment Formula
 data Question = Name Bool Term | Blame Formula
 data Utility = Help | Exit
 
+helpDisplay :: String
+helpDisplay = 
+  "  !t: show the input theory" ++ "\n" ++ 
+  "  !m: show the current model" ++ "\n"
 helpCommand :: String
 helpCommand = 
   "-------------" ++ "\n" ++ 
-	"-- Display --" ++ "\n" ++ 
+  "-- Display --" ++ "\n" ++ 
   "-------------" ++ "\n" ++ 
-  "  !t: show the input theory" ++ "\n" ++ 
-  "  !m: show the current model" ++ "\n" ++ 
+  helpDisplay ++
   "-----------------" ++ "\n" ++ 
   "-- Exploration --" ++ "\n" ++ 
   "-----------------" ++ "\n" ++
@@ -46,12 +51,13 @@ helpCommand =
   "---------------------" ++ "\n" ++
   "  Type 'q' or 'quit' or 'exit' to close the REPL\n"
 
-parseCommand :: String -> Maybe Command
+
+parseCommand :: String -> Command
 parseCommand input = 
 	let pResult = parse pCommand "parsing user command" input
 	in case pResult of
-		Left _ -> Nothing
-		Right val -> Just val
+		Left err -> SyntaxError (show err)
+		Right val -> val
 
 pCommand :: Parser Command
 pCommand = pOther +++ pDisplay +++ pAsk +++ pGo
@@ -62,16 +68,16 @@ pCommand = pOther +++ pDisplay +++ pAsk +++ pGo
 pDisplay :: Parser Command
 pDisplay = do
   symbol "!"
-  Display <$> pThing
+  (Display <$> pThing) 
 
 pThing :: Parser Thing
-pThing = pTheTheory +++ pTheModel
+pThing = pDispTheory +++ pDispModel
 
-pTheTheory :: Parser Thing
-pTheTheory = symbol "t" >> return TheTheory
+pDispTheory :: Parser Thing
+pDispTheory = symbol "t" >> return DispTheory
 
-pTheModel :: Parser Thing
-pTheModel = symbol "m" >> return TheModel
+pDispModel :: Parser Thing
+pDispModel = symbol "m" >> return DispModel
 
 {-|||||||||||||||
 || Exploration ||
@@ -100,16 +106,18 @@ pQuestion :: Parser Question
 pQuestion = pName <|> pBlame
 
 pName :: Parser Question
-pName = pNameHead +++ pNameRec
+pName = do
+  symbol "origin"
+  pNameRec +++ pNameHead
 
 pNameHead :: Parser Question
 pNameHead = do
-  symbol "origin"
+  symbol ""
   Name False <$> pElement
 
 pNameRec :: Parser Question
 pNameRec = do
-  symbol "origin*"
+  symbol "*"
   Name True <$> pElement
 
 pBlame :: Parser Question

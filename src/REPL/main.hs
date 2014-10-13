@@ -7,10 +7,7 @@
 {-| TODO
   blameTheory doesnt name elts included in blame
   getBlame does not work for equality permutations
-
-  syntax errors should be more verbose (parse command in syntax should return Either Error instead of nothing)
-  suppress 'Truth=>' in prettySequent
-  ignore parens in user input
+  how to ignore parens on user input? some places they matter
   augmentation
 -}
 
@@ -72,23 +69,23 @@ loop (model, stream) prov thy = do
   case minput of
       Nothing -> return ()
       Just command -> case (parseCommand command) of
-        Nothing -> (lift $ prettyPrint 0 ferror "syntax error\n") >> sameLoop
-        Just cmd -> case cmd of
-          Display thing -> case thing of
-            TheTheory -> (lift $ mapM_ (\s-> prettyPrint 0 finfo ((show s)++"\n")) thy) >> sameLoop
-            TheModel -> newLoop (model, stream)
-          Go explore -> case explore of
-            Next -> do
-              case (nextModel stream) of
-                (Nothing, stream') -> (lift $ prettyPrint 0 ferror "no more minimal models available\n") >> sameLoop
-                (Just model', stream') -> newLoop (model', stream')
-            Augment term -> (lift $ prettyPrint 0 ferror "not implemented\n") >> sameLoop
-          Ask question -> case question of
-            Name isrec term -> (origin thy prov model [term] isrec 0) >> sameLoop
-            Blame atom -> (justify thy prov model atom) >> sameLoop
-          Other utility -> case utility of
-            Help -> (lift $ prettyPrint 0 finfo helpCommand) >> sameLoop
-            Exit -> (lift $ prettyPrint 0 finfo "closing...\n") >> return ()
+        Display thing -> case thing of
+          DispTheory -> (lift $ mapM_ (\s-> prettyPrint 0 finfo ((show s)++"\n")) thy) >> sameLoop
+          DispModel -> newLoop (model, stream)
+        Go explore -> case explore of
+          Next -> do
+            case (nextModel stream) of
+              (Nothing, stream') -> (lift $ prettyPrint 0 ferror "no more minimal models available\n") >> sameLoop
+              (Just model', stream') -> newLoop (model', stream')
+          Augment term -> (lift $ prettyPrint 0 ferror "not implemented\n") >> sameLoop
+        Ask question -> case question of
+          Name isrec term -> (origin thy prov model [term] isrec 0) >> sameLoop
+          Blame atom -> (justify thy prov model atom) >> sameLoop
+        Other utility -> case utility of
+          Help -> (lift $ prettyPrint 0 finfo helpCommand) >> sameLoop
+          Exit -> (lift $ prettyPrint 0 finfo "closing...\n") >> return ()
+        SyntaxError err -> (lift $ prettyPrint 0 ferror (err++"\n")) >> sameLoop
+
 
 -- Naming
 origin :: Theory -> ProvInfo -> Model -> [Term] -> Bool -> Int -> InputT IO ()
