@@ -329,24 +329,25 @@ relSequentInstances :: RelSequent -> Database -> Database -> RelResultSet
                     -> ProvInfo -> [ObservationSequent]
 relSequentInstances relSeq uni new resSet provs = 
     let subs = createSubs relSeq uni new (allResultTuples resSet) provs
-    in  nub [ fromJust seq | 
+    in  nub [ fromJust inst | 
               (s, es) <- subs
-            , let seq =  buildObservationSequent (instantiate s es)
-            , isJust seq ]
-    where seq                           = toSequent relSeq                    
-          instantiate sub exSub = 
-              let seq' = substitute sub seq
-              in  case exSub of
-                    -- < MONITOR
-                    Nothing -> Sequent (sequentBody seq') 
-                               (Atm $ Rel "Incomplete" [])
-                    -- MONITOR >
-                    Just s  ->
-                        let seq''      = sequentExistsSubstitute s seq'
-                            loneSkFuns = rights $ skolemFunctions seq''
-                        in  applyLoneSubs uni new 
-                                (Map.fromList loneSkFuns)
-                                seq''
+            , let inst =  buildObservationSequent 
+                         (instantiateSequent uni new s es seq)
+            , isJust inst ]
+    where seq = toSequent relSeq
+
+instantiateSequent :: Database -> Database -> Sub -> Maybe ExistsSub
+                   -> Sequent -> Sequent
+instantiateSequent uni new sub exSub seq = 
+    let seq' = substitute sub seq
+    in  case exSub of
+          -- < MONITOR
+          Nothing -> Sequent (sequentBody seq') 
+                     (Atm $ Rel "Incomplete" [])
+          -- MONITOR >
+          Just s  -> let seq''      = sequentExistsSubstitute s seq'
+                         loneSkFuns = rights $ skolemFunctions seq''
+                     in  applyLoneSubs uni new (Map.fromList loneSkFuns) seq''
 
 createSubs :: RelSequent -> Database -> Database -> TableSub
            -> ProvInfo -> [(Sub, Maybe ExistsSub)]
