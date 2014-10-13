@@ -5,7 +5,6 @@
   Maintainer  : Salman Saghafi, Ryan Danas
 -}
 {-| TODO
-  getBlame does not work for equality permutations
   augmentation
 -}
 
@@ -98,9 +97,10 @@ name thy prov mdl term tabs = do
   case (getEqualElements mdl term) of
     [] -> (lift $ (prettyPrint tabs ferror ("element "++(show term)++" not in the current model\n"))) >> return []
     eqelms -> do
-      case (getSkolemTree prov term) of
-        Nothing -> (lift $ (prettyPrint tabs ferror ("no provenance information for "++(show term)++"\n"))) >> return []
-        Just (elm, skolemhead, skolemnext) -> do
+      case (getSkolemTrees prov mdl term) of
+        [] -> (lift $ (prettyPrint tabs ferror ("no provenance information for element "++(show term)++"\n"))) >> return []
+        skolemtrees -> do
+          let (elm, skolemhead, skolemnext) = (head skolemtrees)
           let namedthy = (nameTheory thy [(elm, skolemhead, skolemnext)])
           lift $ prettyPrint tabs fhighc ("origin of "++(show elm)++"... depends on origin of "++(show skolemnext)++"\n")
           printDiff thy namedthy (show elm) tabs
@@ -108,11 +108,14 @@ name thy prov mdl term tabs = do
 
 -- Blaming
 justify :: Theory -> ProvInfo -> Model -> Formula -> InputT IO()
-justify theory prov model atom = case (getBlame prov model atom) of
-  (_, []) -> (lift $ prettyPrint 0 ferror ("no provenance information for "++(show atom)++"\n")) >> return ()
-  (terms, blames) -> do
-    lift $ prettyPrint 0 fhighc ("justification of "++(show atom)++"\n")
-    printDiff theory (blameTheory theory (concatMap (\t->maybeToList (getSkolemTree prov t)) terms) blames) (show atom) 0
+justify theory prov model atom = case (getFact model atom) of
+  Nothing -> lift $ prettyPrint 0 ferror ("fact not in form FactName(e^0, e^1, ...) or is not in the current model\n") >> return ()
+  Just fact@(factname, factelms) -> case (getBlame prov model fact) of
+    [] -> lift $ prettyPrint 0 ferror ("no provenance information for fact "++(show atom)++"\n") >> return ()
+    blames -> do
+      lift $ prettyPrint 0 fhighc ("justification of "++(show atom)++"\n")
+      let names = (concatMap (\t->(getSkolemTrees prov model t)) factelms)
+      printDiff theory (blameTheory theory names blames) (show atom) 0
 
 -- Misc 
 printDiff :: Theory -> Theory -> String -> Int -> InputT IO()

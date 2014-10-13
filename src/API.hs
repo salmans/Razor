@@ -151,26 +151,29 @@ nextModel it = (satSolve it)
 
 -- In: model of a theory, a term representing an element
 -- Out: a list of elements this model is equivalent to in the given model
-getEqualElements :: Model -> Term -> [Element]
+getEqualElements :: Model -> Term -> [Term]
 getEqualElements mdl term = case term of
   (Elem e) -> case (Map.lookup e (modelElements mdl)) of
     Nothing -> []
-    Just eqelms -> eqelms
+    Just eqelms -> (map (\e->(Elem e)) eqelms)
   _ -> []
 -- In: prov of a theory, and a term representing an element
 -- Out: the skolem tree if it exists 
-getSkolemTree :: ProvInfo -> Term -> Maybe (Element, FnSym, [Element])
-getSkolemTree prov term = do
+getSkolemTrees :: ProvInfo -> Model -> Term -> [(Element, FnSym, [Element])]
+getSkolemTrees prov mdl term = do
   -- turn the parsed term into an element
   case (termToElement term) of
-    Nothing -> Nothing
+    Nothing -> []
     Just elm -> do
       -- get the provenance skolem tree for this element
       case (getElementProv elm (elementProvs prov)) of
-        [] -> Nothing
+        [] -> []
         trees -> case (getSkolemHead (head trees)) of
-          Nothing -> Nothing
-          Just (skolemhead, skolemrest) -> Just (elm, skolemhead, (concatMap (\t->(maybeToList (getSkolemElement prov t))) skolemrest))
+          Nothing -> []
+          Just (skolemhead, skolemrest) -> do
+            let actual = (elm, skolemhead, (concatMap (\t->(maybeToList (getSkolemElement prov t))) skolemrest))
+            let equal = (map (\(e, h, r)->(elm, h, r)) (concat (map (getSkolemTrees prov mdl) (delete (Elem elm) (getEqualElements mdl (Elem elm))))))
+            actual:equal
 getSkolemHead :: Term -> Maybe (FnSym, [Term])
 getSkolemHead skolemtree = do
   case skolemtree of
@@ -192,15 +195,19 @@ nameSequent :: [(Element, FnSym, [Element])] -> (Sequent, Sequent) -> Sequent
 nameSequent names ((Sequent obdy ohd), (Sequent bdy hd)) = do
   let headnames = map (\(e, h, r)->(h, e)) names
   let rests = map (\(e, h, r)->r) names
-  let (Sequent nbdy nhd) = Sequent obdy (nameHead headnames ohd hd)
-  let frees = (freeVars (Sequent bdy hd))
-  let elms = map (\e->(Elem e)) (concat rests)
-  let freesubs = Map.fromList (zip frees elms)
   let constsubs = Map.fromList (map (\(e, h, r)->((Constant (T.unpack (head (T.splitOn (T.pack "^") (T.pack h))))), (Elem e))) names)
-  -- Only return a substituted sequent if the head was named or there were constants to be replaced
-  if ((Sequent nbdy nhd) == (Sequent obdy (substituteConstants constsubs ohd)))
+  -- name head constants / functions
+  let (Sequent cbdy chd) = Sequent obdy (substituteConstants constsubs ohd)
+  -- name head existentially quantified variables
+  let (Sequent nbdy nhd) = Sequent cbdy (nameHead headnames chd hd)
+  -- name body IFF head constants, functions, or exists were named
+  if ((Sequent nbdy nhd) == (Sequent obdy ohd))
     then (Sequent obdy ohd)
-    else (Sequent (substituteConstants constsubs (substitute freesubs nbdy)) (substituteConstants constsubs (substitute freesubs nhd)))
+    else do
+      let frees = (freeVars (Sequent nbdy nhd))
+      let elms = map (\e->(Elem e)) (concat rests)
+      let freesubs = Map.fromList (zip frees elms)
+      (Sequent (substituteConstants constsubs (substitute freesubs nbdy)) (substitute freesubs nhd))
 -- In: element, skolem function name, head formula in sequent
 -- Out: a formula with the associated exists variable replaced by the element
 nameHead :: [(FnSym, Element)] -> Formula -> Formula -> Formula
@@ -220,31 +227,48 @@ nameHead _ ofml _ = ofml
 
 --
 --
-getBlame :: ProvInfo -> Model -> Formula -> ([Term], [Blame])
-getBlame prov mdl fml = case fml of
+getFact :: Model -> Formula -> Maybe (FnSym, [Term])
+getFact mdl fml = case fml of
   (Atm (Rel rsym terms)) -> do
-      {- TODO
-      choices <- (map (\t -> 
-        case (termToElement t) of
-          Nothing -> [t]
-          Just e -> case (Map.lookup e (modelElements mdl)) of
-            Nothing -> [(Elem e)]
-            Just es -> (map (\e->(Elem e)) es)) terms)
-      choice <- (permBlame (return choices)) -}
-      let obv = fromMaybe (Obs (Rel "" [])) (toObservation (Rel rsym terms))
-      (terms, (maybeToList ((findObservationWithProv obv (observationProvs prov)))))
-  _ -> ([], [])
-permBlame :: [[Term]] -> [[Term]]
-permBlame [l] = do
+    case (toObservation (Rel rsym terms)) of
+      Nothing -> Nothing
+      Just obv -> if (elem obv (modelObservations mdl))
+        then do
+          let elms = concat (map (\t->maybeToList (termToElement t)) terms)
+          if ((length terms) == (length elms))
+            then Just (rsym, terms)
+            else Nothing
+        else Nothing
+  _ -> Nothing
+--
+--
+getBlame :: ProvInfo -> Model -> (FnSym, [Term]) -> [Blame]
+getBlame prov mdl (factname, factelms) = do
+  let choices = (combBlame (map (getEqualElements mdl) factelms))
+  concat (map (\choice->(getObvProvs prov (factname, choice))) choices)
+
+--
+--
+combBlame :: [[Term]] -> [[Term]]
+combBlame [l] = do
   choose <- l
   return (return choose)
-permBlame (l:ls) = do
+combBlame (l:ls) = do
   choose <- l
-  rest <- (permBlame ls)
+  rest <- (combBlame ls)
   return (choose : rest)
+combBlame [] = []
+--
+--
+getObvProvs :: ProvInfo -> (FnSym, [Term]) -> [Blame]
+getObvProvs prov (factname, factelms) = do
+  let obv = fromMaybe (Obs (Rel "" [])) (toObservation (Rel factname factelms))
+  maybeToList ((findObservationWithProv obv (observationProvs prov)))
 
 
 
+--
+--
 blameTheory :: Theory -> [(Element, FnSym , [Element])] -> [Blame] -> Theory
 blameTheory thy names blames = do
   let namedthy = nameTheory thy names
