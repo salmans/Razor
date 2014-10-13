@@ -1,8 +1,7 @@
 {-|
   Razor
   Module      : API
-  Description : The module provides a stateless API for (G)UI applications to
-  				use for interacting with the functional core of Razor
+  Description : The module provides a stateless API for (G)UI applications to use for interacting with the functional core of Razor
   Maintainer  : Salman Saghafi, Ryan Danas
 -}
 {-| API Cleanup TODO
