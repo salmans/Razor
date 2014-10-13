@@ -5,8 +5,24 @@
   Maintainer  : Salman Saghafi, Ryan Danas
 -}
 {-| TODO
+  show model / show theory commands
+
+  origin should only parse elements, not all terms
+  origin should tell user more specific errors (element not in model)
+
+  origin of e^5; depends on origin of [e^2, e^3]
+  Thy Rule: sequent
+  Instance: replace sequent
+    TABED recursive calls
+    
+  blameTheory doesnt name elts included in blame
+  getBlame does not work for equality permutations
+
+  syntax errors should be more verbose (help options for command entered?)
+  suppress 'Truth=>' in prettySequent
+  ignore parens in user input
+  refactor user commands / help into a data structure like command line options?
   augmentation
-  squash remaining bugs
 -}
 
 module Main where
@@ -82,7 +98,7 @@ loop (model, stream) prov thy = do
             Blame atom -> (justify thy prov model atom) >> sameLoop
           Other utility -> case utility of
             Help -> (lift $ prettyPrint finfo helpCommand) >> sameLoop
-            Exit -> (lift $ prettyPrint finfo "exiting...\n") >> return ()
+            Exit -> (lift $ prettyPrint finfo "closing...\n") >> return ()
 
 -- Naming
 origin :: Theory -> ProvInfo -> [Term] -> Bool -> InputT IO ()
@@ -98,7 +114,7 @@ name thy prov term = do
     Nothing -> (lift $ (prettyPrint ferror ("no provenance information for " ++ (show term) ++ "\n"))) >> return []
     Just ((Element elm), skolemhead, skolemrest) -> do
       let skolemnext = (map (getSkolemElement prov) skolemrest)
-      let namedthy = (nameTheory (Element elm) skolemhead skolemnext thy)
+      let namedthy = (nameTheory thy ((Element elm), skolemhead, skolemnext))
       lift $ prettyPrint fhighc ((show elm)++(show skolemnext)++"\n")
       printDiff thy namedthy elm
       return (map (\e->(Elem e)) skolemnext)
@@ -106,9 +122,9 @@ name thy prov term = do
 -- Blaming
 justify :: Theory -> ProvInfo -> Model -> Formula -> InputT IO()
 justify theory prov model atom = case (getBlame prov model atom) of
-  [] -> (lift $ prettyPrint ferror ("no provenance information for "++(show atom)++"\n")) >> return ()
-  blames -> do
-    printDiff theory (blameTheory theory blames) (show atom)
+  (_, []) -> (lift $ prettyPrint ferror ("no provenance information for "++(show atom)++"\n")) >> return ()
+  (terms, blames) -> do
+    printDiff theory (blameTheory prov theory terms blames) (show atom)
 
 -- Misc 
 printDiff :: Theory -> Theory -> String -> InputT IO()

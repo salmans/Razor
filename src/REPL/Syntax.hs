@@ -22,15 +22,15 @@ helpCommand :: String
 helpCommand = 
 	"Available commands..." ++ "\n" ++ 
     "  next: show the next minimal model if available" ++ "\n" ++ 
-    "  aug seq: Not Implemented" ++ "\n" ++ 
-    "    //example: aug ???" ++ "\n" ++ 
-    "  origin elm: display the sequents responsible for the existence of the specified element" ++ "\n" ++ 
+    "  aug [seq]: Not Implemented" ++ "\n" ++ 
+    "    //example: ???" ++ "\n" ++ 
+    "  origin [elm]: display the sequents responsible for the existence of the specified element" ++ "\n" ++ 
     "    //example: origin e#7" ++ "\n" ++ 
-    "  origin* elm: recursively displays element origins down to the ground facts, starting with the specified element" ++ "\n" ++ 
+    "  origin* [elm]: recursively displays element origins down to the ground facts, starting with the specified element" ++ "\n" ++ 
     "    //example: origin* e#42" ++ "\n" ++ 
-    "  blame fact: ???" ++ "\n" ++ 
-    "    //example: blame ???" ++ "\n" ++ 
-    "  quit: close the REPL\n"
+    "  blame [fact]: display the sequents responsible for making the given fact true" ++ "\n" ++ 
+    "    //example: blame Student(e^7)" ++ "\n" ++ 
+    "  Type 'q' or 'quit' or 'exit' to close the REPL\n"
 
 parseCommand :: String -> Maybe Command
 parseCommand input = 
@@ -99,4 +99,4 @@ pHelp :: Parser Utility
 pHelp = symbol "help" >> return Help
 
 pExit :: Parser Utility
-pExit = symbol "quit" >> return Exit
+pExit = (symbol "q" <|> symbol "quit" <|> symbol "exit") >> return Exit
