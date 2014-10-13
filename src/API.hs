@@ -149,6 +149,14 @@ nextModel it = (satSolve it)
 
 
 
+-- In: model of a theory, a term representing an element
+-- Out: a list of elements this model is equivalent to in the given model
+getEqualElements :: Model -> Term -> [Element]
+getEqualElements mdl term = case term of
+  (Elem e) -> case (Map.lookup e (modelElements mdl)) of
+    Nothing -> []
+    Just eqelms -> eqelms
+  _ -> []
 -- In: prov of a theory, and a term representing an element
 -- Out: the skolem tree if it exists 
 getSkolemTree :: ProvInfo -> Term -> Maybe (Element, FnSym, [Term])

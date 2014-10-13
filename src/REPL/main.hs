@@ -5,17 +5,12 @@
   Maintainer  : Salman Saghafi, Ryan Danas
 -}
 {-| TODO
-  show model / show theory commands
-  origin should only parse elements, not all terms
-  origin should tell user more specific errors (element not in model)
-
   blameTheory doesnt name elts included in blame
   getBlame does not work for equality permutations
 
-  syntax errors should be more verbose (help options for command entered?)
+  syntax errors should be more verbose (parse command in syntax should return Either Error instead of nothing)
   suppress 'Truth=>' in prettySequent
   ignore parens in user input
-  refactor user commands / help into a data structure like command line options?
   augmentation
 -}
 
@@ -89,37 +84,40 @@ loop (model, stream) prov thy = do
                 (Just model', stream') -> newLoop (model', stream')
             Augment term -> (lift $ prettyPrint 0 ferror "not implemented\n") >> sameLoop
           Ask question -> case question of
-            Name isrec term -> (origin thy prov [term] isrec 0) >> sameLoop
+            Name isrec term -> (origin thy prov model [term] isrec 0) >> sameLoop
             Blame atom -> (justify thy prov model atom) >> sameLoop
           Other utility -> case utility of
             Help -> (lift $ prettyPrint 0 finfo helpCommand) >> sameLoop
             Exit -> (lift $ prettyPrint 0 finfo "closing...\n") >> return ()
 
 -- Naming
-origin :: Theory -> ProvInfo -> [Term] -> Bool -> Int -> InputT IO ()
-origin _ _ [] _ _ = return ()
-origin thy prov terms bfs tabs = do
-  nextterms <- (mapM (\t-> (name thy prov t tabs)) terms)
+origin :: Theory -> ProvInfo -> Model -> [Term] -> Bool -> Int -> InputT IO ()
+origin _ _ _ [] _ _ = return ()
+origin thy prov mdl terms bfs tabs = do
+  nextterms <- (mapM (\t-> (name thy prov mdl t tabs)) terms)
   if bfs
-    then (origin thy prov (concat nextterms) bfs (tabs+1))
+    then (origin thy prov mdl (concat nextterms) bfs (tabs+1))
     else return ()
-name :: Theory -> ProvInfo -> Term -> Int -> InputT IO ([Term])
-name thy prov term tabs = do
-  case (getSkolemTree prov term) of
-    Nothing -> (lift $ (prettyPrint tabs ferror ("no provenance information for "++(show term)++"\n"))) >> return []
-    Just ((Element elm), skolemhead, skolemrest) -> do
-      let skolemnext = (map (getSkolemElement prov) skolemrest)
-      let namedthy = (nameTheory thy ((Element elm), skolemhead, skolemnext))
-      lift $ prettyPrint tabs fhighc ("Origin of "++(show (Element elm))++"... depends on origin of "++(show skolemnext)++"\n")
-      printDiff thy namedthy elm tabs
-      return (map (\e->(Elem e)) skolemnext)
+name :: Theory -> ProvInfo -> Model -> Term -> Int -> InputT IO ([Term])
+name thy prov mdl term tabs = do
+  case (getEqualElements mdl term) of
+    [] -> (lift $ (prettyPrint tabs ferror ("element "++(show term)++" not in the current model\n"))) >> return []
+    eqelms -> do
+      case (getSkolemTree prov term) of
+        Nothing -> (lift $ (prettyPrint tabs ferror ("no provenance information for "++(show term)++"\n"))) >> return []
+        Just ((Element elm), skolemhead, skolemrest) -> do
+          let skolemnext = (map (getSkolemElement prov) skolemrest)
+          let namedthy = (nameTheory thy ((Element elm), skolemhead, skolemnext))
+          lift $ prettyPrint tabs fhighc ("origin of "++(show (Element elm))++"... depends on origin of "++(show skolemnext)++"\n")
+          printDiff thy namedthy elm tabs
+          return (map (\e->(Elem e)) skolemnext)
 
 -- Blaming
 justify :: Theory -> ProvInfo -> Model -> Formula -> InputT IO()
 justify theory prov model atom = case (getBlame prov model atom) of
   (_, []) -> (lift $ prettyPrint 0 ferror ("no provenance information for "++(show atom)++"\n")) >> return ()
   (terms, blames) -> do
-    lift $ prettyPrint 0 fhighc ("Justification of "++(show atom)++"\n")
+    lift $ prettyPrint 0 fhighc ("justification of "++(show atom)++"\n")
     printDiff theory (blameTheory prov theory terms blames) (show atom) 0
 
 -- Misc 
@@ -128,5 +126,5 @@ printDiff thy dthy diffhigh tabs = lift $ mapM_ (\(sequent, dsequent)
   -> if (sequent==dsequent)
     then return ()
     else do
-      prettyPrint tabs finfo ("Thy Rule: "++(show sequent)++"\n")
-      prettyHighlight tabs diffhigh ("Instance: "++(show dsequent)++"\n")) (zip thy dthy)
+      prettyPrint tabs finfo ("thy rule: "++(show sequent)++"\n")
+      prettyHighlight tabs diffhigh ("instance: "++(show dsequent)++"\n")) (zip thy dthy)

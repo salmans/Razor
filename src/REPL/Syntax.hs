@@ -8,7 +8,7 @@
 module REPL.Syntax where
 import Control.Applicative
 import Syntax.IGeometric
-import Syntax.Term
+import Syntax.ITerm
 import Syntax.GeometricParser
 import Text.ParserCombinators.Parsec hiding ( (<|>) )
 import qualified Text.ParserCombinators.Parsec.Expr as Expr
@@ -105,12 +105,12 @@ pName = pNameHead +++ pNameRec
 pNameHead :: Parser Question
 pNameHead = do
   symbol "origin"
-  Name False <$> xpTerm
+  Name False <$> pElement
 
 pNameRec :: Parser Question
 pNameRec = do
   symbol "origin*"
-  Name True <$> xpTerm
+  Name True <$> pElement
 
 pBlame :: Parser Question
 pBlame = do
