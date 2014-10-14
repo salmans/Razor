@@ -172,7 +172,7 @@ getSkolemTrees prov mdl term = do
           Nothing -> []
           Just (skolemhead, skolemrest) -> do
             let actual = (elm, skolemhead, (concatMap (\t->(maybeToList (getSkolemElement prov t))) skolemrest))
-            let equal = (map (\(e, h, r)->(elm, h, r)) (concat (map (getSkolemTrees prov mdl) (delete (Elem elm) (getEqualElements mdl (Elem elm))))))
+            let equal = (concat (map (getSkolemTrees prov mdl) (delete (Elem elm) (getEqualElements mdl (Elem elm)))))
             actual:equal
 getSkolemHead :: Term -> Maybe (FnSym, [Term])
 getSkolemHead skolemtree = do
