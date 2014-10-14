@@ -95,7 +95,7 @@ addElementProv elm fn elms provs =
 insertProv :: Element -> [SkolemTerm] -> ElementProvs -> ElementProvs
 insertProv elm terms (elemProvs, provElems) =
     let provElems' = foldr (\t ps -> Map.insert t elm ps) provElems terms
-    in  (Map.insert elm terms elemProvs, provElems')
+    in  (Map.insertWith (flip const) elm terms elemProvs, provElems')
 
 
 {-| Adds provenance information for the input 'Element' where the input skolem 

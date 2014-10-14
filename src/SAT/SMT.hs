@@ -165,7 +165,7 @@ addToSMTTheory (SMTTheory context) seq =
    type SMT: the computation introduces a constraint to the solver's input. -}
 addObservationSequent :: ObservationSequent -> SMT ()
 addObservationSequent seq@(ObservationSequent bodies heads) = do
-  let bodies'     = filter (filterFunc) bodies
+  let bodies'     = bodies -- filter (filterFunc) bodies
   let heads'      = heads -- (filter filterFunc) <$> heads
   bodiesVals      <- mapM tranObservation bodies'
   headsVals       <- mapM (mapM tranObservation) heads'
@@ -314,6 +314,7 @@ data UninterpretFn = UnintFn0 SElement -- Functions of arity 0 are constants
 
 {- Show instance for 'UninterpretFn' -}
 instance Show UninterpretFn where
+    show (UnintFn0 _) = "UnintFn0"
     show (UnintFn1 _) = "UnintFn1"
     show (UnintFn2 _) = "UnintFn2"
     show (UnintFn3 _) = "UnintFn3"
@@ -578,7 +579,7 @@ minimumResult context =
           liftSymbolic $ solve []
         
         run        = State.evalStateT context' emptySMTContainer
-        res        = unsafePerformIO $ satWith z3 run
+        res        = unsafePerformIO $ satWith z3 {verbose = False} run
         minRes     = fst $ reduce context res
         newContext = do
           context
@@ -600,7 +601,7 @@ reduce context res@(SatResult (Satisfiable _ _)) =
                     (do context'
                         liftSymbolic $ solve [])
                     emptySMTContainer
-        res'      = unsafePerformIO $ satWith z3 run
+        res'      = unsafePerformIO $ satWith z3 {verbose = False} run
     in  case res' of
           SatResult (Unsatisfiable _) -> (res, context')
           SatResult (Satisfiable _ _) -> reduce context' res'

@@ -184,6 +184,7 @@ evaluateRelSequent seq@(RelSequent bdy hds bdyDlt _ _ _ _) db dlt = do
   let bdyDltExTbl      = evaluateRelExp db dlt bdyDlt
   let bdyDltTbl@(DB.Set bdyDltSet) 
                        = undecorateTable bdyDltExTbl
+
   let hdTbls           = map (\(hd, tran) ->
                               ( hd
                               , if   bdyDlt == TblFull || 
@@ -330,57 +331,59 @@ relSequentInstances :: RelSequent -> Database -> Database -> RelResultSet
 relSequentInstances relSeq uni new resSet provs = 
     let subs = createSubs relSeq uni new (allResultTuples resSet) provs
     in  nub [ fromJust inst | 
-              (s, es) <- subs
+              (s, bs, es) <- subs
             , let inst =  buildObservationSequent 
-                         (instantiateSequent uni new s es seq)
+                         (instantiateSequent uni new s bs es seq)
             , isJust inst ]
     where seq = toSequent relSeq
 
-instantiateSequent :: Database -> Database -> Sub -> Maybe ExistsSub
-                   -> Sequent -> Sequent
-instantiateSequent uni new sub exSub seq = 
-    let seq' = substitute sub seq
+instantiateSequent :: Database -> Database -> Sub -> ExistsSub
+                   -> Maybe ExistsSub -> Sequent -> Sequent
+instantiateSequent uni new sub bodySub exSub seq = 
+    let bdy  = formulaExistsSubstitute bodySub (sequentBody seq)
+        seq' = substitute sub seq { sequentBody = bdy }
     in  case exSub of
           -- < MONITOR
           Nothing -> Sequent (sequentBody seq') 
-                     (Atm $ Rel "Incomplete" [])
+                     (Atm $ Rel "Incomplete" [Elem $ Element "e^incomplete"])
           -- MONITOR >
           Just s  -> let seq''      = sequentExistsSubstitute s seq'
                          loneSkFuns = rights $ skolemFunctions seq''
                      in  applyLoneSubs uni new (Map.fromList loneSkFuns) seq''
 
 createSubs :: RelSequent -> Database -> Database -> TableSub
-           -> ProvInfo -> [(Sub, Maybe ExistsSub)]
+           -> ProvInfo -> [(Sub, ExistsSub, Maybe ExistsSub)]
 createSubs seq uni new (DB.Set set) provs = 
     if   bodyExp == TblFull
     then (\(Tuple tup exSub) -> 
               ( emptySub
+              , exSub
               , case createExistsSub tup elmProvs skFuns of
                   -- < MONITOR
                   Nothing -> Nothing -- Just Map.empty
                   -- Nothing -> Just exSub
                   -- MONITOR >
-                  Just es -> Just (Map.union es exSub))) <$> ExSet.toList set
+                  Just es -> Just es)) <$> ExSet.toList set
     else (\(Tuple tup exSub) -> 
               ( createSub tup heads
+              , exSub
               , case createExistsSub tup elmProvs skFuns of
                   -- < MONITOR
                   Nothing ->  Nothing -- Just Map.empty
                   -- Nothing -> Just exSub
                   -- MONITOR >
-                  Just es -> Just (Map.union es exSub))) <$> ExSet.toList set
+                  Just es -> Just es)) <$> ExSet.toList set
     where elmProvs = elementProvs provs
           bodyExp  = relSequentBodyDelta seq
           heads    = header bodyExp
           skFuns   = lefts $ skolemFunctions seq
-          consts   = relSequentConstants seq
 
 
 createSub :: Tup -> Header -> Sub
 createSub tup heads = Map.map (\i -> Elem (tup ! i)) heads
 
 createExistsSub :: Tup -> ElementProvs -> [FnSym] -> Maybe ExistsSub
-createExistsSub tup elmProvs skFuns = 
+createExistsSub tup elmProvs skFuns =     
     let paramProvs = head <$>  -- any of the existing provenance terms works
                      (\e -> getElementProv e elmProvs) <$> 
                      Vect.toList tup
