@@ -8,7 +8,7 @@ module Syntax.GeometricUtils
     ( module Term, module Geometric -- export these two
     , RelationBased (..)
     , simplify, preprocess, formulaExistentials, sequentExistentials
-    , sequentExistsSubstitute
+    , sequentExistsSubstitute, formulaExistsSubstitute
     ) where
 
 import Syntax.IGeometricUtils
