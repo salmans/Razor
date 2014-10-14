@@ -5,8 +5,7 @@
   Maintainer  : Salman Saghafi, Ryan Danas
 -}
 {-| TODO
-  replace functions with elements
-  how to deal with... exists x. exists y. Q(x, y, f(g(x, y)))
+  replace functions with elements and how to deal with flattening... exists x. exists y. Q(x, y, f(g(x, y)))
   augmentation
 -}
 
@@ -54,7 +53,7 @@ main = do
   case (nextModel stream) of
     (Nothing, stream') -> (prettyPrint 0 ferror "no models found\n")
     (Just model', stream') -> do
-      (prettyPrint 0 finfo (show model'))
+      (prettyPrint 0 flow (show model'))
       -- enter the repl
       runInputT defaultSettings (loop (model', stream') prov theory)
   -- exit display
@@ -63,13 +62,13 @@ main = do
 loop :: (Model, SATIteratorType) -> ProvInfo -> Theory -> InputT IO ()
 loop (model, stream) prov thy = do
   let sameLoop = loop (model, stream) prov thy
-  let newLoop (model', stream') = (lift $ prettyPrint 0 finfo (show model')) >> loop (model', stream') prov thy
+  let newLoop (model', stream') = (lift $ prettyPrint 0 flow (show model')) >> loop (model', stream') prov thy
   minput <- getInputLine "% "
   case minput of
       Nothing -> return ()
       Just command -> case (parseCommand command) of
         Display thing -> case thing of
-          DispTheory -> (lift $ mapM_ (\s-> prettyPrint 0 finfo ((show s)++"\n")) thy) >> sameLoop
+          DispTheory -> (lift $ mapM_ (\s-> prettyPrint 0 finput ((show s)++"\n")) thy) >> sameLoop
           DispModel -> newLoop (model, stream)
         Go explore -> case explore of
           Next -> do
@@ -81,8 +80,8 @@ loop (model, stream) prov thy = do
           Name isall isrec term -> (origin thy prov model [term] (isall,isrec,0)) >> sameLoop
           Blame atom -> (justify thy prov model atom) >> sameLoop
         Other utility -> case utility of
-          Help -> (lift $ prettyPrint 0 finfo helpCommand) >> sameLoop
-          Exit -> (lift $ prettyPrint 0 finfo "closing...\n") >> return ()
+          Help -> (lift $ prettyPrint 0 foutput helpCommand) >> sameLoop
+          Exit -> (lift $ prettyPrint 0 foutput "closing...\n") >> return ()
         SyntaxError err -> (lift $ prettyPrint 0 ferror (err++"\n")) >> sameLoop
 
 
@@ -110,13 +109,13 @@ name thy prov mdl term (isall,tabs) = do
               let skolemnext = concat (map (\(e, h, r)->r) skolemtrees)
               let names = (map (\(e, h, r)->(actualelm, h, r)) skolemtrees) 
               let namedthy = nameTheory thy names
-              lift $ prettyPrint tabs fhighc ("origin of "++(show actualelm)++"(equal to "++(show allelms)++")... depends on origin of "++(show skolemnext)++"\n")
+              lift $ prettyPrint tabs foutput ("origin of "++(show actualelm)++"(equal to "++(show allelms)++")... depends on origin of "++(show skolemnext)++"\n")
               printDiff (thy,namedthy) ((show actualelm),tabs,isall)
               return (map (\e->(Elem e)) skolemnext)
             False -> do
               let (elm, skolemhead, skolemnext) = (head skolemtrees)
               let namedthy = (nameTheory thy [(elm, skolemhead, skolemnext)])
-              lift $ prettyPrint tabs fhighc ("origin of "++(show elm)++"... depends on origin of "++(show skolemnext)++"\n")
+              lift $ prettyPrint tabs foutput ("origin of "++(show elm)++"... depends on origin of "++(show skolemnext)++"\n")
               printDiff (thy,namedthy) ((show elm),tabs,isall)
               return (map (\e->(Elem e)) skolemnext)
 
@@ -127,11 +126,12 @@ justify theory prov model atom = case (getFact model atom) of
   Just fact@(factname, factelms) -> case (getBlame prov model fact) of
     [] -> lift $ prettyPrint 0 ferror ("no provenance information for fact "++(show atom)++"\n") >> return ()
     blames -> do
-      let eqnames = (concatMap (\t->(getSkolemTrees prov model t)) factelms)
-      let (actualelm,_,_) = head eqnames
-      let names = (map (\(e, h, r)->(actualelm, h, r)) eqnames) 
+      let names = (concatMap (\t -> do
+                                      let skolemtrees = (getSkolemTrees prov model t) 
+                                      let (actualelm,_,_) = head skolemtrees
+                                      map (\(e, h, r)->(actualelm, h, r)) skolemtrees) factelms)
       let blamedthy = (blameTheory theory names blames)
-      lift $ prettyPrint 0 fhighc ("justification of "++(show atom)++"\n")
+      lift $ prettyPrint 0 foutput ("justification of "++(show atom)++"\n")
       printDiff (theory,blamedthy) ((show atom),0,True)
 
 -- Misc 
@@ -145,7 +145,7 @@ printDiffPlus diff format@(highlight,tabs,printall) = do
   case ms of
     Nothing -> keepprinting
     Just ds -> do
-      lift $ prettyPrint tabs finfo ("thy rule: "++(show s)++"\n")
+      lift $ prettyPrint tabs finput ("thy rule: "++(show s)++"\n")
       lift $ prettyHighlight tabs highlight ("instance: "++(show ds)++"\n")
       if printall
         then keepprinting
