@@ -100,10 +100,12 @@ name thy prov mdl term tabs = do
       case (getSkolemTrees prov mdl term) of
         [] -> (lift $ (prettyPrint tabs ferror ("no provenance information for element "++(show term)++"\n"))) >> return []
         skolemtrees -> do
+          -- TODO For now, just show one origin, not all
           let (elm, skolemhead, skolemnext) = (head skolemtrees)
           let namedthy = (nameTheory thy [(elm, skolemhead, skolemnext)])
           lift $ prettyPrint tabs fhighc ("origin of "++(show elm)++"... depends on origin of "++(show skolemnext)++"\n")
-          printDiff thy namedthy (show elm) tabs
+          -- TODO For now, just show one origin
+          printDiff (thy,namedthy) ((show elm),tabs,False)
           return (map (\e->(Elem e)) skolemnext)
 
 -- Blaming
@@ -113,15 +115,24 @@ justify theory prov model atom = case (getFact model atom) of
   Just fact@(factname, factelms) -> case (getBlame prov model fact) of
     [] -> lift $ prettyPrint 0 ferror ("no provenance information for fact "++(show atom)++"\n") >> return ()
     blames -> do
-      lift $ prettyPrint 0 fhighc ("justification of "++(show atom)++"\n")
       let names = (concatMap (\t->(getSkolemTrees prov model t)) factelms)
-      printDiff theory (blameTheory theory names blames) (show atom) 0
+      let blamedthy = (blameTheory theory names blames)
+      lift $ prettyPrint 0 fhighc ("justification of "++(show atom)++"\n")
+      -- TODO For now, just show one blame
+      printDiff (theory,blamedthy) ((show atom),0,False)
 
 -- Misc 
-printDiff :: Theory -> Theory -> String -> Int -> InputT IO()
-printDiff thy dthy diffhigh tabs = lift $ mapM_ (\(sequent, dsequent)
-  -> if (sequent==dsequent)
-    then return ()
-    else do
-      prettyPrint tabs finfo ("thy rule: "++(show sequent)++"\n")
-      prettyHighlight tabs diffhigh ("instance: "++(show dsequent)++"\n")) (zip thy dthy)
+printDiff :: (Theory, [Maybe Sequent]) -> (String, Int, Bool) -> InputT IO()
+printDiff (thy,dthy) format@(highlight,tabs,printall) = printDiffPlus (zip thy dthy) format
+printDiffPlus :: [(Sequent, Maybe Sequent)] -> (String, Int, Bool) -> InputT IO()
+printDiffPlus diff format@(highlight,tabs,printall) = do
+  let (s, ms) = head diff
+  let keepprinting = printDiffPlus (tail diff) format
+  case ms of
+    Nothing -> keepprinting
+    Just ds -> do
+      lift $ prettyPrint tabs finfo ("thy rule: "++(show s)++"\n")
+      lift $ prettyHighlight tabs highlight ("instance: "++(show ds)++"\n")
+      if printall
+        then keepprinting
+        else return ()
