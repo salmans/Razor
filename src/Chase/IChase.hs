@@ -237,12 +237,12 @@ balance :: (HerbrandImpl h s r, SATAtom t) =>
            -> SATTheory t -> Config -> (h, ProvInfo, Int, SATTheory t)
 balance id seq base dlt uni new provs cnt propThy cfg = 
     let res = -- traceShow "----------"
-              traceShow (toSequent seq)
+              -- traceShow (toSequent seq)
               -- traceShow base
               -- traceShow dlt
               -- traceShow uni
               -- traceShow provs
               -- traceEval
-              $
+              -- $
               evalPullM (pull seq base dlt) uni provs
     in  runPushM (push seq res new) uni (id, provs) cnt propThy cfg
