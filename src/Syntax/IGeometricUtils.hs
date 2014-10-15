@@ -449,7 +449,7 @@ sequentExistsSubstitute :: ExistsSub -> Sequent -> Sequent
 sequentExistsSubstitute env (Sequent bdy hd) =
     Sequent (formulaExistsSubstitute env bdy) (formulaExistsSubstitute env hd)
 
-{- A helper for 'sequentExistsSubstitution' to apply a substitution of type 
+{-| A helper for 'sequentExistsSubstitution' to apply a substitution of type 
    'ExistsSub' to a 'Formula'. -}
 formulaExistsSubstitute :: ExistsSub -> Formula -> Formula
 formulaExistsSubstitute _ Tru               = Tru

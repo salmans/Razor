@@ -184,96 +184,21 @@ evaluateRelSequent seq@(RelSequent bdy hds bdyDlt _ _ _ _) db dlt = do
   let bdyDltExTbl      = evaluateRelExp db dlt bdyDlt
   let bdyDltTbl@(DB.Set bdyDltSet) 
                        = undecorateTable bdyDltExTbl
+
   let hdTbls           = map (\(hd, tran) ->
-                              ( hd
-                              , if   bdyDlt == TblFull || 
-                                     (header bdyDlt) == fullTableHeader
-                                then decorateTable bdyDltTbl Vect.empty
-                                else DB.Set $ ExSet.map 
-                                         (\(Tuple t _) -> Tuple t (tran t))  
-                                     bdyDltSet
-                              , evaluateRelExpNoDelta uni hd)) hds
+                              if   bdyDlt == TblFull || 
+                                       (header bdyDlt) == fullTableHeader
+                              then decorateTable bdyDltTbl Vect.empty
+                              else DB.Set $ ExSet.map 
+                                       (\(Tuple t _) -> Tuple t (tran t))  
+                                       bdyDltSet) hds
                          -- hdTbls contains the head expression, transformation
                          -- of body table in a way that it matches with the
                          -- schema of the head and the entire head table in 
                          -- uni database.
-  let mapper           = map (\(_, tranTbl, hdTbl) -> (tranTbl, hdTbl)) hdTbls
-                         -- mapper is like hdTbls but doesn't have the expression
-  let bdyDltExTbl'     = helper bdyDltExTbl mapper
 
-  let setPairs         = map (\(hd, tranTbl, hdTbl) -> 
-                                  ( hd
-                                  , tranTbl
-                                  , undecorateTable hdTbl)) hdTbls
+  return $ RelResultSet bdyDltExTbl hdTbls
 
-  -- < MONITOR
-  -- We probably shouldn't look at the head of the sequent at all: consider
-  -- working for diffSequentTables' temporarily
-  let pairs            = 
-          map (\(hd, tranTbl, hdTbl) -> 
-               diffSequentTables' (bdyDlt, tranTbl) (hd, hdTbl)) setPairs
-  -- MONITOR >
-
-  return $ RelResultSet bdyDltExTbl' pairs
-
-
--- WORST CODE EVER!
-helper :: TableSub -> [(TablePair, TableSub)] -> TableSub
-helper bdyTbl hdTblPairs = 
-    foldr foldFun bdyTbl hdTblPairs
-    where foldFun (tblPair, hdTbl) (DB.Set foldSet) = 
-              DB.Set $ ExSet.concatMap (\ts -> mapFun ts tblPair hdTbl) foldSet
-
-          mapFun (Tuple tup sub) (DB.Set setPair) (DB.Set hdSet) =
-              let interTups = ExSet.map tupleDec
-                              $ ExSet.filter (\t -> (tupleElems t) == tup) setPair
-                              -- get the decorating info of those tuples in
-                              -- setPair that are equal to tup.
-                  tups      = ExSet.filter 
-                              (\t -> (tupleElems t) `ExSet.member` interTups) hdSet
-                              -- get those tuples of hdSet that are members of
-                              -- the previous set
-                  result    = ExSet.map (\(Tuple _ s) -> Tuple tup (Map.union sub s)) tups
-                              -- add substitution sub to the decorating info
-                              -- of the previous set
-              in  if   ExSet.null result
-                  then ExSet.singleton (Tuple tup sub)
-                  else result
-
-{- Given two tables @bdyTable@ and @hdTable@ that respectively correspond to 
-   the body and the head of a 'RelSequent' in a snapshot of the current base,
-   accompanied by their relational expression @bdyExp@ and @hdExp@, and a 
-   function @trans@ that transfroms the result set for @bdyExp@ compatible with 
-   the result set of @hdEpx@, computes the difference between the two tables in 
-   the current base. The function is intended to compute the difference between 
-   the tuples in the head and the body of a sequent, therefore, the behavior of 
-   the function on 'TblFull' and 'TblEmpty' has been tuned accordingly.
- -}
--- < MONITOR
--- A temporarily function until we make sure that we have to look at the head
--- of sequents or not.
-diffSequentTables' (_, bdyTable@(DB.Set bdySet)) _ = bdyTable
--- MONITOR >
-
-diffSequentTables :: (RelExp, TablePair) -> (RelExp, Table) -> TablePair
-diffSequentTables _  (TblFull, _)          = 
-    error $ unitName ++ ".diffSequentTables: " ++ error_TblFullInHead
-diffSequentTables (TblEmpty, _) _          = 
-    error $ unitName ++ ".diffSequentTables: " ++ error_TblEmptyInBody
--- diffSequentTables _ (TblEmpty, _)          = 
---     error $ unitName ++ ".diffSequentTables: " ++ error_TblEmptyInHead
-diffSequentTables (TblFull, bdyTable) (hdExp, hdTable)
-    | Map.null (header hdExp) =
-          let diff = diffTables fullTable hdTable
-          in  decorateTable diff Vect.empty
-    | otherwise = error $ unitName ++ ".diffSequentTables: "
-                  ++ error_freeVarInHead
-diffSequentTables (bdyExp, bdyTable@(DB.Set bdySet))
-                  (hdExp, hdTable@(DB.Set hdSet)) =
-  if   hdTable == fullTable
-  then emptyTablePair
-  else DB.Set $ ExSet.filter (\(Tuple _ inf) -> 
-                             ExSet.notMember (tuple inf) hdSet) bdySet
 
 {- Given a 'RelSequent' and a list of 'Table's resulting from evaluating the
    input 'RelSequent' in the database, inserts the data in the resulting tables
@@ -329,57 +254,60 @@ relSequentInstances :: RelSequent -> Database -> Database -> RelResultSet
                     -> ProvInfo -> [ObservationSequent]
 relSequentInstances relSeq uni new resSet provs = 
     let subs = createSubs relSeq uni new (allResultTuples resSet) provs
-    in  nub [ fromJust seq | 
-              (s, es) <- subs
-            , let seq =  buildObservationSequent (instantiate s es)
-            , isJust seq ]
-    where seq                           = toSequent relSeq                    
-          instantiate sub exSub = 
-              let seq' = substitute sub seq
-              in  case exSub of
-                    -- < MONITOR
-                    Nothing -> Sequent (sequentBody seq') 
-                               (Atm $ Rel "Incomplete" [])
-                    -- MONITOR >
-                    Just s  ->
-                        let seq''      = sequentExistsSubstitute s seq'
-                            loneSkFuns = rights $ skolemFunctions seq''
-                        in  applyLoneSubs uni new 
-                                (Map.fromList loneSkFuns)
-                                seq''
+    in  nub [ fromJust inst | 
+              (s, bs, es) <- subs
+            , let inst =  buildObservationSequent 
+                         (instantiateSequent uni new s bs es seq)
+            , isJust inst ]
+    where seq = toSequent relSeq
+
+instantiateSequent :: Database -> Database -> Sub -> ExistsSub
+                   -> Maybe ExistsSub -> Sequent -> Sequent
+instantiateSequent uni new sub bodySub exSub seq = 
+    let bdy  = formulaExistsSubstitute bodySub (sequentBody seq)
+        seq' = substitute sub seq { sequentBody = bdy }
+    in  case exSub of
+          -- < MONITOR
+          Nothing -> Sequent (sequentBody seq') 
+                     (Atm $ Rel "Incomplete" [Elem $ Element "e^incomplete"])
+          -- MONITOR >
+          Just s  -> let seq''      = sequentExistsSubstitute s seq'
+                         loneSkFuns = rights $ skolemFunctions seq''
+                     in  applyLoneSubs uni new (Map.fromList loneSkFuns) seq''
 
 createSubs :: RelSequent -> Database -> Database -> TableSub
-           -> ProvInfo -> [(Sub, Maybe ExistsSub)]
+           -> ProvInfo -> [(Sub, ExistsSub, Maybe ExistsSub)]
 createSubs seq uni new (DB.Set set) provs = 
     if   bodyExp == TblFull
     then (\(Tuple tup exSub) -> 
               ( emptySub
+              , exSub
               , case createExistsSub tup elmProvs skFuns of
                   -- < MONITOR
                   Nothing -> Nothing -- Just Map.empty
                   -- Nothing -> Just exSub
                   -- MONITOR >
-                  Just es -> Just (Map.union es exSub))) <$> ExSet.toList set
+                  Just es -> Just es)) <$> ExSet.toList set
     else (\(Tuple tup exSub) -> 
               ( createSub tup heads
+              , exSub
               , case createExistsSub tup elmProvs skFuns of
                   -- < MONITOR
                   Nothing ->  Nothing -- Just Map.empty
                   -- Nothing -> Just exSub
                   -- MONITOR >
-                  Just es -> Just (Map.union es exSub))) <$> ExSet.toList set
+                  Just es -> Just es)) <$> ExSet.toList set
     where elmProvs = elementProvs provs
           bodyExp  = relSequentBodyDelta seq
           heads    = header bodyExp
           skFuns   = lefts $ skolemFunctions seq
-          consts   = relSequentConstants seq
 
 
 createSub :: Tup -> Header -> Sub
 createSub tup heads = Map.map (\i -> Elem (tup ! i)) heads
 
 createExistsSub :: Tup -> ElementProvs -> [FnSym] -> Maybe ExistsSub
-createExistsSub tup elmProvs skFuns = 
+createExistsSub tup elmProvs skFuns =     
     let paramProvs = head <$>  -- any of the existing provenance terms works
                      (\e -> getElementProv e elmProvs) <$> 
                      Vect.toList tup
