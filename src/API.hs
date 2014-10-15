@@ -151,120 +151,154 @@ nextModel it = (satSolve it)
 
 -- In: model of a theory, a term representing an element
 -- Out: a list of elements this model is equivalent to in the given model
-getEqualElements :: Model -> Term -> [Element]
+getEqualElements :: Model -> Term -> [Term]
 getEqualElements mdl term = case term of
   (Elem e) -> case (Map.lookup e (modelElements mdl)) of
     Nothing -> []
-    Just eqelms -> eqelms
+    Just eqelms -> (map (\e->(Elem e)) eqelms)
   _ -> []
 -- In: prov of a theory, and a term representing an element
 -- Out: the skolem tree if it exists 
-getSkolemTree :: ProvInfo -> Term -> Maybe (Element, FnSym, [Term])
-getSkolemTree prov term = do
+getSkolemTrees :: ProvInfo -> Model -> Term -> [(Element, FnSym, [Element])]
+getSkolemTrees prov mdl term = do
   -- turn the parsed term into an element
   case (termToElement term) of
-    Nothing -> Nothing
+    Nothing -> []
     Just elm -> do
       -- get the provenance skolem tree for this element
       case (getElementProv elm (elementProvs prov)) of
-        [] -> Nothing
+        [] -> []
         trees -> case (getSkolemHead (head trees)) of
-          Nothing -> Nothing
-          Just (skolemhead, skolemrest) -> Just (elm, skolemhead, skolemrest)
+          Nothing -> []
+          Just (skolemhead, skolemrest) -> do
+            let actual = (elm, skolemhead, (concatMap (\t->(maybeToList (getSkolemElement prov t))) skolemrest))
+            let equal = (concat (map (getSkolemTrees prov mdl) (delete (Elem elm) (getEqualElements mdl (Elem elm)))))
+            actual:equal
 getSkolemHead :: Term -> Maybe (FnSym, [Term])
 getSkolemHead skolemtree = do
   case skolemtree of
     (Fn skolemhead skolemrest) -> Just (skolemhead, skolemrest)
     (Cons (Constant skolemhead)) -> Just (skolemhead, [])
     _ -> Nothing
-getSkolemElement :: ProvInfo -> Term -> Element
-getSkolemElement prov skolemterm = case (findElementWithProv skolemterm (elementProvs prov)) of
-  Just elm -> elm
-  Nothing -> (Element "")
+getSkolemElement :: ProvInfo -> Term -> Maybe Element
+getSkolemElement prov skolemterm = (findElementWithProv skolemterm (elementProvs prov))
+
+
+
 -- In: element, skolem function name, theory
 -- Out: a theory with the associated exists variable in every related sequent replaced by the element
-nameTheory :: Theory -> (Element, FnSym , [Element]) -> Theory
-nameTheory thy (elm, skolemhead, skolemrest) = map (nameSequent elm skolemhead skolemrest) (zip thy (preprocess thy))
+nameTheory :: Theory -> [(Element, FnSym, [Element])] -> [Maybe Sequent]
+nameTheory thy names = map (nameSequent names) (zip thy (preprocess thy))
 -- In: element, skolem function name, sequent in theory
 -- Out: a sequent with the associated exists variable in the head replaced by the element
-nameSequent :: Element -> FnSym -> [Element] -> (Sequent, Sequent) -> Sequent
-nameSequent elm skolemhead skolemrest ((Sequent obdy ohd), (Sequent bdy hd)) = do
-  let (Sequent nbdy nhd) = Sequent obdy (nameHead elm skolemhead ohd hd)
-  let frees = (freeVars (Sequent bdy hd))
-  let elms = map (\e->(Elem e)) skolemrest
-  let replacements = Map.fromList (zip frees elms)
-  if ((Sequent nbdy nhd) == (Sequent obdy ohd))
-    then (Sequent obdy ohd)
-    else (Sequent (substitute replacements nbdy) (substitute replacements nhd))
+nameSequent :: [(Element, FnSym, [Element])] -> (Sequent, Sequent) -> Maybe Sequent
+nameSequent names ((Sequent obdy ohd), (Sequent bdy hd)) = do
+  let headnames = map (\(e, h, r)->(h, e)) names
+  let rests = map (\(e, h, r)->r) names
+  let constsubs = Map.fromList (map (\(e, h, r)->((Constant (T.unpack (head (T.splitOn (T.pack "^") (T.pack h))))), (Elem e))) names)
+  -- name head existentially quantified variables / lone constants
+  case (nameHead headnames (ohd,hd)) of
+    Nothing -> Nothing
+    -- name body IFF head exists or lone constants were named
+    Just newhd -> do
+      let frees = (freeVars (Sequent obdy newhd))
+      let elms = map (\e->(Elem e)) (concat rests)
+      let freesubs = Map.fromList (zip frees elms)
+      Just (Sequent (substituteConstants constsubs (substitute freesubs obdy)) (substituteConstants constsubs (substitute freesubs newhd)))
 -- In: element, skolem function name, head formula in sequent
 -- Out: a formula with the associated exists variable replaced by the element
-nameHead :: Element -> FnSym -> Formula -> Formula -> Formula
+nameHead :: [(FnSym, Element)] -> (Formula, Formula) -> Maybe Formula
 -- Junctions aka Keep looking
-nameHead elm skolemFn (And of1 of2) (And f1 f2) = (And (nameHead elm skolemFn of1 f1) (nameHead elm skolemFn of2 f2))
-nameHead elm skolemFn (Or of1 of2) (Or f1 f2) = (Or (nameHead elm skolemFn of1 f1) (nameHead elm skolemFn of2 f2))
+nameHead names ((And of1 of2),(And f1 f2)) = case (nameHead names (of1,f1)) of
+  Nothing -> case (nameHead names (of2,f2)) of
+    Nothing -> Nothing
+    Just nf2 -> Just (And of1 nf2)
+  Just nf1 -> case (nameHead names (of2,f2)) of
+    Nothing -> Just (And nf1 of2)
+    Just nf2 -> Just (And nf1 nf2)
+nameHead names ((Or of1 of2),(Or f1 f2)) = case (nameHead names (of1,f1)) of
+  Nothing -> case (nameHead names (of2,f2)) of
+    Nothing -> Nothing
+    Just nf2 -> Just (Or of1 nf2)
+  Just nf1 -> case (nameHead names (of2,f2)) of
+    Nothing -> Just (Or nf1 of2)
+    Just nf2 -> Just (Or nf1 nf2)
 -- Exists
-nameHead elm skolemFn (Exists ofn ov off) (Exists (Just fn) v ff) = do 
-  case (fn == skolemFn) of
-    True -> substitute (Map.fromList [(ov, (Elem elm))]) off
-    False -> (Exists ofn ov (nameHead elm skolemFn off ff))
--- Lone / Constants
-nameHead elm skolemFn ofml (Lone fn v ff fs) = do
-  case (lookupLone skolemFn (Lone fn v ff fs)) of
-    Just (Variable var) -> do
-      let lonename = (T.unpack (head (T.splitOn (T.pack "^") (T.pack skolemFn))))
-      substituteConstants (Map.fromList [((Constant lonename), (Elem elm))]) ofml
-    Nothing -> ofml
+nameHead names ((Exists ofn ov off),(Exists (Just fn) v ff)) = do 
+  let skolemMap = Map.fromList names
+  case (Map.lookup fn skolemMap) of
+    Just elm -> case (nameHead names (off,ff)) of
+      Nothing -> Just (substitute (Map.fromList [(ov, (Elem elm))]) off)
+      Just nff -> Just (substitute (Map.fromList [(ov, (Elem elm))]) nff)
+    Nothing -> case (nameHead names (off,ff)) of
+      Nothing -> Nothing
+      Just nfml -> Just (Exists ofn ov nfml)
+-- Lone
+nameHead names (ofml,fml@(Lone fn _ f _)) = do
+  let skolemMap = Map.fromList names
+  case (Map.lookup (fromMaybe "" fn) skolemMap) of
+    Nothing -> (nameHead names (ofml, f))
+    Just elm -> case (nameHead names (ofml, f)) of
+      Nothing -> Just ofml
+      Just nfml -> Just nfml
 -- Everything else aka Nothing to replace
-nameHead elm skolemFn ofml fml = ofml
--- In:
--- Out:
-lookupLone :: FnSym -> Formula -> Maybe Variable
-lookupLone skolemFn (Lone (Just fn) v ff fs) = do
-  case (fn == skolemFn) of
-    True -> Just v
-    False -> (lookupLone skolemFn ff)
-lookupLone skolemFn (Lone fn v ff fs) = (lookupLone skolemFn ff)
-lookupLone skolemFn fml = Nothing
+nameHead _ (ofml,_) = Nothing 
 
 
 
 --
 --
-getBlame :: ProvInfo -> Model -> Formula -> ([Term], [Blame])
-getBlame prov mdl fml = case fml of
+getFact :: Model -> Formula -> Maybe (FnSym, [Term])
+getFact mdl fml = case fml of
   (Atm (Rel rsym terms)) -> do
-      {- TODO
-      choices <- (map (\t -> 
-        case (termToElement t) of
-          Nothing -> [t]
-          Just e -> case (Map.lookup e (modelElements mdl)) of
-            Nothing -> [(Elem e)]
-            Just es -> (map (\e->(Elem e)) es)) terms)
-      choice <- (permBlame (return choices)) -}
-      let obv = fromMaybe (Obs (Rel "" [])) (toObservation (Rel rsym terms))
-      (terms, (maybeToList ((findObservationWithProv obv (observationProvs prov)))))
-  _ -> ([], [])
-permBlame :: [[Term]] -> [[Term]]
-permBlame [l] = do
+    case (toObservation (Rel rsym terms)) of
+      Nothing -> Nothing
+      Just obv -> if (elem obv (modelObservations mdl))
+        then do
+          let elms = concat (map (\t->maybeToList (termToElement t)) terms)
+          if ((length terms) == (length elms))
+            then Just (rsym, terms)
+            else Nothing
+        else Nothing
+  _ -> Nothing
+--
+--
+getBlame :: ProvInfo -> Model -> (FnSym, [Term]) -> [Blame]
+getBlame prov mdl (factname, factelms) = do
+  let choices = (combBlame (map (getEqualElements mdl) factelms))
+  concat (map (\choice->(getObvProvs prov (factname, choice))) choices)
+
+--
+--
+combBlame :: [[Term]] -> [[Term]]
+combBlame [l] = do
   choose <- l
   return (return choose)
-permBlame (l:ls) = do
+combBlame (l:ls) = do
   choose <- l
-  rest <- (permBlame ls)
+  rest <- (combBlame ls)
   return (choose : rest)
-blameTheory :: ProvInfo -> Theory -> [Term] -> [Blame] -> Theory
-blameTheory prov thy terms blames = do
-  -- name
-  (e, f, r) <- concatMap (\t -> (maybeToList (getSkolemTree prov t))) terms
-  let names = (e, f, (map (getSkolemElement prov) r))
-  -- blame
+combBlame [] = []
+--
+--
+getObvProvs :: ProvInfo -> (FnSym, [Term]) -> [Blame]
+getObvProvs prov (factname, factelms) = do
+  let obv = fromMaybe (Obs (Rel "" [])) (toObservation (Rel factname factelms))
+  maybeToList ((findObservationWithProv obv (observationProvs prov)))
+
+
+
+--
+--
+blameTheory :: Theory -> [(Element, FnSym , [Element])] -> [Blame] -> [Maybe Sequent]
+blameTheory thy names blames = do
+  let namedthy = nameTheory thy names
   let blamereplaces = Map.fromList (map (\(TheoryBlame i s)->(i, s)) blames)
-  sequent <- thy
+  (sequent, namedsequent) <- zip thy namedthy
   newsequent <- case (elemIndex sequent thy) of
-    Nothing -> return sequent
+    Nothing -> return Nothing
     Just i -> case (Map.lookup (i+1) blamereplaces) of
-      Nothing -> return sequent
+      Nothing -> return Nothing
       Just blamesub -> do
-        -- TODO let namedsequent = (head (foldl nameTheory [sequent] (return names)))
-        return (substitute blamesub sequent)
+        return (Just (substitute blamesub (fromMaybe sequent namedsequent)))
   return newsequent

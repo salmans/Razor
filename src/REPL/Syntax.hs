@@ -18,37 +18,36 @@ import qualified Text.ParserCombinators.Parsec.Expr as Expr
 data Command = Go Explore | Ask Question | Display Thing | Other Utility | SyntaxError String
 data Thing = DispTheory | DispModel
 data Explore = Next | Augment Formula
-data Question = Name Bool Term | Blame Formula
+data Question = Name Bool Bool Term | Blame Formula
 data Utility = Help | Exit
 
-helpDisplay :: String
-helpDisplay = 
-  "  !t: show the input theory" ++ "\n" ++ 
-  "  !m: show the current model" ++ "\n"
 helpCommand :: String
 helpCommand = 
-  "-------------" ++ "\n" ++ 
-  "-- Display --" ++ "\n" ++ 
-  "-------------" ++ "\n" ++ 
-  helpDisplay ++
-  "-----------------" ++ "\n" ++ 
-  "-- Exploration --" ++ "\n" ++ 
-  "-----------------" ++ "\n" ++
-  "  next: show the next minimal model if available" ++ "\n" ++ 
-  "  aug [seq]: Not Implemented" ++ "\n" ++ 
-  "    //example: ???" ++ "\n" ++ 
-  "-----------------" ++ "\n" ++ 
-  "-- Explanation --" ++ "\n" ++ 
-  "-----------------" ++ "\n" ++
-  "  origin [elm]: display the sequents responsible for the existence of the specified element" ++ "\n" ++ 
-  "    //example: origin e#7" ++ "\n" ++ 
-  "  origin* [elm]: recursively displays element origins down to the ground facts, starting with the specified element" ++ "\n" ++ 
-  "    //example: origin* e#42" ++ "\n" ++ 
-  "  blame [fact]: display the sequents responsible for making the given fact true" ++ "\n" ++ 
-  "    //example: blame Student(e^7)" ++ "\n" ++ 
-  "---------------------" ++ "\n" ++ 
-  "-- Other Utilities --" ++ "\n" ++ 
-  "---------------------" ++ "\n" ++
+  "-------------" ++"\n"++ 
+  "-- Display --" ++"\n"++ 
+  "-------------" ++"\n"++ 
+  "  !t: show the input theory" ++"\n"++ 
+  "  !m: show the current model" ++"\n"++
+  "-----------------" ++"\n"++ 
+  "-- Exploration --" ++"\n"++ 
+  "-----------------" ++"\n"++
+  "  next :: show the next minimal model if available" ++"\n"++ 
+  "  aug [seq] :: Not Implemented" ++"\n"++ 
+  "-----------------" ++"\n"++ 
+  "-- Explanation --" ++"\n"++ 
+  "-----------------" ++"\n"++
+  "  origin(+*) [elm] :: show the sequents responsible for the existence of the specified element" ++"\n"++
+  "    + :: show all origins of this element" ++"\n"++
+  "    * :: recursively show origins that the given element depends on" ++"\n"++ 
+  "    :: examples :: origin e^1" ++"\n"++ 
+  "                   origin+ e^2" ++"\n"++ 
+  "                   origin* e^3" ++"\n"++ 
+  "                   origin+* e^5" ++"\n"++
+  "  blame [fact] :: show the sequents responsible for making the given fact true" ++"\n"++ 
+  "    :: example :: blame Student(e^7)" ++"\n"++ 
+  "---------------------" ++"\n"++ 
+  "-- Other Utilities --" ++"\n"++ 
+  "---------------------" ++"\n"++
   "  Type 'q' or 'quit' or 'exit' to close the REPL\n"
 
 
@@ -108,17 +107,23 @@ pQuestion = pName <|> pBlame
 pName :: Parser Question
 pName = do
   symbol "origin"
-  pNameRec +++ pNameHead
-
-pNameHead :: Parser Question
-pNameHead = do
+  pNameOneHead +++ pNameOneRec +++ pNameAllHead +++ pNameAllRec
+pNameOneHead :: Parser Question
+pNameOneHead = do
   symbol ""
-  Name False <$> pElement
-
-pNameRec :: Parser Question
-pNameRec = do
+  Name False False <$> pElement
+pNameOneRec :: Parser Question
+pNameOneRec = do
   symbol "*"
-  Name True <$> pElement
+  Name False True <$> pElement
+pNameAllHead :: Parser Question
+pNameAllHead = do
+  symbol "+"
+  Name True False <$> pElement
+pNameAllRec :: Parser Question
+pNameAllRec = do
+  symbol "+*"
+  Name True True <$> pElement
 
 pBlame :: Parser Question
 pBlame = do

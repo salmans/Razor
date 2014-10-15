@@ -13,10 +13,10 @@ import qualified Data.Text as T
 import Data.List
 
 fdefault = []
-fhighc = [SetColor Foreground Vivid Black, SetConsoleIntensity BoldIntensity]
-fhighm = [SetColor Foreground Vivid Magenta, SetConsoleIntensity BoldIntensity]
-fhighy = [SetColor Foreground Vivid Yellow, SetConsoleIntensity BoldIntensity]
-finfo = [SetColor Foreground Dull White, SetConsoleIntensity BoldIntensity]
+finput = [SetColor Foreground Dull Green, SetConsoleIntensity BoldIntensity]
+foutput = [SetColor Foreground Dull Black, SetConsoleIntensity BoldIntensity]
+flow = [SetColor Foreground Dull White, SetConsoleIntensity BoldIntensity]
+fhigh = [SetColor Foreground Vivid Yellow, SetConsoleIntensity BoldIntensity]
 ferror = [SetColor Foreground Vivid Red, SetConsoleIntensity BoldIntensity]
 
 displayInit :: IO()
@@ -41,5 +41,5 @@ prettyHighlight tabs high str = do
 	mapM_ (\p -> case (elemIndex p highpieces) of
 		Nothing -> return ()
 		Just i -> if (even i)
-			then prettyPrint 0 fhighy (T.unpack p)
-			else prettyPrint 0 fhighm (T.unpack p)) highpieces
+			then prettyPrint 0 flow (T.unpack p)
+			else prettyPrint 0 fhigh (T.unpack p)) highpieces
