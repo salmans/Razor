@@ -36,6 +36,7 @@ import SAT.Data
 import Tools.Config (Config (..), defaultConfig)
 import Tools.FolToGeo (parseFolToSequents)
 
+import Tools.Trace
 
 {-| Runs the Chase algorithm and returns the resulting base and the resulting 
   provenance information.
@@ -51,10 +52,6 @@ chase :: (HerbrandImpl h s r, SATAtom t) => Config -> SequentMap s
       -> (h, ProvInfo, SATTheory t)
 chase cfg seqs = let (b, p, pt, _) = runChase cfg seqs Nothing Nothing Nothing
                  in  (b, p, pt)
-
-{-| Runs the Chase algorithm and returns the resulting base. -}
-chase' :: (HerbrandImpl h s r) => Config -> SequentMap s -> h
-chase' cfg seqs = undefined -- evalChase cfg seqs Nothing Nothing Nothing
 
 {-| Runs the Chase algorithm, ensuring that the initial set of constants will
   denote elements in the output instnace of 'HerbrandBase'. -}
@@ -240,12 +237,12 @@ balance :: (HerbrandImpl h s r, SATAtom t) =>
            -> SATTheory t -> Config -> (h, ProvInfo, Int, SATTheory t)
 balance id seq base dlt uni new provs cnt propThy cfg = 
     let res = -- traceShow "----------"
-              -- traceShow (toSequent seq)
+              traceShow (toSequent seq)
               -- traceShow base
               -- traceShow dlt
               -- traceShow uni
               -- traceShow provs
               -- traceEval
-              -- $
+              $
               evalPullM (pull seq base dlt) uni provs
     in  runPushM (push seq res new) uni (id, provs) cnt propThy cfg

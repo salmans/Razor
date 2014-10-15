@@ -5,8 +5,7 @@
   theory T in order to construct a T-Herbrand-base of facts. 
   Maintainer  : Salman Saghafi
 -}
-module Chase.Chase ( chase, chase'
-                   , chaseWithInitialConstants, chaseWithInitialConstants'
+module Chase.Chase ( chase,chaseWithInitialConstants, chaseWithInitialConstants'
                    ) where
 
 import Chase.IChase
