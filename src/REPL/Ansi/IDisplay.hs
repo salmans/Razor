@@ -14,7 +14,7 @@ import Data.List
 
 fdefault = []
 finput = [SetColor Foreground Dull Green, SetConsoleIntensity BoldIntensity]
-foutput = [SetColor Foreground Dull Black, SetConsoleIntensity BoldIntensity]
+foutput = [SetColor Foreground Dull Blue, SetConsoleIntensity BoldIntensity]
 flow = [SetColor Foreground Dull White, SetConsoleIntensity BoldIntensity]
 fhigh = [SetColor Foreground Vivid Yellow, SetConsoleIntensity BoldIntensity]
 ferror = [SetColor Foreground Vivid Red, SetConsoleIntensity BoldIntensity]
