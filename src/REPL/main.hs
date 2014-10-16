@@ -5,7 +5,12 @@
   Maintainer  : Salman Saghafi, Ryan Danas
 -}
 {-| TODO
-  replace functions with elements and how to deal with flattening... exists x. exists y. Q(x, y, f(g(x, y)))
+  the text output for larger theories should still be managable (e^0, e^11 is a lot for each element)
+  allow any expr that evaluates to an element?
+  recursive indents in origin* should be smaller than a full tab
+  origin* should not print redundant info as it goes down the tree
+  replace functions with elements (cardOf(e^3), replace with e^4)
+  how to deal with flattening... exists x. exists y. Q(x, y, f(g(x, y)))
   augmentation
 -}
 
