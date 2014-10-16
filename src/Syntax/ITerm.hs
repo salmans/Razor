@@ -61,7 +61,7 @@ data Term = Var  Variable
 
 {- Show instances -}
 instance Show Element where
-    show (Element e) = "|" ++ e ++ "|"
+    show (Element e) = e
 
 instance Show Variable where
     show (Variable v) = v
