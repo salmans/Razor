@@ -81,8 +81,8 @@ sameRelation _ _                                    = False -- otherwise
 {- Given a list of @Element observations, returns a string for displaying the 
    elements of the observations as the domain of a model. -}
 prettyDomain :: [Observation] -> String
-prettyDomain obs = let elems = (\(Obs (Rel "@Element" e)) -> show e) <$> obs
-                   in  "Domain: " ++ intercalate ", " elems
+prettyDomain obs = let elems = (\(Obs (Rel "@Element" [e])) -> show e) <$> obs
+                   in  "Domain: {" ++ intercalate ", " elems ++ "}"
 
 {- Given a list of observations with the same symbol, returns a string for 
    displaying them. -}
