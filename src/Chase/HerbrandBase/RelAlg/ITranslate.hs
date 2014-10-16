@@ -371,7 +371,7 @@ evaluateRelExp tbls delts (Join lExp rExp heads) =
                 and $ (\(p1, p2) -> x ! p1 == y ! p2) <$> ps
                 -- expanding variable pairs as a filter function for DB.join
         tran  = \t1 t2 -> joinTupleTransformer lHds rHds heads t1 t2
-    in  DB.Set $ ExSet.map (uncurry tran) 
+    in  DB.Set $ map (uncurry tran) 
                $ DB.contents (DB.join cond lSet rSet)
 
 evaluateRelExp tbls delts (Union lExp lDlt rExp rDlt heads) =
@@ -381,11 +381,11 @@ evaluateRelExp tbls delts (Union lExp lDlt rExp rDlt heads) =
         cond = DB.Select $ \(Tuple x _, Tuple y _) -> 
                and $ (\(p1, p2) -> x ! p1 == y ! p2) <$> ps
         tran = \t1 t2 -> joinTupleTransformer lHds rHds heads t1 t2
-        set1 = DB.Set $ ExSet.map (uncurry tran) 
+        set1 = DB.Set $ map (uncurry tran) 
                $ DB.contents (DB.join cond slExp srDlt)
-        set2 = DB.Set $ ExSet.map (uncurry tran) 
+        set2 = DB.Set $ map (uncurry tran) 
                $ DB.contents (DB.join cond slDlt srExp)
-        set3 = DB.Set $ ExSet.map (uncurry tran) 
+        set3 = DB.Set $ map (uncurry tran) 
                $ DB.contents (DB.join cond slDlt srDlt)
     in  unionTables (unionTables set1 set2) set3
     where slExp = evaluateRelExp tbls delts lExp
@@ -434,7 +434,7 @@ evaluateRelExpNoDelta db (Join lExp rExp heads) =
                 and $ (\(p1, p2) -> x ! p1 == y ! p2) <$> ps
                 -- expanding variable pairs as a filter function for DB.join
         tran  = \t1 t2 -> joinTupleTransformer lHds rHds heads t1 t2
-    in  DB.Set $ ExSet.map (uncurry tran)
+    in  DB.Set $ map (uncurry tran)
                $ DB.contents (DB.join cond lSet rSet)
 -- mergeJoinTables (DB.join cond lSet rSet) $ snd <$> ps
 --------------------------------------------------------------------------------
@@ -463,7 +463,7 @@ insertTuples tblPair exp@(Tbl ref vars heads) db _
       
   (id, vars, _) <- liftPushMProvs State.get
 
-  let content' = ExSet.map
+  let content' = map
                  (\(Tuple tup1 tup2) -> 
                       Tuple (Vect.map (inject tup2)
                              (Vect.fromList [0..(totalColumns - 1)]))
@@ -475,13 +475,12 @@ insertTuples tblPair exp@(Tbl ref vars heads) db _
   -- Filter the tuples that already exist in uni
   uni <- liftPushMBase $ State.get
   let tableInUni = DB.contents $ Map.findWithDefault emptyTable ref uni
-  let content''  = ExSet.filter 
-                   (\t -> let t' = undecorate t 
-                          in  not $ ExSet.member t' tableInUni) content'
+  let content''  = filter (\t -> let t' = undecorate t 
+                                 in  not $ t' `elem` tableInUni) content'
 
   let newProvs = Map.fromList 
                  $ (\(Tuple tup blm) -> (obsOf ref (Vect.toList tup), blm)) 
-                 <$> (ExSet.toList content'')
+                 <$> content''
 
   liftPushMProvs $ State.modify
                  $ \(_, _, ps) -> 
@@ -535,7 +534,7 @@ insertTuples tblPair exp@(Proj innerExp col heading skFn unqExp) db depth
 
   (_, _, allProvs) <- (liftPushMProvs State.get)
   let provs = elementProvs allProvs
-  new   <- ExSet.foldM (\set (Tuple tup1 tup2) -> do
+  new   <- foldM (\set (Tuple tup1 tup2) -> do
                           let ds = maximum <$>
                                    (termDepth <$>) <$>
                                    (flip getElementProv) provs <$> 
@@ -545,8 +544,8 @@ insertTuples tblPair exp@(Proj innerExp col heading skFn unqExp) db depth
                           else do
                             tup2' <- (Vect.mapM (inject (tuple tup2))
                                      (Vect.fromList [0..(totalColumns - 1)]))
-                            return (ExSet.insert (Tuple tup1 tup2') set)) 
-           ExSet.empty diff
+                            return ((Tuple tup1 tup2'):set)) 
+           empty diff
 
   liftPushMProvs $ State.modify 
                  $ \(id, vs, ps) -> (id, vs, newElementsProvs new skFn col ps)
@@ -562,15 +561,15 @@ insertTuples tbl@(DB.Set set) (Sel exp colPairs _) db depth = do
                                        error_invalidRelExp
                             Just j  -> tup ! j) 
                    $ Vect.fromList [0..(totalColumns - 1)]
-  let new        = ExSet.map (\(Tuple tup1 tup2) -> Tuple tup1 (inject tup2))
+  let new        = map (\(Tuple tup1 tup2) -> Tuple tup1 (inject tup2))
                    set
   insertTuples (DB.Set new) exp db depth
              
 insertTuples tbl@(DB.Set set) exp@(Join lExp rExp heads) db depth = do
   let lTran = unjoinTupleTransformer (header lExp) heads
   let rTran = unjoinTupleTransformer (header rExp) heads
-  let lSet  = ExSet.map (\(Tuple tup1 tup2) -> Tuple tup1 (lTran tup2)) set
-  let rSet  = ExSet.map (\(Tuple tup1 tup2) -> Tuple tup1 (rTran tup2)) set
+  let lSet  = map (\(Tuple tup1 tup2) -> Tuple tup1 (lTran tup2)) set
+  let rSet  = map (\(Tuple tup1 tup2) -> Tuple tup1 (rTran tup2)) set
 
   db' <- insertTuples (DB.Set lSet) lExp db depth
   insertTuples (DB.Set rSet) rExp db' depth
@@ -649,19 +648,17 @@ fetchUnique (Tuple vs _) tupHdr expHdr projCol tbl =
                           then tbl
                           -- MONITOR >
                           else DB.select sel tbl
-      in  if   ExSet.null set'
+      in  if   null set'
           then Nothing
-          else Just $ Vect.last (tupleElems $ ExSet.findMin set')
+          else Just $ Vect.last (tupleElems $ head set')
 
 {- A helper function for computing the provenance information for a set of 
    elements when inserting the elements into a projected column. -}
-newElementsProvs :: ExSet.Set TuplePair -> FnSym -> Int -> ProvInfo -> ProvInfo
+newElementsProvs :: [TuplePair] -> FnSym -> Int -> ProvInfo -> ProvInfo
 newElementsProvs setPair fSym col provs =
-   let pairs = ExSet.map (\(Tuple tup1 tup2) -> (tup2 ! col, tup1)) setPair
-   in  ExSet.foldr 
-           (\(e, es) -> modifyElementProvs 
-                        $ addElementProv e fSym (Vect.toList es))
-       provs pairs
+   let pairs = map (\(Tuple tup1 tup2) -> (tup2 ! col, tup1)) setPair
+   in  foldr  (\(e, es) -> modifyElementProvs 
+               $ addElementProv e fSym (Vect.toList es)) provs pairs
 
 
 {-| Given a two 'Header' corresponding to 'RelExp's for body and head of a 

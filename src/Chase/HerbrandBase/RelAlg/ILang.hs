@@ -22,7 +22,6 @@ import Syntax.Term ( Variable, Constant (..), Element (..), FnSym
 import Syntax.Geometric (RelSym)
 
 -- RelAlg
-import qualified Tools.ExtendedSet as ExSet
 import qualified Chase.HerbrandBase.RelAlg.DB as DB
 
 
@@ -108,16 +107,16 @@ tablePairFromList :: [([Element], [Element])] -> TablePair
 tablePairFromList = recordPairsFromList.(tuplePairFromList <$>)
 
 {-| Returns the tuples of a 'Table'. -}
-tableTuples :: Table -> ExSet.Set Tuple
+tableTuples :: Table -> [Tuple]
 tableTuples =  DB.contents
 
 {-| Empty 'TableD' -}
 emptyTableD :: TableD a
-emptyTableD =  DB.Set ExSet.empty
+emptyTableD =  DB.Set []
 
 {-| Empty 'Table' -}
 emptyTable :: Table
-emptyTable     =  emptyTableD
+emptyTable  =  emptyTableD
 
 {-| Empty 'TablePair' -}
 emptyTablePair :: TablePair
@@ -129,11 +128,11 @@ emptyTableSub =  emptyTableD
 
 {-| Returns true if the input 'Table' is empty. -}
 nullTable :: Table -> Bool
-nullTable =  ExSet.null.DB.contents
+nullTable =  null.DB.contents
 
 {-| Returns true if the input 'TableD' is empty. -}
 nullTableD :: TableD a -> Bool
-nullTableD =  ExSet.null.DB.contents
+nullTableD =  null.DB.contents
 
 {-| Returns true if the input 'TablePair' is empty. -}
 nullTablePair :: TablePair -> Bool
@@ -145,7 +144,7 @@ nullTableSub =  nullTableD
 
 {-| Full 'TableD': the input parameter is used for the decorating data. -}
 fullTableD :: a -> TableD a
-fullTableD =  \x -> DB.Set $ ExSet.singleton $ Tuple Vect.empty x
+fullTableD =  \x -> DB.Set [Tuple Vect.empty x]
 
 {-| Just as a contract, let's use a table with a single element @True@ to denote
    a view for a sequent's empty body -}
@@ -162,14 +161,14 @@ fullTableHeader :: Header
 fullTableHeader =  Map.empty
 
 {-| Decorates a 'Table' with the information of type @a@ -}
-decorateTable :: (Ord a) => Table -> a -> TableD a
+decorateTable :: Table -> a -> TableD a
 decorateTable (DB.Set set) info = 
-    DB.Set $ ExSet.map (\(Tuple t _) -> Tuple t info) set
+    DB.Set $ map (\(Tuple t _) -> Tuple t info) set
 
 {-| Returns the data in an 'TableD' as a 'Table' -}
-undecorateTable :: (Ord a) => TableD a -> Table
+undecorateTable :: TableD a -> Table
 undecorateTable (DB.Set set) = 
-    DB.Set $ ExSet.map (\(Tuple t _) -> Tuple t ()) set
+    DB.Set $ map (\(Tuple t _) -> Tuple t ()) set
 
 {-| A 'Database' represents a database of tables, mapping 'TableRef' to 'Table'.
  -}
@@ -184,11 +183,11 @@ emptyDatabase =  Map.empty
 emptyDatabaseWithConstants :: [Constant] -> Database
 emptyDatabaseWithConstants []     = emptyDatabase
 emptyDatabaseWithConstants consts =
-    let elemTbl   = DB.Set $ ExSet.fromList $ tuple.(Vect.singleton) <$> elems
+    let elemTbl   = DB.Set $ tuple.(Vect.singleton) <$> elems
         constTbls = [ (ConstTable c, mkCTbl name)| c@(Constant name) <- consts]
     in  Map.fromList $ (RelTable "@Element", elemTbl):constTbls
     where elems     = [ Element c | Constant c <- consts ]          
-          mkCTbl    = DB.Set . ExSet.singleton . tuple . Vect.singleton . Element
+          mkCTbl    = DB.Set . pure.tuple . Vect.singleton . Element
 
 {-| Returns true if the input 'Database' is empty. -}
 nullDatabase :: Database -> Bool
@@ -322,7 +321,7 @@ columnValuesSelector colPairs =
 mergeJoinTableDs :: (Ord a) => DB.Set (TupleD a, TupleD a) -> [Int] -> 
                     (a -> a -> a) -> TableD a
 mergeJoinTableDs (DB.Set tbl) cols fun =
-    DB.Set $ ExSet.map mergeFunc tbl
+    DB.Set $ map mergeFunc tbl
     where mergeFunc = \(Tuple a x , Tuple b y) -> 
                       Tuple (a Vect.++ (del b cols)) (fun x y)
           del v is  = let ps  = Vect.zip v 
@@ -380,4 +379,4 @@ removeEmptyTables =  Map.filter (emptyTable /= )
 
 {-| Returns the size of a database. -}
 databaseSize :: Database -> Int
-databaseSize db = Map.foldr (\(DB.Set t) s -> s + ExSet.size t) 0 db
+databaseSize db = Map.foldr (\(DB.Set t) s -> s + length t) 0 db

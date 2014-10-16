@@ -41,7 +41,6 @@ import SAT.Data
 
 -- Tools
 import qualified Tools.ExtendedSet as ExSet
-import Tools.Trace
 
 -- Error Messages
 unitName = "SAT.SMT"
@@ -169,9 +168,9 @@ addObservationSequent seq@(ObservationSequent bodies heads) = do
   let heads'      = heads -- (filter filterFunc) <$> heads
   bodiesVals      <- mapM tranObservation bodies'
   headsVals       <- mapM (mapM tranObservation) heads'
-  let bodiesValue =  foldr (&&&) true bodiesVals
-  let headsValue' =  map (foldr (&&&) true) headsVals
-  let headsValue  =  foldr (|||) false headsValue'
+  let bodiesValue =  bAnd bodiesVals
+  let headsValue' =  map bAnd headsVals
+  let headsValue  =  bOr headsValue'
   liftSymbolic $ constrain (bodiesValue ==> headsValue)
   where filterFunc b = case b of
                          Obs (FnRel _ [_]) -> False
@@ -214,7 +213,7 @@ translateSolution res =
     SatResult (Unsatisfiable _) -> Nothing
     SatResult (Satisfiable _ _) -> Just $ translateDictionary 
                                         $ getModelDictionary res
-    _ -> error "Z3 SMT Solver not found"
+    _ -> error (show res) -- "Z3 SMT Solver not found"
 
 {- A helper for 'translateSolution' -}
 translateDictionary :: Map.Map String CW -> Model
@@ -579,7 +578,7 @@ minimumResult context =
           liftSymbolic $ solve []
         
         run        = State.evalStateT context' emptySMTContainer
-        res        = unsafePerformIO $ satWith z3 {verbose = False} run
+        res        = unsafePerformIO $ satWith z3 { verbose  = False } run
         minRes     = fst $ reduce context res
         newContext = do
           context
@@ -601,10 +600,11 @@ reduce context res@(SatResult (Satisfiable _ _)) =
                     (do context'
                         liftSymbolic $ solve [])
                     emptySMTContainer
-        res'      = unsafePerformIO $ satWith z3 {verbose = False} run
+        res'      = unsafePerformIO $ satWith z3 { verbose  = False } run
     in  case res' of
           SatResult (Unsatisfiable _) -> (res, context')
           SatResult (Satisfiable _ _) -> reduce context' res'
+          res                         -> error (show res)
 reduce context res = (res, context)
 
 {- Constructs the a set of constraints for minimizing the result returned by the
@@ -646,7 +646,7 @@ minimizeResult res = do
 
   let symAtoms = Map.toList $ smtSymAtomMap factStrs
   let eqNegAx  = equalityNegativeAxioms sClasses
-  let eqFlipAx = foldr (|||) false $ equalityFlipAxioms <$> sClasses
+  let eqFlipAx = bOr $ equalityFlipAxioms <$> sClasses
   negs  <- mapM (\(r, unintRel) -> 
                      let as = fromMaybe [] (lookup r symAtoms)
                      in  negativeAxioms unintRel as) rels
@@ -655,8 +655,8 @@ minimizeResult res = do
   flips <- mapM (\(r, unintRel) -> 
                      let as = fromMaybe [] (lookup r symAtoms)
                      in  flipAxioms unintRel as) rels
-  let negAx    = foldr (&&&) true negs
-  let flipAx   = foldr (|||) false flips
+  let negAx    = bAnd negs
+  let flipAx   = bOr flips
   return $ fnNeg &&& negAx &&& eqNegAx &&& (flipAx ||| fnFlips ||| eqFlipAx)
 
 {- This function creates Negative Axioms for a set of facts that are named by
@@ -679,8 +679,8 @@ negativeAxioms unintRel atoms = do
   vars      <- replicateM arity $ liftSymbolic forall_
   allArgs   <- mapM symAtomArgs atoms
   let pairs  = map (\args -> zipWith (.==) vars args) allArgs
-  let cons   = map (foldr (&&&) true) pairs
-  let disj   = foldr (|||) false cons  
+  let cons   = map bAnd pairs
+  let disj   = bOr cons  
   return $ (bnot (applyUnintRel unintRel vars)) ||| disj
 
 functionNegativeAxioms :: [(SMTTerm, CW)] -> Map.Map CW [SMTElement] -> SMT SBool
@@ -693,13 +693,13 @@ functionNegativeAxioms terms classes = do
   let content   = (\(t, cw) -> ( fromJust $ Map.lookup t contTerms
                                , otherClasses cw classes')) <$> terms
   let results   = (uncurry functionNegativeAxiomsHelper) <$> content
-  return $ foldr (&&&) true results
+  return $ bAnd results
     where otherClasses c cs = Map.elems $ Map.delete c cs
 
 functionNegativeAxiomsHelper :: SElement -> [[SElement]] -> SBool
 functionNegativeAxiomsHelper term classes = do
   let eqs   = concatMap ((\e -> e ./= term) <$>) classes
-  foldr (&&&) true eqs
+  bAnd eqs
 
 functionFlipAxioms :: [(SMTTerm, CW)] -> Map.Map CW [SMTElement] -> SMT SBool
 functionFlipAxioms terms classes = do
@@ -713,13 +713,13 @@ functionFlipAxioms terms classes = do
                                  Map.lookup t contTerms
                                , thisClass cw classes')) <$> terms
   let results   = (uncurry functionFlipAxiomsHelper) <$> content
-  return $ foldr (|||) false results
+  return $ bOr results
     where thisClass c cs = Map.findWithDefault [] c cs
   
 functionFlipAxiomsHelper :: SElement -> [SElement] -> SBool
 functionFlipAxiomsHelper term cls = do
   let eqs   = (\e -> e ./= term) <$> cls
-  foldr (|||) false eqs
+  bOr eqs
 
 {- This function creates Flip Axioms for a set of facts that are named by a list
    of SMTAtom instances. Just like 'negativeAxioms', the function assumes that
@@ -730,7 +730,7 @@ flipAxioms unintRel atoms = do
   container   <- liftContainer State.get
   allArgs     <- mapM symAtomArgs atoms
   let negApps  = bnot.(applyUnintRel unintRel) <$> allArgs
-  return $ foldr (|||) false negApps
+  return $ bOr negApps
 
 {- Given a set of equivalence classes on all elements, creates the set of 
    Equality Negative Axioms. The function recursively makes sure that the 
@@ -739,7 +739,7 @@ flipAxioms unintRel atoms = do
 equalityNegativeAxioms :: [[SElement]] -> SBool
 equalityNegativeAxioms []            = true
 equalityNegativeAxioms (cls:classes) =
-    let this = foldr (&&&) true [differentClasses cls cls' | cls' <- classes]
+    let this = bAnd [differentClasses cls cls' | cls' <- classes]
     in  this &&& equalityNegativeAxioms classes
 
 {- As a helper for 'equalityNegativeAxioms', creates a constraint for two sets 
@@ -747,14 +747,14 @@ equalityNegativeAxioms (cls:classes) =
    equal after minimization. -}
 differentClasses :: [SElement] -> [SElement] -> SBool
 differentClasses cls1 cls2 =
-    foldr (&&&) true [e1 ./= e2 | e1 <- cls1, e2 <- cls2]
+    bAnd [e1 ./= e2 | e1 <- cls1, e2 <- cls2]
 
 {- Given an equivalence class of elements, creates an axiom to test whether any 
    of the two elements in the class may be unequal after minimization or not. -}
 equalityFlipAxioms :: [SElement] -> SBool
 equalityFlipAxioms []     = false
 equalityFlipAxioms (e:es) = 
-    let this = foldr (|||) false [e ./= e' | e' <- es]
+    let this = bOr [e ./= e' | e' <- es]
     in  this ||| equalityFlipAxioms es
 
 {- Given a list of atom names of type 'SMTAtom', returns a map from the relation
@@ -786,11 +786,11 @@ nextResult res = do
                  <$> (Map.elems classes)
   let factStrs = Map.keys $ Map.filter (\s -> fromCW s == True ) dic
   let symAtoms = Map.toList $ smtSymAtomMap factStrs
-  let eqFlipAx = foldr (|||) false $ equalityFlipAxioms <$> sClasses
+  let eqFlipAx = bOr $ equalityFlipAxioms <$> sClasses
   flips <- mapM (\(r, unintRel) -> 
                      let as = fromMaybe [] (lookup r symAtoms)
                      in  flipAxioms unintRel as) rels
-  let flipAx   = foldr (|||) false flips
+  let flipAx   = bOr flips
   funFlipAx   <- functionFlipAxioms termStrs classes
   return $ flipAx ||| eqFlipAx ||| funFlipAx
   

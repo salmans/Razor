@@ -48,8 +48,6 @@ import SAT.Data (SATAtom (..))
 
 -- Tools
 import Tools.Config (Config (..))
-import qualified Tools.ExtendedSet as ExSet
-
 import Tools.Trace
 
 unitName                 = "Chase.HerbrandSet.RelAlg.HerbrandBase"
@@ -180,7 +178,7 @@ evaluateRelSequent :: RelSequent -> Database -> Database
                    -> PullM Database RelResultSet
 evaluateRelSequent seq@(RelSequent bdy hds bdyDlt _ _ _ _) db dlt = do  
   provs <- liftPullMProvs State.get
-  uni <- liftPullMBase State.get
+  -- uni <- liftPullMBase State.get
   let bdyDltExTbl      = evaluateRelExp db dlt bdyDlt
   let bdyDltTbl@(DB.Set bdyDltSet) 
                        = undecorateTable bdyDltExTbl
@@ -189,9 +187,8 @@ evaluateRelSequent seq@(RelSequent bdy hds bdyDlt _ _ _ _) db dlt = do
                               if   bdyDlt == TblFull || 
                                        (header bdyDlt) == fullTableHeader
                               then decorateTable bdyDltTbl Vect.empty
-                              else DB.Set $ ExSet.map 
-                                       (\(Tuple t _) -> Tuple t (tran t))  
-                                       bdyDltSet) hds
+                              else DB.Set $ map (\(Tuple t _) -> Tuple t (tran t))  
+                                            bdyDltSet) hds
                          -- hdTbls contains the head expression, transformation
                          -- of body table in a way that it matches with the
                          -- schema of the head and the entire head table in 
@@ -287,7 +284,7 @@ createSubs seq uni new (DB.Set set) provs =
                   Nothing -> Nothing -- Just Map.empty
                   -- Nothing -> Just exSub
                   -- MONITOR >
-                  Just es -> Just es)) <$> ExSet.toList set
+                  Just es -> Just es)) <$> set
     else (\(Tuple tup exSub) -> 
               ( createSub tup heads
               , exSub
@@ -296,7 +293,7 @@ createSubs seq uni new (DB.Set set) provs =
                   Nothing ->  Nothing -- Just Map.empty
                   -- Nothing -> Just exSub
                   -- MONITOR >
-                  Just es -> Just es)) <$> ExSet.toList set
+                  Just es -> Just es)) <$> set
     where elmProvs = elementProvs provs
           bodyExp  = relSequentBodyDelta seq
           heads    = header bodyExp
@@ -355,12 +352,11 @@ applyLoneSubs uni new skMap seq =
               in case Map.lookup ref db of
                    Nothing           -> Nothing
                    Just (DB.Set set) -> 
-                       let tups = 
-                               ExSet.filter (\(Tuple es _) -> 
-                                             ((\e -> Elem e) <$> 
-                                              (init (Vect.toList es))) 
-                                             == (init ts)) set 
-                       in  if   ExSet.null tups
+                       let tups = filter (\(Tuple es _) -> 
+                                          ((\e -> Elem e) <$> 
+                                           (init (Vect.toList es))) 
+                                          == (init ts)) set 
+                       in  if   null tups
                            then Nothing
                            else Just $ (\(Tuple es _) -> Vect.last es) 
-                                     $ ExSet.findMin tups
+                                     $ head tups
