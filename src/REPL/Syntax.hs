@@ -36,13 +36,14 @@ helpCommand =
   "-----------------" ++"\n"++ 
   "-- Explanation --" ++"\n"++ 
   "-----------------" ++"\n"++
-  "  origin(+*) [elm] :: show the sequents responsible for the existence of the specified element" ++"\n"++
-  "    + :: show all origins of this element" ++"\n"++
+  "  origin(*) [elm] :: show one theory rule responsible for the existence of the specified element" ++"\n"++
   "    * :: recursively show origins that the given element depends on" ++"\n"++ 
   "    :: examples :: origin e^1" ++"\n"++ 
-  "                   origin+ e^2" ++"\n"++ 
   "                   origin* e^3" ++"\n"++ 
-  "                   origin+* e^5" ++"\n"++
+  "  origins(*) [elm] :: shows all the theory rules responsible for the existence of the specified element" ++"\n"++
+  "    * :: recursively show origins that the given element depends on" ++"\n"++ 
+  "    :: examples :: origins e^2" ++"\n"++ 
+  "                   origins* e^4" ++"\n"++ 
   "  blame [fact] :: show the sequents responsible for making the given fact true" ++"\n"++ 
   "    :: example :: blame Student(e^7)" ++"\n"++ 
   "---------------------" ++"\n"++ 
@@ -105,9 +106,11 @@ pQuestion :: Parser Question
 pQuestion = pName <|> pBlame
 
 pName :: Parser Question
-pName = do
+pName = pNameOne +++ pNameAll
+pNameOne :: Parser Question
+pNameOne = do
   symbol "origin"
-  pNameOneHead +++ pNameOneRec +++ pNameAllHead +++ pNameAllRec
+  pNameOneHead +++ pNameOneRec
 pNameOneHead :: Parser Question
 pNameOneHead = do
   symbol ""
@@ -116,13 +119,17 @@ pNameOneRec :: Parser Question
 pNameOneRec = do
   symbol "*"
   Name False True <$> pElement
+pNameAll :: Parser Question
+pNameAll = do
+  symbol "origins"
+  pNameAllHead +++ pNameAllRec
 pNameAllHead :: Parser Question
 pNameAllHead = do
-  symbol "+"
+  symbol ""
   Name True False <$> pElement
 pNameAllRec :: Parser Question
 pNameAllRec = do
-  symbol "+*"
+  symbol "*"
   Name True True <$> pElement
 
 pBlame :: Parser Question
