@@ -674,7 +674,7 @@ negativeAxioms unintRel atoms = do
   let domain   = containerDomain container
   let arity    = unintRelArity unintRel
   let argNames = map atomArgs atoms
-  let negTups  = helper domain argNames arity
+  let negTups  = negativeTuples domain argNames arity
   return $ bAnd $ (\t -> bnot (applyUnintRel unintRel t)) <$> negTups
 
 {- As a helper for negative axioms, returns all the possible tuples over the
