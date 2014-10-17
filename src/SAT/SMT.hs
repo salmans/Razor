@@ -13,7 +13,7 @@
 module SAT.SMT where
 
 -- Standard
-import Data.List (intercalate, sortBy, groupBy, union)
+import Data.List (intercalate, sortBy, groupBy, union, partition)
 import qualified Data.Map as Map
 import Data.Maybe
 import qualified Data.Text as Text
@@ -26,6 +26,7 @@ import qualified Control.Monad.State.Lazy as State
 
 -- SBV
 import Data.SBV
+import Data.SBV.Bridge.Yices as Yices
 
 -- Syntax
 import Syntax.GeometricUtils ( FnSym, RelSym, Atom (..), Term (..)
@@ -568,6 +569,7 @@ instance SATSolver SMTObservation (SMT ()) where
     satSolve context = let (res, context') = minimumResult context
                        in  (translateSolution res, context')
 
+mySolver = Yices.sbvCurrentSolver {smtFile = Just "/Users/Salman/Desktop/log.txt"}
 {- Given a query of type SMT, executes the SMT and returns the result. It also
    returns a new 'SMT' computation where the homomorphism cone of the minimum 
    result is eliminated. -}
@@ -578,7 +580,7 @@ minimumResult context =
           liftSymbolic $ solve []
         
         run        = State.evalStateT context' emptySMTContainer
-        res        = unsafePerformIO $ satWith z3 { verbose  = False } run
+        res        = unsafePerformIO $ satWith z3 run
         minRes     = fst $ reduce context res
         newContext = do
           context
@@ -600,7 +602,7 @@ reduce context res@(SatResult (Satisfiable _ _)) =
                     (do context'
                         liftSymbolic $ solve [])
                     emptySMTContainer
-        res'      = unsafePerformIO $ satWith z3 { verbose  = False } run
+        res'      = unsafePerformIO $ satWith z3 run
     in  case res' of
           SatResult (Unsatisfiable _) -> (res, context')
           SatResult (Satisfiable _ _) -> reduce context' res'
@@ -665,23 +667,29 @@ minimizeResult res = do
    computation, the function assumes that all the SMTAtom instances belong to
    a relation whose symbolic uninterpreted value is also given to the function. 
    This function will be called once for every relational symbol in the 
-   container of the current SMT computation.
-
-   Example. Assuming that the function is called for relation @R@ and two 
-   positive atomic facts @[R(e1, e2), R(e2, e3)]@, it creates an axiom like the
-   following:
-   @forall x, y. ~R(x, y) | (x = e1 & y = e2) | (x = e2 & y = e3)@
--}
+   container of the current SMT computation. -}
 negativeAxioms :: UninterpretRel -> [SMTAtom] -> SMT SBool
 negativeAxioms unintRel atoms = do
-  container <- liftContainer State.get
-  let arity  = unintRelArity unintRel
-  vars      <- replicateM arity $ liftSymbolic forall_
-  allArgs   <- mapM symAtomArgs atoms
-  let pairs  = map (\args -> zipWith (.==) vars args) allArgs
-  let cons   = map bAnd pairs
-  let disj   = bOr cons  
-  return $ (bnot (applyUnintRel unintRel vars)) ||| disj
+  container   <- liftContainer State.get
+  let domain   = containerDomain container
+  let arity    = unintRelArity unintRel
+  let argNames = map atomArgs atoms
+  let negTups  = helper domain argNames arity
+  return $ bAnd $ (\t -> bnot (applyUnintRel unintRel t)) <$> negTups
+
+{- As a helper for negative axioms, returns all the possible tuples over the
+   input domain (of type SDomain) of the given input arity that are not named 
+   by the given set of tuples of element names. -}
+negativeTuples :: SDomain -> [[SMTElement]] -> Int -> [[SElement]]
+negativeTuples domMap atoms arity =
+    let pairs   = Map.toList domMap
+        tups    = tuples pairs arity
+        result  = filter (\t -> (fst <$> t) `notElem` atoms) tups
+    in  (snd <$>) <$> result
+    where tuples is 0 = []
+          tuples is 1 = pure <$> is
+          tuples is n = [ i:ts | i <- is, ts <- tuples is (n-1)]
+
 
 functionNegativeAxioms :: [(SMTTerm, CW)] -> Map.Map CW [SMTElement] -> SMT SBool
 functionNegativeAxioms terms classes = do
@@ -728,7 +736,9 @@ functionFlipAxiomsHelper term cls = do
 flipAxioms :: UninterpretRel -> [SMTAtom] -> SMT SBool
 flipAxioms unintRel atoms = do
   container   <- liftContainer State.get
-  allArgs     <- mapM symAtomArgs atoms
+  let domain    = containerDomain container
+  let argNames  = map atomArgs atoms      
+  let allArgs   = map (\elm -> fromJust $ Map.lookup elm domain) <$> argNames
   let negApps  = bnot.(applyUnintRel unintRel) <$> allArgs
   return $ bOr negApps
 
@@ -795,17 +805,15 @@ nextResult res = do
   return $ flipAx ||| eqFlipAx ||| funFlipAx
   
 {- Given the name of an atomic fact as an instance of type 'SMTAtom', returns 
-   the symbolic values of the arguments of the fact in the current SMT 
-   computation.  -}
-symAtomArgs :: SMTAtom -> SMT [SElement]
-symAtomArgs smtAtom = do
-  container   <- liftContainer State.get
-  let domain   = containerDomain container
-  let (_:args) = Text.unpack <$> 
-                 Text.splitOn (Text.pack "-") (Text.pack smtAtom)
-  return $ (\elm -> fromJust $ Map.lookup elm domain) <$> args
+   the names of the symbolic values of the arguments. -}
+atomArgs :: SMTAtom -> [SMTElement]
+atomArgs  smtAtom = 
+    tail $ Text.unpack <$> 
+           Text.splitOn (Text.pack "-") (Text.pack smtAtom)
+
 
 {- Does the name of a symbolic value correspond to an element of the model? -}
 isElementString :: String -> Bool
 isElementString ('e':'^':_) = True
 isElementString _           = False
+
