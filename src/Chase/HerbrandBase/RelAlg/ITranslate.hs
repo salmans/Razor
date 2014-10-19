@@ -114,7 +114,7 @@ removeHeadEquations Fls = Fls
 removeHeadEquations (Atm (Rel "=" _))  = Fls
 removeHeadEquations a@(Atm _)          = a
 removeHeadEquations (And fmla1 fmla2)  =
-    case (removeBodyEquations fmla1, removeBodyEquations fmla2) of
+    case (removeHeadEquations fmla1, removeHeadEquations fmla2) of
       (Fls, _  ) -> Fls
       (_  , Fls) -> Fls
       (f  , f' ) -> And f f'
