@@ -270,7 +270,9 @@ instantiateSequent uni new sub bodySub exSub seq =
           -- MONITOR >
           Just s  -> let seq''      = sequentExistsSubstitute s seq'
                          loneSkFuns = rights $ skolemFunctions seq''
-                     in  applyLoneSubs uni new (Map.fromList loneSkFuns) seq''
+                         skMap      = Map.fromListWith (++) 
+                                      $ (pure <$>) <$> loneSkFuns
+                     in  applyLoneSubs uni new skMap seq''
 
 createSubs :: RelSequent -> Database -> Database -> TableSub
            -> ProvInfo -> [(Sub, ExistsSub, Maybe ExistsSub)]
@@ -319,25 +321,31 @@ createExistsSub tup elmProvs skFuns =
         else Nothing
 
 
-applyLoneSubs :: Database -> Database -> Map.Map FnSym Atom -> Sequent
+transformTuples :: [(a, b)] -> ([a], [b])
+transformTuples xs = (fst <$> xs, snd <$> xs)
+
+applyLoneSubs :: Database -> Database -> Map.Map FnSym [Atom] -> Sequent
                  -> Sequent
 applyLoneSubs uni new skMap seq = 
     if   Map.null skMap
     then seq
-    else let subPairs = 
-                 Map.elems $ Map.mapWithKey (\k a@(FnRel _ ts) 
-                                     -> let e       = lookupElement a
-                                            (Var v) = last ts 
-                                        in  ( Map.singleton v (Elem e)
-                                            , Map.singleton k (Elem e))) 
-                 completeAtoms
+    else let atomSubs skFun a@(FnRel _ ts) =
+                 let e       = Elem $ lookupElement a
+                     (Var v) = last ts
+                 in  ((v, e), (skFun, e))                 
+             subPairs = 
+                 Map.elems $ Map.mapWithKey (\k as 
+                                     -> let res = atomSubs k <$> as
+                                            (ss, skss) = transformTuples res
+                                        in  (Map.fromList ss, Map.fromList skss))
+                             completeAtoms
              (subList, exSubList) = unzip subPairs
              sub                  = Map.unions subList
              rest'                = Map.map (substitute sub) rest
              existsSub'           = Map.unions exSubList
          in  applyLoneSubs uni new rest' 
                  $ sequentExistsSubstitute existsSub' seq
-    where (completeAtoms, rest) = Map.partition completeAtom skMap
+    where (completeAtoms, rest) = Map.partition (all completeAtom) skMap
           completeAtom (FnRel _ ts) = not $ any isVariable (init ts)
           lookupElement atm = 
               case (lookupElementInDB atm uni) of
