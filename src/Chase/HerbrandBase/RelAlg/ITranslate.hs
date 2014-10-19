@@ -111,12 +111,14 @@ removeBodyEquationsHelper (Lone sk x fmla unq) =
 {- Replaces the equations in the head of a sequent with Falsehood. -}
 removeHeadEquations :: Formula -> Formula
 removeHeadEquations Fls = Fls
-removeHeadEquations (Atm (Rel "=" _))  = Fls
+removeHeadEquations (Atm (Rel "=" _))  = Tru
 removeHeadEquations a@(Atm _)          = a
 removeHeadEquations (And fmla1 fmla2)  =
     case (removeHeadEquations fmla1, removeHeadEquations fmla2) of
       (Fls, _  ) -> Fls
       (_  , Fls) -> Fls
+      (Tru, f  ) -> f
+      (f  ,Tru ) -> f
       (f  , f' ) -> And f f'
 removeHeadEquations (Or fmla1 fmla2)    =
     case (removeHeadEquations fmla1, removeHeadEquations fmla2) of
@@ -450,6 +452,7 @@ evaluateRelExpNoDelta db (Join lExp rExp heads) =
    
    NOTE: the function assumes that the expression does not have any reference
    to a delta 'Database' (unlike evaluateRelExp). -}
+
 insertTuples :: TablePair -> RelExp -> Database -> Int 
               -> PushM Database t Database
 insertTuples _ TblEmpty db _ = return db
@@ -489,7 +492,7 @@ insertTuples tblPair exp@(Tbl ref vars heads) db _
                          , vars
                          , ps { observationProvs = Map.union oldProvs newProvs })
 
-  return $ Map.insertWith unionTables ref 
+  return $  Map.insertWith unionTables ref 
              (undecorateTable $ DB.Set content'') db
     -- inserting with DB.union here does not allow for duplicate entries.
     where obsOf (ConstTable c) [e] = Obs $ Rel "=" [Cons c, Elem e]
@@ -507,21 +510,6 @@ insertTuples tblPair exp@(Proj innerExp col heading skFn unqExp) db depth
                           -- entire set of facts from the previous iteration of
                           -- the Chase
   provs <- liftPushMProvs $ State.get
-
-  -- < MONITOR
-  {-
-  let existTbl@(DB.Set existSet) = 
-          unionTables (undecorateTable (evaluateRelExpNoDelta db exp))
-                      (undecorateTable (evaluateRelExpNoDelta uni exp))
-      -- for expression @exp@, these are the existing set
-      -- of tuples, from the database in the previous 
-      -- iteration (uni) and the new database that is 
-      -- currently being built (db)
-
-  let diff = ExSet.filter (\(Tuple tup1 tup2) -> 
-                               ExSet.notMember (tuple tup2)  existSet) 
-             $ DB.contents tblPair
-  -}
 
   let diff = DB.contents tblPair
   -- MONITOR >
