@@ -196,6 +196,13 @@ class TermBased a where
     substitute          :: Sub -> a -> a
     substituteConstants :: ConsSub -> a -> a
 
+instance TermBased a => TermBased [a] where
+    freeVars                = nub.(concatMap freeVars)
+    constants               = nub.(concatMap constants)
+    functionSyms            = nub.(concatMap functionSyms)
+    substitute env          = (substitute env <$>)
+    substituteConstants env = (substituteConstants env <$>)
+
 {- Term is TermBased -}
 instance TermBased Term where
     freeVars (Var x)    = [x]

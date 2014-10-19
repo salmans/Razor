@@ -572,18 +572,6 @@ instance TermBased Sequent where
 
     substituteConstants env (Sequent bdy hds) =
         Sequent (substituteConstants env bdy) (substituteConstants env hds)
-
-{- Theory is TermBased -}
-instance TermBased Theory where
-    freeVars       = nub.(concatMap freeVars)
-    
-    constants      = nub.(concatMap constants)
-
-    functionSyms   = nub.(concatMap functionSyms)
-
-    substitute env = ((substitute env) <$>)
-
-    substituteConstants env = ((substituteConstants env) <$>)
 --------------------------------------------------------------------------------
 -- RelationBased class and instances
 {-| RelationBased is the class of types that are formed by relations or have 
