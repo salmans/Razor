@@ -3,6 +3,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE Rank2Types #-}
+{-# LANGUAGE DoAndIfThenElse #-}
 
 {- Razor
    Module      : Chase.HerbrandBase.RelAlg.IHerbrandBase
@@ -48,7 +49,6 @@ import SAT.Data (SATAtom (..))
 
 -- Tools
 import Tools.Config (Config (..))
-import Tools.Trace
 
 unitName                 = "Chase.HerbrandSet.RelAlg.HerbrandBase"
 error_TblEmptyInBody     = "TblEmpty cannot appear in the body of a sequent"
@@ -253,21 +253,18 @@ relSequentInstances relSeq uni new resSet provs =
     let subs = createSubs relSeq uni new (allResultTuples resSet) provs
     in  nub [ fromJust inst | 
               (s, bs, es) <- subs
-            , let inst =  buildObservationSequent 
-                         (instantiateSequent uni new s bs es seq)
+            , inst        <-  buildObservationSequent <$>
+                              (instantiateSequent uni new s bs es seq)
             , isJust inst ]
     where seq = toSequent relSeq
 
 instantiateSequent :: Database -> Database -> Sub -> ExistsSub
-                   -> Maybe ExistsSub -> Sequent -> Sequent
+                   -> Maybe ExistsSub -> Sequent -> [Sequent]
 instantiateSequent uni new sub bodySub exSub seq = 
     let bdy  = formulaExistsSubstitute bodySub (sequentBody seq)
         seq' = substitute sub seq { sequentBody = bdy }
     in  case exSub of
-          -- < MONITOR
-          Nothing -> Sequent (sequentBody seq') 
-                     (Atm $ Rel "Incomplete" [Elem $ Element "e^incomplete"])
-          -- MONITOR >
+          Nothing -> [Sequent (sequentBody seq') (Atm $ Rel "Incomplete" [])]
           Just s  -> let seq''      = sequentExistsSubstitute s seq'
                          loneSkFuns = rights $ skolemFunctions seq''
                          skMap      = Map.fromListWith (++) 
@@ -325,34 +322,35 @@ transformTuples :: [(a, b)] -> ([a], [b])
 transformTuples xs = (fst <$> xs, snd <$> xs)
 
 applyLoneSubs :: Database -> Database -> Map.Map FnSym [Atom] -> Sequent
-                 -> Sequent
-applyLoneSubs uni new skMap seq = 
+                 -> [Sequent]
+applyLoneSubs uni new skMap seq =     
     if   Map.null skMap
-    then seq
-    else let atomSubs skFun a@(FnRel _ ts) =
-                 let e       = Elem $ lookupElement a
-                     (Var v) = last ts
-                 in  ((v, e), (skFun, e))                 
-             subPairs = 
-                 Map.elems $ Map.mapWithKey (\k as 
-                                     -> let res = atomSubs k <$> as
-                                            (ss, skss) = transformTuples res
-                                        in  (Map.fromList ss, Map.fromList skss))
-                             completeAtoms
-             (subList, exSubList) = unzip subPairs
-             sub                  = Map.unions subList
-             rest'                = Map.map (substitute sub) rest
-             existsSub'           = Map.unions exSubList
-         in  applyLoneSubs uni new rest' 
-                 $ sequentExistsSubstitute existsSub' seq
+    then return seq
+    else do
+      if   Map.null completeAtoms
+      then []
+      else do 
+        let atomSubs skFun a@(FnRel _ ts) =
+              let elms    = fromMaybe [Element "e^1000"] (lookupElement a) -- fix this
+                  (Var v) = last ts
+              in  (\e -> ((v, Elem e), (skFun, Elem e))) <$> elms
+      
+        temp <- mapM (\itms -> do
+                        (k, as) <- itms
+                        atomSubs k <$> as) (pure <$> completeAtomsList)
+        let res                  = transformTuples <$> temp
+        let subPairs = (\(x, y) -> (Map.fromList x, Map.fromList y)) <$> res
+        let (subList, exSubList) = unzip subPairs
+        let sub                  = Map.unions subList
+        let rest'                = Map.map (substitute sub) rest
+        let existsSub'           = Map.unions exSubList
+        applyLoneSubs uni new rest' $ sequentExistsSubstitute existsSub' seq
     where (completeAtoms, rest) = Map.partition (all completeAtom) skMap
+          func (a, ls)          = (\l -> (a, [l])) <$> ls
+          completeAtomsList     = concatMap func $ Map.toList completeAtoms
           completeAtom (FnRel _ ts) = not $ any isVariable (init ts)
-          lookupElement atm = 
-              case (lookupElementInDB atm uni) of
-                Just e  -> e
-                Nothing -> case (lookupElementInDB atm new) of
-                             Just e  -> e
-                             Nothing -> error $ "function value not found"
+          lookupElement atm = lookupElementInDB atm uni 
+                              <|> lookupElementInDB atm new
           lookupElementInDB (FnRel f ts) db = 
               let ref = case ts of
                           [_] -> ConstTable (Constant f)
@@ -366,5 +364,4 @@ applyLoneSubs uni new skMap seq =
                                           == (init ts)) set 
                        in  if   null tups
                            then Nothing
-                           else Just $ (\(Tuple es _) -> Vect.last es) 
-                                     $ head tups
+                           else Just $ (\(Tuple es _) -> Vect.last es) <$> tups

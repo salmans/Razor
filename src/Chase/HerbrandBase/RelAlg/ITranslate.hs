@@ -110,6 +110,7 @@ removeBodyEquationsHelper (Lone sk x fmla unq) =
 
 {- Replaces the equations in the head of a sequent with Falsehood. -}
 removeHeadEquations :: Formula -> Formula
+removeHeadEquations Tru = Tru
 removeHeadEquations Fls = Fls
 removeHeadEquations (Atm (Rel "=" _))  = Tru
 removeHeadEquations a@(Atm _)          = a
