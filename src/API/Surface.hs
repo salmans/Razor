@@ -81,3 +81,15 @@ name (theory, prov, model) isall term = do
               let nextterms = (map (\e->(Elem e)) skolemnext)
               return (namedtheory, nextterms)
 
+getJustification :: UState -> Formula -> Either UError UTheorySubs
+getJustification state@(theory, prov, stream, model) atom = case (getFact model atom) of
+  Nothing -> Left (UErr "fact not in form FactName(e^0, e^1, ...) or is not in the current model")
+  Just fact@(factname, factelms) -> case (getBlame prov model fact) of
+    [] -> Left (UErr ("no provenance information for fact "++(show atom)))
+    blames -> do
+      let names = (concatMap (\t -> do
+                                      let skolemtrees = (getSkolemTrees prov model t) 
+                                      let (actualelm,_,_) = head skolemtrees
+                                      map (\(e, h, r)->(actualelm, h, r)) skolemtrees) factelms)
+      let blamedtheory = (blameTheory theory names blames)
+      Right blamedtheory
