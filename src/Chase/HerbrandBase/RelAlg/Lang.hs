@@ -18,7 +18,7 @@ module Chase.HerbrandBase.RelAlg.Lang
     , emptyDatabase, nullDatabase, emptyDatabaseWithConstants
     , tupleFromList, tuplePairFromList, recordsFromList, recordPairsFromList
     , tableFromList, tablePairFromList, databaseFromList
-    , tableTuples
+    , tableTuples, nubTable
     , unionTables, unionDatabases
     , diffTables, diffDatabases, removeEmptyTables
     , relExpRefs, refsInDatabase, databaseSize

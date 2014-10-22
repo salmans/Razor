@@ -13,7 +13,7 @@ module Chase.HerbrandBase.RelAlg.ITranslate where
 
 -- Standard
 import Data.Tuple (swap)
-import Data.List (elemIndex, find, maximumBy, nub, (\\))
+import Data.List (elemIndex, find, maximumBy, nub, (\\), union)
 import Data.Either
 import qualified Data.Vector as Vect
 import Data.Vector ((!), cons)
@@ -71,7 +71,7 @@ headRelExp :: Formula -> [RelExp]
 headRelExp (Or fmla1 fmla2) = 
     if   fmla1' == Tru || fmla2' == Tru
     then headRelExp Tru  -- shortcut Truth
-    else (headRelExp fmla1') ++ (headRelExp fmla2')
+    else (headRelExp fmla1') `union` (headRelExp fmla2')
     where fmla1' = removeHeadEquations fmla1
           fmla2' = removeHeadEquations fmla2
 headRelExp fmla             = [formulaRelExp fmla']
@@ -354,10 +354,6 @@ evaluateRelExp tbls delts (Proj exp col _ fn _) =
                          inf'            = Map.insert fn (Elem (vec ! col)) inf
                          -- Update the ExistsSub information as above
                      in  pf tup { tupleDec = inf' }
-    -- where getProv ps e = getElementProv e ps
-    --       separate ls  = let (h, t) = Vect.splitAt (col + 1) ls
-    --                      in  ( Vect.last h
-    --                          , fromJust <$> Vect.toList ((Vect.init h) Vect.++ t))
 
 evaluateRelExp tbls delts (Sel exp pairs _) =
     let set    = evaluateRelExp tbls delts exp
@@ -417,10 +413,6 @@ evaluateRelExpNoDelta db (Proj exp col _ fn _) =
         then evaluateRelExpNoDelta db TblEmpty
              -- if the non-projected set is empty, evaluate @TblEmpty@
         else projected
-    -- where getProv ps e = getElementProv e ps
-    --       separate ls  = let (h, t) = Vect.splitAt (col + 1) ls
-    --                      in  ( Vect.last h
-    --                          , fromJust <$> (Vect.toList ((Vect.init h) Vect.++ t)))
 
 evaluateRelExpNoDelta db (Sel exp pairs _) =
     let set    = evaluateRelExpNoDelta db exp
@@ -493,8 +485,9 @@ insertTuples tblPair exp@(Tbl ref vars heads) db _
                          , vars
                          , ps { observationProvs = Map.union oldProvs newProvs })
 
-  return $  Map.insertWith unionTables ref 
-             (undecorateTable $ DB.Set content'') db
+  return $ Map.insertWith unionTables ref 
+           (nubTable.undecorateTable $ DB.Set content'') db 
+           -- removing duplicates in the new tuples for efficiency
     -- inserting with DB.union here does not allow for duplicate entries.
     where obsOf (ConstTable c) [e] = Obs $ Rel "=" [Cons c, Elem e]
           obsOf (RelTable r) es    = Obs $ Rel r $ termsOf es
