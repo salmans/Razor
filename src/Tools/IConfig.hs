@@ -55,7 +55,7 @@ data Config = Config { configInput       :: Maybe String
                      }
 
 instance Show Config where
-    show cfg = "--input=" ++ show ((fromJust.configInput) cfg) ++ "\n" ++
+    show cfg = "--input=" ++ show (configInput cfg) ++ "\n" ++
                "--debug=" ++ show (configDebug cfg) ++ "\n" ++
                "--incremental=" ++ show (configIncremental cfg) ++ "\n" ++
                "--one=" ++ show ((not.configAllModels) cfg) ++ "\n" ++

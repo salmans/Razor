@@ -16,6 +16,7 @@ origin* should not print redundant info as it goes down the tree
 -}
 module Main where
 import API.Core
+import API.Surface
 import API.UserSyntax
 import REPL.Display
 import Common.Model
@@ -34,33 +35,24 @@ main = do
   -- init display
   displayInit
   -- get configuration
-  args <- getArgs
-  config <- parseConfig args
-  -- read in user input file
-  let inputFileName = if   (isJust.configInput) config
-                      then (fromJust.configInput) config
-                      else error "No input file is specified!"
-  input <- readFile inputFileName
-  -- parse it into a theory
-  thy <- parseTheory config input
-  theory <- case thy of
-    Just thy -> return thy
-    Nothing -> error "Unable to parse input theory!"
+  config <- getConfig 
   -- print preprocess information
-  putStrLn $ "<><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>"
+  putStrLn "<><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>"
   putStrLn "Input Options: "
-  putStrLn (show config)
-  putStrLn $ "<><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>"
-  -- generate G*, get the model stream
-  let (base, prov, prop) = generateGS config theory
-  let stream = modelStream prop 
-  -- get the first model
-  case (nextModel stream) of
-    (Nothing, stream') -> (prettyPrint 0 ferror "no models found\n")
-    (Just model', stream') -> do
-      (prettyPrint 0 flow (show model'))
-      -- enter the repl
-      runInputT defaultSettings (loop (model', stream') prov theory)
+  putStrLn $ show config
+  putStrLn "<><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>"
+  -- get the start state
+  mState <- getStartState config
+  case mState of
+    Left err -> error err
+    Right state@(theory, prov, stream) -> do
+      -- get the first model
+      case (nextModel stream) of
+        (Nothing, stream') -> (prettyPrint 0 ferror "no models found\n")
+        (Just model', stream') -> do
+          (prettyPrint 0 flow (show model'))
+          -- enter the repl
+          runInputT defaultSettings (loop (model', stream') prov theory)
   -- exit display
   displayExit
 
