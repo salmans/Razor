@@ -237,3 +237,4 @@ blameTheory thy names blames = do
       Just blamesub -> do
         return (Just (substitute blamesub (fromMaybe sequent namedsequent)))
   return newsequent
+  
