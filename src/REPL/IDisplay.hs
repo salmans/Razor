@@ -1,9 +1,9 @@
 {- Razor
-   Module      : REPL.Ansi.IDisplay
+   Module      : REPL.IDisplay
    Description : Internal implementation for display.
    Maintainer  : Salman Saghafi -}
 
-module REPL.Ansi.IDisplay where
+module REPL.IDisplay where
 
 import Common.Basic
 import Control.Monad.Trans
@@ -18,6 +18,7 @@ foutput = [SetColor Foreground Dull Blue, SetConsoleIntensity BoldIntensity]
 flow = [SetColor Foreground Dull White, SetConsoleIntensity BoldIntensity]
 fhigh = [SetColor Foreground Vivid Yellow, SetConsoleIntensity BoldIntensity]
 ferror = [SetColor Foreground Vivid Red, SetConsoleIntensity BoldIntensity]
+ftab = "  "
 
 displayInit :: IO()
 displayInit = setSGR fdefault
@@ -28,7 +29,7 @@ displayExit = setSGR []
 prettyPrint :: Int -> [SGR] -> String -> IO ()
 prettyPrint tabs format str = do
 	setSGR format
-	putStr (concat $ replicate tabs "\t")
+	putStr (concat $ replicate tabs ftab)
 	putStr str
 	setSGR []
 	setSGR fdefault
