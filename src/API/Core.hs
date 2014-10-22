@@ -51,6 +51,16 @@ options =
                            Just sk -> cfg { configSkolemDepth = sk})
             "#")
         "Depth of skolem term for reusing elements (-1 for pure minimal models)"
+    , Option "c" ["command", "cmd"]
+        (ReqArg
+            (\arg cfg -> return cfg { configCommand = Just arg })
+            "String")
+        "UserSyntax CLI Command"
+    , Option "x" ["state"]
+        (ReqArg
+            (\arg cfg -> return cfg { configState = Just arg })
+            "XML FILE")
+        "UserState represented as XML (returned by CLI)"
     ]
 parseConfig :: [String] -> IO Config
 parseConfig args = do

@@ -16,7 +16,6 @@ origin* should not print redundant info as it goes down the tree
 origin printouts are not as pretty due to refactoring of the REPL code for the CLI/GUI
 -}
 module Main where
-import API.Core
 import API.Surface
 import API.UserSyntax
 import REPL.Display

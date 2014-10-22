@@ -52,6 +52,10 @@ data Config = Config { configInput       :: Maybe String
                        -- eliminate isomorphic models
                      , configSkolemDepth :: Int
                        -- depth of skolem term for reusing elements
+                     , configCommand :: Maybe String
+                       -- CLI UserSyntax command string
+                    , configState :: Maybe String
+                       -- CLI State XML file path
                      }
 
 instance Show Config where
@@ -66,7 +70,9 @@ instance Show Config where
                "--tptp-path=" ++ (configTPTPPath cfg) ++ "\n" ++
                "--input-type=" ++ show (configInputType cfg) ++ "\n" ++
                "--iso-elim=" ++ show (configIsoElim cfg) ++ "\n" ++
-               "--skolem-depth=" ++ show (configSkolemDepth cfg)
+               "--skolem-depth=" ++ show (configSkolemDepth cfg) ++ "\n" ++
+               "--command=" ++ show (configCommand cfg) ++ "\n" ++
+               "--state=" ++ show (configState cfg)
 
 {-| Returns an instance of 'Config' with default values. -}
 defaultConfig = Config { configInput       = Nothing 
@@ -77,7 +83,9 @@ defaultConfig = Config { configInput       = Nothing
                        , configTPTPPath    = "./"
                        , configInputType = GeoLog
                        , configIsoElim     = False
-                       , configSkolemDepth = -1 }
+                       , configSkolemDepth = -1 
+                       , configCommand = Nothing 
+                       , configState = Nothing }
 
 {-| ConfigMonad is  a state monad with a 'Config' instance as state. -}
 type ConfigMonad  = State Config
