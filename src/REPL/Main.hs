@@ -1,27 +1,27 @@
 {-|
   Razor
-  Module      : Main
+  Module      : REPL.Main
   Description : The module provides a REPL for user interaction with Razor.
   Maintainer  : Salman Saghafi, Ryan Danas
 -}
-{-| TODO
-  the text output for larger theories should still be managable (e^0, e^11 is a lot for each element)
-  allow any expr that evaluates to an element?
-  recursive indents in origin* should be smaller than a full tab
-  origin* should not print redundant info as it goes down the tree
-  replace functions with elements (cardOf(e^3), replace with e^4)
-  how to deal with flattening... exists x. exists y. Q(x, y, f(g(x, y)))
-  augmentation
+{-| TODO / BUGS
+allow user to give any expr that evaluates to an element
+replace functions with elements (cardOf(e^3), replace with e^4)
+how to deal with flattening... exists x. exists y. Q(x, y, f(g(x, y)))
+augmentation
 -}
-
+{-| PEDANDTIC / DISPLAY
+the text output for larger theories should still be managable (e^0, e^11 is a lot for each element)
+origin* should not print redundant info as it goes down the tree
+-}
 module Main where
-import API
+import API.Core
+import API.UserSyntax
+import REPL.Display
 import Common.Model
 import Common.Provenance
 import Data.Maybe
 import Data.List
-import REPL.Syntax
-import REPL.Ansi.Display
 import Syntax.GeometricUtils 
 import SAT.Impl
 import System.Console.Haskeline
@@ -35,14 +35,14 @@ main = do
   displayInit
   -- get configuration
   args <- getArgs
-  config <- API.parseConfig args
+  config <- parseConfig args
   -- read in user input file
   let inputFileName = if   (isJust.configInput) config
                       then (fromJust.configInput) config
                       else error "No input file is specified!"
   input <- readFile inputFileName
   -- parse it into a theory
-  thy <- API.parseTheory config input
+  thy <- parseTheory config input
   theory <- case thy of
     Just thy -> return thy
     Nothing -> error "Unable to parse input theory!"

@@ -1,11 +1,11 @@
 {-|
   Razor
-  Module      : REPL.Syntax
+  Module      : API.UserSyntax
   Description : This module defines the User Syntax for the repl. 
   Maintainer  : Salman Saghafi, Ryan Danas
 -}
 
-module REPL.Syntax where
+module API.UserSyntax where
 import Control.Applicative
 import Syntax.IGeometric
 import Syntax.ITerm

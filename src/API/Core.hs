@@ -1,14 +1,10 @@
 {-|
   Razor
-  Module      : API
+  Module      : API.Core
   Description : The module provides a stateless API for (G)UI applications to use for interacting with the functional core of Razor
   Maintainer  : Salman Saghafi, Ryan Danas
 -}
-{-| API Cleanup TODO
-	make this an interface and this module the implementation?
-	options should not call exit?
--}
-module API where
+module API.Core where
 import Chase.Impl
 import Common.Basic
 import Common.Provenance
