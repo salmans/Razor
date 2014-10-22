@@ -323,7 +323,7 @@ transformTuples xs = (fst <$> xs, snd <$> xs)
 
 applyLoneSubs :: Database -> Database -> Map.Map FnSym [Atom] -> Sequent
                  -> [Sequent]
-applyLoneSubs uni new skMap seq =     
+applyLoneSubs uni new skMap seq =
     if   Map.null skMap
     then return seq
     else do
@@ -331,22 +331,18 @@ applyLoneSubs uni new skMap seq =
       then []
       else do 
         let atomSubs skFun a@(FnRel _ ts) =
-              let elms    = fromMaybe [Element "e^1000"] (lookupElement a) -- fix this
+              let elms    = fromMaybe [] (lookupElement a)
                   (Var v) = last ts
               in  (\e -> ((v, Elem e), (skFun, Elem e))) <$> elms
-      
-        temp <- mapM (\itms -> do
-                        (k, as) <- itms
-                        atomSubs k <$> as) (pure <$> completeAtomsList)
-        let res                  = transformTuples <$> temp
-        let subPairs = (\(x, y) -> (Map.fromList x, Map.fromList y)) <$> res
-        let (subList, exSubList) = unzip subPairs
-        let sub                  = Map.unions subList
+        temp                 <- mapM (\(k, a) -> atomSubs k a) 
+                                    completeAtomsList
+        let res                  = transformTuples temp
+        let (sub, existsSub)     = (\(x, y) -> (Map.fromList x, Map.fromList y))
+                                   res
         let rest'                = Map.map (substitute sub) rest
-        let existsSub'           = Map.unions exSubList
-        applyLoneSubs uni new rest' $ sequentExistsSubstitute existsSub' seq
+        applyLoneSubs uni new rest' $ sequentExistsSubstitute existsSub seq
     where (completeAtoms, rest) = Map.partition (all completeAtom) skMap
-          func (a, ls)          = (\l -> (a, [l])) <$> ls
+          func (a, ls)          = (\l -> (a, l)) <$> ls
           completeAtomsList     = concatMap func $ Map.toList completeAtoms
           completeAtom (FnRel _ ts) = not $ any isVariable (init ts)
           lookupElement atm = lookupElementInDB atm uni 
