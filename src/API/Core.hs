@@ -1,7 +1,7 @@
 {-|
   Razor
   Module      : API.Core
-  Description : The module provides a stateless API for (G)UI applications to use for interacting with the functional core of Razor
+  Description : The module provides the core API layer for interacting with the functional core of razor
   Maintainer  : Salman Saghafi, Ryan Danas
 -}
 module API.Core where
@@ -39,57 +39,11 @@ options =
             (\arg cfg -> return cfg { configInput = Just arg })
             "FILE")
         "In theory file"
-    , Option "b" ["bound"]
-        (OptArg
-            (\arg cfg -> return $
-                         case join (readMaybe <$> arg) of
-                           Nothing -> cfg
-                           Just b  -> cfg { configBound = Just b})
-            "#")
-        "Maximum for bounded model-finding"
     , Option "d" ["debug"]
         (NoArg
             (\cfg -> return cfg { configDebug = True }))
         "Debug mode"
-
-    , Option "n" ["incremental"]
-        (NoArg
-            (\cfg -> return cfg { configIncremental = True }))
-        "Enable incremental view maintenance"
- 
-    , Option "1" ["one"]
-        (NoArg
-            (\cfg -> return cfg { configAllModels = False }))
-        "Display one model"
-
-    , Option "" ["tptp-path"]
-        (OptArg
-            (\arg cfg -> return $ 
-                         case arg of
-                           Nothing -> cfg
-                           Just p  -> cfg { configTPTPPath = p})
-            "PATH")
-        "Path to TPTP root directory"
-
-    , Option "f" ["input-type"]
-        (OptArg
-            (\arg cfg -> return $ 
-                         case arg of
-                           Nothing -> cfg
-                           Just f  -> cfg { configInputType = 
-                                                case f of
-                                                  "geo" -> GeoLog
-                                                  "cnf" -> TPTPCNF
-                                                  "fof" -> TPTPFOF })
-            "geo/cnf/fof")
-        "Type of the input formula"
-
-    , Option "" ["iso-elim"]
-        (NoArg
-            (\cfg -> return cfg { configIsoElim = True }))
-        "Eliminate isomorphic models"
-
-    , Option "" ["skolem-depth"]
+    , Option "s" ["skolem-depth"]
         (OptArg
             (\arg cfg -> return $ 
                          case join (readMaybe <$> arg) of
@@ -97,21 +51,6 @@ options =
                            Just sk -> cfg { configSkolemDepth = sk})
             "#")
         "Depth of skolem term for reusing elements (-1 for pure minimal models)"
-
-    , Option "h" ["help"]
-        (NoArg
-            (\_ -> do
-               prg <- getProgName
-               hPutStrLn stderr (usageInfo prg options)
-               exitWith ExitSuccess))
-        "Show help"
-
-    , Option "v" ["version"]
-        (NoArg
-            (\_ -> do
-               hPutStrLn stderr "Version 3.7"
-               exitWith ExitSuccess))
-        "Print version"
     ]
 parseConfig :: [String] -> IO Config
 parseConfig args = do
@@ -120,6 +59,9 @@ parseConfig args = do
   -- Here we thread startOptions through all supplied option actions
   config <- foldl (>>=) (return defaultConfig) actions
   return config
+
+
+
 -- In: configuration options, user input theory
 -- Out: a theory if parsing success
 parseTheory :: Config -> String -> IO (Maybe Theory)
@@ -127,9 +69,6 @@ parseTheory config input = do
 	let inputLines = lines input
 	let sequents = mapM (parseFolToSequents False) (filter isRealLine inputLines)
 	return $ concat <$> sequents
-
-
-
 -- In: configuration, theory
 -- Out: G*, which consists of ground facts, provenance info, and a propositional theory
 generateGS :: Config -> Theory -> (ChaseHerbrandBaseType, ProvInfo, SATTheoryType)
