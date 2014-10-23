@@ -20,10 +20,25 @@ type UState = (Theory, ProvInfo, SATIteratorType, Model)
 type UTheorySubs = [Maybe Sequent]
 data UOrigin = UOriginLeaf Term (Either UError UTheorySubs) | UOriginNode Term (Either UError UTheorySubs) [UOrigin]
 
+-- TODO
+-- 1. UTheorySubs is not representative of what we actually want
+--  both origin and blaming infomation is just shown to the user through substitutions...
+--  UOrigin = Element UTheorySubs; "origin of element e0... for rule #m, do these replacements, and for rule #n do these replacements... "
+--  UBlame = Fact UTheorySubs; "justification of Student(e8)... for ... you get the idea"
+--  TheorySubs = [(Int, USequentSub)]
+--  USequentSub = [FreeVarSub] [ExistSub] [ConstSub] [FuncSub]
+--    FreeVarSub = Variable Element; "every time you see x, replace it with e0"
+--    ExistSub = Int Variable Element; "in the nTH disjunct of the head, replace every x with e0, remove any instance of 'exists e0.'"
+--    ConstSub = Constant Element; "every time you see 'ALAS, replace it with e0"
+--    FuncSub = Function Element; "f(g(e0)) is actually e4"
+-- 2. UOrigin/UBlame should eventually replace ProvInfo???
+--  not sure about this; just have API.Core deal with creating the ideal data structures (TODO #1) / being able to do replacements?
+
 getConfig :: IO Config
 getConfig = do 
 	args <- getArgs
 	parseConfig args
+
 getStartState :: Config -> IO (Either UError UState)
 getStartState config = do
   case (configInput config) of

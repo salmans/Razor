@@ -5,15 +5,14 @@
   Maintainer  : Salman Saghafi, Ryan Danas
 -}
 {-| TODO / BUGS
-allow user to give any expr that evaluates to an element
 replace functions with elements (cardOf(e^3), replace with e^4)
 how to deal with flattening... exists x. exists y. Q(x, y, f(g(x, y)))
+allow user to give any expr that evaluates to an element
 augmentation
 -}
 {-| PEDANDTIC / DISPLAY
 the text output for larger theories should still be managable (e^0, e^11 is a lot for each element)
 origin* should not print redundant info as it goes down the tree
-origin printouts are not as pretty due to refactoring of the REPL code for the CLI/GUI
 -}
 module Main where
 import API.Surface
