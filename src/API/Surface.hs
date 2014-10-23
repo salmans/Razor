@@ -18,11 +18,27 @@ import System.Environment
 data UError = UErr String
 type UState = (Theory, ProvInfo, SATIteratorType, Model)
 type UTheorySubs = [Maybe Sequent]
+data UOrigin = UOriginLeaf Term (Either UError UTheorySubs) | UOriginNode Term (Either UError UTheorySubs) [UOrigin]
+
+-- TODO
+-- 1. UTheorySubs is not representative of what we actually want
+--  both origin and blaming infomation is just shown to the user through substitutions...
+--  UOrigin = Element UTheorySubs; "origin of element e0... for rule #m, do these replacements, and for rule #n do these replacements... "
+--  UBlame = Fact UTheorySubs; "justification of Student(e8)... for ... you get the idea"
+--  TheorySubs = [(Int, USequentSub)]
+--  USequentSub = [FreeVarSub] [ExistSub] [ConstSub] [FuncSub]
+--    FreeVarSub = Variable Element; "every time you see x, replace it with e0"
+--    ExistSub = Int Variable Element; "in the nTH disjunct of the head, replace every x with e0, remove any instance of 'exists e0.'"
+--    ConstSub = Constant Element; "every time you see 'ALAS, replace it with e0"
+--    FuncSub = Function Element; "f(g(e0)) is actually e4"
+-- 2. UOrigin/UBlame should eventually replace ProvInfo???
+--  not sure about this; just have API.Core deal with creating the ideal data structures (TODO #1) / being able to do replacements?
 
 getConfig :: IO Config
 getConfig = do 
 	args <- getArgs
 	parseConfig args
+
 getStartState :: Config -> IO (Either UError UState)
 getStartState config = do
   case (configInput config) of
@@ -44,43 +60,36 @@ getNextModel state@(thy, prov, stream, model) = case (nextModel stream) of
   (Nothing, stream') -> Left (UErr "no more minimal models")
   (Just model', stream') -> Right (thy, prov, stream', model')
 
-getOrigin :: UState -> (Bool, Bool, Term) -> [(Term, Either UError UTheorySubs)]
-getOrigin state@(theory, prov, stream, model) (isall, isrec, term) = origin (theory, prov, model) (isall, isrec) [term] 
-origin :: (Theory, ProvInfo, Model) -> (Bool, Bool) -> [Term] -> [(Term, Either UError UTheorySubs)]
-origin _ _ [] = []
-origin substate (isall,isrec) terms = do
-  term <- terms
-  case name substate isall term of
-    Left err -> return (term, Left err)
+getOrigin :: UState -> (Bool, Bool) -> Term -> UOrigin
+getOrigin state@(theory, prov, stream, model) mods@(isall, isrec) term = do
+  case name of
+    Left err -> UOriginLeaf term (Left err)
     Right (namedtheory, nextterms) -> do
-      let termorigin = (term, Right namedtheory)
       case isrec of
-        False -> return termorigin
-        True -> concat $ return $ termorigin:(origin substate (isall,isrec) (concat (return nextterms)))
-name :: (Theory, ProvInfo, Model) -> Bool -> Term -> Either UError (UTheorySubs, [Term])
-name (theory, prov, model) isall term = do
-  case (getEqualElements model term) of
-    [] -> Left (UErr ("element "++(show term)++" not in the current model"))
-    eqelms -> do
-      case (getSkolemTrees prov model term) of
-        [] -> Left (UErr ("no provenance information for element "++(show term)++"\n"))
-        skolemtrees -> do
-          -- Look at the first or all skolem trees depending on user input
-          case isall of
-            True -> do
-              let (actualelm,_,_) = head skolemtrees
-              let allelms = map (\(e, h, r)->e) skolemtrees
-              let skolemnext = concat (map (\(e, h, r)->r) skolemtrees)
-              let names = (map (\(e, h, r)->(actualelm, h, r)) skolemtrees) 
-              let namedtheory = nameTheory theory names
-              let nextterms = (map (\e->(Elem e)) skolemnext)
-              return (namedtheory, nextterms)
-            False -> do
-              let (elm, skolemhead, skolemnext) = (head skolemtrees)
-              let namedtheory = (nameTheory theory [(elm, skolemhead, skolemnext)])
-              let nextterms = (map (\e->(Elem e)) skolemnext)
-              return (namedtheory, nextterms)
-
+        False -> UOriginLeaf term (Right namedtheory)
+        True -> UOriginNode term (Right namedtheory) (map (getOrigin state mods) nextterms)
+  where 
+    name = case (getEqualElements model term) of
+      [] -> Left (UErr ("element "++(show term)++" not in the current model"))
+      eqelms -> do
+        case (getSkolemTrees prov model term) of
+          [] -> Left (UErr ("no provenance information for element "++(show term)++"\n"))
+          skolemtrees -> do
+            case isall of
+              True -> do
+                let (actualelm,_,_) = head skolemtrees
+                let allelms = map (\(e, h, r)->e) skolemtrees
+                let skolemnext = concat (map (\(e, h, r)->r) skolemtrees)
+                let names = (map (\(e, h, r)->(actualelm, h, r)) skolemtrees) 
+                let namedtheory = nameTheory theory names
+                let nextterms = (map (\e->(Elem e)) skolemnext)
+                return (namedtheory, nextterms)
+              False -> do
+                let (elm, skolemhead, skolemnext) = (head skolemtrees)
+                let namedtheory = (nameTheory theory [(elm, skolemhead, skolemnext)])
+                let nextterms = (map (\e->(Elem e)) skolemnext)
+                return (namedtheory, nextterms)
+                
 getJustification :: UState -> Formula -> Either UError UTheorySubs
 getJustification state@(theory, prov, stream, model) atom = case (getFact model atom) of
   Nothing -> Left (UErr "fact not in form FactName(e^0, e^1, ...) or is not in the current model")
