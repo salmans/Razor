@@ -370,8 +370,7 @@ evaluateRelExp tbls delts (Join lExp rExp heads) =
                 and $ (\(p1, p2) -> x ! p1 == y ! p2) <$> ps
                 -- expanding variable pairs as a filter function for DB.join
         tran  = \t1 t2 -> joinTupleTransformer lHds rHds heads t1 t2
-    in  DB.Set $ map (uncurry tran) 
-               $ DB.contents (DB.join cond lSet rSet)
+    in  DB.map (uncurry tran) $ DB.join cond lSet rSet
 
 evaluateRelExp tbls delts (Union lExp lDlt rExp rDlt heads) =
     let lHds = header lExp
@@ -380,12 +379,9 @@ evaluateRelExp tbls delts (Union lExp lDlt rExp rDlt heads) =
         cond = DB.Select $ \(Tuple x _, Tuple y _) -> 
                and $ (\(p1, p2) -> x ! p1 == y ! p2) <$> ps
         tran = \t1 t2 -> joinTupleTransformer lHds rHds heads t1 t2
-        set1 = DB.Set $ map (uncurry tran) 
-               $ DB.contents (DB.join cond slExp srDlt)
-        set2 = DB.Set $ map (uncurry tran) 
-               $ DB.contents (DB.join cond slDlt srExp)
-        set3 = DB.Set $ map (uncurry tran) 
-               $ DB.contents (DB.join cond slDlt srDlt)
+        set1 = DB.map (uncurry tran) $ DB.join cond slExp srDlt
+        set2 = DB.map (uncurry tran) $ DB.join cond slDlt srExp
+        set3 = DB.map (uncurry tran) $ DB.join cond slDlt srDlt
     in  unionTables (unionTables set1 set2) set3
     where slExp = evaluateRelExp tbls delts lExp
           srExp = evaluateRelExp tbls delts rExp
@@ -429,8 +425,7 @@ evaluateRelExpNoDelta db (Join lExp rExp heads) =
                 and $ (\(p1, p2) -> x ! p1 == y ! p2) <$> ps
                 -- expanding variable pairs as a filter function for DB.join
         tran  = \t1 t2 -> joinTupleTransformer lHds rHds heads t1 t2
-    in  DB.Set $ map (uncurry tran)
-               $ DB.contents (DB.join cond lSet rSet)
+    in  DB.map (uncurry tran) $ DB.join cond lSet rSet
 -- mergeJoinTables (DB.join cond lSet rSet) $ snd <$> ps
 --------------------------------------------------------------------------------
 -- Inserting tuples for relational expressions:
@@ -459,24 +454,23 @@ insertTuples tblPair exp@(Tbl ref vars heads) db _
       
   (id, vars, _) <- liftPushMProvs State.get
 
-  let content' = map
+  let content' = DB.map
                  (\(Tuple tup1 tup2) -> 
                       Tuple (Vect.map (inject tup2)
                              (Vect.fromList [0..(totalColumns - 1)]))
                       (TheoryBlame id $ Map.fromList $ zip vars 
-                                      $ termsOf (Vect.toList tup1)))
-                 (DB.contents tblPair)
+                                      $ termsOf (Vect.toList tup1))) tblPair
 
 
   -- Filter the tuples that already exist in uni
   uni <- liftPushMBase $ State.get
-  let tableInUni = DB.contents $ Map.findWithDefault emptyTable ref uni
-  let content''  = filter (\t -> let t' = undecorate t 
-                                 in  not $ t' `elem` tableInUni) content'
+  let tableInUni = Map.findWithDefault emptyTable ref uni
+  let content''  = DB.filter (\t -> let t' = undecorate t 
+                                    in  not $ t' `DB.elem` tableInUni) content'
 
   let newProvs = Map.fromList 
                  $ (\(Tuple tup blm) -> (obsOf ref (Vect.toList tup), blm)) 
-                 <$> content''
+                 <$> (DB.toList content'')
 
   liftPushMProvs $ State.modify
                  $ \(_, _, ps) -> 
@@ -486,7 +480,7 @@ insertTuples tblPair exp@(Tbl ref vars heads) db _
                          , ps { observationProvs = Map.union oldProvs newProvs })
 
   return $ Map.insertWith unionTables ref 
-           (nubTable.undecorateTable $ DB.Set content'') db 
+             (nubTable $ undecorateTable content'') db 
            -- removing duplicates in the new tuples for efficiency
     -- inserting with DB.union here does not allow for duplicate entries.
     where obsOf (ConstTable c) [e] = Obs $ Rel "=" [Cons c, Elem e]
@@ -505,7 +499,7 @@ insertTuples tblPair exp@(Proj innerExp col heading skFn unqExp) db depth
                           -- the Chase
   provs <- liftPushMProvs $ State.get
 
-  let diff = DB.contents tblPair
+  let diff = tblPair -- for now, we don't consider the differece
   -- MONITOR >
              -- tuples to insert (tuples that already do not exists)
   let inject = case unqExp of
@@ -527,14 +521,14 @@ insertTuples tblPair exp@(Proj innerExp col heading skFn unqExp) db depth
                             tup2' <- (Vect.mapM (inject (tuple tup2))
                                      (Vect.fromList [0..(totalColumns - 1)]))
                             return ((Tuple tup1 tup2'):set)) 
-           empty diff
+           empty $ DB.toList diff
 
   liftPushMProvs $ State.modify 
                  $ \(id, vs, ps) -> (id, vs, newElementsProvs new skFn col ps)
                                     
-  insertTuples (DB.Set new) innerExp db depth
+  insertTuples (DB.fromList new) innerExp db depth
 
-insertTuples tbl@(DB.Set set) (Sel exp colPairs _) db depth = do
+insertTuples tbl (Sel exp colPairs _) db depth = do
   let totalColumns = length colPairs
   let inject tup = Vect.map 
                    (\i -> case lookup i colPairs of
@@ -543,18 +537,17 @@ insertTuples tbl@(DB.Set set) (Sel exp colPairs _) db depth = do
                                        error_invalidRelExp
                             Just j  -> tup ! j) 
                    $ Vect.fromList [0..(totalColumns - 1)]
-  let new        = map (\(Tuple tup1 tup2) -> Tuple tup1 (inject tup2))
-                   set
-  insertTuples (DB.Set new) exp db depth
+  let new        = DB.map (\(Tuple tup1 tup2) -> Tuple tup1 (inject tup2)) tbl
+  insertTuples new exp db depth
              
-insertTuples tbl@(DB.Set set) exp@(Join lExp rExp heads) db depth = do
+insertTuples tbl exp@(Join lExp rExp heads) db depth = do
   let lTran = unjoinTupleTransformer (header lExp) heads
   let rTran = unjoinTupleTransformer (header rExp) heads
-  let lSet  = map (\(Tuple tup1 tup2) -> Tuple tup1 (lTran tup2)) set
-  let rSet  = map (\(Tuple tup1 tup2) -> Tuple tup1 (rTran tup2)) set
+  let lSet  = DB.map (\(Tuple tup1 tup2) -> Tuple tup1 (lTran tup2)) tbl
+  let rSet  = DB.map (\(Tuple tup1 tup2) -> Tuple tup1 (rTran tup2)) tbl
 
-  db' <- insertTuples (DB.Set lSet) lExp db depth
-  insertTuples (DB.Set rSet) rExp db' depth
+  db' <- insertTuples lSet lExp db depth
+  insertTuples rSet rExp db' depth
 insertTuples tbl (Delta _ _)          _  _ = 
     error $ unitName ++ ".insertTuples: " ++ error_insertIntoDeltaView
 insertTuples tbl (Union _ _ _ _ _   ) _  _ =
@@ -622,17 +615,17 @@ fetchUnique (Tuple vs _) tupHdr expHdr projCol tbl =
         colVals = Map.elems $ Map.mapWithKey (\a c -> 
                                           ( fromJust $ Map.lookup a expHdr
                                           , vs ! c ) ) hdr
-   in let sel           = columnValuesSelector colVals
-          (DB.Set set') = if null colVals 
-                          -- < MONITOR
-                          -- If we decide to be generous with creating new 
-                          -- elements, this has to be emptyTable:
-                          then tbl
-                          -- MONITOR >
-                          else DB.select sel tbl
-      in  if   null set'
+   in let sel   = columnValuesSelector colVals
+          set   = if null colVals 
+                  -- < MONITOR
+                  -- If we decide to be generous with creating new 
+                  -- elements, this has to be emptyTable:
+                  then tbl
+                  -- MONITOR >
+                  else DB.select sel tbl
+      in  if   DB.null set
           then Nothing
-          else Just $ Vect.last (tupleElems $ head set')
+          else Just $ Vect.last (tupleElems $ DB.oneMember set)
 
 {- A helper function for computing the provenance information for a set of 
    elements when inserting the elements into a projected column. -}
