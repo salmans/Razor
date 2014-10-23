@@ -9,6 +9,7 @@
 module Chase.HerbrandBase.RelAlg.ILang where
 
 -- Standard
+import Data.List (union, nub)
 import qualified Data.Vector as Vect
 import Data.Vector ((!))
 import qualified Data.Map as Map
@@ -338,8 +339,8 @@ relExpRefs :: RelExp -> [TableRef]
 relExpRefs TblEmpty                    = []
 relExpRefs TblFull                     = []
 relExpRefs (Tbl   ref  _ _        ) = [ref]
-relExpRefs (Join  lExp rExp _     ) = (relExpRefs lExp) ++ (relExpRefs rExp)
-relExpRefs (Union lExp rExp _ _ _ ) = (relExpRefs lExp) ++ (relExpRefs rExp)
+relExpRefs (Join  lExp rExp _     ) = (relExpRefs lExp) `union` (relExpRefs rExp)
+relExpRefs (Union lExp rExp _ _ _ ) = (relExpRefs lExp) `union` (relExpRefs rExp)
 relExpRefs exp                      = relExpRefs (expression exp)
     -- Taking advantage of the fact that all remaining data constructors have
     -- an "expression" field selector.
@@ -348,6 +349,11 @@ relExpRefs exp                      = relExpRefs (expression exp)
  input 'Database'. -}
 refsInDatabase :: [TableRef] -> Database -> Bool
 refsInDatabase refs db = or $ ((flip Map.member) db) <$> refs
+
+
+{-| Removes duplicate tuples of the input 'TableD' -}
+nubTable :: Eq a => TableD a -> TableD a
+nubTable (DB.Set set) = DB.Set (nub set)
 
 {-| The union of two 'TableD's. The function assumes that the two tables are 
   unionable. -}

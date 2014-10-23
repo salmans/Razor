@@ -89,7 +89,7 @@ getOrigin state@(theory, prov, stream, model) mods@(isall, isrec) term = do
                 let namedtheory = (nameTheory theory [(elm, skolemhead, skolemnext)])
                 let nextterms = (map (\e->(Elem e)) skolemnext)
                 return (namedtheory, nextterms)
-
+                
 getJustification :: UState -> Formula -> Either UError UTheorySubs
 getJustification state@(theory, prov, stream, model) atom = case (getFact model atom) of
   Nothing -> Left (UErr "fact not in form FactName(e^0, e^1, ...) or is not in the current model")
