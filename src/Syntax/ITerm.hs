@@ -56,8 +56,17 @@ data Term = Var  Variable
 
           | NumberTerm Rational -- For compatibility with TPTP
           | DistinctTerm String -- For compatibility with TPTP
-         deriving (Eq, Ord)
+          deriving (Eq, Ord)
 
+-- Looks like the default implementation (deriving) is more efficient:
+-- instance Eq Term where
+--     (Var  v1)       == (Var  v2)       = v1 == v2
+--     (Cons c1)       == (Cons c2)       = c1 == c2
+--     (Elem e1)       == (Elem e2)       = e1 == e2
+--     (Fn f1 ts1)     == (Fn f2 ts2)     = f1 == f2 && and (zipWith (==) ts1 ts2)
+--     NumberTerm r1   == NumberTerm r2   = r1 == r2
+--     DistinctTerm t1 == DistinctTerm t2 = t1 == t2
+--     t1 == t2 = False -- otherwise
 
 {- Show instances -}
 instance Show Element where
