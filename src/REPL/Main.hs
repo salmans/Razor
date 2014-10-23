@@ -75,8 +75,8 @@ loop state@(theory, prov, stream, model) = do
         -- explanation
         Ask question -> case question of
           Name isall isrec term -> do
-            let origins = getOrigin state (isall,isrec,term)
-            printOrigin theory origins isall
+            let origins = getOrigin state (isall,isrec) term
+            printOrigin theory (isall, 0) origins
             sameLoop
           Blame atom -> do
             let justification = getJustification state atom
@@ -88,12 +88,15 @@ loop state@(theory, prov, stream, model) = do
           Exit -> (lift $ prettyPrint 0 foutput "closing...\n") >> return ()
         SyntaxError err -> (lift $ prettyPrint 0 ferror (err++"\n")) >> sameLoop
 
-printOrigin :: Theory -> [(Term, Either UError UTheorySubs)] -> Bool -> InputT IO ()
-printOrigin thy origins isall = mapM_ (\(term, origin) -> do
-  lift $ prettyPrint 0 foutput ("origin of "++(show term)++"\n")
+printOrigin :: Theory -> (Bool, Int) -> UOrigin -> InputT IO ()
+printOrigin thy mods@(isall, tabs) (UOriginLeaf term origin) = do
+  lift $ prettyPrint tabs foutput ("origin of "++(show term)++"\n")
   case origin of
-    Left (UErr err) -> (lift $ prettyPrint 0 ferror (err++"\n"))
-    Right namedthy -> printDiff (thy,namedthy) ((show term),0,isall)) origins
+    Left (UErr err) -> (lift $ prettyPrint tabs ferror (err++"\n"))
+    Right namedthy -> printDiff (thy,namedthy) ((show term),tabs,isall)
+printOrigin thy mods@(isall, tabs) (UOriginNode term origin depends) = do
+  printOrigin thy mods (UOriginLeaf term origin)
+  mapM_ (printOrigin thy (isall, tabs+1)) depends
 
 printJustification :: Formula -> Theory -> Either UError UTheorySubs -> InputT IO()
 printJustification atom theory justification = do 
