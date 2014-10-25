@@ -92,7 +92,7 @@ printOrigin thy mods@(isall, tabs) (UOriginLeaf term origin) = do
   lift $ prettyPrint tabs foutput ("origin of "++(show term)++"\n")
   case origin of
     Left (UErr err) -> (lift $ prettyPrint tabs ferror (err++"\n"))
-    Right namedthy -> printDiff (thy,namedthy) ((show term),tabs,isall)
+    Right namedthy -> lift $ prettyPrint tabs flow ((show namedthy)++"\n")--printDiff (thy,namedthy) ((show term),tabs,isall)
 printOrigin thy mods@(isall, tabs) (UOriginNode term origin depends) = do
   printOrigin thy mods (UOriginLeaf term origin)
   mapM_ (printOrigin thy (isall, tabs+1)) depends

@@ -13,12 +13,13 @@ import SAT.Impl
 import Tools.Config
 import Data.Either
 import Data.Maybe
+import qualified Data.Map as Map
 import System.Environment
 
 data UError = UErr String
 type UState = (Theory, ProvInfo, SATIteratorType, Model, ModelProv)
 type UTheorySubs = [Maybe Sequent]
-data UOrigin = UOriginLeaf Term (Either UError UTheorySubs) | UOriginNode Term (Either UError UTheorySubs) [UOrigin]
+data UOrigin = UOriginLeaf Term (Either UError TheorySub) | UOriginNode Term (Either UError TheorySub) [UOrigin]
 
 getConfig :: IO Config
 getConfig = do 
@@ -50,31 +51,17 @@ getOrigin :: UState -> (Bool, Bool) -> Term -> UOrigin
 getOrigin state@(thy, prov, stream, mdl, modelProv) mods@(isall, isrec) term = do
   case name of
     Left err -> UOriginLeaf term (Left err)
-    Right (namedtheory, nextterms) -> do
+    Right (thynames, nextterms) -> do
       case isrec of
-        False -> UOriginLeaf term (Right namedtheory)
-        True -> UOriginNode term (Right namedtheory) (map (getOrigin state mods) nextterms)
+        False -> UOriginLeaf term (Right thynames)
+        True -> UOriginNode term (Right thynames) (map (getOrigin state mods) nextterms)
   where 
     name = case (getEqualElements mdl term) of
       [] -> Left (UErr ("element "++(show term)++" not in the current model"))
       eqelms -> do
-        case (getSkolemTrees (elementProvs prov) mdl term) of
-          [] -> Left (UErr ("no provenance information for element "++(show term)++"\n"))
-          skolemtrees -> do
-            case isall of
-              True -> do
-                let (actualelm,_,_) = head skolemtrees
-                let allelms = map (\(e, h, r)->e) skolemtrees
-                let skolemnext = concat (map (\(e, h, r)->r) skolemtrees)
-                let names = (map (\(e, h, r)->(actualelm, h, r)) skolemtrees) 
-                let namedtheory = nameTheory thy names
-                let nextterms = (map (\e->(Elem e)) skolemnext)
-                return (namedtheory, nextterms)
-              False -> do
-                let (elm, skolemhead, skolemnext) = (head skolemtrees)
-                let namedtheory = (nameTheory thy [(elm, skolemhead, skolemnext)])
-                let nextterms = (map (\e->(Elem e)) skolemnext)
-                return (namedtheory, nextterms)
+        case (Map.lookup (head eqelms) (nameProv modelProv)) of
+          Nothing -> Left (UErr ("no provenance information for element "++(show term)++"\n"))
+          Just (thynames, nextterms) -> Right (thynames, (map Elem nextterms))
                 
 getJustification :: UState -> Formula -> Either UError UTheorySubs
 getJustification state@(thy, prov, stream, mdl, modelProv) atom = case (getFact mdl atom) of
