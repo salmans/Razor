@@ -38,7 +38,7 @@ import Common.Provenance
 import Chase.Data
 
 -- RelAlg
-import Chase.HerbrandBase.RelAlg.DB as DB (Set (..))
+import qualified Chase.HerbrandBase.RelAlg.DB as DB
 import Chase.HerbrandBase.RelAlg.Lang
 import Chase.HerbrandBase.RelAlg.Translate 
     ( bodyRelExp, headRelExp, delta, evaluateRelExp, evaluateRelExpNoDelta
@@ -180,15 +180,14 @@ evaluateRelSequent seq@(RelSequent bdy hds bdyDlt _ _ _ _) db dlt = do
   provs <- liftPullMProvs State.get
   -- uni <- liftPullMBase State.get
   let bdyDltExTbl      = evaluateRelExp db dlt bdyDlt
-  let bdyDltTbl@(DB.Set bdyDltSet) 
-                       = undecorateTable bdyDltExTbl
+  let bdyDltTbl        = undecorateTable bdyDltExTbl
 
   let hdTbls           = map (\(hd, tran) ->
                               if   bdyDlt == TblFull || 
                                        (header bdyDlt) == fullTableHeader
                               then decorateTable bdyDltTbl Vect.empty
-                              else DB.Set $ map (\(Tuple t _) -> Tuple t (tran t))  
-                                            bdyDltSet) hds
+                              else DB.map (\(Tuple t _) -> Tuple t (tran t))  
+                                            bdyDltTbl) hds
                          -- hdTbls contains the head expression, transformation
                          -- of body table in a way that it matches with the
                          -- schema of the head and the entire head table in 
@@ -273,7 +272,7 @@ instantiateSequent uni new sub bodySub exSub seq =
 
 createSubs :: RelSequent -> Database -> Database -> TableSub
            -> ProvInfo -> [(Sub, ExistsSub, Maybe ExistsSub)]
-createSubs seq uni new (DB.Set set) provs = 
+createSubs seq uni new tbl provs = 
     if   bodyExp == TblFull
     then (\(Tuple tup exSub) -> 
               ( emptySub
@@ -283,7 +282,7 @@ createSubs seq uni new (DB.Set set) provs =
                   Nothing -> Nothing -- Just Map.empty
                   -- Nothing -> Just exSub
                   -- MONITOR >
-                  Just es -> Just es)) <$> set
+                  Just es -> Just es)) <$> DB.toList tbl
     else (\(Tuple tup exSub) -> 
               ( createSub tup heads
               , exSub
@@ -292,7 +291,7 @@ createSubs seq uni new (DB.Set set) provs =
                   Nothing ->  Nothing -- Just Map.empty
                   -- Nothing -> Just exSub
                   -- MONITOR >
-                  Just es -> Just es)) <$> set
+                  Just es -> Just es)) <$> DB.toList tbl
     where elmProvs = elementProvs provs
           bodyExp  = relSequentBodyDelta seq
           heads    = header bodyExp
@@ -331,9 +330,9 @@ applyLoneSubs uni new skMap seq =
       then []
       else do 
         let atomSubs skFun a@(FnRel _ ts) =
-              let elms    = fromMaybe [] (lookupElement a)
+              let elms    = fromMaybe DB.empty (lookupElement a)
                   (Var v) = last ts
-              in  (\e -> ((v, Elem e), (skFun, Elem e))) <$> elms
+              in  (\e -> ((v, Elem e), (skFun, Elem e))) <$> DB.toList elms
         temp                 <- mapM (\(k, a) -> atomSubs k a) 
                                     completeAtomsList
         let res                  = transformTuples temp
@@ -353,11 +352,12 @@ applyLoneSubs uni new skMap seq =
                           _   -> FnTable f
               in case Map.lookup ref db of
                    Nothing           -> Nothing
-                   Just (DB.Set set) -> 
-                       let tups = filter (\(Tuple es _) -> 
+                   Just set          -> 
+                       let tups = DB.filter (\(Tuple es _) -> 
                                           ((\e -> Elem e) <$> 
                                            (init (Vect.toList es))) 
                                           == (init ts)) set 
-                       in  if   null tups
+                       in  if   DB.null tups
                            then Nothing
-                           else Just $ (\(Tuple es _) -> Vect.last es) <$> tups
+                           else Just 
+                                $ DB.map (\(Tuple es _) -> Vect.last es) tups
