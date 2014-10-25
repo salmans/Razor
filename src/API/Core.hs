@@ -7,7 +7,7 @@
 module API.Core where
 import Chase.Impl
 import Common.Basic
-import Common.Provenance
+import Common.IProvenance
 import Common.IObservation
 import Common.Model (Model (..))
 import Control.Applicative
@@ -27,8 +27,6 @@ import Text.Read (readMaybe)
 import Tools.Config
 import Tools.FolToGeo (parseFolToSequents)
 import Tools.Utils (isRealLine)
-
-
 
 -- In: command line args
 -- Out: configuration options structure
@@ -69,9 +67,6 @@ parseConfig args = do
   -- Here we thread startOptions through all supplied option actions
   config <- foldl (>>=) (return defaultConfig) actions
   return config
-
-
-
 -- In: configuration options, user input theory
 -- Out: a theory if parsing success
 parseTheory :: Config -> String -> IO (Maybe Theory)
@@ -92,8 +87,61 @@ modelStream propThy = satInitialize propThy
 nextModel :: SATIteratorType -> (Maybe Model, SATIteratorType)
 nextModel it = (satSolve it)
 
+----------------------
+-- MODEL PROVENANCE --
+----------------------
+data ModelProv = ModelProv { names :: NameProv, blames :: BlameProv }
+type NameProv = Map.Map Element TheorySub
+type BlameProv = Map.Map Atom Int
+type TheorySub = [(Int, SequentSub)]
+data SequentSub = SequentSub { freeSubs :: FreeSub
+                              ,existSubs :: ExistSub
+                              ,constSubs :: ConstSub}
+type FreeSub = Sub
+type ExistSub = Map.Map Int Term
+type ConstSub = ConsSub 
+--
+--
+deriveModelProv :: ProvInfo -> Model -> ModelProv
+deriveModelProv prov mdl = ModelProv (deriveNameProv (elementProvs prov) mdl) (deriveBlameProv (observationProvs prov) mdl)
 
+---------------------
+-- NAME PROVENANCE --
+---------------------
+--
+--
+deriveNameProv :: ElementProvs -> Model -> NameProv
+deriveNameProv prov mdl = Map.empty
 
+----------------------
+-- BLAME PROVENANCE --
+----------------------
+--
+--
+deriveBlameProv :: ObservationProvs -> Model -> BlameProv
+deriveBlameProv prov mdl = Map.fromList $ concatMap (\(obv,i)->(possibleObservations obv mdl i)) (Map.toList (Map.map (\(TheoryBlame i s)->i) prov))
+--
+--
+possibleObservations :: Observation -> Model -> Int -> [(Atom, Int)]
+possibleObservations (Obs (Rel sym ts)) mdl i = do
+  possibility <- combination (map (getEqualElements mdl) ts)
+  return ((Rel sym possibility), i)
+possibleObservations _ _ _ = []
+--
+--
+combination :: [[a]] -> [[a]]
+combination [l] = do
+  choose <- l
+  return (return choose)
+combination (l:ls) = do
+  choose <- l
+  rest <- (combination ls)
+  return (choose : rest)
+combination [] = []
+
+-------------------
+-- MODEL HELPERS --
+-------------------
 -- In: model of a theory, a term representing an element
 -- Out: a list of elements this model is equivalent to in the given model
 getEqualElements :: Model -> Term -> [Term]
@@ -210,20 +258,9 @@ getFact mdl fml = case fml of
 --
 getBlame :: ProvInfo -> Model -> (FnSym, [Term]) -> [Blame]
 getBlame prov mdl (factname, factelms) = do
-  let choices = (combBlame (map (getEqualElements mdl) factelms))
+  let choices = (combination (map (getEqualElements mdl) factelms))
   concat (map (\choice->(getObvProvs prov (factname, choice))) choices)
 
---
---
-combBlame :: [[Term]] -> [[Term]]
-combBlame [l] = do
-  choose <- l
-  return (return choose)
-combBlame (l:ls) = do
-  choose <- l
-  rest <- (combBlame ls)
-  return (choose : rest)
-combBlame [] = []
 --
 --
 getObvProvs :: ProvInfo -> (FnSym, [Term]) -> [Blame]

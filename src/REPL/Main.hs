@@ -44,17 +44,17 @@ main = do
   startState <- getStartState config
   case startState of
     Left (UErr err) -> error err
-    Right state@(theory, prov, stream, model) -> do
-      (prettyPrint 0 flow (show model))
+    Right state@(thy, prov, stream, mdl, modelProv) -> do
+      (prettyPrint 0 flow (show mdl))
       runInputT defaultSettings (loop state)
   -- exit display
   displayExit
 
 loop :: UState -> InputT IO ()
-loop state@(theory, prov, stream, model) = do
+loop state@(thy, prov, stream, mdl, mdlProv) = do
   -- possible REPL loops
   let sameLoop = loop state
-  let newLoop state'@(theory', prov', stream', model') = (lift $ prettyPrint 0 flow (show model')) >> loop state'
+  let newLoop state'@(thy', prov', stream', mdl', modelProv') = (lift $ prettyPrint 0 flow (show mdl')) >> loop state'
   -- get input
   minput <- getInputLine "% "
   -- parse input into a command and act depending on the case
@@ -63,7 +63,7 @@ loop state@(theory, prov, stream, model) = do
       Just command -> case (parseCommand command) of
         -- display
         Display thing -> case thing of
-          DispTheory -> (lift $ mapM_ (\s-> prettyPrint 0 finput ((show s)++"\n")) theory) >> sameLoop
+          DispTheory -> (lift $ mapM_ (\s-> prettyPrint 0 finput ((show s)++"\n")) thy) >> sameLoop
           DispModel -> newLoop state
         -- exploration
         Go explore -> case explore of
@@ -75,11 +75,11 @@ loop state@(theory, prov, stream, model) = do
         Ask question -> case question of
           Name isall isrec term -> do
             let origins = getOrigin state (isall,isrec) term
-            printOrigin theory (isall, 0) origins
+            printOrigin thy (isall, 0) origins
             sameLoop
           Blame atom -> do
             let justification = getJustification state atom
-            printJustification atom theory justification
+            printJustification atom thy justification
             sameLoop
         -- others
         Other utility -> case utility of
@@ -98,14 +98,14 @@ printOrigin thy mods@(isall, tabs) (UOriginNode term origin depends) = do
   mapM_ (printOrigin thy (isall, tabs+1)) depends
 
 printJustification :: Formula -> Theory -> Either UError UTheorySubs -> InputT IO()
-printJustification atom theory justification = do 
+printJustification atom thy justification = do 
   lift $ prettyPrint 0 foutput ("justification of "++(show atom)++"\n")
   case justification of
     Left (UErr err) -> (lift $ prettyPrint 0 ferror (err++"\n"))
-    Right blamedthy -> printDiff (theory,blamedthy) ((show atom),0,True)
+    Right blamedthy -> printDiff (thy,blamedthy) ((show atom),0,True)
 
 printDiff :: (Theory, UTheorySubs) -> (String, Int, Bool) -> InputT IO()
-printDiff (theory,dtheory) format@(highlight,tabs,printall) = printDiffPlus (zip theory dtheory) format
+printDiff (thy,dthy) format@(highlight,tabs,printall) = printDiffPlus (zip thy dthy) format
 printDiffPlus :: [(Sequent, Maybe Sequent)] -> (String, Int, Bool) -> InputT IO()
 printDiffPlus [] _ = return ()
 printDiffPlus diff format@(highlight,tabs,printall) = do
@@ -114,7 +114,7 @@ printDiffPlus diff format@(highlight,tabs,printall) = do
   case ms of
     Nothing -> keepprinting
     Just ds -> do
-      lift $ prettyPrint tabs finput ("theory rule: "++(show s)++"\n")
+      lift $ prettyPrint tabs finput ("thy rule: "++(show s)++"\n")
       lift $ prettyHighlight tabs highlight ("instance: "++(show ds)++"\n")
       if printall
         then keepprinting

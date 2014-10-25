@@ -24,7 +24,7 @@ main = do
       startState <- getStartState config
       case startState of
         Left (UErr err) -> error err
-        Right state@(theory, prov, stream, model) -> do
+        Right state@(theory, prov, stream, model, modelProv) -> do
           putStrLn $ "THEORY = "++(show theory)
           putStrLn $ "PROV = "++(show prov)
           putStrLn $ "MODEL = "++(show model)
