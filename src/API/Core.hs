@@ -92,26 +92,65 @@ nextModel it = (satSolve it)
 ----------------------
 data ModelProv = ModelProv { names :: NameProv, blames :: BlameProv }
 type NameProv = Map.Map Element TheorySub
-type BlameProv = Map.Map Atom Int
-type TheorySub = [(Int, SequentSub)]
-data SequentSub = SequentSub { freeSubs :: FreeSub
-                              ,existSubs :: ExistSub
-                              ,constSubs :: ConstSub}
+type BlameProv = Map.Map [Atom] TheorySub
+type TheorySub = Map.Map Int RuleSub
+data RuleSub = RuleSub { existSubs :: ExistSub
+                        ,freeSubs :: FreeSub}
 type FreeSub = Sub
-type ExistSub = Map.Map Int Term
+type ExistSub = Map.Map (Int,Variable) Term
 type ConstSub = ConsSub 
 --
 --
-deriveModelProv :: ProvInfo -> Model -> ModelProv
-deriveModelProv prov mdl = ModelProv (deriveNameProv (elementProvs prov) mdl) (deriveBlameProv (observationProvs prov) mdl)
+deriveModelProv :: Theory -> ProvInfo -> Model -> ModelProv
+deriveModelProv thy prov mdl = ModelProv (deriveNameProvs thy (elementProvs prov) mdl) (deriveBlameProv (observationProvs prov) mdl)
 
 ---------------------
 -- NAME PROVENANCE --
 ---------------------
 --
 --
-deriveNameProv :: ElementProvs -> Model -> NameProv
-deriveNameProv prov mdl = Map.empty
+deriveNameProvs :: Theory -> ElementProvs -> Model -> NameProv
+deriveNameProvs thy prov mdl = Map.fromList $ map (\e@(actual, equal)->(actual, (nameTheorySub (preprocess thy) prov mdl e))) (Map.toList (modelElements mdl))
+--
+--
+nameTheorySub :: Theory -> ElementProvs -> Model -> (Element, [Element]) -> TheorySub
+nameTheorySub thy prov mdl (elm, eqelms) = do
+  let actual = maybeToList (getSkolemTree prov mdl elm)
+  let equal = catMaybes $ map (getSkolemTree prov mdl) (delete elm eqelms)
+  let trees = actual++equal
+  let irules = map (\r->((fromMaybe 0 (elemIndex r thy)), r)) thy
+  Map.fromList (concatMap (\(i, r)->case nameRuleSub r trees of
+    Nothing -> []
+    Just rsub -> [(i, rsub)]) irules)
+--
+--
+nameRuleSub :: Sequent -> [(Element, FnSym, [Element])] -> Maybe RuleSub
+nameRuleSub rule@(Sequent bd hd) trees = do
+  let exists = headExistentials hd 0
+  case (catMaybes (map (\(e,f,r)->case nameExistSub exists f e of
+    Nothing -> Nothing
+    Just esub -> Just (esub, nameFreeSub rule r)) trees)) of
+    [] -> Nothing
+    subs -> do
+      let (esubs, fsubs) = unzip subs
+      Just $ RuleSub (Map.fromList esubs) (Map.fromList (concat fsubs))
+--
+--
+nameExistSub :: [(FnSym, Int, Variable)] -> FnSym -> Element -> Maybe ((Int,Variable), Term)
+nameExistSub exists fn elm = do
+  let matches = filter (\(f, i, v)->(f==fn)) exists
+  case matches of
+    [] -> Nothing
+    match -> do
+      let (f, i, v) = head match
+      Just ((i, v), (Elem elm))
+--
+--
+nameFreeSub :: Sequent -> [Element] -> [(Variable, Term)]
+nameFreeSub rule elms = do
+  let frees = freeVars rule
+  let terms = map (\e->(Elem e)) elms
+  (zip frees terms)
 
 ----------------------
 -- BLAME PROVENANCE --
@@ -119,13 +158,16 @@ deriveNameProv prov mdl = Map.empty
 --
 --
 deriveBlameProv :: ObservationProvs -> Model -> BlameProv
-deriveBlameProv prov mdl = Map.fromList $ concatMap (\(obv,i)->(possibleObservations obv mdl i)) (Map.toList (Map.map (\(TheoryBlame i s)->i) prov))
+deriveBlameProv prov mdl = Map.empty --Map.fromList $ concatMap (\obv->(possibleObservations prov mdl obv)) (modelObservations mdl)
 --
 --
-possibleObservations :: Observation -> Model -> Int -> [(Atom, Int)]
-possibleObservations (Obs (Rel sym ts)) mdl i = do
-  possibility <- combination (map (getEqualElements mdl) ts)
-  return ((Rel sym possibility), i)
+possibleObservations :: ObservationProvs -> Model -> Observation -> [(Atom, Int)]
+possibleObservations prov mdl obv@(Obs (Rel sym ts)) = case (Map.lookup obv prov) of
+  Just (TheoryBlame i sub) -> do
+    let 
+    possibility <- combination (map (getEqualElements mdl) ts)
+    return ((Rel sym possibility), i)
+  Nothing -> []
 possibleObservations _ _ _ = []
 --
 --
@@ -139,9 +181,9 @@ combination (l:ls) = do
   return (choose : rest)
 combination [] = []
 
--------------------
--- MODEL HELPERS --
--------------------
+-----------------------
+-- MODELPROV HELPERS --
+-----------------------
 -- In: model of a theory, a term representing an element
 -- Out: a list of elements this model is equivalent to in the given model
 getEqualElements :: Model -> Term -> [Term]
@@ -150,16 +192,56 @@ getEqualElements mdl term = case term of
     Nothing -> []
     Just eqelms -> (map (\e->(Elem e)) eqelms)
   _ -> []
+--
+--
+getSkolemHead :: Term -> Maybe (FnSym, [Term])
+getSkolemHead skolemtree = do
+  case skolemtree of
+    (Fn skolemhead skolemrest) -> Just (skolemhead, skolemrest)
+    (Cons (Constant skolemhead)) -> Just (skolemhead, [])
+    _ -> Nothing
+--
+--
+getSkolemElement :: ElementProvs -> Term -> Maybe Element
+getSkolemElement prov skolemterm = (findElementWithProv skolemterm prov)
+--
+--
+getSkolemTree :: ElementProvs -> Model -> Element -> Maybe (Element, FnSym, [Element])
+getSkolemTree prov mdl elm = case (getElementProv elm prov) of
+  [] -> Nothing
+  trees -> case (getSkolemHead (head trees)) of
+    Nothing -> Nothing
+    Just (skolemhead, skolemrest) -> Just (elm, skolemhead, (concatMap (\t->(maybeToList (getSkolemElement prov t))) skolemrest))
+--
+--
+headExistentials :: Formula -> Int -> [(FnSym, Int, Variable)]
+headExistentials Tru _                   = []
+headExistentials Fls _                   = []
+headExistentials (And f1 f2) i           = 
+    headExistentials f1 i ++ headExistentials f2 i
+headExistentials (Or f1 f2) i            = 
+    headExistentials f1 i ++ headExistentials f2 (i+1)
+headExistentials (Atm a) _                = []
+headExistentials (Exists (Just fn) v f) i = (fn, i, v):(headExistentials f i)
+headExistentials (Exists Nothing _ f) i  = headExistentials f i
+headExistentials (Lone (Just fn) _ f unq) i = headExistentials f i
+headExistentials (Lone Nothing _ f _) i  = headExistentials f i
+
+
+
+
+
+
 -- In: prov of a theory, and a term representing an element
 -- Out: the skolem tree if it exists 
-getSkolemTrees :: ProvInfo -> Model -> Term -> [(Element, FnSym, [Element])]
+getSkolemTrees :: ElementProvs -> Model -> Term -> [(Element, FnSym, [Element])]
 getSkolemTrees prov mdl term = do
   -- turn the parsed term into an element
   case (termToElement term) of
     Nothing -> []
     Just elm -> do
       -- get the provenance skolem tree for this element
-      case (getElementProv elm (elementProvs prov)) of
+      case (getElementProv elm prov) of
         [] -> []
         trees -> case (getSkolemHead (head trees)) of
           Nothing -> []
@@ -167,17 +249,6 @@ getSkolemTrees prov mdl term = do
             let actual = (elm, skolemhead, (concatMap (\t->(maybeToList (getSkolemElement prov t))) skolemrest))
             let equal = (concat (map (getSkolemTrees prov mdl) (delete (Elem elm) (getEqualElements mdl (Elem elm)))))
             actual:equal
-getSkolemHead :: Term -> Maybe (FnSym, [Term])
-getSkolemHead skolemtree = do
-  case skolemtree of
-    (Fn skolemhead skolemrest) -> Just (skolemhead, skolemrest)
-    (Cons (Constant skolemhead)) -> Just (skolemhead, [])
-    _ -> Nothing
-getSkolemElement :: ProvInfo -> Term -> Maybe Element
-getSkolemElement prov skolemterm = (findElementWithProv skolemterm (elementProvs prov))
-
-
-
 -- In: element, skolem function name, theory
 -- Out: a theory with the associated exists variable in every related sequent replaced by the element
 nameTheory :: Theory -> [(Element, FnSym, [Element])] -> [Maybe Sequent]
