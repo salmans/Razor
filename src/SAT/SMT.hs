@@ -3,6 +3,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE DoAndIfThenElse #-}
 
 {- Razor
    Module      : SAT.SMT
@@ -41,7 +42,7 @@ import Common.Model (Model, createModel)
 import SAT.Data
 
 -- Tools
-import qualified Tools.ExtendedSet as ExSet
+import Tools.Trace
 
 -- Error Messages
 unitName = "SAT.SMT"
@@ -580,7 +581,7 @@ minimumResult context =
           liftSymbolic $ solve []
         
         run        = State.evalStateT context' emptySMTContainer
-        res        = unsafePerformIO $ satWith z3 run
+        res        = unsafePerformIO $ satWith z3 {verbose = False} run
         minRes     = fst $ reduce context res
         newContext = do
           context
@@ -602,7 +603,7 @@ reduce context res@(SatResult (Satisfiable _ _)) =
                     (do context'
                         liftSymbolic $ solve [])
                     emptySMTContainer
-        res'      = unsafePerformIO $ satWith z3 run
+        res'      = unsafePerformIO $ satWith z3 {verbose = False} run
     in  case res' of
           SatResult (Unsatisfiable _) -> (res, context')
           SatResult (Satisfiable _ _) -> reduce context' res'
@@ -642,54 +643,51 @@ minimizeResult res = do
   let classes  = equivalenceClasses dic
   let sClasses = ((\e -> fromJust $ Map.lookup e domain) <$>) 
                  <$> (Map.elems classes)
-  let factStrs = Map.keys $ Map.filter (\s -> fromCW s == True ) dic
-  let termStrs = Map.toList $ Map.filterWithKey
-                 (\k cw -> cwKind cw /= KBool && not (isElementString k)) dic
 
-  let symAtoms = Map.toList $ smtSymAtomMap factStrs
+  let (factDic, othDic ) = Map.partition (\s -> cwKind s == KBool) dic
+      -- Elements of SatResult that are of type KBool correspond to facts
+  let (posDic, negDic)   = Map.partition (\s -> fromCW s == True) factDic
+      -- Partitioning factDic into positive and negative facts
+
+  let posFacts = Map.keys posDic -- Positive Facts
+  let negFacts = Map.keys negDic -- Negative Facts
+
+  -- Creating maps from relation names to symAtoms in posFacts and negFacts:
+  let posAtoms = Map.toList $ smtSymAtomMap posFacts
+  let negAtoms = Map.toList $ smtSymAtomMap negFacts
+
+  let termStrs = Map.toList 
+                 $ Map.filterWithKey (\k _ -> not (isElementString k)) othDic
+      -- The keys in the map that correspond to terms have type other than
+      -- KBool (coming from othDic) and they are not element names.
+
   let eqNegAx  = equalityNegativeAxioms sClasses
   let eqFlipAx = bOr $ equalityFlipAxioms <$> sClasses
   negs  <- mapM (\(r, unintRel) -> 
-                     let as = fromMaybe [] (lookup r symAtoms)
-                     in  negativeAxioms unintRel as) rels
+                     case lookup r negAtoms of
+                       Nothing -> return true
+                       Just as -> negativeAxioms unintRel as) rels
   fnNeg <- functionNegativeAxioms termStrs classes
   fnFlips <- functionFlipAxioms termStrs classes
   flips <- mapM (\(r, unintRel) -> 
-                     let as = fromMaybe [] (lookup r symAtoms)
-                     in  flipAxioms unintRel as) rels
+                     case lookup r posAtoms of
+                       Nothing -> return false
+                       Just as -> flipAxioms unintRel as) rels
   let negAx    = bAnd negs
   let flipAx   = bOr flips
-  return $ fnNeg &&& negAx &&& eqNegAx &&& (flipAx ||| fnFlips ||| eqFlipAx)
+  return $ fnNeg &&& eqNegAx &&& (flipAx ||| fnFlips ||| eqFlipAx)
 
 {- This function creates Negative Axioms for a set of facts that are named by
-   a list of SMTAtom instances: every SMTAtom names a *positive* fact in a 
-   result from the SMT solver. In order to improve the efficiency of 
-   computation, the function assumes that all the SMTAtom instances belong to
-   a relation whose symbolic uninterpreted value is also given to the function. 
-   This function will be called once for every relational symbol in the 
-   container of the current SMT computation. -}
+   a list of SMTAtom instances: every SMTAtom names a *negative* fact in a 
+   result from the SMT solver. -}
 negativeAxioms :: UninterpretRel -> [SMTAtom] -> SMT SBool
 negativeAxioms unintRel atoms = do
   container   <- liftContainer State.get
   let domain   = containerDomain container
   let arity    = unintRelArity unintRel
-  let argNames = map atomArgs atoms
-  let negTups  = negativeTuples domain argNames arity
-  return $ bAnd $ (\t -> bnot (applyUnintRel unintRel t)) <$> negTups
-
-{- As a helper for negative axioms, returns all the possible tuples over the
-   input domain (of type SDomain) of the given input arity that are not named 
-   by the given set of tuples of element names. -}
-negativeTuples :: SDomain -> [[SMTElement]] -> Int -> [[SElement]]
-negativeTuples domMap atoms arity =
-    let pairs   = Map.toList domMap
-        tups    = tuples pairs arity
-        result  = filter (\t -> (fst <$> t) `notElem` atoms) tups
-    in  (snd <$>) <$> result
-    where tuples is 0 = []
-          tuples is 1 = pure <$> is
-          tuples is n = [ i:ts | i <- is, ts <- tuples is (n-1)]
-
+  let argNames = atomArgs <$> atoms
+  let args     = ((\a -> fromJust $ Map.lookup a domain) <$>) <$> argNames
+  return $ bAnd $ (\t -> bnot (applyUnintRel unintRel t)) <$> args
 
 functionNegativeAxioms :: [(SMTTerm, CW)] -> Map.Map CW [SMTElement] -> SMT SBool
 functionNegativeAxioms terms classes = do
@@ -739,7 +737,7 @@ flipAxioms unintRel atoms = do
   let domain    = containerDomain container
   let argNames  = map atomArgs atoms      
   let allArgs   = map (\elm -> fromJust $ Map.lookup elm domain) <$> argNames
-  let negApps  = bnot.(applyUnintRel unintRel) <$> allArgs
+  let negApps   = bnot.(applyUnintRel unintRel) <$> allArgs
   return $ bOr negApps
 
 {- Given a set of equivalence classes on all elements, creates the set of 
