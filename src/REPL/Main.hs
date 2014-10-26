@@ -5,7 +5,6 @@
   Maintainer  : Salman Saghafi, Ryan Danas
 -}
 {-| TODO / BUGS
-replace functions with elements (cardOf(e^3), replace with e^4)
 how to deal with flattening... exists x. exists y. Q(x, y, f(g(x, y)))
 allow user to give any expr that evaluates to an element
 augmentation
