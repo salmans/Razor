@@ -77,8 +77,6 @@ getJustification state@(thy, prov, stream, mdl, modelProv) atom = case (getFact 
       let blamedtheory = (blameTheory thy names blames)
       Right blamedtheory
 
---
---
 replaceTheory :: Theory -> TheorySub -> [Maybe Sequent]
 replaceTheory thy reps = do
   sequent <- thy
@@ -88,7 +86,6 @@ replaceTheory thy reps = do
       Nothing -> return Nothing
       Just rs -> do
         let (Sequent b h) = sequent
-        let (Sequent b' h') = (Sequent b (replaceExists h (existSub rs)))
+        let (Sequent b' h') = (Sequent b (replaceExists h 0 (existSub rs)))
         let (Sequent b'' h'') = (Sequent (replaceFrees b' (freeSub rs)) (replaceFrees h' (freeSub rs)))
         return $ Just (Sequent (replaceFuncs b'' (funcSub rs)) (replaceFuncs h'' (funcSub rs)))
-        

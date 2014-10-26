@@ -204,9 +204,40 @@ combination (l:ls) = do
   return (choose : rest)
 combination [] = []
 
------------------------
--- MODELPROV HELPERS --
------------------------
+------------------------
+-- THEORY REPLACEMENT --
+------------------------
+replaceExists :: Formula -> Int -> ExistSub -> Formula
+replaceExists (And f1 f2) i es           = (And (replaceExists f1 i es) (replaceExists f2 i es))
+replaceExists (Or f1 f2) i es            = (Or (replaceExists f1 i es) (replaceExists f2 (i+1) es))
+replaceExists (Exists fn v f) i es  = case (Map.lookup (i,v) es) of
+  Nothing -> (Exists fn v (replaceExists f i es))
+  Just t -> substitute (Map.fromList [(v, t)]) f
+replaceExists fml _ _                    = fml
+--
+--
+replaceFrees :: Formula -> FreeSub -> Formula
+replaceFrees fml fs = substitute fs fml
+--
+--
+replaceFuncs :: Formula -> FuncSub -> Formula
+replaceFuncs (And f1 f2) fns           = (And (replaceFuncs f1 fns) (replaceFuncs f2 fns))
+replaceFuncs (Or f1 f2) fns            = (Or (replaceFuncs f1 fns) (replaceFuncs f2 fns))
+replaceFuncs (Exists fn v f) fns       = (Exists fn v (replaceFuncs f fns))
+replaceFuncs atm@(Atm (Rel relsym terms)) fns = (Atm (Rel "" [substituteFunctions fns (Fn relsym terms)]))
+replaceFuncs atm@(Atm (FnRel fnsym terms)) fns = (Atm (FnRel "" [substituteFunctions fns (Fn fnsym terms)]))
+replaceFuncs fml _ = fml
+--
+--
+substituteFunctions :: FuncSub -> Term -> Term
+substituteFunctions fns term@(Fn name terms) = case (Map.lookup (name, terms) fns) of
+  Nothing -> (Fn name (map (substituteFunctions fns) terms))
+  Just t -> t
+substituteFunctions fns term = term
+
+-------------------
+-- OTHER HELPERS --
+-------------------
 -- In: model of a theory, a term representing an element
 -- Out: a list of elements this model is equivalent to in the given model
 getEqualElements :: Model -> Term -> [Element]
@@ -249,31 +280,6 @@ headExistentials (Exists (Just fn) v f) i = (fn, i, v):(headExistentials f i)
 headExistentials (Exists Nothing _ f) i  = headExistentials f i
 headExistentials (Lone (Just fn) v f unq) i = (fn, i, v):(headExistentials f i)
 headExistentials (Lone Nothing _ f _) i  = headExistentials f i
-
-------------------------
--- THEORY REPLACEMENT --
-------------------------
---type TheorySub = Map.Map Int RuleSub
---data RuleSub = RuleSub { existSub :: ExistSub
---                        ,freeSub :: FreeSub
---                        ,funcSub :: FuncSub}
---instance Show RuleSub where
---  show (RuleSub n f fn) = (show n)++"\n"++(show f)++"\n"++(show fn)++"\n"
---type FreeSub = Sub
---type ExistSub = Map.Map (Int,Variable) Term
---type FuncSub = Map.Map (FnSym, [Term]) Term
---
---
-replaceExists :: Formula -> ExistSub -> Formula
-replaceExists fml es = fml
---
---
-replaceFrees :: Formula -> FreeSub -> Formula
-replaceFrees fml fs = fml
---
---
-replaceFuncs :: Formula -> FuncSub -> Formula
-replaceFuncs fml fns = fml
 
 
 
