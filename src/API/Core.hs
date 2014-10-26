@@ -95,12 +95,13 @@ type NameProv = Map.Map Element (TheorySub, [Element])
 type BlameProv = Map.Map [Atom] TheorySub
 type TheorySub = Map.Map Int RuleSub
 data RuleSub = RuleSub { existSubs :: ExistSub
-                        ,freeSubs :: FreeSub}
+                        ,freeSubs :: FreeSub
+                        ,funcSubs :: FuncSub}
 instance Show RuleSub where
-  show (RuleSub e f) = "ExistSubs\n"++(show e)++"FreeSubs\n"++(show f)
+  show (RuleSub e f c) = (show e)++"\n"++(show f)++"\n"++(show c)++"\n"
 type FreeSub = Sub
 type ExistSub = Map.Map (Int,Variable) Term
-type ConstSub = ConsSub 
+type FuncSub = Map.Map (FnSym, [Term]) Term
 --
 --
 deriveModelProv :: Theory -> ProvInfo -> Model -> ModelProv
@@ -123,21 +124,23 @@ nameTheorySub thy prov mdl (elm, eqelms) = do
       let equal = catMaybes $ map (getSkolemTree prov mdl) (delete elm eqelms)
       let trees = actual:equal
       let irules = map (\r->((fromMaybe 0 (elemIndex r thy)), r)) thy
-      (Map.fromList (concatMap (\(i, r)->case nameRuleSub r trees of
+      (Map.fromList (concatMap (\(i, r)->case nameRuleSub r mdl trees of
         Nothing -> []
         Just rsub -> [(i, rsub)]) irules), r)
 --
 --
-nameRuleSub :: Sequent -> [(Element, FnSym, [Element])] -> Maybe RuleSub
-nameRuleSub rule@(Sequent bd hd) trees = do
+nameRuleSub :: Sequent -> Model -> [(Element, FnSym, [Element])] -> Maybe RuleSub
+nameRuleSub rule@(Sequent bd hd) mdl trees = do
   let exists = headExistentials hd 0
-  case (catMaybes (map (\(e,f,r)->case nameExistSub exists f e of
-    Nothing -> Nothing
-    Just esub -> Just (esub, nameFreeSub rule r)) trees)) of
+  case (catMaybes (map (\(e,f,r)->
+    case nameExistSub exists f e of
+      Nothing -> Nothing
+      Just esub -> Just (esub, nameFreeSub rule r)) trees)) of
     [] -> Nothing
     subs -> do
       let (esubs, fsubs) = unzip subs
-      Just $ RuleSub (Map.fromList esubs) (Map.fromList (concat fsubs))
+      let fnsubs = catMaybes $ (map (\(e,f,r)->nameFuncSub (modelObservations mdl) f e) trees)
+      Just $ RuleSub (Map.fromList esubs) (Map.fromList (concat fsubs)) (Map.fromList fnsubs)
 --
 --
 nameExistSub :: [(FnSym, Int, Variable)] -> FnSym -> Element -> Maybe ((Int,Variable), Term)
@@ -155,6 +158,22 @@ nameFreeSub rule elms = do
   let frees = freeVars rule
   let terms = map (\e->(Elem e)) elms
   (zip frees terms)
+--
+--
+nameFuncSub :: [Observation] -> FnSym -> Element -> Maybe ((FnSym, [Term]), Term)
+nameFuncSub obvs fn elm = do
+  case (filter (\(Obs o)-> 
+    case o of
+      (Rel _ _) -> False
+      (FnRel fnsym _) -> (fnsym==fn)) obvs) of
+    [] -> Nothing
+    match -> do
+      case (head match) of
+        (Obs (FnRel fnsym ts)) -> case (length ts) of
+          0 -> Nothing
+          1 -> Just $ ((fnsym, (tail ts)), (Elem elm))
+          _ -> Just $ ((fnsym, (init ts)), (Elem elm))
+        _ -> Nothing
 
 ----------------------
 -- BLAME PROVENANCE --
@@ -217,7 +236,7 @@ getSkolemTree prov mdl elm = case (getElementProv elm prov) of
     Nothing -> Nothing
     Just (skolemhead, skolemrest) -> Just (elm, skolemhead, (concatMap (\t->(maybeToList (getSkolemElement prov t))) skolemrest))
 --
---
+-- 
 headExistentials :: Formula -> Int -> [(FnSym, Int, Variable)]
 headExistentials Tru _                   = []
 headExistentials Fls _                   = []
@@ -228,9 +247,8 @@ headExistentials (Or f1 f2) i            =
 headExistentials (Atm a) _                = []
 headExistentials (Exists (Just fn) v f) i = (fn, i, v):(headExistentials f i)
 headExistentials (Exists Nothing _ f) i  = headExistentials f i
-headExistentials (Lone (Just fn) _ f unq) i = headExistentials f i
+headExistentials (Lone (Just fn) v f unq) i = (fn, i, v):(headExistentials f i)
 headExistentials (Lone Nothing _ f _) i  = headExistentials f i
-
 
 
 
