@@ -675,7 +675,7 @@ minimizeResult res = do
                        Just as -> flipAxioms unintRel as) rels
   let negAx    = bAnd negs
   let flipAx   = bOr flips
-  return $ fnNeg &&& eqNegAx &&& (flipAx ||| fnFlips ||| eqFlipAx)
+  return $ negAx &&& fnNeg &&& eqNegAx &&& (flipAx ||| fnFlips ||| eqFlipAx)
 
 {- This function creates Negative Axioms for a set of facts that are named by
    a list of SMTAtom instances: every SMTAtom names a *negative* fact in a 
