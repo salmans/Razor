@@ -11,6 +11,7 @@ import Common.Provenance
 import Syntax.GeometricUtils
 import SAT.Impl
 import Tools.Config
+import Data.List
 import Data.Either
 import Data.Maybe
 import qualified Data.Map as Map
@@ -18,8 +19,8 @@ import System.Environment
 
 data UError = UErr String
 type UState = (Theory, ProvInfo, SATIteratorType, Model, ModelProv)
-type UTheorySubs = [Maybe Sequent]
 data UOrigin = UOriginLeaf Term (Either UError TheorySub) | UOriginNode Term (Either UError TheorySub) [UOrigin]
+type UTheorySubs = [Maybe Sequent]
 
 getConfig :: IO Config
 getConfig = do 
@@ -75,3 +76,19 @@ getJustification state@(thy, prov, stream, mdl, modelProv) atom = case (getFact 
                                       map (\(e, h, r)->(actualelm, h, r)) skolemtrees) factelms)
       let blamedtheory = (blameTheory thy names blames)
       Right blamedtheory
+
+--
+--
+replaceTheory :: Theory -> TheorySub -> [Maybe Sequent]
+replaceTheory thy reps = do
+  sequent <- thy
+  case (elemIndex sequent thy) of
+    Nothing -> return Nothing
+    Just i -> case (Map.lookup i reps) of
+      Nothing -> return Nothing
+      Just rs -> do
+        let (Sequent b h) = sequent
+        let (Sequent b' h') = (Sequent b (replaceExists h (existSub rs)))
+        let (Sequent b'' h'') = (Sequent (replaceFrees b' (freeSub rs)) (replaceFrees h' (freeSub rs)))
+        return $ Just (Sequent (replaceFuncs b'' (funcSub rs)) (replaceFuncs h'' (funcSub rs)))
+        

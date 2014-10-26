@@ -5,7 +5,8 @@
   Maintainer  : Salman Saghafi, Ryan Danas
 -}
 {-| TODO / BUGS
-how to deal with flattening... exists x. exists y. Q(x, y, f(g(x, y)))
+flattened functions dont have proper replacements in modelProv
+functions with existentially quantified variables dont have proper replacements in modelProv
 allow user to give any expr that evaluates to an element
 augmentation
 -}
@@ -91,7 +92,7 @@ printOrigin thy mods@(isall, tabs) (UOriginLeaf term origin) = do
   lift $ prettyPrint tabs foutput ("origin of "++(show term)++"\n")
   case origin of
     Left (UErr err) -> (lift $ prettyPrint tabs ferror (err++"\n"))
-    Right namedthy -> lift $ prettyPrint tabs flow ((show namedthy)++"\n")--printDiff (thy,namedthy) ((show term),tabs,isall)
+    Right reps -> printDiff (thy,(replaceTheory thy reps)) ((show term),tabs,isall)
 printOrigin thy mods@(isall, tabs) (UOriginNode term origin depends) = do
   printOrigin thy mods (UOriginLeaf term origin)
   mapM_ (printOrigin thy (isall, tabs+1)) depends
@@ -103,7 +104,7 @@ printJustification atom thy justification = do
     Left (UErr err) -> (lift $ prettyPrint 0 ferror (err++"\n"))
     Right blamedthy -> printDiff (thy,blamedthy) ((show atom),0,True)
 
-printDiff :: (Theory, UTheorySubs) -> (String, Int, Bool) -> InputT IO()
+printDiff :: (Theory, [Maybe Sequent]) -> (String, Int, Bool) -> InputT IO()
 printDiff (thy,dthy) format@(highlight,tabs,printall) = printDiffPlus (zip thy dthy) format
 printDiffPlus :: [(Sequent, Maybe Sequent)] -> (String, Int, Bool) -> InputT IO()
 printDiffPlus [] _ = return ()

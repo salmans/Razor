@@ -250,6 +250,39 @@ headExistentials (Exists Nothing _ f) i  = headExistentials f i
 headExistentials (Lone (Just fn) v f unq) i = (fn, i, v):(headExistentials f i)
 headExistentials (Lone Nothing _ f _) i  = headExistentials f i
 
+------------------------
+-- THEORY REPLACEMENT --
+------------------------
+--type TheorySub = Map.Map Int RuleSub
+--data RuleSub = RuleSub { existSub :: ExistSub
+--                        ,freeSub :: FreeSub
+--                        ,funcSub :: FuncSub}
+--instance Show RuleSub where
+--  show (RuleSub n f fn) = (show n)++"\n"++(show f)++"\n"++(show fn)++"\n"
+--type FreeSub = Sub
+--type ExistSub = Map.Map (Int,Variable) Term
+--type FuncSub = Map.Map (FnSym, [Term]) Term
+--
+--
+replaceExists :: Formula -> ExistSub -> Formula
+replaceExists fml es = fml
+--
+--
+replaceFrees :: Formula -> FreeSub -> Formula
+replaceFrees fml fs = fml
+--
+--
+replaceFuncs :: Formula -> FuncSub -> Formula
+replaceFuncs fml fns = fml
+
+
+
+
+
+
+
+
+
 
 
 
