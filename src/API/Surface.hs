@@ -20,7 +20,7 @@ import System.Environment
 data UError = UErr String
 type UState = (Theory, ProvInfo, SATIteratorType, Model, ModelProv)
 data UOrigin = UOriginLeaf Term (Either UError TheorySub) | UOriginNode Term (Either UError TheorySub) [UOrigin]
-type UTheorySubs = [Maybe Sequent]
+type UBlame = Either UError TheorySub
 
 getConfig :: IO Config
 getConfig = do 
@@ -64,18 +64,16 @@ getOrigin state@(thy, prov, stream, mdl, modelProv) mods@(isall, isrec) term = d
           Nothing -> Left (UErr ("no provenance information for element "++(show term)++"\n"))
           Just (thynames, nextterms) -> Right (thynames, (map Elem nextterms))
                 
-getJustification :: UState -> Formula -> Either UError UTheorySubs
+getJustification :: UState -> Formula -> UBlame
 getJustification state@(thy, prov, stream, mdl, modelProv) atom = case (getFact mdl atom) of
   Nothing -> Left (UErr "fact not in form FactName(e^0, e^1, ...) or is not in the current model")
-  Just fact@(factname, factelms) -> case (getBlame prov mdl fact) of
-    [] -> Left (UErr ("no provenance information for fact "++(show atom)))
-    blames -> do
-      let names = (concatMap (\t -> do
-                                      let skolemtrees = (getSkolemTrees (elementProvs prov) mdl t) 
-                                      let (actualelm,_,_) = head skolemtrees
-                                      map (\(e, h, r)->(actualelm, h, r)) skolemtrees) factelms)
-      let blamedtheory = (blameTheory thy names blames)
-      Right blamedtheory
+  Just fact -> do
+    let matches = Map.toList $ Map.filterWithKey (\k _->(elem fact k)) (blameProv modelProv)
+    case matches of
+      [] -> Left (UErr ("no provenance information for fact "++(show atom)))
+      match -> do
+        let (atms, thyblames) = head match
+        Right thyblames
 
 replaceTheory :: Theory -> TheorySub -> [Maybe Sequent]
 replaceTheory thy reps = do

@@ -97,12 +97,12 @@ printOrigin thy mods@(isall, tabs) (UOriginNode term origin depends) = do
   printOrigin thy mods (UOriginLeaf term origin)
   mapM_ (printOrigin thy (isall, tabs+1)) depends
 
-printJustification :: Formula -> Theory -> Either UError UTheorySubs -> InputT IO()
+printJustification :: Formula -> Theory -> UBlame -> InputT IO()
 printJustification atom thy justification = do 
   lift $ prettyPrint 0 foutput ("justification of "++(show atom)++"\n")
   case justification of
     Left (UErr err) -> (lift $ prettyPrint 0 ferror (err++"\n"))
-    Right blamedthy -> printDiff (thy,blamedthy) ((show atom),0,True)
+    Right reps -> printDiff (thy,(replaceTheory thy reps)) ((show atom),0,True)
 
 printDiff :: (Theory, [Maybe Sequent]) -> (String, Int, Bool) -> InputT IO()
 printDiff (thy,dthy) format@(highlight,tabs,printall) = printDiffPlus (zip thy dthy) format

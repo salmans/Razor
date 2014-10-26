@@ -28,7 +28,6 @@ main = do
           putStrLn $ "THEORY = "++(show theory)
           putStrLn $ "PROV = "++(show prov)
           putStrLn $ "MODEL = "++(show model)
-          putStrLn $ "STREAM = ???"
     -- command = parse command, get state, and return the action results as XML
     Just command -> do
       putStrLn $ "COMMAND = "++(show command)
