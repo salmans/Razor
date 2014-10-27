@@ -441,32 +441,35 @@ insertTuples :: TablePair -> RelExp -> Database -> Int
              -> PushM Database t Database
 insertTuples _ TblEmpty db _ = return db
 insertTuples _ TblFull db  _ = return db
-insertTuples tblPair exp@(Tbl ref vars heads) db _
+insertTuples tblPair (Tbl ref vars heads) db _
     | nullTablePair tblPair  = return db
-    | otherwise              = do
-  let totalColumns = length vars
-  
-  let inject tup = \i -> tup ! (fromJust $ lookup i vars)
-      
-  (id, vars, _) <- liftPushMProvs State.get
+    | otherwise              = do      
+  (id, vars, _) <- liftPushMProvs State.get -- get information required for 
+                                            -- constructing blaming data
 
-  let content' = DB.map
-                 (\(Tuple tup1 tup2) -> 
-                      Tuple (Vect.map (inject tup2)
-                             (Vect.fromList [0..(totalColumns - 1)]))
-                      (TheoryBlame id $ Map.fromList $ zip vars 
-                                      $ termsOf (Vect.toList tup1))) tblPair
+  let content'   = let makeSub = Map.fromList . zip vars . toTerms . Vect.toList
+                                 -- given a vector of tuples, create a 
+                                 -- substitution from free variables of the 
+                                 -- sequent to the elements in the tuple.
+                   in  DB.map (\(Tuple t1 t2) -> 
+                               (tuple t2, TheoryBlame id $ makeSub t1)) tblPair
+                   -- Separate the tuples of the input 'TablePair', construct 
+                   -- the second part to create a tuple that is inserted into
+                   -- the target database, and the first tuple to create blaming
+                   -- information.
 
 
-  -- Filter the tuples that already exist in uni
+  -- Filter out those tuples that already exist in the previous iterations of 
+  -- the database (@uni@):
   uni <- liftPushMBase $ State.get
-  let tableInUni = Map.findWithDefault emptyTable ref uni
-  let content''  = DB.filter (\t -> let t' = undecorate t 
-                                    in  not $ t' `DB.elem` tableInUni) content'
+  let tableInUni = Map.findWithDefault emptyTable ref uni 
+      -- target table in @uni@
+  let content''  = DB.filter (\(t, _) -> not $ t `DB.elem` tableInUni) content'
 
-  let newProvs = Map.fromList 
-                 $ (\(Tuple tup blm) -> (obsOf ref (Vect.toList tup), blm)) 
-                 <$> (DB.toList content'')
+  let newProvs   = Map.fromList 
+                   $ (\(Tuple tup _, blm) -> (obsOf ref (Vect.toList tup), blm)) 
+                   <$> (DB.toList content'') 
+                   -- map observations to their corresponding blaming information
 
   liftPushMProvs $ State.modify
                  $ \(_, _, ps) -> 
@@ -474,30 +477,28 @@ insertTuples tblPair exp@(Tbl ref vars heads) db _
                      in  ( id
                          , vars
                          , ps { observationProvs = Map.union oldProvs newProvs })
+                     -- Update the provenance information with the new blaming
+                     -- data
 
-  return $ Map.insertWith unionTables ref 
-             (nubTable $ undecorateTable content'') db 
-           -- removing duplicates in the new tuples for efficiency
-    -- inserting with DB.union here does not allow for duplicate entries.
+  return $ Map.insertWith unionTables ref (nubTable $ DB.map fst content'') db 
+           -- Removing duplicates in the new tuples for efficiency although
+           -- inserting with DB.union here does not allow for duplicate entries.
     where obsOf (ConstTable c) [e] = Obs $ Rel "=" [Cons c, Elem e]
-          obsOf (RelTable r) es    = Obs $ Rel r $ termsOf es
-          obsOf (FnTable f ) es    = Obs $ Rel f $ termsOf es
-          termsOf es   = Elem <$> es
+          obsOf (RelTable r) es    = Obs $ Rel r $ toTerms es
+          obsOf (FnTable f ) es    = Obs $ Rel f $ toTerms es
+          toTerms es               = Elem <$> es
 
 
-insertTuples tblPair exp@(Proj innerExp col heading skFn unqExp) db depth
+insertTuples tblPair (Proj innerExp col heading skFn unqExp) db depth
     | nullTablePair tblPair = return db
     | otherwise             = do
   let totalColumns          = length $ Map.keys $ header innerExp
                           -- we have this many columns in total
-  uni <- liftPushMBase State.get
+  uni   <- liftPushMBase State.get
                           -- entire set of facts from the previous iteration of
                           -- the Chase
   provs <- liftPushMProvs $ State.get
 
-  let diff = tblPair -- for now, we don't consider the differece
-  -- MONITOR >
-             -- tuples to insert (tuples that already do not exists)
   let inject = case unqExp of
                  Nothing -> insertProjInject col
                  Just ue -> insertProjUniqueInject db uni ue heading col
@@ -517,7 +518,7 @@ insertTuples tblPair exp@(Proj innerExp col heading skFn unqExp) db depth
                             tup2' <- (Vect.mapM (inject (tuple tup2))
                                      (Vect.fromList [0..(totalColumns - 1)]))
                             return ((Tuple tup1 tup2'):set)) 
-           empty $ DB.toList diff
+           empty $ DB.toList tblPair
 
   liftPushMProvs $ State.modify 
                  $ \(id, vs, ps) -> (id, vs, newElementsProvs new skFn col ps)
