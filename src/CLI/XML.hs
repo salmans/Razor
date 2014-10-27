@@ -29,27 +29,80 @@ import qualified Data.Map as Map
 xmlConfigOUT = [withIndent yes]
 xmlConfigIN = [withValidate no, withRemoveWS yes, withPreserveComment no]
 
+toXMLFile :: UState -> Maybe UAnswer -> String -> IO ()
+toXMLFile state@(UState theory prov stream model modelProv) answer file = do
+  let str = toXMLString (XMLRoot answer (XMLState theory prov model))
+  deepseq str (writeFile file str)
+
 toXMLString :: (XmlPickler a) => a -> String
 toXMLString struct = showPickled xmlConfigOUT struct
 
-toXMLFile :: UState -> String -> IO ()
-toXMLFile state@(UState theory prov stream model modelProv) file = do 
-  let str = (toXMLString (XMLState theory prov model))
-  deepseq str (writeFile file str)
-
 fromXMLFile :: String -> IO (UState)
 fromXMLFile file = do
-  states <- runX ((xunpickleDocument xpState xmlConfigIN file)>>>processState)
-  let (XMLState theory prov model) = head states 
+  roots <- runX ((xunpickleDocument xpRoot xmlConfigIN file)>>>processXML)
+  let (XMLRoot answer (XMLState theory prov model)) = head roots 
   return (UState theory prov (satInitialize emptySATTheory) model emptyModelProv)
 
-processState :: IOSArrow XMLState XMLState
-processState = arrIO (\x -> do{return x})
+processXML :: IOSArrow XMLRoot XMLRoot
+processXML = arrIO (\x -> do{return x})
+
+----------
+-- ROOT --
+----------
+data XMLRoot = XMLRoot (Maybe UAnswer) XMLState
+instance XmlPickler XMLRoot where xpickle = xpRoot
+xpRoot :: PU XMLRoot
+xpRoot =
+  xpElem "RAZOR" $
+  xpWrap (\(ans, state)->(XMLRoot ans state), \(XMLRoot ans state)->(ans, state)) $
+  xpPair xpAnswer xpState
+
 ------------
+-- ANSWER --
+------------
+{-
+data UAnswer = AOrigin UOrigin | ABlame UBlame
+-}
+xpAnswer :: PU (Maybe UAnswer)
+xpAnswer = 
+  xpElem "ANSWER" $
+  xpWrap (implodeAnswer, explodeAnswer) $
+  xpPair (xpOption xpOrigin) (xpOption xpBlame)
+
+implodeAnswer :: (Maybe UOrigin, Maybe UBlame) -> Maybe UAnswer
+implodeAnswer _ = Nothing
+
+explodeAnswer :: Maybe UAnswer -> (Maybe UOrigin, Maybe UBlame)
+explodeAnswer Nothing = (Nothing, Nothing)
+explodeAnswer (Just(AOrigin origin)) = (Just origin, Nothing)
+explodeAnswer (Just(ABlame blame)) = (Nothing, Just blame)
+
+------------
+-- ORIGIN --
+------------
+{-
+data UOrigin = UOriginLeaf Term (Either UError TheorySub) | UOriginNode Term (Either UError TheorySub) [UOrigin]
+-}
+xpOrigin :: PU UOrigin
+xpOrigin =
+  xpElem "ORIGIN" $
+  xpWrap (\()->(error "no"), \anything->()) xpUnit
+
+-----------
+-- BLAME --
+-----------
+{-
+type UBlame = Either UError TheorySub
+-}
+xpBlame :: PU UBlame
+xpBlame =
+  xpElem "BLAME" $
+  xpWrap (\()->(error "no"), \anything->()) xpUnit
+
+-----------
 -- STATE --
-------------
+-----------
 data XMLState = XMLState Theory ProvInfo Model
-instance XmlPickler XMLState where xpickle = xpState
 xpState :: PU XMLState
 xpState =
 	xpElem "STATE" $
@@ -160,13 +213,13 @@ xpObservationProvs =
   xpWrap (Map.fromList, Map.toList) $
   xpList $
   xpElem "OBSPROV" $ 
-  xpPair (xpElem "FROM" xpObservation) (xpElem "TO" xpBlame)
+  xpPair (xpElem "FROM" xpObservation) (xpElem "TO" xpThyBlame)
 {-
 data Blame = TheoryBlame Id Sub
 -}
-xpBlame :: PU Blame
-xpBlame =
-  xpElem "BLAME" $ 
+xpThyBlame :: PU Blame
+xpThyBlame =
+  xpElem "THYBLAME" $ 
   xpWrap (\(i, s) -> (TheoryBlame i s)
    , \blame@(TheoryBlame i s) -> (i, s)
    ) $ 

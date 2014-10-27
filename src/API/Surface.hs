@@ -19,6 +19,7 @@ import System.Environment
 
 data UError = UErr String
 data UState = UState Theory ProvInfo SATIteratorType Model ModelProv
+data UAnswer = AOrigin UOrigin | ABlame UBlame
 data UOrigin = UOriginLeaf Term (Either UError TheorySub) | UOriginNode Term (Either UError TheorySub) [UOrigin]
 type UBlame = Either UError TheorySub
 
