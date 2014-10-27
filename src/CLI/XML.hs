@@ -13,8 +13,11 @@ import API.Core
 import Common.Model
 import Common.Provenance
 import Syntax.GeometricUtils
+import Syntax.Geometric
 import SAT.Impl (SATIteratorType)
 import SAT.Data
+import Data.Maybe 
+import Data.List
 
 -----------------
 -- XML HELPERS --
@@ -38,7 +41,7 @@ instance XmlPickler UState where xpickle = xpState
 -}
 xpState :: PU UState
 xpState =
-	xpElem "USTATE" $
+	xpElem "STATE" $
 	xpWrap (\xml@((thy, prov, stream, mdl, mdlprov)) -> (UState thy prov stream mdl mdlprov)
 		, \ustate@(UState thy prov stream mdl mdlprov) -> (thy, prov, stream, mdl, mdlprov)
 		) $
@@ -53,10 +56,12 @@ xpState =
 xpTheory :: PU Theory
 xpTheory = 
 	xpElem "THEORY" $
-  xpWrap (\xml@(sequents) -> sequents
-  , \theory@(sequents) -> sequents
+  xpWrap (\rules -> (map (\(i, r)->r) rules)
+    ,\sequents -> (map (\s->( (fromMaybe 0 (elemIndex s sequents)), s) ) sequents)
   ) $ 
-  xpList xpSequent
+  xpList xpRule
+xpRule :: PU (Int, Sequent)
+xpRule = xpElem "RULE" $ xpPair (xpAttr "ID" xpPrim) xpSequent
 {-
   data Sequent = Sequent {
       sequentBody :: Formula,
@@ -64,27 +69,7 @@ xpTheory =
     }
 -}
 xpSequent :: PU Sequent
-xpSequent =
-  xpElem "RULE" $
-  xpWrap (\xml@(bd, hd) -> (Sequent bd hd)
-    , \sequent@(Sequent bd hd) -> (bd, hd)
-    ) $
-  xpPair (xpElem "BODY" xpFormula) (xpElem "HEAD" xpFormula)
-{-
-data Formula = Tru
-             | Fls
-             | Atm Atom
-             | And Formula Formula
-             | Or  Formula Formula
-             | Exists (Maybe FnSym) Variable Formula
-             | Lone (Maybe FnSym) Variable Formula Formula
--}
-xpFormula :: PU Formula
-xpFormula =
-  xpWrap (\xml@(fml) -> Tru
-    , \fml -> "not implemented"
-    ) $
-  xpText
+xpSequent = xpWrap (parseSequent, show) xpText
 
 --------------
 -- PROVINFO --
@@ -102,15 +87,9 @@ xpProvInfo =
 ------------
 -- STREAM --
 ------------
-{-
--}
+-- TODO not implemented yet; needs to change structure on the haskell side first
 xpStream :: PU SATIteratorType
-xpStream = 
-  xpElem "STREAM" $
-  xpWrap (\xml@(stream) -> satInitialize emptySATTheory
-    , \stream -> "not implemented"
-    ) $
-  xpText
+xpStream = xpWrap (\()->(satInitialize emptySATTheory), \anything->()) xpUnit
 
 -----------
 -- MODEL --
@@ -124,12 +103,12 @@ xpModel =
     , \mdl -> "not implemented"
     ) $
   xpText
-{-
--}
+
+---------------
+-- MODELPROV --
+---------------
+-- TODO should this be sent as XML via the CLI?
+-- its quite a large struct
+-- better to just query the CLI for the particular model prov info desired?
 xpModelProv :: PU ModelProv
-xpModelProv = 
-  xpElem "MODELPROV" $
-  xpWrap (\xml@(mdlprov) -> emptyModelProv
-    , \mdlprov -> "not implemented"
-    ) $
-  xpText
+xpModelProv = xpWrap (\()->emptyModelProv, \anything->()) xpUnit

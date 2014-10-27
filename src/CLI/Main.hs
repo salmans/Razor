@@ -32,6 +32,4 @@ main = do
             Right state@(UState theory prov stream model modelProv) -> toXMLFile state stateFile
         -- command... read current state + apply command = return state'
         Just command -> do
-          putStrLn $ "COMMAND = "++(show command)
-          putStrLn $ "XMLFILE = "++(show stateFile)
           putStrLn $ "no supported commands yet!"
