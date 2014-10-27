@@ -8,6 +8,6 @@
 module Chase.HerbrandBase.RelAlg.Translate 
     ( bodyRelExp, headRelExp, delta
     , evaluateRelExp, evaluateRelExpNoDelta
-    , tupleTransformer, insertTuples ) where
+    , insertTuples, tupleTransformer ) where
 
 import Chase.HerbrandBase.RelAlg.ITranslate

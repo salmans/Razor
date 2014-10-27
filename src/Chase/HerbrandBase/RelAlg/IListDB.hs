@@ -88,11 +88,14 @@ join sel (Set set1) (Set set2) =
     where prod xs ys = [(x, y) | x <- xs, y <- ys]
 
 -- Helper functions:
-{-| Unions two sets. It is implied that the two sets contain unionable columns.
-  -}
+{-| Unions two sets. It is assumed that the two sets are unionable. -}
 union :: Eq a => Set a -> Set a -> Set a
 union (Set set1) (Set set2) = Set $ List.union set1 set2
 
+{-| Unions two sets. It is assumed that sets are unionable. -}
+unions :: Eq a => [Set a] -> Set a
+unions sets = let ss = List.map (\(Set s) -> s) sets
+              in  Set $ foldl List.union [] ss
 
 {-| Returns the difference of the two sets. -}
 difference :: Eq a => Set a -> Set a -> Set a

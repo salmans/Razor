@@ -7,6 +7,7 @@ module Chase.HerbrandBase.RelAlg.ISetDB where
 
 -- Standard
 import Prelude hiding (map, filter)
+import qualified Data.List as List (map)
 
 -- Tools
 import qualified Tools.ExtendedSet as ES
@@ -90,10 +91,14 @@ join sel (Set set1) (Set set2) =
     where prod xs ys = [(x, y) | x <- xs, y <- ys]
 
 -- Helper functions:
-{-| Unions two sets. It is implied that the two sets contain unionable columns.
-  -}
+{-| Unions two sets. It is assumed that the two sets are unionable.-}
 union :: Ord a => Set a -> Set a -> Set a
 union (Set set1) (Set set2) = Set $ ES.union set1 set2
+
+{-| Unions a list of sets. It is assumed that the sets are unionable. -}
+unions :: Ord a => [Set a] -> Set a
+unions sets = let ss = List.map (\(Set s) -> s) sets
+              in  Set $ ES.unions ss
 
 
 {-| Returns the difference of the two sets. -}

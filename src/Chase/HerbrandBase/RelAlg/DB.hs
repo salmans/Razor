@@ -11,7 +11,7 @@ module Chase.HerbrandBase.RelAlg.DB ( Set(..)
                                     , empty, singleton, oneMember
                                     , IDB.null, IDB.elem, nub, size
                                     , IDB.map, IDB.filter
-                                    , union, difference ) where
+                                    , union, unions, difference ) where
 
 {- Select DB implementation: -}
 -- import Chase.HerbrandBase.RelAlg.IListDB as IDB -- based on Haskell lists

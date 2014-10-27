@@ -18,11 +18,10 @@ module Chase.HerbrandBase.RelAlg.Lang
     , emptyDatabase, nullDatabase, emptyDatabaseWithConstants
     , tupleFromList, tuplePairFromList, recordsFromList, recordPairsFromList
     , tableFromList, tablePairFromList, databaseFromList
-    , nubTable, unionTables, unionDatabases
+    , nubTable, unionTables, unionsTables, unionDatabases
     , diffTables, diffDatabases, removeEmptyTables
     , relExpRefs, refsInDatabase, databaseSize
-    , deleteColumnProjector, deleteColumnsProjector
-    , similarColumnsSelector, columnValuesSelector
+    , deleteColumnProjector, similarColumnsSelector, columnValuesSelector
     , mergeJoinTables ) where
 
 import Chase.HerbrandBase.RelAlg.ILang

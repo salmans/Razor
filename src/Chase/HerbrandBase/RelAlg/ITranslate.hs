@@ -61,6 +61,7 @@ error_headersMismatch  = "the header of the joined expression and one of its"
 error_freeVarInHead    = "the expression in head has extra attributes"
 error_notConstTable    = "expecting a reference to a constant table"
 error_deltaForDelta    = "the formula is already in differential form"
+error_deltaInNoDelta   = "the input query contains differential expression"
 --------------------------------------------------------------------------------
 -- Translating sequents to relational algebra:
 
@@ -186,13 +187,14 @@ joinRelExp lExp rExp
         let lHeader    = header lExp
             rHeader    = header rExp
             newHeader  = joinHeader lHeader rHeader
-        in Join lExp rExp newHeader
+        in  Join lExp rExp newHeader 
+                (joinTupleTransformer lHeader rHeader newHeader)
 
 {- As a helper for joinRelExp, computes the header of a join expression for two
    expressions with the two input headers -}
 joinHeader :: Header -> Header -> Header
 joinHeader lHeader rHeader =
-    let rHeader'  = Map.difference rHeader lHeader
+    let rHeader'    = Map.difference rHeader lHeader
                     -- items that only exist in rHeader
         lHeaderSize = Map.size lHeader
         lHeader''   = Map.fromList $ zip (Map.keys lHeader) [0..]
@@ -201,6 +203,27 @@ joinHeader lHeader rHeader =
                       -- header, ignore the columns with no 
                       -- variable attributes
     in Map.unionWith const lHeader'' rHeader''
+
+{- Given two 'Header's for two sets that are being joined and a header for the 
+   target (joined) set, returns a function that transforms the tuples of 
+   the two joined sets to a tuple of the target set. -}
+joinTupleTransformer :: Header -> Header -> Header 
+                     -> (TupleSub -> TupleSub -> TupleSub)
+joinTupleTransformer lHeader rHeader jHeader =
+    let list              = swap <$> (Map.toList jHeader)
+        jHeaderR          = Map.fromList list
+        total             = length list - 1
+        vectorTransformer = \lVs rVs -> 
+          (Vect.map (\i -> case Map.lookup i jHeaderR of
+                             Nothing -> error "error1"
+                             Just a  -> case Map.lookup a lHeader of
+                                          Nothing -> case Map.lookup a rHeader of
+                                                       Nothing -> error "error2"
+                                                       Just k  -> rVs ! k
+                                          Just j  -> lVs ! j)
+           (Vect.fromList [0..total]))
+    in  \(Tuple lVs lIs) (Tuple rVs rIs) -> 
+        Tuple (vectorTransformer lVs rVs) (Map.union lIs rIs)
 
 {- Creates a list of pairs, representing a join predicate on two input 
    'Header's. The first input is the header of the new expression 
@@ -256,26 +279,6 @@ equalVarPairs varMap heads =
               let newInd = fromJust $ Map.lookup k heads
               in  (\t -> (t, newInd)) <$> pos
 
-
-{-
-
-{- As a helper for 'atomTable', constructs a set of pairs to filter the tuples 
-   of a set based on the elements appearing in the terms of an atomic formula. -}
-elemPreds :: [Term] -> [(Int, Element)]
-elemPreds ts = fst $ foldl foldFunc ([], 0) ts
-    where foldFunc (pairs, i) t = 
-              case t of
-                Elem e    -> ((i, e): pairs, i + 1)                
-                otherwise -> (pairs, i + 1)  -- otherwise, ignore
-
-{- Returns a 'Schema' for a given list of terms. -}
-termSchema :: [Term] -> Schema
-termSchema ts = labelingFunc <$> ts
-    where labelingFunc t = case t of 
-                             Var v     -> Just v
-                             otherwise -> Nothing
--}
-
 {- Creates a map from variables to their positions in a list of terms.-}
 createExternalVarMap :: [Term] -> Map.Map Variable Int
 createExternalVarMap ts = let vs       = [ fromJust v | t <- ts
@@ -299,19 +302,18 @@ createInternalVarMap ts = let termPairs = zip ts [0..]
   expression. The differential expression is used for incremental view 
   maintenance. -}
 delta :: RelExp -> RelExp
-delta TblEmpty               = TblEmpty
-delta TblFull                = TblFull -- This assumes sequents with TblFull on
-  -- their left are processed once at the beginning and will be never processed
-  -- again.
+delta TblEmpty                  = TblEmpty
+delta TblFull                   = TblFull 
+    -- This assumes sequents with TblFull on their left are processed once at the 
+    -- beginning and will be never processed again.
 delta exp@(Tbl _ _ hds)         = Delta exp hds
 delta (Proj exp cols hds fn lf) = Proj (delta exp) cols hds fn lf
 delta (Sel exp cols hds)        = Sel (delta exp) cols hds
-delta (Join exp1 exp2 hds)      = Union exp1 dlt1 exp2 dlt2 hds
+delta (Join exp1 exp2 hds tran) = Union exp1 dlt1 exp2 dlt2 hds tran
     where dlt1 = delta exp1
           dlt2 = delta exp2
-delta _                      = error $ unitName ++ ".delta: " ++ 
-                               error_deltaForDelta
-
+delta _                         = error $ unitName ++ ".delta: " ++ 
+                                  error_deltaForDelta
 --------------------------------------------------------------------------------
 -- Evaluating sequents in a database:
 
@@ -324,98 +326,99 @@ delta _                      = error $ unitName ++ ".delta: " ++
    - input relational expression
    
    Output:
-   - An instance of 'ExtendedTable' with 'ExistsSub' as extra information for
-   each tuple. The substitutions are used to determine the mapping that is used
-   to instantiate projected columns (existential variables) when computing the
-   tuple.
+   - A 'TableSub' instance containging the resulting tuples and their 
+   accompanying 'ExistsSub' substitutions to contain values for the columns that
+   are projected out.
+   NOTE: in an alternative implementation where values of Skolem functions are
+   stored as tables in the database, values for the columns that are projected
+   out are naturally returned as extra columns in the result set.
 -}
 {- Future extension: as a safety constraint, the header of the expression may be
    compared against the schema for the table being fetched from the database -}
 evaluateRelExp :: Database -> Database -> RelExp -> TableSub
 evaluateRelExp _ _ TblEmpty    = emptyTableSub
 evaluateRelExp _ _ TblFull     = fullTableSub
-evaluateRelExp db dlt exp@(Tbl t _ heads) = 
+evaluateRelExp db _ exp@(Tbl t _ heads) = 
     let set = Map.findWithDefault emptyTable t db
     in  decorateTable set emptyExistsSub
-evaluateRelExp db dlt (Delta exp@(Tbl t _ heads) _) =
+        -- Decorate the resulting table with empty substituions (no columns to
+        -- project out)
+evaluateRelExp _ dlt (Delta exp@(Tbl t _ heads) _) =
     let set = Map.findWithDefault emptyTable t dlt
     in  decorateTable set emptyExistsSub
-evaluateRelExp tbls delts (Proj exp col _ fn _) =
-  let set  = evaluateRelExp tbls delts exp                                  
-  in if   nullTableSub set
-     then evaluateRelExp tbls delts TblEmpty
-       -- if the non-projected set is empty, evaluate @TblEmpty@
-     else DB.project proj set
-    where proj = DB.Project $
-                 \tup@(Tuple vec inf) -> 
-                     let (DB.Project pf) = deleteColumnProjector col
-                     -- First, create a DB.Project instance that gets rid
-                     -- of the extra column.
-                         inf'            = Map.insert fn (Elem (vec ! col)) inf
-                         -- Update the ExistsSub information as above
-                     in  pf tup { tupleDec = inf' }
-
-evaluateRelExp tbls delts (Sel exp pairs _) =
-    let set    = evaluateRelExp tbls delts exp
+evaluateRelExp db delts (Proj exp col _ fn _) =
+  let set  = evaluateRelExp db delts exp                                  
+  in if   nullTableSub set                -- if the non-projected set is empty
+     then evaluateRelExp db delts TblEmpty -- evaluate and return empty table
+     else DB.project (deleteColumnProjector col updateFn) set
+    where updateFn = Just $ \(Tuple v d) -> Map.insert fn (Elem (v ! col)) d
+          -- function for updating the tuple's substitution
+evaluateRelExp db delts (Sel exp pairs _) =
+    let set    = evaluateRelExp db delts exp
         selFun = similarColumnsSelector pairs
-    in  DB.select selFun set
-    -- Select columns that are equal according to @pairs@
-evaluateRelExp tbls delts (Join lExp rExp heads) =
+    in  DB.select selFun set -- Select columns that are equal
+evaluateRelExp db delts exp@(Join lExp rExp heads trans) =
     let lHds  = header lExp
         rHds  = header rExp
-        lSet  = evaluateRelExp tbls delts lExp
-        rSet  = evaluateRelExp tbls delts rExp
+                -- Headers of the inner expressions are used to compute a 
+                -- transforming function that constructs the join table from 
+                -- the results of evaluating the two inner expressions.
+        lSet  = evaluateRelExp db delts lExp
+        rSet  = evaluateRelExp db delts rExp
+                -- Well... evaluate the inner expressions first
         ps    = Map.elems $ Map.intersectionWith (,) lHds rHds
+                -- Compute a set of pairs of indices: these pairs indicate 
+                -- columns that must have equal values (we are jointing two 
+                -- tables, right?)
         cond  = DB.Select $ \(Tuple x _ , Tuple y _) -> 
                 and $ (\(p1, p2) -> x ! p1 == y ! p2) <$> ps
-                -- expanding variable pairs as a filter function for DB.join
+                -- Construct a filter function (of type DB.Select) to filter out
+                -- records that have equal values in columns with the same 
+                -- headers.
         tran  = \t1 t2 -> joinTupleTransformer lHds rHds heads t1 t2
     in  DB.map (uncurry tran) $ DB.join cond lSet rSet
-
-evaluateRelExp tbls delts (Union lExp lDlt rExp rDlt heads) =
+        -- Construct the join table, apply the transforming function and return
+        -- the result.
+evaluateRelExp db delts exp@(Union lExp lDlt rExp rDlt heads tran) =
+        -- Union expressions are like join expressions: we have to evaluate the
+        -- inner expressions, apply a transforming function to construct tables
+        -- that match the advertised header, and union the results.
     let lHds = header lExp
         rHds = header rExp
+               -- Headers of lDlt and rDlt must be the same as headers of lExp
+               -- and rExp unless something is wrong!
         ps   = Map.elems $ Map.intersectionWith (,) lHds rHds
         cond = DB.Select $ \(Tuple x _, Tuple y _) -> 
                and $ (\(p1, p2) -> x ! p1 == y ! p2) <$> ps
-        tran = \t1 t2 -> joinTupleTransformer lHds rHds heads t1 t2
-        set1 = DB.map (uncurry tran) $ DB.join cond slExp srDlt
-        set2 = DB.map (uncurry tran) $ DB.join cond slDlt srExp
-        set3 = DB.map (uncurry tran) $ DB.join cond slDlt srDlt
-    in  unionTables (unionTables set1 set2) set3
-    where slExp = evaluateRelExp tbls delts lExp
-          srExp = evaluateRelExp tbls delts rExp
-          slDlt = evaluateRelExp tbls delts lDlt
-          srDlt = evaluateRelExp tbls delts rDlt
+
+        set1 = DB.map (uncurry tran) $ DB.join cond lExpTbl rDltTbl
+        set2 = DB.map (uncurry tran) $ DB.join cond lDltTbl rExpTbl
+        set3 = DB.map (uncurry tran) $ DB.join cond lDltTbl rDltTbl
+    in  unionsTables [set1, set2, set3]
+    where lExpTbl = evaluateRelExp db delts lExp
+          rExpTbl = evaluateRelExp db delts rExp
+          lDltTbl = evaluateRelExp db delts lDlt
+          rDltTbl = evaluateRelExp db delts rDlt
 
 {- Evaluates a relational expression in a single database. Unlike 
    'evaluateRelExp', this function does not compute delta expressions 
    (if there is any 'Union' or 'Delta') in the expression. -}
 evaluateRelExpNoDelta :: Database -> RelExp -> TableSub
-evaluateRelExpNoDelta _ TblEmpty    = emptyTableSub
-evaluateRelExpNoDelta _ TblFull     = fullTableSub
-evaluateRelExpNoDelta db exp@(Tbl _ _ _) = 
+evaluateRelExpNoDelta _ TblEmpty                = emptyTableSub
+evaluateRelExpNoDelta _ TblFull                 = fullTableSub
+evaluateRelExpNoDelta db exp@(Tbl _ _ _)        = 
     evaluateRelExp db emptyDatabase exp
-evaluateRelExpNoDelta db (Proj exp col _ fn _) =
-    let set       = evaluateRelExpNoDelta db exp
-
-        projFunc  = DB.Project $
-                    \tup@(Tuple vec inf) -> 
-                    let (DB.Project pf) = deleteColumnProjector col
-                        inf'            = Map.insert fn (Elem (vec ! col)) inf
-                    in  pf tup { tupleDec = inf' }
-        projected = DB.project projFunc set
-    in  if   nullTableSub set
-        then evaluateRelExpNoDelta db TblEmpty
-             -- if the non-projected set is empty, evaluate @TblEmpty@
-        else projected
-
+evaluateRelExpNoDelta db (Proj exp col _ fn _)  =
+  let set  = evaluateRelExpNoDelta db exp                                  
+  in if   nullTableSub set               -- if the non-projected set is empty
+     then evaluateRelExpNoDelta db TblEmpty -- evaluate and return empty table
+     else DB.project (deleteColumnProjector col updateFn) set
+    where updateFn = Just $ \(Tuple v d) -> Map.insert fn (Elem (v ! col)) d
 evaluateRelExpNoDelta db (Sel exp pairs _) =
     let set    = evaluateRelExpNoDelta db exp
         selFun = similarColumnsSelector pairs
     in  DB.select selFun set
-    -- Select columns that are equal according to @pairs@
-evaluateRelExpNoDelta db (Join lExp rExp heads) =
+evaluateRelExpNoDelta db (Join lExp rExp heads tran) =
     let lHds  = header lExp
         rHds  = header rExp
         lSet  = evaluateRelExpNoDelta db lExp
@@ -424,30 +427,23 @@ evaluateRelExpNoDelta db (Join lExp rExp heads) =
         cond  = DB.Select $ \(Tuple x _, Tuple y _) -> 
                 and $ (\(p1, p2) -> x ! p1 == y ! p2) <$> ps
                 -- expanding variable pairs as a filter function for DB.join
-        tran  = \t1 t2 -> joinTupleTransformer lHds rHds heads t1 t2
     in  DB.map (uncurry tran) $ DB.join cond lSet rSet
--- mergeJoinTables (DB.join cond lSet rSet) $ snd <$> ps
+evaluateRelExpNoDelta _ _                       = 
+    error $ unitName ++ ".evaluateRelExpNoDelta: " ++ error_deltaInNoDelta
 --------------------------------------------------------------------------------
--- Inserting tuples for relational expressions:
-
-{- Inserts the tuples of a 'Table' @t@ to a view for relational expression @e@
-   in a database @db@. The schema for @t@ must be compatible with the @e@, 
-   otherwise, the function terminates with an error. 
+{- Inserts the tuples of a 'TablePair' @t@ to a view for relational expression 
+   @e@ in a database @db@. The schema for @t@ must be compatible with @e@, 
+   otherwise, the function halts with error. 
    
-   NOTE: in the current implementation, this function does not allow for
-   duplicate entries: if a table contains a tuple being inserted, the function 
-   will keep only once instance of the tuple. 
-   
-   NOTE: the function assumes that the expression does not have any reference
-   to a delta 'Database' (unlike evaluateRelExp). -}
-
+   NOTE: the function assumes that the expression does not contain any delta
+   subexpressions (unlike 'evaluateRelExp'). -}
 insertTuples :: TablePair -> RelExp -> Database -> Int 
-              -> PushM Database t Database
+             -> PushM Database t Database
 insertTuples _ TblEmpty db _ = return db
 insertTuples _ TblFull db  _ = return db
 insertTuples tblPair exp@(Tbl ref vars heads) db _
-    | nullTablePair tblPair = return db
-    | otherwise             = do
+    | nullTablePair tblPair  = return db
+    | otherwise              = do
   let totalColumns = length vars
   
   let inject tup = \i -> tup ! (fromJust $ lookup i vars)
@@ -540,7 +536,7 @@ insertTuples tbl (Sel exp colPairs _) db depth = do
   let new        = DB.map (\(Tuple tup1 tup2) -> Tuple tup1 (inject tup2)) tbl
   insertTuples new exp db depth
              
-insertTuples tbl exp@(Join lExp rExp heads) db depth = do
+insertTuples tbl exp@(Join lExp rExp heads _) db depth = do
   let lTran = unjoinTupleTransformer (header lExp) heads
   let rTran = unjoinTupleTransformer (header rExp) heads
   let lSet  = DB.map (\(Tuple tup1 tup2) -> Tuple tup1 (lTran tup2)) tbl
@@ -550,7 +546,7 @@ insertTuples tbl exp@(Join lExp rExp heads) db depth = do
   insertTuples rSet rExp db' depth
 insertTuples tbl (Delta _ _)          _  _ = 
     error $ unitName ++ ".insertTuples: " ++ error_insertIntoDeltaView
-insertTuples tbl (Union _ _ _ _ _   ) _  _ =
+insertTuples tbl (Union _ _ _ _ _ _ ) _  _ =
     error $ unitName ++ ".insertTuples: " ++ error_insertIntoUnionView
 
 {- Acts as a helper for 'insertTuple' when inserting into a Proj expression.
@@ -656,27 +652,6 @@ tupleTransformer heads1 heads2 =
         Vect.map (\i -> let j = fromJust $ Map.lookup i colPairs
                         in tup ! j)
                 (Vect.fromList [0..(totalCols - 1)])
-
-{- Given three 'Headers' for two sets that are about to be joined and the 
-   header of the target set, returns a function that transforms the tuples of 
-   the two joined sets to a tuple of the target set. -}
-joinTupleTransformer :: Header -> Header -> Header 
-                     -> (TupleSub -> TupleSub -> TupleSub)
-joinTupleTransformer lHeader rHeader jHeader =
-    let list              = swap <$> (Map.toList jHeader)
-        jHeaderR          = Map.fromList list
-        total             = length list - 1
-        vectorTransformer = \lVs rVs -> 
-          (Vect.map (\i -> case Map.lookup i jHeaderR of
-                             Nothing -> error "error1"
-                             Just a  -> case Map.lookup a lHeader of
-                                          Nothing -> case Map.lookup a rHeader of
-                                                       Nothing -> error "error2"
-                                                       Just k  -> rVs ! k
-                                          Just j  -> lVs ! j)
-           (Vect.fromList [0..total]))
-    in  \(Tuple lVs lIs) (Tuple rVs rIs) -> 
-        Tuple (vectorTransformer lVs rVs) (Map.union lIs rIs)
 
 unjoinTupleTransformer :: Header -> Header -> (Tup -> Tup)
 unjoinTupleTransformer heads jHeads =

@@ -225,6 +225,10 @@ databaseFromList pairs = Map.fromList pairs
      1. [@leftExpression@] is the left 'RelExp' in the join expression.
      2. [@rightExpression@] is the right 'RelExp' in the join expression.
      3. [@header@] is the attribute 'Header' for this expression.
+     4. [@joinTransformer@] Maintains a transforming function to reorder the 
+     columns of the two tables to match the header that is advertised by the 
+     join expression.
+
  [@Delta@] Changes in a relational expression: this usually denotes evaluating
  the expression in a database that contains the changes of a primary database.
      1. [@expression@] is the expression for which the changes is being computed.
@@ -236,6 +240,8 @@ databaseFromList pairs = Map.fromList pairs
      3. [@rightExpression@] is the expression on right (@Q@)
      4. [@rightDelta@] is the changes in the right expression (Delta @Q@)
      5. [@header@] is the attribute 'Header' for this expression.
+     6. [@joinTransformer@] serves the same purpose as joinTransformer function
+     for 'Join'.
  -}
 data RelExp = TblEmpty
             | TblFull
@@ -254,8 +260,9 @@ data RelExp = TblEmpty
                     , header           :: Header
                     }
             | Join  { leftExpression   :: RelExp 
-                    , rightExpression  :: RelExp 
+                    , rightExpression  :: RelExp                                           
                     , header           :: Header
+                    , joinTransformer  :: TupleSub -> TupleSub -> TupleSub
                     }
             | Delta { expression       :: RelExp 
                     , header           :: Header
@@ -265,34 +272,51 @@ data RelExp = TblEmpty
                     , rightExpression  :: RelExp
                     , rightDelta       :: RelExp
                     , header           :: Header
+                    , joinTransformer  :: TupleSub -> TupleSub -> TupleSub
                     }
-              deriving (Show, Eq)
+
+{- Eq instance for 'RelExp' -}
+-- NOTE: this instantiation is naive; its performance may be improved
+instance Eq RelExp where
+    TblEmpty == TblEmpty                                = True
+    TblFull == TblFull                                  = True
+    Tbl r cs h == Tbl r' cs' h'                         = 
+        r == r' && cs == cs' && h == h'
+    Proj e c h f u == Proj e' c' h' f' u'               = 
+        e == e' && c == c' && h == h' && f == f' && u == u'
+    Sel e cs h == Sel e' cs' h' =
+        e == e' && cs == cs' && h == h'
+    Join l r h _ == Join l' r' h' _                     =
+        l == l' && r == r' && h == h'
+    Delta e h == Delta e' h'                            =
+        e == e' && h == h'
+    Union le ld re rd h _ == Union le' ld' re' rd' h' _ =
+        le == le' && ld == ld' && re == re' && rd == rd' && h == h'
+    exp == exp'                                         = False --otherwise
+
+{- Show instance for 'RelExp' -}
+instance Show RelExp where
+    show _ = ""
 
 --------------------------------------------------------------------------------
 -- Some Helpers
 
 {-| Creates an instance of 'DB.Project' for removing the 'Column' at a given 
-  index. 
-  This function is slightly more efficient than 'deleteColumnsProjector' when
-  projecting only one column.
+  index. The function also accepts an optional function to update the decorating
+  info of the tuple. 
  -}
-deleteColumnProjector :: Column -> DB.Project (TupleD a) (TupleD a)
-deleteColumnProjector col = DB.Project (\tup -> del tup col)
-    where del (Tuple v d) i = let (hd, tl) = Vect.splitAt i v
-                              in  Tuple (hd Vect.++ (Vect.tail tl)) d
-
-{-| Creates an instance of 'DB.Project' for removing the 'Column's at given 
-  indecies. -}
-deleteColumnsProjector :: [Column] -> DB.Project (TupleD a) (TupleD a)
-deleteColumnsProjector cols = DB.Project (\tup -> del tup cols)
-    where del (Tuple v d) is = 
-              let v' = Vect.foldr (\ind vect -> 
-                                       if   ind `elem` is
-                                       then vect
-                                       else Vect.cons (v ! ind) vect)
-                       Vect.empty
-                       (Vect.fromList [0..(Vect.length v - 1)])
-              in  Tuple v d
+deleteColumnProjector :: Column -> Maybe (TupleD a -> a)
+                      -> DB.Project (TupleD a) (TupleD a)
+deleteColumnProjector col updateFn = 
+    -- del is the map function that eliminates the projected column:
+    let del t@(Tuple v d) i = 
+            let (hd, tl)  = Vect.splitAt i v
+                v'        = hd Vect.++ (Vect.tail tl) -- the new tuple
+            in case updateFn of
+                 Nothing -> Tuple v' d
+                 Just f  -> Tuple v' (f t) -- apply the update function on
+                                           -- the decorating info 
+    in DB.Project (\tup -> del tup col)
 
 {-| Given a list of 'Column' pairs, returns a 'DB.Select' for selecting tuples
   of a 'Table' in which elements at each pair of columns are equal -}
@@ -330,12 +354,14 @@ mergeJoinTables =  \x y -> mergeJoinTableDs x y const
   addressed by the input relational expression.
  -}
 relExpRefs :: RelExp -> [TableRef]
-relExpRefs TblEmpty                    = []
-relExpRefs TblFull                     = []
-relExpRefs (Tbl   ref  _ _        ) = [ref]
-relExpRefs (Join  lExp rExp _     ) = (relExpRefs lExp) `union` (relExpRefs rExp)
-relExpRefs (Union lExp rExp _ _ _ ) = (relExpRefs lExp) `union` (relExpRefs rExp)
-relExpRefs exp                      = relExpRefs (expression exp)
+relExpRefs TblEmpty                   = []
+relExpRefs TblFull                    = []
+relExpRefs (Tbl   ref  _ _        )   = [ref]
+relExpRefs (Join  lExp rExp _ _     ) = 
+    (relExpRefs lExp) `union` (relExpRefs rExp)
+relExpRefs (Union lExp rExp _ _ _ _ ) = 
+    (relExpRefs lExp) `union` (relExpRefs rExp)
+relExpRefs exp                        = relExpRefs (expression exp)
     -- Taking advantage of the fact that all remaining data constructors have
     -- an "expression" field selector.
 
@@ -352,7 +378,12 @@ nubTable =  DB.nub
 {-| The union of two 'TableD's. The function assumes that the two tables are 
   unionable. -}
 unionTables :: (Ord a) => TableD a -> TableD a -> TableD a
-unionTables tbl1 tbl2 = DB.union tbl1 tbl2
+unionTables = DB.union
+
+{-| The union of list of 'TableD's. The function assumes that the tables are 
+  unionable. -}
+unionsTables :: (Ord a) => [TableD a] -> TableD a
+unionsTables = DB.unions
 
 {-| The union of two 'Database's -}
 unionDatabases :: Database -> Database -> Database
