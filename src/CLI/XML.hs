@@ -12,7 +12,7 @@ import API.Surface
 import API.Core
 import Common.Model
 import Common.Provenance
-import Common.Observation
+import Common.IObservation
 import Syntax.Term
 import Syntax.GeometricUtils
 import Syntax.Geometric
@@ -45,10 +45,10 @@ instance XmlPickler UState where xpickle = xpState
 xpState :: PU UState
 xpState =
 	xpElem "STATE" $
-	xpWrap (\xml@((thy, prov, stream, mdl, mdlprov)) -> (UState thy prov stream mdl mdlprov)
-		, \ustate@(UState thy prov stream mdl mdlprov) -> (thy, prov, stream, mdl, mdlprov)
+	xpWrap (\xml@((thy, stream, mdl, prov, mdlprov)) -> (UState thy prov stream mdl mdlprov)
+		, \ustate@(UState thy prov stream mdl mdlprov) -> (thy, stream, mdl, prov, mdlprov)
 		) $
-	xp5Tuple xpTheory xpProvInfo xpStream xpModel xpModelProv
+	xp5Tuple xpTheory xpStream xpModel xpProvInfo xpModelProv
 
 ------------
 -- THEORY --
@@ -113,7 +113,32 @@ xpTermsToElm =
 type ObservationProvs = Map.Map Observation Blame 
 -}
 xpObservationProvs :: PU (Map.Map Observation Blame)
-xpObservationProvs = xpWrap (\()->Map.empty, \anything->()) xpUnit
+xpObservationProvs =
+  xpElem "OBSERVATIONPROVS" $
+  xpWrap (Map.fromList, Map.toList) $
+  xpList $
+  xpElem "OBSPROV" $ 
+  xpPair (xpElem "FROM" xpObservation) (xpElem "TO" xpBlame)
+{-
+data Blame = TheoryBlame Id Sub
+-}
+xpBlame :: PU Blame
+xpBlame =
+  xpElem "BLAME" $ 
+  xpWrap (\xml@(i, s) -> (TheoryBlame i s)
+   , \blame@(TheoryBlame i s) -> (i, s)
+   ) $ 
+  xpPair (xpAttr "RULEID" xpPrim) xpSub
+{-
+type FreeSub = Sub
+type Sub = Map.Map Variable Term
+-}
+xpSub :: PU FreeSub
+xpSub = 
+  xpWrap (Map.fromList, Map.toList) $
+  xpList $
+  xpElem "FREESUB" $ 
+  xpPair (xpElem "FROM" xpVariable) (xpElem "TO" xpTerms)
 ------------
 -- STREAM --
 ------------
@@ -125,6 +150,8 @@ xpStream = xpWrap (\()->(satInitialize emptySATTheory), \anything->()) xpUnit
 -- MODEL --
 -----------
 {-
+data Model = Model { modelElements     :: Map.Map Element [Element]
+                   , modelObservations :: [Observation] }
 -}
 xpModel :: PU Model
 xpModel = 
@@ -143,15 +170,33 @@ xpModel =
 xpModelProv :: PU ModelProv
 xpModelProv = xpWrap (\()->emptyModelProv, \anything->()) xpUnit
 
--------------
--- GENERAL --
--------------
-xpElement :: PU Element
-xpElement = 
-  xpElem "ELEMENT" $ 
-  xpWrap (\xml->(fromMaybe (Element "") (termToElement (parseTerm xml))), (\e->(show (Elem e)))) xpText
-
+------------------
+-- TERM RELATED --
+------------------
 xpTerms :: PU Term
 xpTerms = 
   xpElem "TERM" $
   xpWrap (parseTerm, show) xpText
+
+xpElement :: PU Element
+xpElement = 
+  xpElem "ELEMENT" $ 
+  xpWrap (\term->(fromMaybe (Element "") (termToElement term)), (\e->(Elem e))) xpTerms
+
+xpVariable :: PU Variable
+xpVariable = xpWrap ((\term->(fromMaybe (Variable "") (termToVariable term))), (\v->(Var v))) xpTerms
+
+---------------------
+-- FORMULA RELATED --
+---------------------
+xpFormula :: PU Formula
+xpFormula = xpWrap (parseFormula, show) xpText
+
+xpAtoms :: PU Atom
+xpAtoms = xpWrap ((\fml->(fromMaybe (Rel "" []) (formulaToAtom fml))), \atm->(Atm atm)) xpFormula
+formulaToAtom :: Formula -> Maybe Atom
+formulaToAtom (Atm a) = Just a
+formulaToAtom _ = Nothing 
+
+xpObservation :: PU Observation
+xpObservation = xpWrap ((\atom->(fromMaybe (Obs (Rel "" [])) (toObservation atom))), (\(Obs a)->a)) xpAtoms
