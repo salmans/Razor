@@ -20,35 +20,43 @@ import SAT.Impl (SATIteratorType)
 import SAT.Data
 import Data.Maybe 
 import Data.List
+import Control.DeepSeq
 import qualified Data.Map as Map 
 
 -----------------
 -- XML HELPERS --
 -----------------
 xmlConfigOUT = [withIndent yes]
+xmlConfigIN = [withValidate no, withRemoveWS yes, withPreserveComment no]
 
 toXMLString :: (XmlPickler a) => a -> String
 toXMLString struct = showPickled xmlConfigOUT struct
 
-toXMLFile :: (XmlPickler a) => a -> String -> IO ()
-toXMLFile struct file = do 
-  let str = toXMLString struct
-  writeFile file str
+toXMLFile :: UState -> String -> IO ()
+toXMLFile state@(UState theory prov stream model modelProv) file = do 
+  let str = (toXMLString (XMLState theory prov model))
+  deepseq str (writeFile file str)
 
+fromXMLFile :: String -> IO (UState)
+fromXMLFile file = do
+  states <- runX ((xunpickleDocument xpState xmlConfigIN file)>>>processState)
+  let (XMLState theory prov model) = head states 
+  return (UState theory prov (satInitialize emptySATTheory) model emptyModelProv)
+
+processState :: IOSArrow XMLState XMLState
+processState = arrIO (\x -> do{return x})
 ------------
--- USTATE --
+-- STATE --
 ------------
-instance XmlPickler UState where xpickle = xpState
-{-
-  type UState = (Theory, ProvInfo, SATIteratorType, Model, ModelProv)
--}
-xpState :: PU UState
+data XMLState = XMLState Theory ProvInfo Model
+instance XmlPickler XMLState where xpickle = xpState
+xpState :: PU XMLState
 xpState =
 	xpElem "STATE" $
-	xpWrap (\xml@((thy, stream, mdl, prov, mdlprov)) -> (UState thy prov stream mdl mdlprov)
-		, \ustate@(UState thy prov stream mdl mdlprov) -> (thy, stream, mdl, prov, mdlprov)
+	xpWrap (\((thy, mdl, prov)) -> (XMLState thy prov mdl)
+		, \ustate@(XMLState thy prov mdl) -> (thy, mdl, prov)
 		) $
-	xp5Tuple xpTheory xpStream xpModel xpProvInfo xpModelProv
+	xpTriple xpTheory xpModel xpProvInfo
 
 ------------
 -- THEORY --
@@ -60,7 +68,7 @@ xpTheory :: PU Theory
 xpTheory = 
 	xpElem "THEORY" $
   xpWrap (\rules -> (map (\(i, r)->r) rules)
-    ,\sequents -> (map (\s->( (fromMaybe 0 (elemIndex s sequents)), s) ) sequents)
+    ,\sequents -> (map (\s->( (fromMaybe (error "not in list") (elemIndex s sequents)), s) ) sequents)
   ) $ 
   xpList xpRule
 xpRule :: PU (Int, Sequent)
@@ -72,7 +80,10 @@ xpRule = xpElem "RULE" $ xpPair (xpAttr "ID" xpPrim) xpSequent
     }
 -}
 xpSequent :: PU Sequent
-xpSequent = xpWrap (parseSequent, show) xpText
+xpSequent = 
+  xpWrap (\(bd, hd)->(Sequent bd hd), \(Sequent bd hd)->(bd,hd)) $
+  xpPair (xpElem "BODY" xpFormula) (xpElem "HEAD" xpFormula)
+
 
 ------------
 -- STREAM --
@@ -91,7 +102,7 @@ data Model = Model { modelElements     :: Map.Map Element [Element]
 xpModel :: PU Model
 xpModel = 
   xpElem "MODEL" $
-  xpWrap (\xml@(elms, obvs) -> (Model elms obvs)
+  xpWrap (\(elms, obvs) -> (Model elms obvs)
    , \(Model elms obvs) -> (elms, obvs)
    ) $ 
   xpPair xpModelElements xpModelObservations
@@ -118,7 +129,7 @@ data ProvInfo = ProvInfo { elementProvs     :: ElementProvs
 xpProvInfo :: PU ProvInfo
 xpProvInfo = 
   xpElem "PROVINFO" $
-  xpWrap (\xml@(elmProv, obvProv) -> (ProvInfo elmProv obvProv)
+  xpWrap (\(elmProv, obvProv) -> (ProvInfo elmProv obvProv)
    , \prov@(ProvInfo elmProv obvProv) -> (elmProv, obvProv)
    ) $ 
   xpPair xpElementProvs xpObservationProvs
@@ -158,7 +169,7 @@ data Blame = TheoryBlame Id Sub
 xpBlame :: PU Blame
 xpBlame =
   xpElem "BLAME" $ 
-  xpWrap (\xml@(i, s) -> (TheoryBlame i s)
+  xpWrap (\(i, s) -> (TheoryBlame i s)
    , \blame@(TheoryBlame i s) -> (i, s)
    ) $ 
   xpPair (xpAttr "RULEID" xpPrim) xpSub
@@ -185,29 +196,51 @@ xpModelProv = xpWrap (\()->emptyModelProv, \anything->()) xpUnit
 ------------------
 -- TERM RELATED --
 ------------------
+-- TODO better way to parse terms?
 xpTerms :: PU Term
-xpTerms = 
+xpTerms =
   xpElem "TERM" $
-  xpWrap (parseTerm, show) xpText
+  xpWrap (implodeTerm, explodeTerm) $
+  xpTriple (xpAttr "TYPE" xpText) (xpAttr "VALUE" xpText) (xpList xpTerms)
+
+implodeTerm :: (String, String, [Term]) -> Term
+implodeTerm ("VARIABLE", v, []) = (Var (Variable v))
+implodeTerm ("CONSTANT", c, []) = (Cons (Constant c))
+implodeTerm ("ELEMENT", e, []) = (Elem (Element e))
+implodeTerm ("FUNCTION", s, terms) = (Fn s terms)
+implodeTerm _ = error "unknown term type"
+
+explodeTerm :: Term -> (String, String, [Term])
+explodeTerm (Var (Variable v)) = ("VARIABLE", v, [])
+explodeTerm (Cons (Constant c)) = ("CONSTANT", c, [])
+explodeTerm (Elem (Element e)) = ("ELEMENT", e, [])
+explodeTerm (Fn s terms) = ("FUNCTION", s, terms)
+explodeTerm _ = ("UNKNOWN", "", [])
 
 xpElement :: PU Element
-xpElement = 
-  xpWrap (\term->(fromMaybe (Element "") (termToElement term)), (\e->(Elem e))) xpTerms
+xpElement = xpWrap (\term->(fromMaybe (error ((show term)++" is not an element")) (termToElement term)), \elm->(Elem elm)) xpTerms
 
 xpVariable :: PU Variable
-xpVariable = xpWrap ((\term->(fromMaybe (Variable "") (termToVariable term))), (\v->(Var v))) xpTerms
+xpVariable = xpWrap (\term->(fromMaybe (error ((show term)++" is not a variable")) (termToVariable term)), \elm->(Var elm)) xpTerms
 
 ---------------------
 -- FORMULA RELATED --
 ---------------------
 xpFormula :: PU Formula
-xpFormula = xpWrap (parseFormula, show) xpText
+xpFormula = 
+  xpWrap (parseFormula, show) $
+  xpText
+
+xpXFormula :: PU Formula
+xpXFormula = 
+  xpWrap (xparseFormula, show) $
+  xpText
 
 xpAtoms :: PU Atom
-xpAtoms = xpWrap ((\fml->(fromMaybe (Rel "" []) (formulaToAtom fml))), \atm->(Atm atm)) xpFormula
+xpAtoms = xpWrap (\fml->(fromMaybe (error ((show fml)++" is not an atom")) (formulaToAtom fml)), \atm->(Atm atm)) xpXFormula
 formulaToAtom :: Formula -> Maybe Atom
 formulaToAtom (Atm a) = Just a
-formulaToAtom _ = Nothing 
+formulaToAtom _ = Nothing
 
 xpObservation :: PU Observation
-xpObservation = xpWrap ((\atom->(fromMaybe (Obs (Rel "" [])) (toObservation atom))), (\(Obs a)->a)) xpAtoms
+xpObservation = xpWrap ((\atom->(fromMaybe (error ((show atom)++" is not an observation")) (toObservation atom))), (\(Obs a)->a)) xpAtoms

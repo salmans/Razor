@@ -8,3 +8,7 @@
 module CLI.FromXML where
 import Text.XML.HXT.Arrow.Pickle
 import Text.XML.HXT.Core
+
+-----------------
+-- XML HELPERS --
+-----------------
