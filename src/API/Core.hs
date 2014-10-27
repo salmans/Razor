@@ -58,8 +58,15 @@ options =
     , Option "x" ["state"]
         (ReqArg
             (\arg cfg -> return cfg { configState = Just arg })
-            "XML FILE")
-        "UserState represented as XML (returned by CLI)"
+            "FILEPATH")
+        "UserState represented as an XML file (program writes to this file)"
+    , Option "h" ["help"]
+        (NoArg
+          (\_ -> do
+            prg <- getProgName
+            hPutStrLn stderr (usageInfo prg options)
+            exitWith ExitSuccess))
+        "Show help"
     ]
 parseConfig :: [String] -> IO Config
 parseConfig args = do
@@ -92,6 +99,7 @@ nextModel it = (satSolve it)
 -- MODEL PROVENANCE --
 ----------------------
 data ModelProv = ModelProv { nameProv :: NameProv, blameProv :: BlameProv }
+
 type NameProv = Map.Map Element (TheorySub, [Element])
 type BlameProv = Map.Map [Atom] TheorySub
 type TheorySub = Map.Map Int RuleSub
@@ -107,6 +115,10 @@ type FuncSub = Map.Map (FnSym, [Term]) Term
 --
 deriveModelProv :: Theory -> ProvInfo -> Model -> ModelProv
 deriveModelProv thy prov mdl = ModelProv (deriveNameProvs thy (elementProvs prov) mdl) (deriveBlameProv thy prov mdl)
+--
+--
+emptyModelProv :: ModelProv
+emptyModelProv = ModelProv Map.empty Map.empty
 
 ---------------------
 -- NAME PROVENANCE --

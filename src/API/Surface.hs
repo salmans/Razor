@@ -18,7 +18,7 @@ import qualified Data.Map as Map
 import System.Environment
 
 data UError = UErr String
-type UState = (Theory, ProvInfo, SATIteratorType, Model, ModelProv)
+data UState = UState Theory ProvInfo SATIteratorType Model ModelProv
 data UOrigin = UOriginLeaf Term (Either UError TheorySub) | UOriginNode Term (Either UError TheorySub) [UOrigin]
 type UBlame = Either UError TheorySub
 
@@ -40,16 +40,16 @@ getStartState config = do
           let stream = modelStream prop
           case (nextModel stream) of
             (Nothing, stream') -> return $ Left (UErr "no models available")
-            (Just mdl', stream') -> return $ Right (thy, prov, stream', mdl', (deriveModelProv thy prov mdl'))
+            (Just mdl', stream') -> return $ Right (UState thy prov stream' mdl' (deriveModelProv thy prov mdl'))
         Nothing -> return $ Left (UErr "Unable to parse input theory!")
 
 getNextModel :: UState -> Either UError UState
-getNextModel state@(thy, prov, stream, mdl, modelProv) = case (nextModel stream) of
+getNextModel state@(UState thy prov stream mdl modelProv) = case (nextModel stream) of
   (Nothing, stream') -> Left (UErr "no more minimal models")
-  (Just mdl', stream') -> Right (thy, prov, stream', mdl', (deriveModelProv thy prov mdl'))
+  (Just mdl', stream') -> Right (UState thy prov stream' mdl' (deriveModelProv thy prov mdl'))
 
 getOrigin :: UState -> (Bool, Bool) -> Term -> UOrigin
-getOrigin state@(thy, prov, stream, mdl, modelProv) mods@(isall, isrec) term = do
+getOrigin state@(UState thy prov stream mdl modelProv) mods@(isall, isrec) term = do
   case name of
     Left err -> UOriginLeaf term (Left err)
     Right (thynames, nextterms) -> do
@@ -65,7 +65,7 @@ getOrigin state@(thy, prov, stream, mdl, modelProv) mods@(isall, isrec) term = d
           Just (thynames, nextterms) -> Right (thynames, (map Elem nextterms))
                 
 getJustification :: UState -> Formula -> UBlame
-getJustification state@(thy, prov, stream, mdl, modelProv) atom = case (getFact mdl atom) of
+getJustification state@(UState thy prov stream mdl modelProv) atom = case (getFact mdl atom) of
   Nothing -> Left (UErr "fact not in form FactName(e^0, e^1, ...) or is not in the current model")
   Just fact -> do
     let matches = Map.toList $ Map.filterWithKey (\k _->(elem fact k)) (blameProv modelProv)
