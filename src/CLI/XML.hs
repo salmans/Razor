@@ -1,11 +1,11 @@
 {-|
   Razor
-  Module      : CLI.ToXML
-  Description : The module provides a XML pickling for the state of command line interface
+  Module      : CLI.XML
+  Description : The module provides a XML conversion for the state of command line interface
   Maintainer  : Salman Saghafi, Ryan Danas
 -}
 
-module CLI.ToXML where
+module CLI.XML where
 import Text.XML.HXT.Arrow.Pickle
 import Text.XML.HXT.Core
 import API.Surface

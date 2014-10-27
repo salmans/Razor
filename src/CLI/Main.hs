@@ -11,8 +11,7 @@ change errors and output to XML
 module Main where
 import API.Surface
 import API.UserSyntax
-import CLI.ToXML
-import CLI.FromXML
+import CLI.XML
 import Tools.Config
 
 main :: IO ()
