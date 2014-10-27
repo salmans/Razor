@@ -185,6 +185,12 @@ xpSub =
 ------------------
 -- TERM RELATED --
 ------------------
+{-
+data Term = Var  Variable
+          | Cons Constant
+          | Elem Element
+          | Fn FnSym [Term]
+-}
 xpTerms :: PU Term
 xpTerms =
   xpElem "TERM" $
@@ -211,9 +217,9 @@ xpElement = xpWrap (\term->(fromMaybe (error ((show term)++" is not an element")
 xpVariable :: PU Variable
 xpVariable = xpWrap (\term->(fromMaybe (error ((show term)++" is not a variable")) (termToVariable term)), \elm->(Var elm)) xpTerms
 
----------------------
--- FORMULA RELATED --
----------------------
+------------------
+-- ATOM RELATED --
+------------------
 {-
 data Atom = Rel   RelSym [Term]
           | FnRel FnSym  [Term]
