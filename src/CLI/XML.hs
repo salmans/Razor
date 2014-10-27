@@ -10,7 +10,7 @@ import Text.XML.HXT.Arrow.Pickle
 import Text.XML.HXT.Core
 import API.Surface
 import API.Core
-import Common.Model
+import Common.IModel
 import Common.Provenance
 import Common.IObservation
 import Syntax.Term
@@ -73,6 +73,39 @@ xpRule = xpElem "RULE" $ xpPair (xpAttr "ID" xpPrim) xpSequent
 -}
 xpSequent :: PU Sequent
 xpSequent = xpWrap (parseSequent, show) xpText
+
+------------
+-- STREAM --
+------------
+-- TODO not implemented yet; needs to change structure on the haskell side first
+xpStream :: PU SATIteratorType
+xpStream = xpWrap (\()->(satInitialize emptySATTheory), \anything->()) xpUnit
+
+-----------
+-- MODEL --
+-----------
+{-
+data Model = Model { modelElements     :: Map.Map Element [Element]
+                   , modelObservations :: [Observation] }
+-}
+xpModel :: PU Model
+xpModel = 
+  xpElem "MODEL" $
+  xpWrap (\xml@(elms, obvs) -> (Model elms obvs)
+   , \(Model elms obvs) -> (elms, obvs)
+   ) $ 
+  xpPair xpModelElements xpModelObservations
+xpModelElements :: PU (Map.Map Element [Element])
+xpModelElements =
+  xpElem "MODELELEMENTS" $
+  xpWrap (Map.fromList, Map.toList) $
+  xpList $
+  xpElem "MDLELM" $ 
+  xpPair (xpElem "ACTUAL" xpElement) (xpElem "EQUAL" (xpList xpElement))
+xpModelObservations :: PU [Observation]
+xpModelObservations =
+  xpElem "MODELOBSERVATIONS" $
+  xpList (xpElem "MDLOBS" xpObservation)
 
 --------------
 -- PROVINFO --
@@ -139,27 +172,6 @@ xpSub =
   xpList $
   xpElem "FREESUB" $ 
   xpPair (xpElem "FROM" xpVariable) (xpElem "TO" xpTerms)
-------------
--- STREAM --
-------------
--- TODO not implemented yet; needs to change structure on the haskell side first
-xpStream :: PU SATIteratorType
-xpStream = xpWrap (\()->(satInitialize emptySATTheory), \anything->()) xpUnit
-
------------
--- MODEL --
------------
-{-
-data Model = Model { modelElements     :: Map.Map Element [Element]
-                   , modelObservations :: [Observation] }
--}
-xpModel :: PU Model
-xpModel = 
-  xpElem "MODEL" $
-  xpWrap (\xml@(mdl) -> emptyModel
-    , \mdl -> "not implemented"
-    ) $
-  xpText
 
 ---------------
 -- MODELPROV --
@@ -180,7 +192,6 @@ xpTerms =
 
 xpElement :: PU Element
 xpElement = 
-  xpElem "ELEMENT" $ 
   xpWrap (\term->(fromMaybe (Element "") (termToElement term)), (\e->(Elem e))) xpTerms
 
 xpVariable :: PU Variable
