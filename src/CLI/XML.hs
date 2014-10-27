@@ -12,12 +12,15 @@ import API.Surface
 import API.Core
 import Common.Model
 import Common.Provenance
+import Common.Observation
+import Syntax.Term
 import Syntax.GeometricUtils
 import Syntax.Geometric
 import SAT.Impl (SATIteratorType)
 import SAT.Data
 import Data.Maybe 
 import Data.List
+import qualified Data.Map as Map 
 
 -----------------
 -- XML HELPERS --
@@ -75,15 +78,42 @@ xpSequent = xpWrap (parseSequent, show) xpText
 -- PROVINFO --
 --------------
 {-
+data ProvInfo = ProvInfo { elementProvs     :: ElementProvs
+                         , observationProvs :: ObservationProvs
+                         }
 -}
 xpProvInfo :: PU ProvInfo
 xpProvInfo = 
   xpElem "PROVINFO" $
-  xpWrap (\xml@(prov) -> emptyProvInfo
-    , \prov -> "not implemented"
-    ) $ 
-  xpText
-
+  xpWrap (\xml@(elmProv, obvProv) -> (ProvInfo elmProv obvProv)
+   , \prov@(ProvInfo elmProv obvProv) -> (elmProv, obvProv)
+   ) $ 
+  xpPair xpElementProvs xpObservationProvs
+{-
+type ElementProvs = ( Map.Map Element [SkolemTerm]
+                    , Map.Map SkolemTerm Element)
+-}
+xpElementProvs :: PU (Map.Map Element [Term], Map.Map Term Element)
+xpElementProvs =
+  xpElem "ELEMENTPROVS" $
+  xpPair xpElmToTerms xpTermsToElm
+xpElmToTerms :: PU (Map.Map Element [Term])
+xpElmToTerms =
+  xpWrap (Map.fromList, Map.toList) $
+  xpList $
+  xpElem "ELMPROV" $ 
+  xpPair (xpElem "FROM" xpElement) (xpElem "TO" (xpList xpTerms))
+xpTermsToElm :: PU (Map.Map Term Element)
+xpTermsToElm =
+  xpWrap (Map.fromList, Map.toList) $
+  xpList $
+  xpElem "ELMPROV" $ 
+  xpPair (xpElem "FROM" xpTerms) (xpElem "TO" xpElement)
+{-
+type ObservationProvs = Map.Map Observation Blame 
+-}
+xpObservationProvs :: PU (Map.Map Observation Blame)
+xpObservationProvs = xpWrap (\()->Map.empty, \anything->()) xpUnit
 ------------
 -- STREAM --
 ------------
@@ -112,3 +142,16 @@ xpModel =
 -- better to just query the CLI for the particular model prov info desired?
 xpModelProv :: PU ModelProv
 xpModelProv = xpWrap (\()->emptyModelProv, \anything->()) xpUnit
+
+-------------
+-- GENERAL --
+-------------
+xpElement :: PU Element
+xpElement = 
+  xpElem "ELEMENT" $ 
+  xpWrap (\xml->(fromMaybe (Element "") (termToElement (parseTerm xml))), (\e->(show (Elem e)))) xpText
+
+xpTerms :: PU Term
+xpTerms = 
+  xpElem "TERM" $
+  xpWrap (parseTerm, show) xpText
