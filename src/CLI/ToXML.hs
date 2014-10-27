@@ -80,9 +80,7 @@ xpRule = xpElem "RULE" $ xpPair (xpAttr "ID" xpPrim) xpSequent
     }
 -}
 xpSequent :: PU Sequent
-xpSequent = 
-  xpWrap (\(bd, hd)->(Sequent bd hd), \(Sequent bd hd)->(bd,hd)) $
-  xpPair (xpElem "BODY" xpFormula) (xpElem "HEAD" xpFormula)
+xpSequent = xpWrap (parseSequent, show) $ xpText
 
 
 ------------
@@ -145,13 +143,13 @@ xpElmToTerms :: PU (Map.Map Element [Term])
 xpElmToTerms =
   xpWrap (Map.fromList, Map.toList) $
   xpList $
-  xpElem "ELMPROV" $ 
+  xpElem "ETS" $ 
   xpPair (xpElem "FROM" xpElement) (xpElem "TO" (xpList xpTerms))
 xpTermsToElm :: PU (Map.Map Term Element)
 xpTermsToElm =
   xpWrap (Map.fromList, Map.toList) $
   xpList $
-  xpElem "ELMPROV" $ 
+  xpElem "STE" $ 
   xpPair (xpElem "FROM" xpTerms) (xpElem "TO" xpElement)
 {-
 type ObservationProvs = Map.Map Observation Blame 
@@ -184,19 +182,9 @@ xpSub =
   xpElem "FREESUB" $ 
   xpPair (xpElem "FROM" xpVariable) (xpElem "TO" xpTerms)
 
----------------
--- MODELPROV --
----------------
--- TODO should this be sent as XML via the CLI?
--- its quite a large struct
--- better to just query the CLI for the particular model prov info desired?
-xpModelProv :: PU ModelProv
-xpModelProv = xpWrap (\()->emptyModelProv, \anything->()) xpUnit
-
 ------------------
 -- TERM RELATED --
 ------------------
--- TODO better way to parse terms?
 xpTerms :: PU Term
 xpTerms =
   xpElem "TERM" $
@@ -226,21 +214,23 @@ xpVariable = xpWrap (\term->(fromMaybe (error ((show term)++" is not a variable"
 ---------------------
 -- FORMULA RELATED --
 ---------------------
-xpFormula :: PU Formula
-xpFormula = 
-  xpWrap (parseFormula, show) $
-  xpText
-
-xpXFormula :: PU Formula
-xpXFormula = 
-  xpWrap (xparseFormula, show) $
-  xpText
-
+{-
+data Atom = Rel   RelSym [Term]
+          | FnRel FnSym  [Term]
+-}
 xpAtoms :: PU Atom
-xpAtoms = xpWrap (\fml->(fromMaybe (error ((show fml)++" is not an atom")) (formulaToAtom fml)), \atm->(Atm atm)) xpXFormula
-formulaToAtom :: Formula -> Maybe Atom
-formulaToAtom (Atm a) = Just a
-formulaToAtom _ = Nothing
+xpAtoms =
+  xpElem "ATOM" $
+  xpWrap (implodeAtom, explodeAtom) $
+  xpTriple (xpAttr "TYPE" xpText) (xpAttr "NAME" xpText) (xpList xpTerms)
+
+explodeAtom :: Atom -> (String, String, [Term])
+explodeAtom (Rel s terms) = ("RELATION", s, terms)
+explodeAtom (FnRel s terms) = ("FUNCTION", s, terms)
+
+implodeAtom :: (String, String, [Term]) -> Atom
+implodeAtom ("RELATION", s, terms) = (Rel s terms)
+implodeAtom ("FUNCTION", s, terms) = (FnRel s terms) 
 
 xpObservation :: PU Observation
-xpObservation = xpWrap ((\atom->(fromMaybe (error ((show atom)++" is not an observation")) (toObservation atom))), (\(Obs a)->a)) xpAtoms
+xpObservation = xpWrap (\atom->(Obs atom), \(Obs a)->a) xpAtoms

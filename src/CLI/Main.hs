@@ -33,10 +33,10 @@ main = do
             Right state@(UState theory prov stream model modelProv) -> toXMLFile state stateFile
         -- command... read current state + apply command = return state'
         Just command -> do
-          state@(UState theory prov stream model modelProv) <- fromXMLFile stateFile
+          state <- fromXMLFile stateFile
           case applyCommand state command of
             Left (UErr err) -> error err
-            Right state'@(UState theory' prov' stream' model' modelProv') -> toXMLFile (UState theory' prov' stream' model modelProv') stateFile
+            Right state' -> toXMLFile state' stateFile
 
 applyCommand :: UState -> String -> Either UError UState
 applyCommand state command = case (parseCommand command) of
