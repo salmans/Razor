@@ -106,8 +106,6 @@ type TheorySub = Map.Map Int RuleSub
 data RuleSub = RuleSub { existSub :: ExistSub
                         ,freeSub :: FreeSub
                         ,funcSub :: FuncSub}
-instance Show RuleSub where
-  show (RuleSub n f fn) = (show n)++"\n"++(show f)++"\n"++(show fn)++"\n"
 type FreeSub = Sub
 type ExistSub = Map.Map (Int,Variable) Term
 type FuncSub = Map.Map (FnSym, [Term]) Term

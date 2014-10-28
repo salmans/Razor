@@ -5,7 +5,8 @@
   Maintainer  : Salman Saghafi, Ryan Danas
 -}
 {-| TODO / BUGS
-change errors and output to XML
+cleanup / change XML representation dependent on ISP team needs for GUI
+exploration (next) not implemented yet; needs to change SATIterator structure on the haskell side first
 -}
 
 module Main where
@@ -43,9 +44,7 @@ applyCommand :: UState -> String -> Either UError (Either UAnswer UState)
 applyCommand state command = case (parseCommand command) of
   -- exploration
   Go explore -> case explore of
-    Next -> case getNextModel state of
-      Left err -> Left err
-      Right state' -> Right $ Right state'
+    Next -> Left (UErr "not implemented")
     Augment term -> Left (UErr "not implemented")
   -- explanation
   Ask question -> case question of

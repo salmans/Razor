@@ -41,7 +41,7 @@ fromXMLFile :: String -> IO (UState)
 fromXMLFile file = do
   roots <- runX ((xunpickleDocument xpRoot xmlConfigIN file)>>>processXML)
   let (XMLRoot answer (XMLState theory prov model)) = head roots 
-  return (UState theory prov (satInitialize emptySATTheory) model emptyModelProv)
+  return (UState theory prov (satInitialize emptySATTheory) model (deriveModelProv theory prov model))
 
 processXML :: IOSArrow XMLRoot XMLRoot
 processXML = arrIO (\x -> do{return x})
@@ -77,6 +77,12 @@ explodeAnswer Nothing = (Nothing, Nothing)
 explodeAnswer (Just(AOrigin origin)) = (Just origin, Nothing)
 explodeAnswer (Just(ABlame blame)) = (Nothing, Just blame)
 
+xpError :: PU UError
+xpError =
+  xpElem "ERROR" $
+  xpWrap (\err->(UErr err), \(UErr err)->err) $
+  xpText
+
 ------------
 -- ORIGIN --
 ------------
@@ -86,7 +92,24 @@ data UOrigin = UOriginLeaf Term (Either UError TheorySub) | UOriginNode Term (Ei
 xpOrigin :: PU UOrigin
 xpOrigin =
   xpElem "ORIGIN" $
-  xpWrap (\()->(error "no"), \anything->()) xpUnit
+  xpWrap (implodeOrigin, explodeOrigin) $
+  xp4Tuple (xpElem "OF" xpTerms) (xpOption xpError) (xpOption xpTheorySub) (xpElem "DEPENDS_ON" (xpList xpOrigin))
+
+implodeOrigin :: (Term, Maybe UError, Maybe TheorySub, [UOrigin]) -> UOrigin
+implodeOrigin (term, (Just err), _, depends) = case depends of
+  [] -> (UOriginLeaf term (Left err))
+  depends -> (UOriginNode term (Left err) depends)
+implodeOrigin (term, _, (Just theorySub), depends) = case depends of
+  [] -> (UOriginLeaf term (Right theorySub))
+  depends -> (UOriginNode term (Right theorySub) depends)
+
+explodeOrigin :: UOrigin -> (Term, Maybe UError, Maybe TheorySub, [UOrigin])
+explodeOrigin (UOriginLeaf term origin) = case origin of
+  Left err -> (term, Just err, Nothing, [])
+  Right theorySub -> (term, Nothing, Just theorySub, [])
+explodeOrigin (UOriginNode term origin depends) = case origin of
+  Left err -> (term, Just err, Nothing, depends)
+  Right theorySub -> (term, Nothing, Just theorySub, depends)
 
 -----------
 -- BLAME --
@@ -97,7 +120,65 @@ type UBlame = Either UError TheorySub
 xpBlame :: PU UBlame
 xpBlame =
   xpElem "BLAME" $
-  xpWrap (\()->(error "no"), \anything->()) xpUnit
+  xpWrap (implodeBlame, explodeBlame) $
+  xpPair (xpOption xpError) (xpOption xpTheorySub)
+
+implodeBlame :: (Maybe UError, Maybe TheorySub) -> UBlame
+implodeBlame ((Just err), _) = Left err
+implodeBlame (_, (Just theorySub)) = Right theorySub
+
+explodeBlame :: UBlame -> (Maybe UError, Maybe TheorySub)
+explodeBlame (Left err) = (Just err, Nothing)
+explodeBlame (Right theorySub) = (Nothing, Just theorySub)
+
+---------------
+-- THEORYSUB --
+---------------
+{-
+type TheorySub = Map.Map Int RuleSub
+-}
+xpTheorySub :: PU TheorySub
+xpTheorySub =
+  xpElem "THEORYSUB" $
+  xpWrap (Map.fromList, Map.toList) $
+  xpList $
+  xpElem "RULE" $ xpPair (xpAttr "ID" xpPrim) xpRuleSub
+{-
+data RuleSub = RuleSub { existSub :: ExistSub
+                        ,freeSub :: FreeSub
+                        ,funcSub :: FuncSub}
+-}
+xpRuleSub :: PU RuleSub
+xpRuleSub =
+  xpWrap (\(e, f, fn)->(RuleSub e f fn), \(RuleSub e f fn)->(e, f, fn)) $
+  xpTriple xpExistSub xpFreeSub xpFuncSub
+{-
+type FreeSub = Sub = Map.Map Variable Term
+-}
+xpFreeSub :: PU FreeSub
+xpFreeSub = 
+  xpWrap (Map.fromList, Map.toList) $
+  xpList $
+  xpElem "FREESUB" $ 
+  xpPair (xpElem "REPLACE" xpVariable) (xpElem "WITH" xpTerms)
+{-
+type ExistSub = Map.Map (Int,Variable) Term
+-}
+xpExistSub :: PU ExistSub
+xpExistSub = 
+  xpWrap (Map.fromList, Map.toList) $
+  xpList $
+  xpElem "EXISTSUB" $ 
+  xpPair (xpElem "REPLACE" (xpPair (xpAttr "IN_DISJUNCT" xpPrim) xpVariable)) (xpElem "WITH" xpTerms)
+{-
+type FuncSub = Map.Map (FnSym, [Term]) Term
+-}
+xpFuncSub :: PU FuncSub
+xpFuncSub = 
+  xpWrap (Map.fromList, Map.toList) $
+  xpList $
+  xpElem "FUNCSUB" $ 
+  xpPair (xpElem "REPLACE" (xpPair (xpAttr "FUNCTION" xpText) (xpList xpTerms))) (xpElem "WITH" xpTerms)
 
 -----------
 -- STATE --
@@ -135,11 +216,9 @@ xpRule = xpElem "RULE" $ xpPair (xpAttr "ID" xpPrim) xpSequent
 xpSequent :: PU Sequent
 xpSequent = xpWrap (parseSequent, show) $ xpText
 
-
 ------------
 -- STREAM --
 ------------
--- TODO not implemented yet; needs to change structure on the haskell side first
 xpStream :: PU SATIteratorType
 xpStream = xpWrap (\()->(satInitialize emptySATTheory), \anything->()) xpUnit
 
@@ -223,17 +302,7 @@ xpThyBlame =
   xpWrap (\(i, s) -> (TheoryBlame i s)
    , \blame@(TheoryBlame i s) -> (i, s)
    ) $ 
-  xpPair (xpAttr "RULEID" xpPrim) xpSub
-{-
-type FreeSub = Sub
-type Sub = Map.Map Variable Term
--}
-xpSub :: PU FreeSub
-xpSub = 
-  xpWrap (Map.fromList, Map.toList) $
-  xpList $
-  xpElem "FREESUB" $ 
-  xpPair (xpElem "FROM" xpVariable) (xpElem "TO" xpTerms)
+  xpPair (xpAttr "RULEID" xpPrim) xpFreeSub
 
 ------------------
 -- TERM RELATED --
