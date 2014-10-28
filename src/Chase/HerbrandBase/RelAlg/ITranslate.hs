@@ -404,32 +404,32 @@ evaluateRelExp db delts exp@(Union lExp lDlt rExp rDlt heads tran) =
    'evaluateRelExp', this function does not compute delta expressions 
    (if there is any 'Union' or 'Delta') in the expression. -}
 evaluateRelExpNoDelta :: Database -> RelExp -> TableSub
-evaluateRelExpNoDelta _ TblEmpty                = emptyTableSub
-evaluateRelExpNoDelta _ TblFull                 = fullTableSub
+-- evaluateRelExpNoDelta _ TblEmpty                = emptyTableSub
+-- evaluateRelExpNoDelta _ TblFull                 = fullTableSub
 evaluateRelExpNoDelta db exp@(Tbl _ _ _)        = 
     evaluateRelExp db emptyDatabase exp
-evaluateRelExpNoDelta db (Proj exp col _ fn _)  =
-  let set  = evaluateRelExpNoDelta db exp                                  
-  in if   nullTableSub set               -- if the non-projected set is empty
-     then evaluateRelExpNoDelta db TblEmpty -- evaluate and return empty table
-     else DB.project (deleteColumnProjector col updateFn) set
-    where updateFn = Just $ \(Tuple v d) -> Map.insert fn (Elem (v ! col)) d
-evaluateRelExpNoDelta db (Sel exp pairs _) =
-    let set    = evaluateRelExpNoDelta db exp
-        selFun = similarColumnsSelector pairs
-    in  DB.select selFun set
-evaluateRelExpNoDelta db (Join lExp rExp heads tran) =
-    let lHds  = header lExp
-        rHds  = header rExp
-        lSet  = evaluateRelExpNoDelta db lExp
-        rSet  = evaluateRelExpNoDelta db rExp
-        ps    = Map.elems $ Map.intersectionWith (,) lHds rHds
-        cond  = DB.Select $ \(Tuple x _, Tuple y _) -> 
-                and $ (\(p1, p2) -> x ! p1 == y ! p2) <$> ps
-                -- expanding variable pairs as a filter function for DB.join
-    in  DB.map (uncurry tran) $ DB.join cond lSet rSet
-evaluateRelExpNoDelta _ _                       = 
-    error $ unitName ++ ".evaluateRelExpNoDelta: " ++ error_deltaInNoDelta
+-- evaluateRelExpNoDelta db (Proj exp col _ fn _)  =
+--   let set  = evaluateRelExpNoDelta db exp                                  
+--   in if   nullTableSub set               -- if the non-projected set is empty
+--      then evaluateRelExpNoDelta db TblEmpty -- evaluate and return empty table
+--      else DB.project (deleteColumnProjector col updateFn) set
+--     where updateFn = Just $ \(Tuple v d) -> Map.insert fn (Elem (v ! col)) d
+-- evaluateRelExpNoDelta db (Sel exp pairs _) =
+--     let set    = evaluateRelExpNoDelta db exp
+--         selFun = similarColumnsSelector pairs
+--     in  DB.select selFun set
+-- evaluateRelExpNoDelta db (Join lExp rExp heads tran) =
+--     let lHds  = header lExp
+--         rHds  = header rExp
+--         lSet  = evaluateRelExpNoDelta db lExp
+--         rSet  = evaluateRelExpNoDelta db rExp
+--         ps    = Map.elems $ Map.intersectionWith (,) lHds rHds
+--         cond  = DB.Select $ \(Tuple x _, Tuple y _) -> 
+--                 and $ (\(p1, p2) -> x ! p1 == y ! p2) <$> ps
+--                 -- expanding variable pairs as a filter function for DB.join
+--     in  DB.map (uncurry tran) $ DB.join cond lSet rSet
+-- evaluateRelExpNoDelta _ _                       = 
+--     error $ unitName ++ ".evaluateRelExpNoDelta: " ++ error_deltaInNoDelta
 --------------------------------------------------------------------------------
 {- Inserts the tuples of a 'TablePair' @t@ to a view for relational expression 
    @e@ in a database @db@. The schema for @t@ must be compatible with @e@, 
@@ -457,7 +457,6 @@ insertTuples tblPair (Tbl ref vars heads) db _
                    -- the second part to create a tuple that is inserted into
                    -- the target database, and the first tuple to create blaming
                    -- information.
-
 
   -- Filter out those tuples that already exist in the previous iterations of 
   -- the database (@uni@):
@@ -492,16 +491,18 @@ insertTuples tblPair (Tbl ref vars heads) db _
 insertTuples tblPair (Proj innerExp col heading skFn unqExp) db depth
     | nullTablePair tblPair = return db
     | otherwise             = do
-  let totalColumns          = length $ Map.keys $ header innerExp
+  let totalColumns          = Map.size $ header innerExp
                           -- we have this many columns in total
   uni   <- liftPushMBase State.get
                           -- entire set of facts from the previous iteration of
                           -- the Chase
-  provs <- liftPushMProvs $ State.get
 
-  let inject = case unqExp of
-                 Nothing -> insertProjInject col
-                 Just ue -> insertProjUniqueInject db uni ue heading col
+  let inject = 
+          case unqExp of
+            Nothing -> insertProjInject col
+            Just ue -> let inNew = undecorateTable (evaluateRelExpNoDelta db ue)
+                           inUni = undecorateTable (evaluateRelExpNoDelta uni ue)
+                       in  insertProjUniqueInject inNew inUni (header ue) heading col
                -- Create a function for injecting the projected out columns.
                -- The function depends on the value of unique expression.
 
@@ -587,15 +588,12 @@ insertProjInject col (Tuple vs _) =
    Output: a function that maps an index number to an 'Element' in a PushM
    context
 -}
-insertProjUniqueInject :: Database -> Database -> RelExp -> Header
+insertProjUniqueInject :: Table -> Table -> Header -> Header
                        -> Int -> Tuple -> (Int -> PushM Database t Element)
-insertProjUniqueInject db uni unqExp heading col tup@(Tuple vs _) =     
-    let unqTblInNew = undecorateTable (evaluateRelExpNoDelta db unqExp)
-        unqTblInUni = undecorateTable (evaluateRelExpNoDelta uni unqExp)
-        fetch       = \ftbl -> 
-                      fetchUnique tup heading (header unqExp) col ftbl
+insertProjUniqueInject unqInNew unqInUni unqHdr hdr col tup@(Tuple vs _) =     
+    let fetch       = \ftbl -> fetchUnique tup hdr unqHdr col ftbl
     in \i -> if   i == col
-             then case (fetch unqTblInNew) <|> (fetch unqTblInUni) of
+             then case (fetch unqInNew) <|> (fetch unqInUni) of
                     Nothing  -> liftPushMCounter freshElement
                     Just elm -> return elm
              else let j = if i > col then i - 1 else i
