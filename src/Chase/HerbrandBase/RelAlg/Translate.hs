@@ -6,8 +6,7 @@
   Maintainer  : Salman Saghafi
 -}
 module Chase.HerbrandBase.RelAlg.Translate 
-    ( bodyRelExp, headRelExp, delta
-    , evaluateRelExp, evaluateRelExpNoDelta
+    ( bodyRelExp, headRelExp, delta, evaluateRelExp
     , insertTuples, tupleTransformer ) where
 
 import Chase.HerbrandBase.RelAlg.ITranslate

@@ -61,7 +61,6 @@ error_headersMismatch  = "the header of the joined expression and one of its"
 error_freeVarInHead    = "the expression in head has extra attributes"
 error_notConstTable    = "expecting a reference to a constant table"
 error_deltaForDelta    = "the formula is already in differential form"
-error_deltaInNoDelta   = "the input query contains differential expression"
 --------------------------------------------------------------------------------
 -- Translating sequents to relational algebra:
 
@@ -338,7 +337,7 @@ delta _                         = error $ unitName ++ ".delta: " ++
 evaluateRelExp :: Database -> Database -> RelExp -> TableSub
 evaluateRelExp _ _ TblEmpty    = emptyTableSub
 evaluateRelExp _ _ TblFull     = fullTableSub
-evaluateRelExp db _ exp@(Tbl t _ heads) = 
+evaluateRelExp db _ exp@(Tbl t _ _) = 
     let set = Map.findWithDefault emptyTable t db
     in  decorateTable set emptyExistsSub
         -- Decorate the resulting table with empty substituions (no columns to
@@ -399,37 +398,6 @@ evaluateRelExp db delts exp@(Union lExp lDlt rExp rDlt heads tran) =
           rExpTbl = evaluateRelExp db delts rExp
           lDltTbl = evaluateRelExp db delts lDlt
           rDltTbl = evaluateRelExp db delts rDlt
-
-{- Evaluates a relational expression in a single database. Unlike 
-   'evaluateRelExp', this function does not compute delta expressions 
-   (if there is any 'Union' or 'Delta') in the expression. -}
-evaluateRelExpNoDelta :: Database -> RelExp -> TableSub
--- evaluateRelExpNoDelta _ TblEmpty                = emptyTableSub
--- evaluateRelExpNoDelta _ TblFull                 = fullTableSub
-evaluateRelExpNoDelta db exp@(Tbl _ _ _)        = 
-    evaluateRelExp db emptyDatabase exp
--- evaluateRelExpNoDelta db (Proj exp col _ fn _)  =
---   let set  = evaluateRelExpNoDelta db exp                                  
---   in if   nullTableSub set               -- if the non-projected set is empty
---      then evaluateRelExpNoDelta db TblEmpty -- evaluate and return empty table
---      else DB.project (deleteColumnProjector col updateFn) set
---     where updateFn = Just $ \(Tuple v d) -> Map.insert fn (Elem (v ! col)) d
--- evaluateRelExpNoDelta db (Sel exp pairs _) =
---     let set    = evaluateRelExpNoDelta db exp
---         selFun = similarColumnsSelector pairs
---     in  DB.select selFun set
--- evaluateRelExpNoDelta db (Join lExp rExp heads tran) =
---     let lHds  = header lExp
---         rHds  = header rExp
---         lSet  = evaluateRelExpNoDelta db lExp
---         rSet  = evaluateRelExpNoDelta db rExp
---         ps    = Map.elems $ Map.intersectionWith (,) lHds rHds
---         cond  = DB.Select $ \(Tuple x _, Tuple y _) -> 
---                 and $ (\(p1, p2) -> x ! p1 == y ! p2) <$> ps
---                 -- expanding variable pairs as a filter function for DB.join
---     in  DB.map (uncurry tran) $ DB.join cond lSet rSet
--- evaluateRelExpNoDelta _ _                       = 
---     error $ unitName ++ ".evaluateRelExpNoDelta: " ++ error_deltaInNoDelta
 --------------------------------------------------------------------------------
 {- Inserts the tuples of a 'TablePair' @t@ to a view for relational expression 
    @e@ in a database @db@. The schema for @t@ must be compatible with @e@, 
@@ -497,17 +465,21 @@ insertTuples tblPair (Proj innerExp col heading skFn unqExp) db depth
                           -- entire set of facts from the previous iteration of
                           -- the Chase
 
-  let inject = 
-          case unqExp of
-            Nothing -> insertProjInject col
-            Just ue -> let inNew = undecorateTable (evaluateRelExpNoDelta db ue)
-                           inUni = undecorateTable (evaluateRelExpNoDelta uni ue)
-                       in  insertProjUniqueInject inNew inUni (header ue) heading col
+  let inject = case unqExp of
+                 Nothing -> insertProjInject col
+                 Just ue -> let inNew = fetchUniqueTable db ue
+                                inUni = fetchUniqueTable uni ue 
+                            in  insertProjUniqueInject inNew inUni (header ue) 
+                                  heading col
                -- Create a function for injecting the projected out columns.
-               -- The function depends on the value of unique expression.
+               -- If the unique expression is a Just value, the injecting 
+               -- function looks up the new element that is about to be created
+               -- in their unique functional tables and returns their old values
+               -- if their exist.
 
   (_, _, allProvs) <- (liftPushMProvs State.get)
   let provs = elementProvs allProvs
+  
   new   <- foldM (\set (Tuple tup1 tup2) -> do
                           let ds = maximum <$>
                                    (termDepth <$>) <$>
@@ -520,11 +492,14 @@ insertTuples tblPair (Proj innerExp col heading skFn unqExp) db depth
                                      (Vect.fromList [0..(totalColumns - 1)]))
                             return ((Tuple tup1 tup2'):set)) 
            empty $ DB.toList tblPair
+           -- Use the injecting function to insert the projected column.
 
   liftPushMProvs $ State.modify 
                  $ \(id, vs, ps) -> (id, vs, newElementsProvs new skFn col ps)
                                     
   insertTuples (DB.fromList new) innerExp db depth
+  where fetchUniqueTable :: Database -> RelExp -> Table
+        fetchUniqueTable db (Tbl t _ _) = Map.findWithDefault emptyTable t db
 
 insertTuples tbl (Sel exp colPairs _) db depth = do
   let totalColumns = length colPairs
