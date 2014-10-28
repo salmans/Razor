@@ -61,12 +61,12 @@ emptyProvInfo =  ProvInfo (Map.empty, Map.empty) Map.empty
 
 {-| Empty provenance information with initial provenance for given constants -}
 emptyProvInfoWithConstants :: [Constant] -> ProvInfo
-emptyProvInfoWithConstants consts = 
-    let elms = (\(Constant c) -> Element c) <$> consts
-        cs   = Cons <$> consts
-    in  ProvInfo ( Map.fromList $ zip elms (pure <$> cs)
-                 , Map.fromList $ zip cs elms )
-                 Map.empty
+emptyProvInfoWithConstants consts = undefined
+    -- let elms = (\(Constant c) -> Element c) <$> consts
+    --     cs   = Cons <$> consts
+    -- in  ProvInfo ( Map.fromList $ zip elms (pure <$> cs)
+    --              , Map.fromList $ zip cs elms )
+    --              Map.empty
 
 
 {-| Returns the skolem term, i.e., the provenance information, for the input

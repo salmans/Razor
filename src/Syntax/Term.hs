@@ -10,7 +10,7 @@ module Syntax.Term ( FnSym, Variable (..), Constant (..), Element (..)
                    , TermBased (..), termDepth
                    , variant, freshVariable, freshConstant, freshElement
                    , isVariable, isConstant, termToVariable, termToConstant
-                   , termToElement
+                   , termToElement, readElement
                    , parseTerm, pTerm, pTermList -- for parsing terms
                    , xpTerm, xpTermList
                    ) where

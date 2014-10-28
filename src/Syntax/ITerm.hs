@@ -32,11 +32,15 @@ newtype Variable = Variable Sym -- Variables
     deriving (Eq, Ord)
 newtype Constant = Constant Sym -- Constants
     deriving (Eq, Ord)
-newtype Element  = Element Sym -- Elements of the domain
+newtype Element  = Element Int  -- Elements of the domain
     deriving (Eq, Ord)
 
 
 type FnSym  = String -- Function Symbols
+
+
+unitName = "Syntax.Term"
+err_invalidElementName = "invalid element name!"
 
 {-| Term is a data-structure for first-order terms. A term is either a variable, 
  a constant, an element or a function applied to a list of terms. -}
@@ -70,7 +74,7 @@ data Term = Var  Variable
 
 {- Show instances -}
 instance Show Element where
-    show (Element e) = e
+    show (Element e) = "e^" ++ show e
 
 instance Show Variable where
     show (Variable v) = v
@@ -81,6 +85,13 @@ instance Show Constant where
 instance Show Term where
     show t = prettyTerm t
 
+
+{-| Reads an element from a String. This function maintains the following 
+  invariant: @readElement (show e) = e@ -}
+readElement :: String -> Element
+readElement ('e':'^':e) = Element (read e)
+readElement e           = error $ unitName ++ ".readElement: " 
+                          ++ err_invalidElementName
 
 {-| A substitution from a 'Variable' to a 'Term'. -}
 type Sub = Map.Map Variable Term
@@ -148,7 +159,7 @@ pElement :: Parser Term
 pElement = do
   symbol "e^" -- for now
   number <- natural
-  return $ Elem $ Element $ "e^" ++ (show number)
+  return $ Elem $ Element (fromIntegral number)
 
 {- Extends pTerm, allows for parsing elements -}
 xpTerm :: Parser Term
@@ -272,7 +283,7 @@ freshConstant = State.get >>=
 freshElement :: Monad m => CounterT m Element
 freshElement = State.get >>= 
                (\c -> State.put (c + 1) >> 
-               (return $ Element $ "e^" ++ (show c)))
+               (return $ Element c))
 
 {-| Returns True if an input term is a 'Variable', otherwise returns False. -}
 isVariable :: Term -> Bool

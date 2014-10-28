@@ -32,7 +32,7 @@ import Data.SBV.Bridge.Yices as Yices
 -- Syntax
 import Syntax.GeometricUtils ( FnSym, RelSym, Atom (..), Term (..)
                              , Element (..), Constant (..)
-                             , termToElement )
+                             , termToElement, readElement )
 
 -- Common
 import Common.Observation (Observation (..), ObservationSequent (..))
@@ -62,7 +62,7 @@ type SMTElement = String
 
 {- Creates an 'SMTElement' from an 'Element' -}
 smtElement :: Element -> SMTElement
-smtElement (Element e) = e
+smtElement e = show e
 
 {- A name equivalent to a 'Term' in SMT solving -}
 type SMTTerm    = String
@@ -231,8 +231,8 @@ translateDictionary dic =
                        funs
         funObss'     = fromJust <$> filter isJust funObss
         domain       = let lists = Map.elems eqClasses
-                           pairs = (\l -> (Element (head l), Element <$> l)) 
-                                   <$> lists
+                           pairs = (\l -> (head l, l)) 
+                                   <$> ((readElement <$>) <$> lists)
                        in  Map.fromList pairs
     in  createModel domain $ relObss `union` funObss'
 
@@ -246,7 +246,7 @@ obsFromSMTAtom str =
         sym  = head strs
         es   = tail strs
         sym' = relSymFromSMT sym
-    in  Obs $ Rel sym' $ (Elem . Element) <$> es
+    in  Obs $ Rel sym' $ (Elem . readElement) <$> es
 
 {- Similar to 'obsFromSMTAtom', but constructs an observatin for a relational 
    fact.  -}
@@ -255,7 +255,7 @@ obsFromSMTTerm str e =
     let strs = Text.unpack <$> Text.splitOn (Text.pack "-") (Text.pack str)
         sym  = head strs
         es   = tail strs
-    in  Obs $ FnRel sym $ (Elem . Element) <$> (es ++ [e])
+    in  Obs $ FnRel sym $ (Elem . readElement) <$> (es ++ [e])
 
 {- This function constructs equivalence classes on elements of the domain, 
    (represented by 'SMTElement' instances) based on the the result of 

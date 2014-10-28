@@ -117,7 +117,7 @@ showFunctionObs sym obss  =
 showRelationTuple :: [Term] -> String
 showRelationTuple [] = ""
 showRelationTuple es = "(" ++ 
-                       intercalate "," ((\(Elem (Element e)) -> e) <$> es) ++ 
+                       intercalate "," ((\(Elem e) -> show e) <$> es) ++ 
                        ")"
 
 {- A helper for 'showFunctionObs' for displaying tuples. 
@@ -125,10 +125,10 @@ showRelationTuple es = "(" ++
    for 'Element'. -}
 showFunctionTuple :: [Term] -> String
 showFunctionTuple []  = ""
-showFunctionTuple [e] = let Elem (Element res) = e in res
+showFunctionTuple [e] = let Elem res = e in show res
 showFunctionTuple es  = 
-    let args               = init es
-        Elem (Element res) = last es
+    let args     = init es
+        Elem res = last es
     in  "(" ++ 
-        intercalate "," ((\(Elem (Element e)) -> e) <$> args) ++ 
-        ") -> " ++ res
+        intercalate "," ((\(Elem e) -> show e) <$> args) ++ 
+        ") -> " ++ show res

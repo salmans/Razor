@@ -322,14 +322,14 @@ xpTerms =
 implodeTerm :: (String, String, [Term]) -> Term
 implodeTerm ("VARIABLE", v, []) = (Var (Variable v))
 implodeTerm ("CONSTANT", c, []) = (Cons (Constant c))
-implodeTerm ("ELEMENT", e, []) = (Elem (Element e))
+implodeTerm ("ELEMENT", e, []) = undefined -- (Elem (Element e))
 implodeTerm ("FUNCTION", s, terms) = (Fn s terms)
 implodeTerm _ = error "unknown term type"
 
 explodeTerm :: Term -> (String, String, [Term])
 explodeTerm (Var (Variable v)) = ("VARIABLE", v, [])
 explodeTerm (Cons (Constant c)) = ("CONSTANT", c, [])
-explodeTerm (Elem (Element e)) = ("ELEMENT", e, [])
+explodeTerm (Elem (Element e)) = undefined -- ("ELEMENT", e, [])
 explodeTerm (Fn s terms) = ("FUNCTION", s, terms)
 explodeTerm _ = ("UNKNOWN", "", [])
 

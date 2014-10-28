@@ -177,12 +177,12 @@ emptyDatabase =  Map.empty
 {-| Empty 'Database' inititialized with a set of 'Constant's. -}
 emptyDatabaseWithConstants :: [Constant] -> Database
 emptyDatabaseWithConstants []     = emptyDatabase
-emptyDatabaseWithConstants consts =
-    let elemTbl   = DB.fromList $ tuple.(Vect.singleton) <$> elems
-        constTbls = [ (ConstTable c, mkCTbl name)| c@(Constant name) <- consts]
-    in  Map.fromList $ (RelTable "@Element", elemTbl):constTbls
-    where elems     = [ Element c | Constant c <- consts ]          
-          mkCTbl    = DB.singleton . tuple . Vect.singleton . Element
+emptyDatabaseWithConstants consts = undefined
+    -- let elemTbl   = DB.fromList $ tuple.(Vect.singleton) <$> elems
+    --     constTbls = [ (ConstTable c, mkCTbl name)| c@(Constant name) <- consts]
+    -- in  Map.fromList $ (RelTable "@Element", elemTbl):constTbls
+    -- where elems     = [ Element c | Constant c <- consts ]          
+    --       mkCTbl    = DB.singleton . tuple . Vect.singleton . Element
 
 {-| Returns true if the input 'Database' is empty. -}
 nullDatabase :: Database -> Bool
