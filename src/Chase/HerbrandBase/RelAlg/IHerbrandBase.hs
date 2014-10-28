@@ -14,7 +14,6 @@ module Chase.HerbrandBase.RelAlg.IHerbrandBase where
 
 --Standard
 import qualified Data.Map as Map
-import qualified Data.Bimap as Bimap
 import qualified Data.Vector as Vect
 import Data.Vector ((!))
 import Data.Maybe
