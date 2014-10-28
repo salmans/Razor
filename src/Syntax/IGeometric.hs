@@ -126,7 +126,7 @@ parseFormula input = let pResult =  parse pFormula "parsing Formula" input
                           Right val -> val
 
 xparseFormula :: String -> Formula
-xparseFormula input = let pResult =  parse xpFormula "parsing Formula" input
+xparseFormula input = let pResult =  parse xpFormula "parsing XFormula" input
                       in case pResult of
                            Left err -> error (show err)
                            Right val -> val
