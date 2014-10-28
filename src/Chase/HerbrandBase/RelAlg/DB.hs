@@ -15,4 +15,5 @@ module Chase.HerbrandBase.RelAlg.DB ( Set(..)
 
 {- Select DB implementation: -}
 -- import Chase.HerbrandBase.RelAlg.IListDB as IDB -- based on Haskell lists
-import Chase.HerbrandBase.RelAlg.ISetDB as IDB -- based on Haskell sets
+import Chase.HerbrandBase.RelAlg.ISetDB as IDB -- based on Data.Set
+-- import Chase.HerbrandBase.RelAlg.IHashSetDB as IDB -- based on Data.HashSet
