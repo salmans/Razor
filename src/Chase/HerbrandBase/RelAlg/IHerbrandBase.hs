@@ -41,8 +41,8 @@ import Chase.Data
 import qualified Chase.HerbrandBase.RelAlg.DB as DB
 import Chase.HerbrandBase.RelAlg.Lang
 import Chase.HerbrandBase.RelAlg.Translate 
-    ( bodyRelExp, headRelExp, delta, evaluateRelExp, evaluateRelExpNoDelta
-    , tupleTransformer, insertTuples )
+    ( bodyRelExp, headRelExp, delta, evaluateRelExp, tupleTransformer
+    , insertTuples )
 
 -- SAT
 import SAT.Data (SATAtom (..))
