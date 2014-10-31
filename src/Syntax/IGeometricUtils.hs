@@ -33,6 +33,11 @@ import Tools.Counter (Counter)
 import Tools.Trace
 
 
+
+unitName = "Syntax.GeometricUtils"
+err_disjInBody   = "the body of a sequent cannot contain disjunctions!"
+err_existsInBody = "the body of a sequent cannot contain existential"
+                   ++ " quantifiers!"
 --------------------------------------------------------------------------------
 -- Simplifying Formulas
 {-| Simplifies an input geometric 'Formula', if possible. -}
@@ -78,7 +83,6 @@ relationalize thy  =
                    concatMap (uncurry functionCongruenceAxioms) funcs'
 
 
--- Lone Nothing (Variable "x") (parseFormula "a(x) & x = y") (parseFormula "Truth")
 linearize :: Theory -> Theory
 linearize thy = (\(Sequent bdy hd) -> Sequent (linearizeFormula bdy) hd) <$> thy
 
@@ -170,8 +174,8 @@ relationalizeTheory thy = mapM relationalizeSequent thy
    relational symbols. -}
 relationalizeSequent :: Sequent -> Counter Sequent
 relationalizeSequent (Sequent bdy hd) = do
-  bdyres <- relationalizeFormula bdy
-  hdres  <- relationalizeFormula hd
+  bdyres <- relationalizeBody bdy
+  hdres  <- relationalizeHead hd
   return $ Sequent (makeExists bdyres) (makeExists hdres)
     where makeExists (fmla, skvs) = 
               let (vs', fmla') = takeExistsOut fmla
@@ -216,56 +220,97 @@ putExistsBack (VarTreeNode t1 t2) (Or f1 f2) =
 putExistsBack (VarTreeLeaf vs) f = foldr (\(v, fn) f -> Exists fn v f) f vs
 
 --------------------------------
+{- Eliminates all function symbols in a body formula and replaces them with 
+  relational symbols. It also retruns a list of Skolem functions, unique 
+  formulas and existential variable pairs introduced in this way. The primary
+  difference between this function and 'relationalizeHead' is that unlike
+  'relationalizeHead', it doesn't create extra existential quantifiers for 
+  function symbols. -}
+relationalizeBody :: Formula -> Counter ( Formula, [( Maybe FnSym
+                                                    , Maybe Formula
+                                                    , Variable)])
+relationalizeBody Tru                = return (Tru, [])
+relationalizeBody Fls                = return (Fls, [])
+relationalizeBody (Atm (Rel "=" [Var v, (Fn f ts)])) = 
+    relationalizeBody (Atm (Rel "=" [(Fn f ts), Var v])) -- orient the equation
+relationalizeBody atm@(Atm (Rel "=" [(Fn f ts), Var v])) = do
+  -- If the atom is in form @f(ts) = v@, translate it as @f(ts,v)@.
+  -- This is the primary difference between 'relationalizeBody' and
+  -- 'relationalizeHead', and is crucial for our performance.
+  (fs', ts', vs') <- relationalizeTerms ts
+  return $ (andFmlas fs' (Atm (FnRel f (ts'++[Var v]))), vs')
+    where andFmlas  = \fmlas fmla -> foldr (\f1 f2 -> And f1 f2) fmla fmlas
+relationalizeBody (Atm (Rel sym ts)) = do
+  (fs', ts', vs') <- relationalizeTerms ts
+  return $ (andFmlas fs' (Atm (Rel sym ts')), vs')
+    where andFmlas  = \fmlas fmla -> foldr (\f1 f2 -> And f1 f2) fmla fmlas
+    -- Replace ts with new variables computed by flattening terms. Also, 
+    -- return a formula, corresponding to the conjunction of the formulas for
+    -- flattening subterms. (This is pretty much like flattening terms below.)
+relationalizeBody (And fmla1 fmla2)  = do
+  (fmla1', vs1) <- relationalizeBody fmla1
+  (fmla2', vs2) <- relationalizeBody fmla2
+  return $ (And fmla1' fmla2', vs1 ++ vs2)
+relationalizeBody (Or _ _) = error $ unitName ++ ".relationalizeBody: "
+                             ++ err_disjInBody
+relationalizeBody (Exists _ _ _) = error $ unitName ++ ".relationalizeBody: "
+                             ++ err_existsInBody
 
-
-
-{- Eliminates all function symbols in a formula and replaces them with 
-  relational symbols. It also retruns a list of skolem functions, unique 
-  formulas and existential variable pairs introduced in this way. -}
-relationalizeFormula :: Formula -> 
-                        Counter ( Formula, [( Maybe FnSym
-                                           , Maybe Formula
-                                           , Variable)])
-relationalizeFormula Tru                = return (Tru, [])
-relationalizeFormula Fls                = return (Fls, [])
-relationalizeFormula (Atm (Rel sym ts)) = do
-  (fs', ts', vs') <- foldM foldFunc ([], [], []) ts 
+{- Similar to 'relationalizeBody', eliminates all function symbols in a head 
+   formula and replaces them with relational symbols. It also retruns a list of 
+   Skolem functions, unique formulas and existential variable pairs introduced 
+   in this way. -}
+relationalizeHead :: Formula -> Counter ( Formula, [( Maybe FnSym
+                                                    , Maybe Formula
+                                                    , Variable)])
+relationalizeHead Tru                = return (Tru, [])
+relationalizeHead Fls                = return (Fls, [])
+relationalizeHead (Atm (Rel sym ts)) = do
+  (fs', ts', vs') <- relationalizeTerms ts
   return $ (andFmlas fs' (Atm (Rel sym ts')), vs')
     -- Replace ts with new variables computed by flattening terms. Also, 
     -- return a formula, corresponding to the conjunction of the formulas for
     -- flattening subterms. (This is pretty much like flattening terms below.)
     where andFmlas  = \fmlas fmla -> foldr (\f1 f2 -> And f1 f2) fmla fmlas
-          foldFunc  = \(ffs, fts, fvs) t -> 
-              do
-                res <- relationalizeTerm t
-                case res of
-                  Nothing            -> 
-                      return (ffs, fts ++ [t], fvs)
-                  Just (tf, tt, tvs) -> 
-                      return (ffs ++ [tf], fts ++ [tt], fvs ++ tvs)
-relationalizeFormula (And fmla1 fmla2)  = do
-  (fmla1', vs1) <- relationalizeFormula fmla1
-  (fmla2', vs2) <- relationalizeFormula fmla2
+relationalizeHead (And fmla1 fmla2)  = do
+  (fmla1', vs1) <- relationalizeHead fmla1
+  (fmla2', vs2) <- relationalizeHead fmla2
   return $ (And fmla1' fmla2', vs1 ++ vs2)
-relationalizeFormula (Or fmla1 fmla2)   = do
-  res1 <- relationalizeFormula fmla1
-  res2 <- relationalizeFormula fmla2
+relationalizeHead (Or fmla1 fmla2)   = do
+  res1 <- relationalizeHead fmla1
+  res2 <- relationalizeHead fmla2
   return $ (Or (makeExists res1) (makeExists res2), [])
       -- Since disjunctions occur at the topmost level, apply existential
       -- quantification on the newly introduced variables before returning from
       -- this call.
   where makeExists (fmla, skvs) = 
-            foldl (\f (sk, lfmla, v) -> 
-                       case lfmla of
-                         Nothing -> Exists sk v f
-                         Just lf -> Lone sk v f lf) fmla skvs
-relationalizeFormula (Exists fn v fmla)    = do
-  (fmla', vs) <- relationalizeFormula fmla
+            foldl (\f (sk, lfmla, v) -> case lfmla of
+                                          Nothing -> Exists sk v f
+                                          Just lf -> Lone sk v f lf) fmla skvs
+relationalizeHead (Exists fn v fmla)    = do
+  (fmla', vs) <- relationalizeHead fmla
   if isJust fn
   then return $ (Exists fn v fmla', vs)
   else do 
     fn' <- freshSymbol "exists"
     return $ (Exists (Just fn') v fmla', vs)
+
+{- As a helper for 'relationalizeBody' and 'relationalizeHead', converts a list
+   of terms to their relationalize form (using 'relationalizeTerm') and returns
+   the result as well as additional information returned by 'relationalizeTerm'.
+ -}
+relationalizeTerms :: [Term] -> Counter ( [Formula], [Term] , [( Maybe FnSym
+                                                               , Maybe Formula
+                                                               , Variable)])
+relationalizeTerms ts = foldM foldFunc ([], [], []) ts
+    where foldFunc  = \(ffs, fts, fvs) t -> do
+                        res <- relationalizeTerm t
+                        case res of
+                          Nothing            -> return (ffs, fts ++ [t], fvs)
+                          Just (tf, tt, tvs) -> return ( ffs ++ [tf]
+                                                       , fts ++ [tt]
+                                                       , fvs ++ tvs)
+
 {- Eliminates all function symbols in a term and replaces them with relational 
    symbols. It also returns a set of skolem functions, unique formulas, and 
    existential variable pairs introduced by the process. -}
