@@ -30,7 +30,8 @@ import Syntax.GeometricUtils
 
 -- Common
 import Common.Data ( SequentLike (..) )
-import Common.Observation (ObservationSequent, buildObservationSequent)
+import Common.Observation ( Observation(..), ObservationSequent
+                          , buildObservationSequent)
 import Common.Provenance
 
 -- Chase
@@ -117,6 +118,7 @@ instance HerbrandBase Database where
     unionBases             = unionDatabases
     diffBases              = diffDatabases
     baseSize               = databaseSize
+    addToBase              = addToDatabase
 
 {- RelSequent acts like a sequent -}
 instance SequentLike RelSequent where
@@ -360,3 +362,19 @@ applyLoneSubs uni new skMap seq =
                            then Nothing
                            else Just 
                                 $ DB.map (\(Tuple es _) -> Vect.last es) tups
+
+
+{- Adds an 'Observation' to a 'Database'. -}
+addToDatabase :: Observation -> Database -> Database
+addToDatabase (Obs (Rel sym ts)) db = 
+    let es  = (\(Elem e) -> e) <$> ts
+        ref = RelTable sym
+        tup = tuple $ Vect.fromList es
+        tbl = Map.findWithDefault emptyTable ref db
+    in  Map.insert ref (insertIntoTable tup tbl) db
+addToDatabase (Obs (FnRel sym ts)) db = 
+    let es  = (\(Elem e) -> e) <$> ts
+        ref = FnTable sym
+        tup = tuple $ Vect.fromList es
+        tbl = Map.findWithDefault emptyTable ref db
+    in  Map.insert ref (insertIntoTable tup tbl) db

@@ -48,3 +48,27 @@ chase cfg thy = let thy'   = preprocess thy
                     seqMap = buildSequentMap $ fromSequent <$> thy' 
                            :: SequentMap ChaseSequentType
                 in  Chase.Chase.chase cfg seqMap
+
+
+-- TEMPORARY: THIS IS HOW AUGMENTATION WORKS!
+-- {-| Gives access to a particular implementation of the chase based on the 
+--   selected HerbrandBase implementation. -}
+-- chase :: Config -> Theory -> ( ChaseHerbrandBaseType
+--                              , ProvInfo
+--                              , SATTheoryType )
+-- chase cfg thy = 
+--     let thy'   = preprocess thy
+--         seqMap = buildSequentMap $ fromSequent <$> thy' 
+--                :: SequentMap ChaseSequentType
+--         (b, p, t) = Chase.Chase.chase cfg seqMap
+--         obs       = Obs $ Rel "R" [Elem $ Element 1]
+--         -- obs       = Obs $ FnRel "f" [Elem $ Element 0, Elem $ Element 1]
+--         -- obs       = Obs $ Rel "=" [Elem $ Element 0, Elem $ Element 1]
+
+--         -- THESE STEPS SHOULDN'T BE DONE FOR EQUATIONAL FACTS:
+--         d        = addToBase obs emptyBase
+--         (b', p', t') = Chase.Chase.resumeChase cfg seqMap b d p t
+--         ---------------------------------------------------------
+--         testSeq   = ObservationSequent [] [[obs]]
+--         t''       = storeSequent t' testSeq
+--     in  (b', p' ,t'')

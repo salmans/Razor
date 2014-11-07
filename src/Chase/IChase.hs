@@ -14,6 +14,7 @@ import Data.Maybe
 
 -- Control
 import Control.Monad
+-- import Control.Monad.Loops
 import Control.Applicative
 import qualified Control.Monad.RWS.Lazy as RWS
 import qualified Control.Monad.State.Lazy as State
@@ -36,22 +37,46 @@ import SAT.Data
 import Tools.Config (Config (..), defaultConfig)
 import Tools.FolToGeo (parseFolToSequents)
 
-import Tools.Trace
-
-{-| Runs the Chase algorithm and returns the resulting base and the resulting 
-  provenance information.
+{-| Runs the Chase algorithm and returns the resulting base, the resulting 
+  provenance information and the resulting set of ground sequents.
   Input: 
   - A 'Config' instance, providing user preferences. 
   - An instance of 'SequentMap' for a 'SequentLike' type @s@. 
 
   Output:
-  A pair of a base of type @h@ and its corresponding provenance information of
-  type 'ProvInfo'. -}
-
+  A triple of a base of type @h@, its corresponding provenance information of
+  type 'ProvInfo', and a set of ground sequents of type 'SATTheory t' -}
 chase :: (HerbrandImpl h s r, SATAtom t) => Config -> SequentMap s 
       -> (h, ProvInfo, SATTheory t)
-chase cfg seqs = let (b, p, pt, _) = runChase cfg seqs Nothing Nothing Nothing
-                 in  (b, p, pt)
+chase cfg seqs = 
+    let prob         = Problem seqs emptyBase emptyBase emptyProvInfo emptySATTheory
+        (b, p, t, _) = runChase cfg prob $ initM >> stepsM
+    in  (b, p, t)
+
+
+{-| Resumes the Chase algorithm on a partially computed set of structures and
+  returns the resulting base, the resulting provenance information and the 
+  resulting set of ground sequents.
+  Input: 
+  - A 'Config' instance, providing user preferences. 
+  - An instance of 'SequentMap' for a 'SequentLike' type @s@. 
+  - An instance of a HerbrandBase type @h@ as the initial base. Type @h@ must
+  implement a HerbrandImpl instance that matches with the type of the sequents 
+  of the input 'SequentMap'.
+  - Another instance of the same HerbrandBase type @h@ as the delta set.
+  - Initial provenance information.
+  - Initial ground theory of type @SATTheory t@
+
+  Output:
+  A triple of the new base of type @h@, its corresponding provenance information
+  of type 'ProvInfo', and the new set of ground sequents of type 'SATTheory t'. 
+ -}
+resumeChase :: (HerbrandImpl h s r, SATAtom t) => Config -> SequentMap s
+            -> h -> h -> ProvInfo -> SATTheory t -> (h, ProvInfo, SATTheory t)
+resumeChase cfg seqs base delt provs propThy = 
+    let prob          = Problem seqs base delt provs propThy
+        (b, p, pt, _) = runChase cfg prob $ initM >> stepsM
+    in  (b, p, pt)
 
 {-| Runs the Chase algorithm, ensuring that the initial set of constants will
   denote elements in the output instnace of 'HerbrandBase'. -}
@@ -59,30 +84,18 @@ chaseWithInitialConstants :: (HerbrandImpl h s r, SATAtom t) => Config
                           -> SequentMap s -> [Constant] 
                           -> (h, ProvInfo, SATTheory t)
 chaseWithInitialConstants cfg seqs consts = 
-    let initialBase   = emptyBaseWithConstants consts
-        initialProvs  = emptyProvInfoWithConstants consts
-        (b, p, pt, _) = runChase cfg seqs (Just initialBase) (Just initialProvs)
-                        Nothing
+    let base          = emptyBaseWithConstants consts
+        provs         = emptyProvInfoWithConstants consts
+        prob          = Problem seqs base emptyBase provs emptySATTheory
+        (b, p, pt, _) = runChase cfg prob $ initM >> stepsM
     in  (b, p, pt)
 
-{-| Runs the Chase algorithm, ensuring that the initial set of constants will
-  denote elements in the output instnace of 'HerbrandBase'. -}
-chaseWithInitialConstants' :: HerbrandImpl h s r => Config -> SequentMap s 
-                           -> [Constant] -> h
-chaseWithInitialConstants' cfg seqs consts = undefined
-    -- let initialBase  = emptyBaseWithConstants consts
-    --     initialProvs = emptyProvInfoWithConstants consts
-    -- in  evalChase cfg seqs (Just initialBase) (Just initialProvs) Nothing
-
-{-| Runs the (monadic) Chase for instances of type @h@ and @s@ and @r@ that 
-  implement a 'HerbrandImpl'.
+{- Runs a monadic function of type 'ChaseM h s ()' based on instances of type 
+   @h@ and @s@ and @r@ that implement a 'HerbrandImpl'.
   Input:
   - An instance of 'Config' specifying user preferences.
-  - An 'SequentMap' of a 'SequentLike' type, @s@, containing the sequents of the
-  input theory.
-  - Maybe an instance of a 'HerbrandBase' type, @h@, as the initial base.
-  - Maybe an instance of 'ProvInfo', as the provenance information for the 
-  initial base.
+  - An instance of the initial problem of type @Problem h s t@.
+  - The monadic function to run the chase.
   
   Output:
   A tuple containing the following:
@@ -90,49 +103,25 @@ chaseWithInitialConstants' cfg seqs consts = undefined
   initial instances and the initial configuration.
   - An instance of 'ProvInfo' that contains the provenance information for the
   facts and the elements of the output base.
+  - An instance of 'SATTheory t' as the new instance of ground sequents.
   - Log information.
 -}
-runChase :: (HerbrandImpl h s r, SATAtom t) => 
-            Config -> SequentMap s -> Maybe h -> Maybe ProvInfo 
-         -> Maybe (SATTheory t) -> (h, ProvInfo, SATTheory t, [String])
-runChase cfg seqs initBase initProvs initPropThy = 
-    let runCM       = RWS.runRWST chaseM []
-                      (Problem seqs emptyBase (fromMaybe emptyBase initBase)
-                       (fromMaybe emptyProvInfo initProvs)
-                       (fromMaybe emptySATTheory initPropThy))
-        runCt       = State.evalStateT runCM 0
-        (base, prob, log) 
-                    = State.evalState runCt cfg
-    in (base, problemProvs prob, problemSATTheory prob, log)
-    where seqs' = Map.filter (not.failSequent) seqs
-                  -- filter out failing sequents- don't process them
+runChase :: (HerbrandImpl h s r, SATAtom t) => Config -> Problem h s t
+          -> ChaseM h s () -> (h, ProvInfo, SATTheory t, [String])
+runChase cfg prob context = 
+    let runCM  = RWS.execRWST context [] prob
+        runCt  = State.evalStateT runCM 0
+        (p, l) = State.evalState runCt cfg
+    in (problemBase p, problemProvs p, problemSATTheory p, l)
 
-{-| Just like 'runChase' runs the (monadic) Chase for instances of type @h@ 
-  and @s@ and @r@ that implement a 'HerbrandImpl' but only returns the resulting
-  'HerbrandBase' instance.
-  Input:
-  - An instance of 'Config' specifying user preferences.
-  - An 'SequentMap' of a 'SequentLike' type, @s@, containing the sequents of the
-  input theory.
-  - Maybe an instance of a 'HerbrandBase' type, @h@, as the initial base.
-  - Maybe an instance of 'ProvInfo', as the provenance information for the 
-  initial base.
-  
-  Output:
-  An instance of type @h@, containing all the deduced facts based on the initial
-  instances and the initial configuration.
--}
-evalChase :: (HerbrandImpl h s r, SATAtom t) => 
-            Config -> SequentMap s -> Maybe h -> Maybe ProvInfo 
-          -> Maybe (SATTheory t) -> h
-evalChase cfg seqs initBase initProvs propThy = 
-    let (b, _, _, _) = runChase cfg seqs initBase initProvs propThy
-    in  b
 
-{-| Runs the Chase in the context of 'ChaseM' for some realization of the 
-  Chase, implemented as 'HerbrandImpl'. -}
-chaseM :: HerbrandImpl h s r => ChaseM h s h
-chaseM = do
+{- Initializes a run of the Chase inside a 'ChaseM' context for some 
+   implementation of the Chase implemented as 'HerbrandImpl'. The function 
+   processes the initial sequents (sequents with empty body) only and removes 
+   them from the input set of sequents map.
+ -}
+initM :: HerbrandImpl h s r => ChaseM h s ()
+initM = do
   cfg <- liftChaseMConfig State.get
   Problem seqs base dlt provs propThy <- liftChaseMState RWS.get
   let (startSeqs, restSeqs) = Map.partition startSequent seqs
@@ -144,22 +133,22 @@ chaseM = do
                            -- before iterating through the remaining sequents
 
   liftChaseMCounter (State.put counter') -- Update the new counter
-  liftChaseMState $ RWS.put $ Problem restSeqs (unionBases base dlt)
-                  newDlt newProvs propThy'
+  liftChaseMState $ RWS.put 
+        $ Problem restSeqs base (unionBases dlt newDlt) newProvs propThy'
      -- Update the computation state with new Herbrand base and delta base. 
      -- Also, throw away the starting sequents
-  stepsM -- Iterate through remaining sequents
 
 {- As a helper for 'chase', iterates through the sequents of the theory (with 
    non-empty bodies) recursively until the changes in one iteration is contained
    by the existing base. 
  -}
-stepsM :: HerbrandImpl h s r => ChaseM h s h
+stepsM :: HerbrandImpl h s r => ChaseM h s ()
 stepsM = do
   cfg <- liftChaseMConfig State.get
   Problem seqs base dlt provs propThy <- liftChaseMState (RWS.get)
+                                         
   if nullBase dlt -- If the current delta contains nothing new
-  then return base -- return the current base
+  then return ()
   else do          -- else make a new step
     let seqs' = Map.filter ((flip relevant) dlt) seqs
                 -- Select sequents that are relevant to the last set of changes
@@ -169,7 +158,7 @@ stepsM = do
         -- Process the relevant sequents
     liftChaseMCounter (State.put counter')
     liftChaseMState $ RWS.put $ Problem seqs (unionBases base dlt) 
-                    newDlt newProvs propThy'
+                                newDlt newProvs propThy'
        -- Update the state and prepare for a next step
     stepsM
             
@@ -184,7 +173,7 @@ stepsM = do
    - An instance of @h@, containing the last set of changes, i.e. delta base. 
    - Provenance information for the existing base and delta.
    - The state of the 'Counter' associated to the current run of the Chase. 
-   - The propositional theory in the current run of the Chase.
+   - The ground theory in the current run of the Chase.
    
    Output: 
    - A new base, containing the set of facts that may be deduced.
@@ -223,14 +212,14 @@ iterateBalance seqs base dlt provs cnt propThy cfg =
    - Provenance information of type 'ProvInfo' for the facts and elements that
    have been deduced so far.
    - The state of 'Counter' for the current run of the Chase.
-   - The current propositional theory in this run of the Chase.
+   - The current ground theory in this run of the Chase.
 
    Output:
    - A base of type @h@, containing the facts deduced for the input sequent and
    the facts in the base "new", which was passed as input.
    - Updated provenance information of type 'ProvInfo'.
    - New state for the Chase's 'Counter'.
-   - New propositional theory after pushing new information
+   - New ground theory after pushing new information
  -}
 balance :: (HerbrandImpl h s r, SATAtom t) => 
            Id -> s -> h -> h -> h -> h -> ProvInfo -> Int

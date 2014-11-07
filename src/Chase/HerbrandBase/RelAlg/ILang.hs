@@ -91,6 +91,10 @@ type TablePair = TableD Tup
 {-| 'TableSub' is a set of tuples decorated by 'ExistsSub'. -}
 type TableSub  = TableD ExistsSub
 
+{-| Inserts a tuple of type 'TupleD a' into a table of type 'TableD a'. -}
+insertIntoTable :: (Ord a) => TupleD a -> TableD a -> TableD a
+insertIntoTable  = DB.insert
+
 {-| Reads a the records of a 'Table' from a list. -}
 recordsFromList :: [Tuple] -> Table
 recordsFromList = DB.fromList

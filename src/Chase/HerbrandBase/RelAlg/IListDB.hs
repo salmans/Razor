@@ -32,6 +32,10 @@ singleton x = Set [x]
 oneMember :: Set t -> t
 oneMember (Set set) = head set
 
+{-| Inserts a new element to the set. -}
+insert :: t -> Set t -> Set t
+insert x (Set set) = Set $ x:set
+
 {-| Returns true if the input 'Set' is empty -}
 null :: Set t -> Bool
 null (Set set) = List.null set

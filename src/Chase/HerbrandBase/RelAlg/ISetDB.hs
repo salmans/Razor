@@ -31,6 +31,10 @@ singleton x = Set $ S.singleton x
 oneMember :: Set t -> t
 oneMember (Set set) = S.findMin set
 
+{-| Inserts a new element to the set. -}
+insert :: (Ord t) => t -> Set t -> Set t
+insert x (Set set) = Set $ S.insert x set
+
 {-| Returns true if the input 'Set' is empty -}
 null :: Set t -> Bool
 null (Set set) = S.null set

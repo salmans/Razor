@@ -8,7 +8,7 @@ module Chase.HerbrandBase.RelAlg.DB ( Set(..)
                                     , Select(..), Project(..)
                                     , select, project, join
                                     , fromList, toList
-                                    , empty, singleton, oneMember
+                                    , empty, singleton, oneMember, insert
                                     , IDB.null, IDB.elem, nub, size
                                     , IDB.map, IDB.filter
                                     , union, unions, difference ) where
