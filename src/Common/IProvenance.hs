@@ -10,6 +10,7 @@ module Common.IProvenance where
 import qualified Data.Map as Map
 import Data.Maybe
 
+import Data.Hashable
 -- Control
 import Control.Applicative
 
@@ -39,6 +40,12 @@ type ElementProvs = ( Map.Map Element [SkolemTerm]
   with a binding from its free variables to elements of the model. -}
 data Blame = TheoryBlame Id Sub
            deriving (Show, Eq, Ord)
+
+
+{- A basic hash function to work with IHashSet as the underlying database. -}
+-- THIS IS A TEMPORARY IMPLEMENTATION. THE FUNCTION HAS TO BE REWRITTEN.
+instance Hashable Blame where
+    s `hashWithSalt` _ = s
 
 {-| Provenance information for observations is a map from 'Observation's to 
   'Blame'. -}

@@ -14,6 +14,8 @@ import qualified Data.Vector as Vect
 import Data.Vector ((!))
 import qualified Data.Map as Map
 
+import Data.Hashable
+
 -- Control
 import Control.Applicative
 
@@ -45,6 +47,17 @@ data TableRef  = ConstTable Constant -- constant tables
 
 {- A vector of elements. -}
 type Tup       = Vect.Vector Element
+
+
+{- A hashable instance to work with IHashSet as the underlying database 
+   implementation. -}
+instance Hashable Tup where
+    s `hashWithSalt` tup = 
+        fst $ Vect.foldr (\e (res, d) -> 
+                              let he = s `hashWithSalt` e
+                              in  (res + (he * d * 100), d+1)) (0, 0) tup
+
+
 {-| A TupleD is a vector of elements decorated with an object of type @a@. -}
 data TupleD a  = Tuple { tupleElems :: Tup 
                        , tupleDec   :: a
@@ -82,6 +95,11 @@ tuplePairFromList (es1, es2) = Tuple (Vect.fromList es1) (Vect.fromList es2)
   function in a database. The tuples may be decorated. -}
 type TableD a = DB.Set (TupleD a)
 
+
+instance Hashable (TupleD a) where
+    s `hashWithSalt` (Tuple tup _) = s `hashWithSalt` tup
+
+
 {-| Table is a 'TableD' of undecorated tuples. -}
 type Table    = TableD ()
 
@@ -92,7 +110,7 @@ type TablePair = TableD Tup
 type TableSub  = TableD ExistsSub
 
 {-| Inserts a tuple of type 'TupleD a' into a table of type 'TableD a'. -}
-insertIntoTable :: (Ord a) => TupleD a -> TableD a -> TableD a
+insertIntoTable :: (Hashable a, Ord a) => TupleD a -> TableD a -> TableD a
 insertIntoTable  = DB.insert
 
 {-| Reads a the records of a 'Table' from a list. -}

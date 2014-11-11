@@ -10,6 +10,8 @@ module Syntax.ITerm where
 import Data.List
 import qualified Data.Map as Map
 
+import Data.Hashable
+
 -- Control
 import Control.Applicative
 import qualified Control.Monad.State.Lazy as State (get, put)
@@ -35,6 +37,11 @@ newtype Constant = Constant Sym -- Constants
 newtype Element  = Element Int  -- Elements of the domain
     deriving (Eq, Ord)
 
+
+{- A hash function to work with IHashSet as the underlying database for the
+   relational algebraic implementation of the Chase. -}
+instance Hashable Element where
+    s `hashWithSalt` (Element e) = s `hashWithSalt` e
 
 type FnSym  = String -- Function Symbols
 

@@ -179,21 +179,19 @@ evaluateRelSequent :: RelSequent -> Database -> Database
                    -> PullM Database RelResultSet
 evaluateRelSequent seq@(RelSequent bdy hds bdyDlt _ _ _ _) db dlt = do  
   provs <- liftPullMProvs State.get
-  -- uni <- liftPullMBase State.get
-  let bdyDltExTbl      = evaluateRelExp db dlt bdyDlt
-  let bdyDltTbl        = undecorateTable bdyDltExTbl
+  let bdyDltExTbl = evaluateRelExp db dlt bdyDlt
+  let bdyDltTbl   = undecorateTable bdyDltExTbl
 
-  let hdTbls           = map (\(hd, tran) ->
-                              if   bdyDlt == TblFull || 
-                                       (header bdyDlt) == fullTableHeader
-                              then decorateTable bdyDltTbl Vect.empty
-                              else DB.map (\(Tuple t _) -> Tuple t (tran t))  
-                                            bdyDltTbl) hds
+  let hdTbls      = map (\(hd, tran) ->
+                             if   bdyDlt == TblFull || 
+                                      (header bdyDlt) == fullTableHeader
+                             then decorateTable bdyDltTbl Vect.empty
+                             else DB.map (\(Tuple t _) -> Tuple t (tran t))  
+                                  bdyDltTbl) hds
                          -- hdTbls contains the head expression, transformation
                          -- of body table in a way that it matches with the
                          -- schema of the head and the entire head table in 
                          -- uni database.
-
   return $ RelResultSet bdyDltExTbl hdTbls
 
 
@@ -221,13 +219,13 @@ insertRelSequent seq resSet db = do
                -- Fold the deduce facts for all heads- 
                -- eventually remove references to empty tables
   (_, _, provs) <- liftPushMProvs State.get
-  uni       <- liftPushMBase  State.get
-  propThy   <- liftPushMSATTheory State.get
+  uni           <- liftPushMBase  State.get
+  propThy       <- liftPushMSATTheory State.get
 
 
   -- MONITOR
   -- Is @db@ enough or we should use @uni@ or even @unionDatabases uni result@?
-  let propSeqs = relSequentInstances seq uni result resSet provs
+  let propSeqs = observationalInstances seq uni result resSet provs
   -- MONITOR
 
   let propThy' = foldr (flip storeSequent) propThy propSeqs
