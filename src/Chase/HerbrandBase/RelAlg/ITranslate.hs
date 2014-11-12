@@ -45,7 +45,6 @@ import Chase.Data ( PushM, PullM, liftPushMBase, liftPushMProvs
                   , liftPushMCounter, liftPullMProvs )
 import Chase.HerbrandBase.RelAlg.Lang -- import everything
 import qualified Chase.HerbrandBase.RelAlg.DB as DB
-import qualified Tools.ExtendedSet as ExSet
 
 -- Error Messages:
 unitName               = "Chase.HerbrandSet.RelAlg.Translate"
@@ -69,24 +68,24 @@ error_deltaForDelta    = "the formula is already in differential form"
    their topmost level. -}
 headRelExp :: Formula -> [RelExp]
 headRelExp (Or fmla1 fmla2) = 
-    if   fmla1' == Tru || fmla2' == Tru
+    if   fmla1 == Tru || fmla2 == Tru
     then headRelExp Tru  -- shortcut Truth
-    else (headRelExp fmla1') `union` (headRelExp fmla2')
-    where fmla1' = removeHeadEquations fmla1
-          fmla2' = removeHeadEquations fmla2
+    else fmla1' `union` fmla2'
+    where fmla1' = headRelExp fmla1
+          fmla2' = headRelExp fmla2
 headRelExp fmla             = [formulaRelExp fmla']
-    where fmla'  = removeHeadEquations fmla
+    where fmla'  = removeEquations fmla
 
 {- Creates a 'RelExp' for a 'Formula' in the body of a sequent. -}
 bodyRelExp :: Formula -> RelExp
-bodyRelExp = (formulaRelExp . removeBodyEquations)
+bodyRelExp = (formulaRelExp . removeEquations)
 
-{- Replaces the equations in the body of a sequent with Truth. This is 
-   necessary for constructing the correct set of observational instances that
-   are passed to the SMT solver. -}
-removeBodyEquations :: Formula -> Formula
-removeBodyEquations fmla =
-    let fmla' = removeBodyEquationsHelper fmla
+{- Replaces the equations in the a 'Formula' with Truth. This is necessary for 
+   constructing the correct set of observational instances that are passed to 
+   the SMT solver. -}
+removeEquations :: Formula -> Formula
+removeEquations fmla =
+    let fmla' = removeEquationsHelper fmla
         diff  = (freeVars fmla) \\ (freeVars fmla')
     in  case (fmla', diff) of
           (f  , []) -> f
@@ -95,41 +94,28 @@ removeBodyEquations fmla =
           (f  , vs) -> let rels = (\v -> Atm $ Rel "@Element" [Var v]) <$> vs
                        in foldr And f rels
 
-removeBodyEquationsHelper :: Formula -> Formula
-removeBodyEquationsHelper Tru = Tru
-removeBodyEquationsHelper (Atm (Rel "=" _))  = Tru
-removeBodyEquationsHelper a@(Atm _)          = a
-removeBodyEquationsHelper (And fmla1 fmla2)  =
-    case (removeBodyEquations fmla1, removeBodyEquations fmla2) of
-      (Tru, Tru) -> Tru
-      (Tru, f  ) -> f
-      (f  , Tru) -> f
-      (f  , f' ) -> And f f'
-removeBodyEquationsHelper (Lone sk x fmla unq) = 
-    Lone sk x (removeBodyEquationsHelper fmla) unq
-
-{- Replaces the equations in the head of a sequent with Falsehood. -}
-removeHeadEquations :: Formula -> Formula
-removeHeadEquations Tru = Tru
-removeHeadEquations Fls = Fls
-removeHeadEquations (Atm (Rel "=" _))  = Tru
-removeHeadEquations a@(Atm _)          = a
-removeHeadEquations (And fmla1 fmla2)  =
-    case (removeHeadEquations fmla1, removeHeadEquations fmla2) of
+--  A helper for removeEquations:
+removeEquationsHelper :: Formula -> Formula
+removeEquationsHelper Tru = Tru
+removeEquationsHelper Fls = Fls
+removeEquationsHelper (Atm (Rel "=" _))  = Tru
+removeEquationsHelper a@(Atm _)          = a
+removeEquationsHelper (And fmla1 fmla2)  =
+    case (removeEquationsHelper fmla1, removeEquationsHelper fmla2) of
       (Fls, _  ) -> Fls
       (_  , Fls) -> Fls
       (Tru, f  ) -> f
-      (f  ,Tru ) -> f
+      (f  , Tru) -> f
       (f  , f' ) -> And f f'
-removeHeadEquations (Or fmla1 fmla2)    =
-    case (removeHeadEquations fmla1, removeHeadEquations fmla2) of
+removeEquationsHelper (Or fmla1 fmla2)    =
+    case (removeEquationsHelper fmla1, removeEquationsHelper fmla2) of
       (Fls, f  ) -> f
       (f  , Fls) -> f
       (f  , f' ) -> Or f f'
-removeHeadEquations (Exists fn x fmla)  = 
-    Exists fn x (removeHeadEquations fmla)
-removeHeadEquations (Lone sk x fmla unq) =
-    Lone sk x (removeHeadEquations fmla) unq
+removeEquationsHelper (Exists fn x fmla)  = 
+    Exists fn x (removeEquationsHelper fmla)
+removeEquationsHelper (Lone sk x fmla unq) = 
+    Lone sk x (removeEquationsHelper fmla) unq
 
 {- Translates a disjunct-free goemetric 'Formula' to a 'RelExp'. -}
 formulaRelExp :: Formula -> RelExp
@@ -174,6 +160,7 @@ formulaRelExp (Lone fn x fmla lfmla)   =
           -- a little helper that shifts the columns after the projected column
           -- to left
           lExp      = formulaRelExp lfmla
+formulaRelExp fmla = error (show fmla)
 
 {- Creates a join expression for two input instances of 'RelExp' and their
    'Schema' instances. -}

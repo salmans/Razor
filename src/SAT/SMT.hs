@@ -41,9 +41,6 @@ import Common.Model (Model, createModel)
 -- SAT
 import SAT.Data
 
--- Tools
-import Tools.Trace
-
 -- Error Messages
 unitName = "SAT.SMT"
 error_InvalidFnArity         = "invalid function arity!"
