@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-}
 {-|
   Razor
   Module      : API.Core
@@ -6,6 +7,9 @@
 -}
 module API.Core where
 import Chase.Impl
+import qualified Chase.Chase
+import Chase.Data
+import Common.Data
 import Common.Basic
 import Common.IProvenance
 import Common.IObservation
@@ -86,6 +90,14 @@ parseTheory config input = do
 -- Out: G*, which consists of ground facts, provenance info, and a propositional theory
 generateGS :: Config -> Theory -> (ChaseHerbrandBaseType, ProvInfo, SATTheoryType)
 generateGS config theory = chase config theory
+-- In: G*, new observation
+-- Out: an augmented G* with the new observation
+augmentGS :: Config -> Theory -> (ChaseHerbrandBaseType, ProvInfo, SATTheoryType) -> Observation -> (ChaseHerbrandBaseType, ProvInfo, SATTheoryType)
+augmentGS cfg thy (base, prov, satthy) obs = do
+  let thy' = preprocess thy
+  let seqMap = buildSequentMap $ fromSequent <$> thy' :: SequentMap ChaseSequentType
+  let d = addToBase obs emptyBase
+  Chase.Chase.resumeChase cfg seqMap base d prov satthy
 -- In: a propositional theory
 -- Out: an iterator that can be used to sequentially generate models (model stream)
 modelStream :: SATTheoryType -> SATIteratorType
@@ -305,18 +317,21 @@ headExistentials (Lone (Just fn) v f unq) i = (fn, i, v):(headExistentials f i)
 headExistentials (Lone Nothing _ f _) i  = headExistentials f i
 --
 --
+getObservation :: Formula -> Maybe Observation
+getObservation (Atm atm) = toObservation atm
+getObservation _ = Nothing
+--
+--
 getFact :: Model -> Formula -> Maybe Atom
-getFact mdl fml = case fml of
-  (Atm (Rel rsym terms)) -> do
-    case (toObservation (Rel rsym terms)) of
-      Nothing -> Nothing
-      Just obv -> if (elem obv (modelObservations mdl))
-        then do
-          let elms = concat (map (\t->maybeToList (termToElement t)) terms)
-          if ((length terms) == (length elms))
-            then Just (Rel rsym terms)
-            else Nothing
+getFact mdl fml = case getObservation fml of
+  Nothing -> Nothing
+  Just obv@(Obs (Rel rsym terms)) -> if (elem obv (modelObservations mdl))
+    then do
+      let elms = concat (map (\t->maybeToList (termToElement t)) terms)
+      if ((length terms) == (length elms))
+        then Just (Rel rsym terms)
         else Nothing
+    else Nothing
   _ -> Nothing
 --
 --

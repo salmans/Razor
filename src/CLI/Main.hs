@@ -16,9 +16,9 @@ import CLI.XML
 import Tools.Config
 
 main :: IO ()
-main = do
+main = do 
   -- get configuration
-  config <- getConfig 
+  config <- getConfig
   -- check for the xmlFile location
   case (configState config) of
     Nothing -> error "No XML file path given!"
@@ -30,7 +30,7 @@ main = do
           startState <- getStartState config
           case startState of
             Left (UErr err) -> error err
-            Right state@(UState theory prov stream model modelProv) -> toXMLFile state Nothing xmlFile
+            Right state@(UState (cfg, thy) (b,p,t) (stream, mdl) modelProv) -> toXMLFile state Nothing xmlFile
         -- command... read current state + apply command = return state'
         Just command -> do
           state <- fromXMLFile xmlFile

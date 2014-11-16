@@ -94,7 +94,7 @@ pNext = symbol "next" >> return Next
 pAugment :: Parser Explore
 pAugment = do 
 	symbol "aug"
-	Augment <$> pFormula
+	Augment <$> xpAtom
 
 {-|||||||||||||||
 || Explanation ||
