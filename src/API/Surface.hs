@@ -1,10 +1,11 @@
 {-|
   Razor
   Module      : API.Surface
-  Description : The module provides a surface API for user level commands interacting with the core API
+  Description : The module pides a surface API for user level commands interacting with the core API
   Maintainer  : Salman Saghafi, Ryan Danas
 -}
 module API.Surface where
+import Chase.Impl
 import API.Core
 import Common.Model
 import Common.Provenance
@@ -18,7 +19,7 @@ import qualified Data.Map as Map
 import System.Environment
 
 data UError = UErr String
-data UState = UState Theory ProvInfo SATIteratorType Model ModelProv
+data UState = UState (Config, Theory) (ChaseHerbrandBaseType, ProvInfo, SATTheoryType) (SATIteratorType, Model) ModelProv
 data UAnswer = AOrigin UOrigin | ABlame UBlame
 data UOrigin = UOriginLeaf Term (Either UError TheorySub) | UOriginNode Term (Either UError TheorySub) [UOrigin]
 type UBlame = Either UError TheorySub
@@ -37,20 +38,30 @@ getStartState config = do
       thy <- parseTheory config input
       case thy of
         Just thy -> do
-          let (base, prov, prop) = generateGS config thy
-          let stream = modelStream prop
+          let (b,p,t) = generateGS config thy
+          let stream = modelStream t
           case (nextModel stream) of
-            (Nothing, stream') -> return $ Left (UErr "no models available")
-            (Just mdl', stream') -> return $ Right (UState thy prov stream' mdl' (deriveModelProv thy prov mdl'))
+            (Nothing, stream') -> return $ Left (UErr "no models exist for given theory")
+            (Just mdl', stream') -> return $ Right (UState (config,thy) (b,p,t) (stream',mdl') (deriveModelProv thy p mdl'))
         Nothing -> return $ Left (UErr "Unable to parse input theory!")
 
+getAugmentedState :: UState -> Formula -> Either UError UState
+getAugmentedState state@(UState (cfg, thy) (b,p,t) (stream, mdl) modelProv) fml = case getObservation fml of
+  Nothing -> Left (UErr "augmentation formula is not an observation")
+  Just obs -> do
+    let (b, p, t) = augmentGS cfg thy (b, p, t) obs
+    let stream = modelStream t
+    case (nextModel stream) of
+      (Nothing, stream') -> Left (UErr "no models exist for given augmentation")
+      (Just mdl', stream') -> Right (UState (cfg,thy) (b,p,t) (stream',mdl') (deriveModelProv thy p mdl'))
+
 getNextModel :: UState -> Either UError UState
-getNextModel state@(UState thy prov stream mdl modelProv) = case (nextModel stream) of
+getNextModel state@(UState (cfg, thy) (b,p,t) (stream, mdl) modelProv) = case (nextModel stream) of
   (Nothing, stream') -> Left (UErr "no more minimal models")
-  (Just mdl', stream') -> Right (UState thy prov stream' mdl' (deriveModelProv thy prov mdl'))
+  (Just mdl', stream') -> Right (UState (cfg,thy) (b,p,t) (stream',mdl') (deriveModelProv thy p mdl'))
 
 getOrigin :: UState -> (Bool, Bool) -> Term -> UOrigin
-getOrigin state@(UState thy prov stream mdl modelProv) mods@(isall, isrec) term = do
+getOrigin state@(UState (cfg, thy) (b,p,t) (stream, mdl) modelProv) mods@(isall, isrec) term = do
   case name of
     Left err -> UOriginLeaf term (Left err)
     Right (thynames, nextterms) -> do
@@ -62,16 +73,16 @@ getOrigin state@(UState thy prov stream mdl modelProv) mods@(isall, isrec) term 
       [] -> Left (UErr ("element "++(show term)++" not in the current model"))
       eqelms -> do
         case (Map.lookup (head eqelms) (nameProv modelProv)) of
-          Nothing -> Left (UErr ("no provenance information for element "++(show term)++"\n"))
+          Nothing -> Left (UErr ("no penance information for element "++(show term)++"\n"))
           Just (thynames, nextterms) -> Right (thynames, (map Elem nextterms))
                 
 getJustification :: UState -> Formula -> UBlame
-getJustification state@(UState thy prov stream mdl modelProv) atom = case (getFact mdl atom) of
+getJustification state@(UState (cfg, thy) (b,p,t) (stream, mdl) modelProv) atom = case (getFact mdl atom) of
   Nothing -> Left (UErr "fact not in form FactName(e^0, e^1, ...) or is not in the current model")
   Just fact -> do
     let matches = Map.toList $ Map.filterWithKey (\k _->(elem fact k)) (blameProv modelProv)
     case matches of
-      [] -> Left (UErr ("no provenance information for fact "++(show atom)))
+      [] -> Left (UErr ("no penance information for fact "++(show atom)))
       match -> do
         let (atms, thyblames) = head match
         Right thyblames

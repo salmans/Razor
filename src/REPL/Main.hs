@@ -7,7 +7,7 @@
 {-| TODO / BUGS
 flattened functions dont have proper replacements in modelProv
 functions with existentially quantified variables dont have proper replacements in modelProv
-allow user to give any expr that evaluates to an element
+blame does not allow equality (relationalize facts first?)
 augmentation
 -}
 {-| PEDANDTIC / DISPLAY
@@ -44,17 +44,17 @@ main = do
   startState <- getStartState config
   case startState of
     Left (UErr err) -> error err
-    Right state@(UState thy prov stream mdl modelProv) -> do
+    Right state@(UState (cfg, thy) (b,p,t) (stream, mdl) modelProv) -> do
       (prettyPrint 0 flow (show mdl))
       runInputT defaultSettings (loop state)
   -- exit display
   displayExit
 
 loop :: UState -> InputT IO ()
-loop state@(UState thy prov stream mdl modelProv) = do
+loop state@(UState (cfg, thy) (b,p,t) (stream, mdl) modelProv) = do
   -- possible REPL loops
   let sameLoop = loop state
-  let newLoop state'@(UState thy' prov' stream' mdl' modelProv') = (lift $ prettyPrint 0 flow (show mdl')) >> loop state'
+  let newLoop state'@(UState _ _ (stream', mdl') _) = (lift $ prettyPrint 0 flow (show mdl')) >> loop state'
   -- get input
   minput <- getInputLine "% "
   -- parse input into a command and act depending on the case
@@ -70,7 +70,9 @@ loop state@(UState thy prov stream mdl modelProv) = do
           Next -> case getNextModel state of
             Left (UErr err) -> (lift $ prettyPrint 0 ferror (err++"\n")) >> sameLoop
             Right state' -> newLoop state'
-          Augment term -> (lift $ prettyPrint 0 ferror "not implemented\n") >> sameLoop
+          Augment fml -> case getAugmentedState state fml of
+            Left (UErr err) -> (lift $ prettyPrint 0 ferror (err++"\n")) >> sameLoop
+            Right state' -> newLoop state'
         -- explanation
         Ask question -> case question of
           Name isall isrec term -> do

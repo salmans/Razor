@@ -21,6 +21,7 @@ import SAT.Data
 import Data.Maybe 
 import Data.List
 import Control.DeepSeq
+import qualified Tools.Config as Config
 import qualified Data.Map as Map 
 
 -----------------
@@ -30,8 +31,8 @@ xmlConfigOUT = [withIndent yes]
 xmlConfigIN = [withValidate no, withRemoveWS yes, withPreserveComment no]
 
 toXMLFile :: UState -> Maybe UAnswer -> String -> IO ()
-toXMLFile state@(UState theory prov stream model modelProv) answer file = do
-  let str = toXMLString (XMLRoot answer (XMLState theory prov model))
+toXMLFile state@(UState (cfg, thy) (b,p,t) (stream, mdl) modelProv) answer file = do
+  let str = toXMLString (XMLRoot answer (XMLState thy p mdl))
   deepseq str (writeFile file str)
 
 toXMLString :: (XmlPickler a) => a -> String
@@ -40,8 +41,9 @@ toXMLString struct = showPickled xmlConfigOUT struct
 fromXMLFile :: String -> IO (UState)
 fromXMLFile file = do
   roots <- runX ((xunpickleDocument xpRoot xmlConfigIN file)>>>processXML)
-  let (XMLRoot answer (XMLState theory prov model)) = head roots 
-  return (UState theory prov (satInitialize emptySATTheory) model (deriveModelProv theory prov model))
+  let (XMLRoot answer (XMLState theory prov model)) = head roots
+  let cfg = Config.defaultConfig
+  return (UState (cfg, theory) (generateGS cfg theory) ((satInitialize emptySATTheory),model) (deriveModelProv theory prov model))
 
 processXML :: IOSArrow XMLRoot XMLRoot
 processXML = arrIO (\x -> do{return x})
