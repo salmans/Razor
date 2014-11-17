@@ -104,10 +104,10 @@ augment cfg thy (b, p, t) obs = do
 --
 --
 augmentGS :: Config -> SequentMap ChaseSequentType -> (ChaseHerbrandBaseType, ProvInfo, SATTheoryType) -> Observation -> (ChaseHerbrandBaseType, ProvInfo, SATTheoryType)
+augmentGS _ _ gs eqobs@(Obs (Rel "=" terms)) = gs
 augmentGS cfg seqMap (b, p, t) obs@(Obs (Rel rsym terms)) = do
   let d = addToBase obs emptyBase
   Chase.Chase.resumeChase cfg seqMap b d p t
-augmentGS _ _ gs obs = gs
 -- In: a propositional theory
 -- Out: an iterator that can be used to sequentially generate models (model stream)
 modelStream :: SATTheoryType -> SATIteratorType
@@ -226,6 +226,7 @@ possibleAtoms prov mdl obv@(Obs (Rel sym ts)) = case (Map.lookup obv prov) of
     let possibilities = combination eqelms
     let atms = map (\ts->(Rel sym (map(\t->(Elem t))ts))) possibilities
     Just (ts, thyblame, atms)
+  Nothing -> Nothing
 possibleAtoms _ _ _ = Nothing
 --
 --
@@ -326,23 +327,16 @@ headExistentials (Exists Nothing _ f) i  = headExistentials f i
 headExistentials (Lone (Just fn) v f unq) i = (fn, i, v):(headExistentials f i)
 headExistentials (Lone Nothing _ f _) i  = headExistentials f i
 --
---
+-- an observation (for now) is just an atom consisting of only elements
 getObservation :: Formula -> Maybe Observation
-getObservation (Atm atm) = toObservation atm
-getObservation _ = Nothing
---
---
-getFact :: Model -> Formula -> Maybe Atom
-getFact mdl fml = case getObservation fml of
-  Nothing -> Nothing
-  Just obv@(Obs (Rel rsym terms)) -> if (elem obv (modelObservations mdl))
-    then do
-      let elms = concat (map (\t->maybeToList (termToElement t)) terms)
-      if ((length terms) == (length elms))
-        then Just (Rel rsym terms)
-        else Nothing
+getObservation (Atm atm@(Rel rsym terms)) = do
+  let elms = concat (map (\t->maybeToList (termToElement t)) terms)
+  if (length terms) == (length elms)
+    then case toObservation atm of
+      Just obv@(Obs (Rel rsym terms)) -> Just obv
+      _ -> Nothing
     else Nothing
-  _ -> Nothing
+getObservation _ = Nothing
 --
 --
 concatRuleSubs :: [RuleSub] -> RuleSub
