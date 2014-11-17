@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE Rank2Types #-}
 {-|
   Razor
   Module      : API.Core
@@ -92,12 +93,21 @@ generateGS :: Config -> Theory -> (ChaseHerbrandBaseType, ProvInfo, SATTheoryTyp
 generateGS config theory = chase config theory
 -- In: G*, new observation
 -- Out: an augmented G* with the new observation
-augmentGS :: Config -> Theory -> (ChaseHerbrandBaseType, ProvInfo, SATTheoryType) -> Observation -> (ChaseHerbrandBaseType, ProvInfo, SATTheoryType)
-augmentGS cfg thy (base, prov, satthy) obs = do
+augment :: Config -> Theory -> (ChaseHerbrandBaseType, ProvInfo, SATTheoryType) -> Observation -> (ChaseHerbrandBaseType, ProvInfo, SATTheoryType)
+augment cfg thy (b, p, t) obs = do
   let thy' = preprocess thy
-  let seqMap = buildSequentMap $ fromSequent <$> thy' :: SequentMap ChaseSequentType
+  let seqMap = (buildSequentMap $ fromSequent <$> thy') :: SequentMap ChaseSequentType
+  let (b', p', t') = augmentGS cfg seqMap (b, p, t) obs
+  let newSeq = ObservationSequent [] [[obs]]
+  let t'' = storeSequent t' newSeq
+  (b', p', t'')
+--
+--
+augmentGS :: Config -> SequentMap ChaseSequentType -> (ChaseHerbrandBaseType, ProvInfo, SATTheoryType) -> Observation -> (ChaseHerbrandBaseType, ProvInfo, SATTheoryType)
+augmentGS cfg seqMap (b, p, t) obs@(Obs (Rel rsym terms)) = do
   let d = addToBase obs emptyBase
-  Chase.Chase.resumeChase cfg seqMap base d prov satthy
+  Chase.Chase.resumeChase cfg seqMap b d p t
+augmentGS _ _ gs obs = gs
 -- In: a propositional theory
 -- Out: an iterator that can be used to sequentially generate models (model stream)
 modelStream :: SATTheoryType -> SATIteratorType
