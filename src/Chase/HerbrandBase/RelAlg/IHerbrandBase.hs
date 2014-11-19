@@ -228,7 +228,7 @@ insertRelSequent seq resSet db = do
   let propSeqs = observationalInstances seq uni result resSet provs
   -- MONITOR
 
-  let propThy' = foldr (flip storeSequent) propThy propSeqs
+  let propThy' = Map.foldr (flip storeSequent) propThy propSeqs
 
   liftPushMSATTheory (State.put propThy')
   return result
@@ -246,10 +246,10 @@ filterTable t = if t == tableFromList [[]]
    -
 -}
 relSequentInstances :: RelSequent -> Database -> Database -> RelResultSet 
-                    -> ProvInfo -> [ObservationSequent]
+                    -> ProvInfo -> Map.Map Sub ObservationSequent
 relSequentInstances relSeq uni new resSet provs = 
     let subs = createSubs relSeq uni new (allResultTuples resSet) provs
-    in  nub [ fromJust inst | 
+    in Map.fromList $ nub [ (s, fromJust inst) | 
               (s, bs, es) <- subs
             , inst        <-  buildObservationSequent <$>
                               (instantiateSequent uni new s bs es seq)

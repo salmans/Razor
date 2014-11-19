@@ -16,7 +16,7 @@ module Chase.IData where
 import qualified Data.Map as Map
 
 -- Syntax
-import Syntax.Term (Constant, Variable)
+import Syntax.Term (Constant, Variable, Sub)
 import Syntax.Geometric (Theory, Sequent(..), Formula (..))
 
 -- Control
@@ -180,7 +180,7 @@ class (HerbrandBase h, SequentLike s, Show r) =>
     pull                   :: s -> h -> h -> PullM h r
     push                   :: (SATAtom t) => s -> r -> h -> PushM h t h
     observationalInstances :: s -> h -> h -> r -> ProvInfo
-                           -> [ObservationSequent]
+                           -> Map.Map Sub ObservationSequent
 
 {-| 'Problem' is a type that passes information from an iteration of the Chase
   to the next iteration. A 'Problem' contains 
@@ -191,7 +191,7 @@ class (HerbrandBase h, SequentLike s, Show r) =>
   the previous iteration as a delta set.
   - an instance of 'ProvInfo' to maintain provenance information for facts and
   elements constructed so far.
-  - an instance of 'PropTheory', containing propositional instances of the 
+  - an instance of 'PropTheory', containing proposit`ional instances of the 
   first-order theory, which is computed in parallel with the run of the Chase.
  -}
 data Problem h s t where
