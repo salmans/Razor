@@ -1,6 +1,9 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE ExistentialQuantification #-}
+-- {-# LANGUAGE Rank2Types #-}
+-- {-# LANGUAGE ConstraintKinds #-}
 
 {- Razor
    Module      : SAT.SMTLib2
@@ -43,7 +46,8 @@ import Common.Model (Model, createModel)
 -- SAT
 import SAT.Data
 
-
+-- Tools
+import Tools.Trace
 
 -- Error Messages
 unitName = "SAT.SMT"
@@ -54,7 +58,7 @@ error_RelationalAtomExpected = "relational atom expected!"
 
 {-|Solver Interface Types -}
 type SATTheoryType   = SMTTheory
-type SATIteratorType = MSMT ()
+type SATIteratorType = SMTContainer
 
 {- A name for an 'Element' in SMT solving -}
 type SMTElement = String
@@ -138,37 +142,36 @@ type SMTSequent = SATSequent SMTObservation
 {-| A theory of sequents in SMT solving is a an instance of 'SATTheory' family:
   this type is essentially a wrapper around a computation context of type SMT.  
  -}
-data instance SATTheory SMTObservation = SMTTheory (MSMT ())
+data instance SATTheory SMTObservation = SMTTheory (SMTM ())
 
 {- A convenient type for working with SMT theories -}
 type SMTTheory = SATTheory SMTObservation
 
 {- Empty 'SMTTheory' -}
 emptySMTTheory :: SMTTheory
-emptySMTTheory = SMTTheory (lift (State.put emptySMTContainer))
+emptySMTTheory =  SMTTheory (return ())
                  -- The computation context is initialized with an empty 
-                 -- instance of SMTContainer. 
+                 -- instance of SMTContainer.
 
 {- Converts an 'ObservationSequent' to 'SMTObsSequent' and adds it to an 
    existing SMTTheory -}
 addToSMTTheory :: SMTTheory -> ObservationSequent -> SMTTheory
 addToSMTTheory (SMTTheory context) seq = 
-    SMTTheory (do context
-                  addObservationSequent seq)
+    SMTTheory (context >> addObservationSequent seq)
 
 
 {- ResKind determines the type of a value in a SatResult structure. -}
 data ResKind  = RKBool | RKInteger
-              deriving (Eq, Ord)
+              deriving (Eq, Ord, Show)
 {- ResValue represents a value in a SatResult structure. -}
 data ResValue = RVBool Bool
               | RVInteger Integer
-              deriving (Eq, Ord)
+              deriving (Eq, Ord, Show)
 {- Combines ResKind and ResValue to store a value for an expression in a 
    SatResult structure. -}
 data Result   = Result { resKind  :: ResKind
                        , resValue :: ResValue}
-                       deriving (Eq, Ord)
+                       deriving (Eq, Ord, Show)
 
 {- SatDictionary is the primary data stored in SatResult. It is a Map from 
    SMT names to their values of type 'Result'. -}
@@ -177,12 +180,13 @@ type SatDictionary = Map.Map String Result
 {- SatResult is an abstraction for the models returned by the SMT solver. -}
 data SatResult = Unsatisfiable
                | Satisfiable { getSatResultDictionary :: SatDictionary }
+               deriving Show
 --------------------------------------------------------------------------------
 -- Translation
 --------------------------------------------------------------------------------
 {- Translates the input observational sequent inside a symbolic computation of
    type SMT: the computation introduces a constraint to the solver's input. -}
-addObservationSequent :: ObservationSequent -> MSMT ()
+addObservationSequent :: ObservationSequent -> SMTM ()
 addObservationSequent seq@(ObservationSequent bodies heads) = do
   let bodies'     =  bodies
   let heads'      =  heads
@@ -200,7 +204,7 @@ addObservationSequent seq@(ObservationSequent bodies heads) = do
    returned by the SMT solver, by fetching values for the SMT names in the 
    container of the current computation (including element names in the domain,
    term names and atom names. -}
-getSatResult :: MSMT SatResult
+getSatResult :: SMTM SatResult
 getSatResult = do
   res       <- checkSat
   if res
@@ -226,7 +230,7 @@ getSatResult = do
 {- Given an input observation, creates a symbolic value of type SBool inside a 
    symbolic computation of type SMT. The result of this function is used by 
    'addObservationSequent' to build a constraint for the input of SMT solver. -}
-tranObservation :: Observation -> MSMT SBool
+tranObservation :: Observation -> SMTM SBool
 tranObservation obs@(Obs (Rel "=" _)) = do
   let smtObs@(SMTEqObs e1 e2)   = smtObservation obs
   [v1, v2]                     <- mapM elementValue [e1, e2]
@@ -381,7 +385,7 @@ instance Show UninterpretFn where
 
 {- Creating 'UninterpretFn' for a given arity -}
 -- TODO: do we need the first parameter here?
-uninterpretFn :: FnSym -> Int -> MSMT UninterpretFn
+uninterpretFn :: FnSym -> Int -> SMTM UninterpretFn
 uninterpretFn fn 0 = (liftM UnintFn0) var -- TODO: is this correct?
 uninterpretFn fn 1 = (liftM UnintFn1) fun
 uninterpretFn fn 2 = (liftM UnintFn2) fun
@@ -452,7 +456,7 @@ instance Show UninterpretRel where
 --     show (UnintRel7 _) = "UnintRel7"
 
 {- Creating 'UninterpretRel' for a given arity -}
-uninterpretRel :: RelSym -> Int -> MSMT UninterpretRel
+uninterpretRel :: RelSym -> Int -> SMTM UninterpretRel
 uninterpretRel rel 0 = (liftM UnintRel0) var
 uninterpretRel rel 1 = (liftM UnintRel1) fun
 uninterpretRel rel 2 = (liftM UnintRel2) fun
@@ -494,6 +498,53 @@ applyUnintRel (UnintRel3 r) [x1, x2, x3]
 -- applyUnintRel _ _ = error $ unitName ++ ".applyUnintRel: " 
 --                     ++ error_InvalidRelArity
 
+{- ContainerMonad is the computation context that provides an IO backend to 
+   interact with the SMT solver and provides an SMTContainer to keep track of
+   the SMT solving computation. The container monad is the environment for 
+   performing SMT queries.-}
+type ContainerMonad = State.StateT SMTContainer IO
+
+{- 'SMTM' is the computation context for translation to SMTM and storing SMT 
+   queries, a context for sending 'Observation's to SMT values and running the
+   SMT solver. -}
+type SMTM = SMT' ContainerMonad
+
+{- Runs the given input context and returns the result inside a ContainerMonad.
+-}
+perform :: SMTM a -> ContainerMonad a
+perform context = do
+        conn   <- openConnection
+        result <- performSMT conn context
+        return result
+
+{- Returns a connection to the SMT solver. If a connection already exists in the
+   current environment, uses the existing connection (this makes incremental 
+   SMT solving possible); otherwise, establishes a new connection and stores the
+   connection in the current environment for future use. -}
+openConnection :: ContainerMonad (SMTConnection SMTPipe)
+openConnection = do
+  conn   <- liftM containerConnection $ State.get
+  case conn of
+    Just c  -> do
+      let Just c = conn
+      State.modify (\cont -> cont {containerConnection = Just c} )
+      return c
+    Nothing -> do
+      backend <- lift $ createSMTPipe "z3" ["-in", "-smt2"]
+      c       <- open backend
+      State.modify (\cont -> cont { containerConnection = Just c })
+      return c
+
+{- Closes the connection to the SMT solver. -}
+closeConnection :: ContainerMonad ()
+closeConnection = do
+  conn  <- liftM containerConnection $ State.get
+  case conn of
+    Just c  -> do
+         State.modify (\cont -> cont { containerConnection = Nothing })
+         close c
+    Nothing -> return ()
+
 {- SMTContainer contains all the symbolic values and names for addressing them 
    in SMT solivng comprising the following:
 
@@ -505,29 +556,39 @@ applyUnintRel (UnintRel3 r) [x1, x2, x3]
    [@containerTerms@]  is a map from a function symbol to the terms of that
    symbol (of type 'STerms') 
    [@containerAtoms@]  is a map from a relation symbol to the atoms of that
-   symbol (of type 'SAtoms')  -}
-data SMTContainer     = SMTContainer 
-    { containerDomain :: SDomain
-    , containerFns    :: Map.Map FnSym UninterpretFn
-    , containerRels   :: Map.Map RelSym UninterpretRel
-    , containerTerms  :: STerms
-    , containerAtoms  :: SAtoms 
+   symbol (of type 'SAtoms')  
+   [@containerConnection@] stores an open connection to perform SMT queies 
+   incrementally. -}
+data SMTContainer  = SMTContainer 
+    { containerDomain     :: SDomain
+    , containerFns        :: Map.Map FnSym UninterpretFn
+    , containerRels       :: Map.Map RelSym UninterpretRel
+    , containerTerms      :: STerms
+    , containerAtoms      :: SAtoms
+    , containerConnection :: Maybe (SMTConnection SMTPipe)
     }
 
+
+instance Show SMTContainer where
+    show (SMTContainer d _ _ t a c) =
+         (show d) ++ "\n" ++
+         (show t) ++ "\n" ++
+         (show a) ++ "\n"
+         
 {- Initial empty container -}
 emptySMTContainer :: SMTContainer 
-emptySMTContainer  = SMTContainer Map.empty Map.empty Map.empty Map.empty Map.empty
-
-{- 'MSMT' is the computation context for translation to MSMT and storing SMT 
-   queries, a context for sending 'Observation's to SMT values and running the
-   SMT solver. -}
-type MSMT = SMT' (State.StateT SMTContainer IO)
+emptySMTContainer  = SMTContainer { containerDomain     = Map.empty
+                                  , containerFns        = Map.empty
+                                  , containerRels       = Map.empty
+                                  , containerTerms      = Map.empty
+                                  , containerAtoms      = Map.empty
+                                  , containerConnection = Nothing }
 
 {- Returns an SMTLib2 expression for an element name of type 'SMTElement' inside
-   the MSMT computation. The symbolic value is fetched from the 'SMTContaiener'
+   the SMTM computation. The symbolic value is fetched from the 'SMTContaiener'
    inside the computation or will be created (and inserted into the container)
    if it doesn't exist. -} 
-elementValue :: SMTElement -> MSMT SElement
+elementValue :: SMTElement -> SMTM SElement
 elementValue elm = do
   container <- lift State.get
   let domMap = containerDomain container
@@ -539,9 +600,9 @@ elementValue elm = do
   return sym
 
 {- Returns an SMTLib2 expression for the input relation symbol of the given 
-   arity inside the MSMT computation. This creates a new UninterpretRel value if
+   arity inside the SMTM computation. This creates a new UninterpretRel value if
    it already does not exist in the container of computation.-}
-unintRelValue :: RelSym -> Int -> MSMT UninterpretRel
+unintRelValue :: RelSym -> Int -> SMTM UninterpretRel
 unintRelValue rel arity = do
   container   <- lift State.get
   let relMap   = containerRels container
@@ -554,9 +615,9 @@ unintRelValue rel arity = do
   return unintRel
 
 {- Returns an SMTLib2 expression for the input function symbol of the given 
-   arity inside the MSMT computation. This creates a new UninterpretFn value if
+   arity inside the SMTM computation. This creates a new UninterpretFn value if
    it already does not exist in the container of computation.-}
-unintFnValue :: FnSym -> Int -> MSMT UninterpretFn
+unintFnValue :: FnSym -> Int -> SMTM UninterpretFn
 unintFnValue fn arity = do
   container    <- lift State.get
   let fnMap     = containerFns container
@@ -569,10 +630,10 @@ unintFnValue fn arity = do
   return unintFunc
 
 {- For an atomic relation of type 'SMTAtom', returns a boolean SMTLib2 expression 
-   inside the MSMT computation. If such value does not exists, it will apply the
+   inside the SMTM computation. If such value does not exists, it will apply the
    given uninterpreted function to the given element expressions to create the
    value and add it to the container of computation. -}
-atomValue :: RelSym -> SMTAtom -> UninterpretRel -> [SElement] -> MSMT SBool
+atomValue :: RelSym -> SMTAtom -> UninterpretRel -> [SElement] -> SMTM SBool
 atomValue rel term unintRel sParams = do
   container  <- lift State.get
   let atomMap =  containerAtoms container
@@ -589,10 +650,10 @@ atomValue rel term unintRel sParams = do
   return sym
 
 {- For an functional term of type 'SMTTerm', returns a value of type 'SElement'
-   inside an MSMT computation. If such value does not exists, it will apply the
+   inside an SMTM computation. If such value does not exists, it will apply the
    given uninterpreted function to the given element expressions to create the
    value and add it to the container of computation. -}
-termValue :: FnSym -> SMTTerm -> UninterpretFn -> [SElement] -> MSMT SElement
+termValue :: FnSym -> SMTTerm -> UninterpretFn -> [SElement] -> SMTM SElement
 termValue fn term unintFunc sParams = do
   container   <- lift State.get
   let termMap  = containerTerms container
@@ -612,52 +673,43 @@ termValue fn term unintFunc sParams = do
 -- SMT Solving and Model Generation
 --------------------------------------------------------------------------------
 {- Defining a SATSolver instance that does SMT solving. The 'SMTAtom' type of 
-   this implementation is SMTObservation and the type of SMT solving data is 
-   MSMT (). -}
-instance SATSolver SMTObservation (MSMT ()) where
-    satInitialize (SMTTheory context)      = context
-    satSolve context = let (res, context') = minimumResult context
-                       in  (translateSolution res, context')
+   this implementation is SMTObservation and the type of SMT solving iterator is 
+   SMTContainer. -}
+instance SATSolver SMTObservation SMTContainer where
+    satInitialize (SMTTheory context) =
+                  unsafePerformIO $ State.execStateT (perform context) emptySMTContainer
+    satSolve cont = let (res, cont')  = minimumResult cont
+                    in  (translateSolution res, cont')
+    satClose      =  unsafePerformIO . State.execStateT closeConnection
 
-{- Given a query of type MSMT, executes the query and returns the result. It 
-   also returns a new 'MSMT' computation where the homomorphism cone of the 
+{- Given a query of type SMTM, executes the query and returns the result. It 
+   also returns a new 'SMTM' computation where the homomorphism cone of the 
    minimum result is eliminated. -}
-minimumResult :: MSMT () -> (SatResult, MSMT ())
-minimumResult context = 
-    let context'   = do
-          context
-          getSatResult
-        run        = withZ3 context'
-        res        = unsafePerformIO $ State.evalStateT run emptySMTContainer
-        minRes     = fst $ reduce context res
-        newContext = do
-          context
-          constraint <- nextResult minRes
-          assert constraint
-    in  (minRes, newContext)
+minimumResult :: SMTContainer -> (SatResult, SMTContainer)
+minimumResult cont =
+    let context       = push >> getSatResult >>= reduce
+        run           = perform context
+        (res, cont')  = unsafePerformIO $ State.runStateT run cont
+        run'          = pop >> nextResult res >>= assert
+        cont''        = unsafePerformIO $ State.execStateT (perform run') cont'
+    in  (res, cont'')
 
 {- This recursively reduces the initial result of the SMT solver to construct a 
    minimal model based on an Aluminum-like algorithm. The result of the function
-   is the minimal result as well as a new computation context that contains the
-   additional constraints for reducing the input result. -}
-reduce :: MSMT() -> SatResult -> (SatResult, MSMT ())
-reduce context res@(Satisfiable _) = 
-    let context'  = do
-          context
-          constraint <- minimizeResult res
-          assert constraint
-        run        = withZ3 (do
-                              context'
-                              getSatResult)
-        res'       = unsafePerformIO $ State.evalStateT run emptySMTContainer
-    in  case res' of
-          Unsatisfiable -> (res, context')
-          Satisfiable _ -> reduce context' res'
-reduce context res = (res, context)
+   is the minimal result. -}
+reduce :: SatResult -> SMTM SatResult
+reduce res@(Satisfiable _) = do
+  constraint <- minimizeResult res
+  assert constraint
+  res'       <- getSatResult
+  case res' of
+    Unsatisfiable -> return res
+    Satisfiable _ -> reduce res'
+reduce res                 = return res
 
 {- Constructs the a set of constraints for minimizing the result returned by the
    SMT solver and returns their corresponding value of type SBool in the context
-   of the MSMT computation. These constraints are four-fold:
+   of the SMTM computation. These constraints are four-fold:
    
      1. Negative Axioms: these constraints force the negative facts in the 
      current instance of 'SatResult' to remain false. For instance, if 
@@ -679,7 +731,7 @@ reduce context res = (res, context)
    Equality Negative Axioms & 
    (Flip Axioms | Equality Flip Axioms)
 -}
-minimizeResult :: SatResult -> MSMT SBool
+minimizeResult :: SatResult -> SMTM SBool
 minimizeResult res = do
   container   <- lift State.get
   let domain   = containerDomain container
@@ -725,7 +777,7 @@ minimizeResult res = do
 {- This function creates Negative Axioms for a set of facts that are named by
    a list of SMTAtom instances: every SMTAtom names a *negative* fact in a 
    result from the SMT solver. -}
-negativeAxioms :: UninterpretRel -> [SMTAtom] -> MSMT SBool
+negativeAxioms :: UninterpretRel -> [SMTAtom] -> SMTM SBool
 negativeAxioms unintRel atoms = do
   container   <- lift State.get
   let domain   = containerDomain container
@@ -735,13 +787,12 @@ negativeAxioms unintRel atoms = do
   return $ foldr (.&&.) true $ (\t -> not' $ applyUnintRel unintRel t) <$> args -- TODO
 
 functionNegativeAxioms :: [(SMTTerm, Result)] -> Map.Map Result [SMTElement]
-                       -> MSMT SBool
+                       -> SMTM SBool
 functionNegativeAxioms terms classes = do
   container    <- lift State.get
   let domain    = containerDomain container
   let contTerms = containerTerms container
-  let classes'  = 
-          Map.map (\es -> (\e -> fromJust $ Map.lookup e domain) <$> es) classes
+  let classes'  = Map.map (\es -> (\e -> fromJust $ Map.lookup e domain) <$> es) classes
   let content   = (\(t, cw) -> ( fromJust $ Map.lookup t contTerms
                                , otherClasses cw classes')) <$> terms
   let results   = (uncurry functionNegativeAxiomsHelper) <$> content
@@ -754,7 +805,7 @@ functionNegativeAxiomsHelper term classes = do
   foldr (.&&.) true eqs -- TODO
 
 functionFlipAxioms :: [(SMTTerm, Result)] -> Map.Map Result [SMTElement]
-                   -> MSMT SBool
+                   -> SMTM SBool
 functionFlipAxioms terms classes = do
   container    <- lift State.get
   let domain    = containerDomain container
@@ -778,7 +829,7 @@ functionFlipAxiomsHelper term cls = do
    of SMTAtom instances. Just like 'negativeAxioms', the function assumes that
    all the SMTAtom instances belong to the same relation whose symbolic 
    uninterpreted function is given to the function. -}
-flipAxioms :: UninterpretRel -> [SMTAtom] -> MSMT SBool
+flipAxioms :: UninterpretRel -> [SMTAtom] -> SMTM SBool
 flipAxioms unintRel atoms = do
   container   <- lift State.get
   let domain    = containerDomain container
@@ -829,7 +880,7 @@ smtSymAtomMap atoms =
    homomorphism cone of the given 'SatResult' instance that corresponds to a 
    minimal model.
 -}
-nextResult :: SatResult -> MSMT SBool
+nextResult :: SatResult -> SMTM SBool
 nextResult res = do
   container   <- lift State.get
   let domain   = containerDomain container

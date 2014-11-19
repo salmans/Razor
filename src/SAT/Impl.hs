@@ -22,7 +22,7 @@ import qualified SAT.Data (satInitialize, satSolve, storeSequent)
 -- <><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
 -- Uncomment to select the implementation:
 
--- import SAT.Picosat -- Not working
+-- import SAT.Picosat -- Experimental implementation (Not working)
 import SAT.SBV
 -- import SAT.SMTLib2
 -- <><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>

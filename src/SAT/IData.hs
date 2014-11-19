@@ -85,13 +85,16 @@ instance Show (SATTheory a) where
 
 {-| SATSolver defines an interface for interacting with a SAT/SMT 
   implementation. Here, @a@ is a 'SATAtom' type, determining the underlying 
-  SAT/SMT solution and @b@ is the type of an iterator for fetching models.
+  SAT/SMT solution and @b@ is the type of an iterator for maintaining the state
+  of SMT computation and fetching next models.
   
   [@satInitialize@] constructs an iterator for fetching models from the current
   state of a 'SATTheory' instance.
   [@satSolve@] given an iterator of type @b@, returns a 'Model' (if exists) and
   a new iterator for fetching the next model.
+  [@satClose@] closes the connection to the SMT solver.
 -}
 class (SATAtom a) => SATSolver a b | b -> a where
     satInitialize :: SATTheory a -> b
     satSolve      :: b -> (Maybe Model, b)
+    satClose      :: b -> b
