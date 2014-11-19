@@ -9,6 +9,7 @@ import Chase.Impl
 import API.Core
 import Common.Model
 import Common.Provenance
+import Common.Observation
 import Syntax.GeometricUtils
 import SAT.Impl
 import Tools.Config
@@ -41,7 +42,7 @@ getStartState config = do
           let (b,p,t) = generateGS config thy
           let stream = modelStream t
           case (nextModel stream) of
-            (Nothing, stream') -> return $ Left (UErr "no models exist for given theory")
+            (Nothing, _) -> return $ Left (UErr "no models exist for given theory")
             (Just mdl', stream') -> return $ Right (UState (config,thy) (b,p,t) (stream',mdl') (deriveModelProv thy p mdl'))
         Nothing -> return $ Left (UErr "Unable to parse input theory!")
 
@@ -49,11 +50,10 @@ getAugmentedState :: UState -> Formula -> Either UError UState
 getAugmentedState state@(UState (cfg, thy) (b,p,t) (stream, mdl) modelProv) fml = case getObservation fml of
   Nothing -> Left (UErr "augmentation formula is not an observation")
   Just obs -> do
-    let (b, p, t) = augmentGS cfg thy (b, p, t) obs
-    let stream = modelStream t
-    case (nextModel stream) of
-      (Nothing, stream') -> Left (UErr "no models exist for given augmentation")
-      (Just mdl', stream') -> Right (UState (cfg,thy) (b,p,t) (stream',mdl') (deriveModelProv thy p mdl'))
+    let (b', p', t') = augment cfg thy (b, p, t) obs
+    case nextModel (modelStream t') of
+      (Nothing, _) -> Left (UErr "no models exist for given augmentation")
+      (Just mdl', stream') -> Right (UState (cfg,thy) (b',p',t') (stream',mdl') (deriveModelProv thy p' mdl'))
 
 getNextModel :: UState -> Either UError UState
 getNextModel state@(UState (cfg, thy) (b,p,t) (stream, mdl) modelProv) = case (nextModel stream) of
@@ -73,16 +73,16 @@ getOrigin state@(UState (cfg, thy) (b,p,t) (stream, mdl) modelProv) mods@(isall,
       [] -> Left (UErr ("element "++(show term)++" not in the current model"))
       eqelms -> do
         case (Map.lookup (head eqelms) (nameProv modelProv)) of
-          Nothing -> Left (UErr ("no penance information for element "++(show term)++"\n"))
+          Nothing -> Left (UErr ("no provenance information for element "++(show term)++"\n"))
           Just (thynames, nextterms) -> Right (thynames, (map Elem nextterms))
                 
 getJustification :: UState -> Formula -> UBlame
-getJustification state@(UState (cfg, thy) (b,p,t) (stream, mdl) modelProv) atom = case (getFact mdl atom) of
-  Nothing -> Left (UErr "fact not in form FactName(e^0, e^1, ...) or is not in the current model")
-  Just fact -> do
+getJustification state@(UState (cfg, thy) (b,p,t) (stream, mdl) modelProv) fml = case getObservation fml of
+  Nothing -> Left (UErr "blame formula is not an observation")
+  Just (Obs fact) -> do
     let matches = Map.toList $ Map.filterWithKey (\k _->(elem fact k)) (blameProv modelProv)
     case matches of
-      [] -> Left (UErr ("no penance information for fact "++(show atom)))
+      [] -> Left (UErr ("no provenance information for fact "++(show fml)))
       match -> do
         let (atms, thyblames) = head match
         Right thyblames

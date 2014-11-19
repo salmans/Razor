@@ -94,7 +94,7 @@ pNext = symbol "next" >> return Next
 pAugment :: Parser Explore
 pAugment = do 
 	symbol "aug"
-	Augment <$> xpAtom
+	Augment <$> xpFactor
 
 {-|||||||||||||||
 || Explanation ||
@@ -135,7 +135,7 @@ pNameAllRec = do
 pBlame :: Parser Question
 pBlame = do
   symbol "blame"
-  Blame <$> xpAtom
+  Blame <$> xpFactor
 
 {-|||||||||||||
 || Utilities ||

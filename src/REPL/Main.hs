@@ -5,10 +5,10 @@
   Maintainer  : Salman Saghafi, Ryan Danas
 -}
 {-| TODO / BUGS
-flattened functions dont have proper replacements in modelProv
-functions with existentially quantified variables dont have proper replacements in modelProv
-blame does not allow equality (relationalize facts first?)
-augmentation
+change chase structure of proptheory to just a list of sequents to a (Map freevarsubs to propsequent)
+augmentation does not support functions
+augmentation does not fully support positive existential formulas 
+allow model queries -> true/false
 -}
 {-| PEDANDTIC / DISPLAY
 the text output for larger theories should still be managable (e^0, e^11 is a lot for each element)
