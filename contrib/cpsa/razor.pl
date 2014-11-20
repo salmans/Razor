@@ -32,6 +32,7 @@ top_forms_pp(Out, [[forall|Rest]|Forms]) :-
 	!,
 	form_to_pretty([forall|Rest], Pretty),
 	pp:pr(Out, 72, Pretty),
+	put_char(Out, '.'),
 	nl(Out),
 	nl(Out),
 	top_forms_pp(Out, Forms).
