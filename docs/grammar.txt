@@ -1,6 +1,5 @@
 Razor's Input Syntax
 ====================
-`
 theory      ::= sequent*
 sequent     ::=  body “=>” head
 body        ::= conjunctive
@@ -13,4 +12,3 @@ term        ::= identifier terms | variable | constant
 constant    ::= "'" identifier
 variable    ::= identifier
 identifier  ::= [_a-zA-Z][_a-zA-Z0-9]
-`
