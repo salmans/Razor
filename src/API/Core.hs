@@ -30,7 +30,6 @@ import System.Exit (exitWith, ExitCode (..))
 import System.IO (hPutStrLn, stderr)
 import Text.Read (readMaybe)
 import Tools.Config
-import Tools.FolToGeo (parseFolToSequents)
 import Tools.Utils (isRealLine)
 import Control.Monad.Trans
 
@@ -85,8 +84,10 @@ parseConfig args = do
 parseTheory :: Config -> String -> IO (Maybe Theory)
 parseTheory config input = do
 	let inputLines = lines input
-	let sequents = mapM (parseFolToSequents False) (filter isRealLine inputLines)
-	return $ concat <$> sequents
+	-- let sequents = mapM (parseFolToSequents False) (filter isRealLine inputLines)
+	-- return $ concat <$> sequents
+        let sequents = map parseSequent (filter isRealLine inputLines)
+        return $ Just sequents
 -- In: configuration, theory
 -- Out: G*, which consists of ground facts, provenance info, and a propositional theory
 generateGS :: Config -> Theory -> (ChaseHerbrandBaseType, ProvInfo, SATTheoryType)
