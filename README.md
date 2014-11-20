@@ -11,8 +11,8 @@ Razor utilizes an SMT solver for constructing models. In order to run the curren
 ## Razor
 1. Download Razor’s source code available at https://github.com/salmans/atlas/tree/razor to a local source directory.
 2. Open a Terminal window and change directory to the local `/src` directory:
-`cd /src`
+<br> `cd /src`
 3. Install Razor using Cabal:
-`cabal install`
-	* The previous command	 installs Razor in Cabal’s default install directory. Alternatively, you may install Razor in a custom directory `DIR` by running the following command:
-	`cabal install —bindir=DIR`
+<br>`cabal install`
+<br> The previous command installs Razor in Cabal’s default install directory. Alternatively, you may install Razor in a custom directory `DIR` by running the next command:
+<br> `cabal install —bindir=DIR`
