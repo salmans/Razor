@@ -1,14 +1,25 @@
 Razor's Input Syntax
 ====================
-theory      ::= sequent*
-sequent     ::=  body “=>” head
+theory      ::= [sequent | comment]*
+sequent     ::= body "=>" head \n | head \n | "~" body \n
 body        ::= conjunctive
 head        ::= [existential "|"]* existential
-existential ::= [["exists" variable]+ "."] {0|1} conjunctive
-conjunctive ::= [atom “&”]* atom
-atom        ::= identifier terms {0|1}| "Truth" | "Falsehood"
-terms       ::= "(" term* ")"
+existential ::= [["exists" variable]+ "."]? conjunctive
+conjunctive ::= [atom "&"]* atom
+atom        ::= identifier terms? | term "=" term | "Truth" | "Falsehood"
+terms       ::= "(" [[term ","]* term]? ")"
 term        ::= identifier terms | variable | constant
 constant    ::= "'" identifier
 variable    ::= identifier
-identifier  ::= [_a-zA-Z][_a-zA-Z0-9]
+identifier  ::= [_a-zA-Z][_a-zA-Z0-9]*
+comment     ::= "--" w* \n
+
+
+## Operators
+Precedence (from high to low):
+~
+=
+&
+exists
+|
+=>

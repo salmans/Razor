@@ -117,7 +117,73 @@ infixr 5 +++
 (+++)   :: Parser a -> Parser a -> Parser a
 p +++ q = ( Text.ParserCombinators.Parsec.try p) <|> q
 
+parseSequent :: String -> Sequent
+parseSequent input =
+ let pResult =  parse pSequent "parsing sequent" input
+    in case pResult of
+           Left err -> error (show err)
+           Right val -> val
 
+xparseSequent :: String -> Sequent
+xparseSequent input =
+    let pResult =  parse xpSequent "parsing sequent" input
+    in case pResult of
+         Left err -> error (show err)
+         Right val -> val
+
+-- parsing sequents
+pSequent :: Parser Sequent
+pSequent = pSeqBoth +++ pSeqHead +++ pSeqBody
+           <?> "sequent"
+
+xpSequent :: Parser Sequent
+xpSequent = xpSeqBoth +++ xpSeqHead +++ xpSeqBody
+            <?> "sequent"
+
+-- sequents with body and head
+pSeqBoth :: Parser Sequent
+pSeqBoth = do {whiteSpace; 
+               b <- pBody; 
+               reservedOp "=>";
+               h <- pHead;
+               eof;
+               return (Sequent b h)}
+
+xpSeqBoth :: Parser Sequent
+xpSeqBoth = do {whiteSpace; 
+                b <- xpBody; 
+                reservedOp "=>";
+                h <- xpHead;
+                eof;
+                return (Sequent b h)}
+
+-- headless sequents
+pSeqBody :: Parser Sequent
+pSeqBody = do {whiteSpace;
+               reservedOp "~";
+               b <- pBody;
+               eof;
+               return (Sequent b Fls)}
+
+xpSeqBody :: Parser Sequent
+xpSeqBody = do {whiteSpace;
+                reservedOp "~";
+                b <- xpBody;
+                eof;
+                return (Sequent b Fls)}
+
+-- bodyless sequents
+pSeqHead :: Parser Sequent
+pSeqHead = do {whiteSpace;
+               b <- pHead;
+               eof;
+               return (Sequent Tru b)}
+
+xpSeqHead :: Parser Sequent
+xpSeqHead = do {whiteSpace;
+                b <- xpHead;
+                eof;
+                return (Sequent Tru b)}
 
 parseFormula :: String -> Formula
 parseFormula input = let pResult =  parse pFormula "parsing Formula" input
@@ -148,46 +214,59 @@ pFmla = Expr.buildExpressionParser table pFactor
 xpFmla :: Parser Formula
 xpFmla = Expr.buildExpressionParser table xpFactor
          <?> "formula"
+         
+-- scans initial whitespace and tests that input string is exhausted
+pBodyFormula :: Parser Formula
+pBodyFormula = do { whiteSpace; f <- pBody; eof; return f }
+
+pHeadFormula :: Parser Formula
+pHeadFormula = do { whiteSpace; f <- pHead; eof; return f }
+
+-- Like pFormula but over the extended language
+xpBodyFormula :: Parser Formula
+xpBodyFormula = do { whiteSpace; f <- xpBody; eof; return f }
+
+xpHeadFormula :: Parser Formula
+xpHeadFormula = do { whiteSpace; f <- xpHead; eof; return f }
+
+pBody  = pConjunctive
+xpBody = xpConjunctive
+
+pHead  = Expr.buildExpressionParser disjTable pHeadFactor
+       <?> "head formula"
+       
+xpHead  = Expr.buildExpressionParser disjTable xpHeadFactor
+       <?> "head formula"
+
+pConjunctive = Expr.buildExpressionParser conjTable pConjFactor
+             <?> "conjunctive formula"
+xpConjunctive = Expr.buildExpressionParser conjTable xpConjFactor
+              <?> "conjunctive formula"
 
 -- | Operator table for formulas.
 table = [ [binOp "&" And Expr.AssocLeft]
-        , [binOp "|" Or Expr.AssocLeft]
-        --, [binOp "=>" Imp Expr.AssocRight, binOp "<=>" Iff Expr.AssocRight]
-        ]
-    where preOp op f = Expr.Prefix (do { reservedOp op; return f })
-          binOp op f = Expr.Infix (do { reservedOp op; return f })
+        , [binOp "|" Or Expr.AssocLeft] ]
+        where preOp op f = Expr.Prefix (do { reservedOp op; return f })
+              binOp op f = Expr.Infix (do { reservedOp op; return f })
+                                      
+conjTable = [ [binOp "&" And Expr.AssocLeft] ]
+    where binOp op f = Expr.Infix (do { reservedOp op; return f })
 
+disjTable = [ [binOp "|" Or Expr.AssocLeft] ]
+    where binOp op f = Expr.Infix (do { reservedOp op; return f })
 
 -- change the last line to return (f vars fmla) if want to allow quantifiers
 -- to bind lists of vars
-pQuantified :: Parser Formula
-pQuantified = (quantWithFn "exists" Exists <|> quantWithFn "Exists" Exists)
-              +++ (quant "exists" Exists <|> quant "Exists" Exists)
-    where quant q f =  do
-                        reserved q
-                        vars <- many1 identifier
-                        let vars' = map Variable vars
-                        reservedOp "."
-                        fmla <- pFmla
-                        return $ (foldr ($) fmla ((f Nothing) <$> vars'))
-          quantWithFn q f =  do
-                        reserved q
-                        fn <- identifier
-                        vars <- many1 identifier
-                        let vars' = map Variable vars
-                        reservedOp "."
-                        fmla <- pFmla
-                        return $ (foldr ($) fmla ((f (Just fn)) <$> vars'))
-
-xpQuantified :: Parser Formula
-xpQuantified = (quantWithFn "exists" Exists <|> quantWithFn "Exists" Exists)
+pExistential :: Parser Formula
+pExistential = (quantWithFn "exists" Exists <|> quantWithFn "Exists" Exists)
                +++ (quant "exists" Exists <|> quant "Exists" Exists)
+               +++ pConjunctive
     where quant q f =  do
                         reserved q
                         vars <- many1 identifier
                         let vars' = map Variable vars
                         reservedOp "."
-                        fmla <- xpFmla
+                        fmla <- pConjunctive
                         return $ (foldr ($) fmla ((f Nothing) <$> vars'))
           quantWithFn q f =  do
                         reserved q
@@ -195,28 +274,72 @@ xpQuantified = (quantWithFn "exists" Exists <|> quantWithFn "Exists" Exists)
                         vars <- many1 identifier
                         let vars' = map Variable vars
                         reservedOp "."
-                        fmla <- xpFmla
+                        fmla <- pConjunctive
                         return $ (foldr ($) fmla ((f (Just fn)) <$> vars'))
 
--- | factors of a formula.
+xpExistential :: Parser Formula
+xpExistential = (quantWithFn "exists" Exists <|> quantWithFn "Exists" Exists)
+                +++ (quant "exists" Exists <|> quant "Exists" Exists)
+                +++ xpConjunctive
+    where quant q f =  do
+                        reserved q
+                        vars <- many1 identifier
+                        let vars' = map Variable vars
+                        reservedOp "."
+                        fmla <- xpConjunctive
+                        return $ (foldr ($) fmla ((f Nothing) <$> vars'))
+          quantWithFn q f =  do
+                        reserved q
+                        fn <- identifier
+                        vars <- many1 identifier
+                        let vars' = map Variable vars
+                        reservedOp "."
+                        fmla <- xpConjunctive
+                        return $ (foldr ($) fmla ((f (Just fn)) <$> vars'))
+
+
 pFactor :: Parser Formula
 pFactor = parens pFmla
-          <|> pTru
-          <|> pFls
-          <|> pQuantified
-          <|> (pEql +++ pAtom)
-          -- <|> pAtom
-          <?> "formula"
+        <|> pFls
+        <|> pTru
+        <|> pExistential
+        <|> (pEql +++ pAtom)
+        <?> "formula"
 
--- | Like pFactor but over the extended language
 xpFactor :: Parser Formula
 xpFactor = parens pFmla
-          <|> pTru
+        <|> pFls
+        <|> pTru
+        <|> pExistential
+        <|> (pEql +++ pAtom)
+        <?> "formula"
+
+-- | factors of a formula.
+pConjFactor = parens pConjunctive
+           <|> pFls
+           <|> pTru
+           <|> (pEql +++ pAtom)
+           <?> "formula"
+
+-- | Like pFactor but over the extended language
+xpConjFactor :: Parser Formula
+xpConjFactor = parens xpConjunctive
           <|> pFls
-          <|> xpQuantified
+          <|> pTru
           <|> (xpEql +++ xpAtom)
-          -- <|> pAtom
           <?> "formula"
+
+pHeadFactor :: Parser Formula
+pHeadFactor = parens pHead
+           <|> pFls
+           <|> pExistential
+           <?> "formula"
+
+xpHeadFactor :: Parser Formula
+xpHeadFactor = parens pHead
+           <|> pFls
+           <|> xpExistential
+           <?> "formula"
 
 -- | Parser for atomic formulas. Works like parsing a term, except that it is an
 -- atom either way. Atoms with no arguments need not provide parens, however.
@@ -263,62 +386,3 @@ pTru  = do { reserved "Truth";   return Tru }
 
 pFls :: Parser Formula
 pFls  = do {  reserved "Falsehood";   return Fls}
-
-
-parseSequent :: String -> Sequent
-parseSequent input =
- let pResult =  parse pSequent "parsing sequent" input
-    in case pResult of
-           Left err -> error (show err)
-           Right val -> val
-
-xparseSequent :: String -> Sequent
-xparseSequent input =
-    let pResult =  parse xpSequent "parsing sequent" input
-    in case pResult of
-         Left err -> error (show err)
-         Right val -> val
-
-pSequent :: Parser Sequent
-pSequent = pSeqBoth +++ pSeqLeft +++ pSeqRight
-           <?> "sequent"
-
-xpSequent :: Parser Sequent
-xpSequent = xpSeqBoth +++ xpSeqLeft +++ xpSeqRight
-            <?> "sequent"
-
-pSeqBoth :: Parser Sequent
-pSeqBoth = do {whiteSpace; 
-               b <- pFmla; 
-               reservedOp "=>";
-               h <- pFmla;
-               return (Sequent b h)}
-
-xpSeqBoth :: Parser Sequent
-xpSeqBoth = do {whiteSpace; 
-                b <- xpFmla; 
-                reservedOp "=>";
-                h <- xpFmla;
-                return (Sequent b h)}
-
-pSeqLeft :: Parser Sequent
-pSeqLeft = do {whiteSpace;
-               reservedOp "~";
-               b <- pFmla;
-               return (Sequent b Fls)}
-
-xpSeqLeft :: Parser Sequent
-xpSeqLeft = do {whiteSpace;
-                reservedOp "~";
-                b <- xpFmla;
-                return (Sequent b Fls)}
-
-pSeqRight :: Parser Sequent
-pSeqRight = do {whiteSpace;
-                b <- pFmla;
-                return (Sequent Tru b)}
-
-xpSeqRight :: Parser Sequent
-xpSeqRight = do {whiteSpace;
-                 b <- xpFmla;
-                 return (Sequent Tru b)}
