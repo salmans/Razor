@@ -307,11 +307,11 @@ pFactor = parens pFmla
         <?> "formula"
 
 xpFactor :: Parser Formula
-xpFactor = parens pFmla
+xpFactor = parens xpFmla
         <|> pFls
         <|> pTru
-        <|> pExistential
-        <|> (pEql +++ pAtom)
+        <|> xpExistential
+        <|> (xpEql +++ xpAtom)
         <?> "formula"
 
 -- | factors of a formula.

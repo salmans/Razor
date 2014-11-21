@@ -1,7 +1,7 @@
 Razor's Input Syntax
 ====================
-theory      ::= [sequent | comment]*
-sequent     ::= body "=>" head \n | head \n | "~" body \n
+theory      ::= [sequent ";"]*
+sequent     ::= body "=>" head | head | "~" body
 body        ::= conjunctive
 head        ::= [existential "|"]* existential
 existential ::= [["exists" variable]+ "."]? conjunctive
@@ -12,14 +12,11 @@ term        ::= identifier terms | variable | constant
 constant    ::= "'" identifier
 variable    ::= identifier
 identifier  ::= [_a-zA-Z][_a-zA-Z0-9]*
-comment     ::= "--" w* \n
 
 
 ## Operators
 Precedence (from high to low):
-~
 =
 &
-exists
 |
 =>
