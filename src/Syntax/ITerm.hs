@@ -146,18 +146,6 @@ parseTerm str =
            Left err -> error (show err)
            Right val -> val
 
-parseName :: String -> String
-parseName str =
- let pResult =  parse pName "parsing Test" str
-    in case pResult of
-           Left err -> error (show err)
-           Right val -> val
-
-pName :: Parser String
-pName = identifier
-    <?> "test"
-
-
 {- Parses terms over the extended language -}
 xparseTerm :: String -> Term
 xparseTerm str =
