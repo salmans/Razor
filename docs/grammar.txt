@@ -4,7 +4,7 @@ theory      ::= [sequent ";"]*
 sequent     ::= body "=>" head | head | "~" body
 body        ::= conjunctive
 head        ::= [existential "|"]* existential
-existential ::= [["exists" variable]+ "."]? conjunctive
+existential ::= ["exists" variable "."]* conjunctive
 conjunctive ::= [atom "&"]* atom
 atom        ::= identifier terms? | term "=" term | "Truth" | "Falsehood"
 terms       ::= "(" [[term ","]* term]? ")"
