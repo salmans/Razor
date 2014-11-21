@@ -118,6 +118,56 @@ modelStream propThy = satInitialize propThy
 nextModel :: SATIteratorType -> (Maybe Model, SATIteratorType)
 nextModel it = (satSolve it)
 
+----------------
+-- PROVENANCE --
+----------------
+--
+--
+getElementBlameTree :: Theory -> ElementProvs -> Model -> [Element] -> Maybe (Blame, [Element])
+getElementBlameTree thy prov mdl eqelms = do
+  let elm = head eqelms
+  case getSkolemTree prov mdl elm of
+    Nothing -> Nothing
+    Just actual@(e, f, r) -> do
+      --TODO equality handling
+      --let equal = catMaybes $ map (getSkolemTree prov mdl) (delete elm eqelms)
+      --let trees = actual:equal
+      let irules = map (\r->((fromMaybe 0 (elemIndex r (preprocess thy)))+1, r)) (preprocess thy)
+      let blames = catMaybes $ map (\rule->getElementBlame rule mdl actual) irules
+      case blames of
+        [] -> Nothing
+        blame:bs -> Just (blame, r)
+--
+--
+getElementBlame :: (Id, Sequent) -> Model -> (Element, FnSym, [Element]) -> Maybe Blame
+getElementBlame (rid, rule@(Sequent bd hd)) mdl (e, f, r) = do
+  let exists = headExistentials hd 0
+  let ruleskolems = map (\(name, _, _)->name) exists
+  case elem f ruleskolems of
+    False -> Nothing
+    True -> do
+      let frees = freeVars rule
+      let terms = map (\e->(Elem e)) r
+      Just $ TheoryBlame rid (Map.fromList $ zip frees terms)
+--
+--
+getObservationBlame :: ObservationProvs -> Model -> Observation -> Maybe Blame
+getObservationBlame prov mdl obv@(Obs (Rel sym ts)) = do
+  let eqelms = (map (getEqualElements mdl) ts)
+  let possibilities = combination eqelms
+  let obvs = map (\ts->(Obs (Rel sym (map(\t->(Elem t))ts)))) possibilities
+  let blames = catMaybes $ map (\o->(Map.lookup o prov)) obvs
+  case blames of
+    [] -> Nothing
+    blame:bs -> Just blame
+getObservationBlame _ _ _ = Nothing
+--
+--
+getBlamedSequent :: SATTheoryType -> Blame -> Maybe ObservationSequent
+getBlamedSequent satthy blame = blameSequent satthy blame
+
+
+
 ----------------------
 -- MODEL PROVENANCE --
 ----------------------
@@ -212,27 +262,6 @@ nameFuncSub obvs fn elm = do
 ----------------------
 -- BLAME PROVENANCE --
 ----------------------
---
---
-getObservationBlame :: ObservationProvs -> Model -> Observation -> Maybe Blame
-getObservationBlame prov mdl obv@(Obs (Rel sym ts)) = do
-  let eqelms = (map (getEqualElements mdl) ts)
-  let possibilities = combination eqelms
-  let obvs = map (\ts->(Obs (Rel sym (map(\t->(Elem t))ts)))) possibilities
-  let blames = catMaybes $ map (\o->(Map.lookup o prov)) obvs
-  case blames of
-    [] -> Nothing
-    blame:bs -> Just blame
-getObservationBlame _ _ _ = Nothing
---
---
-getBlamedSequent :: SATTheoryType -> Blame -> Maybe ObservationSequent
-getBlamedSequent satthy blame = blameSequent satthy blame
-
-
-
-
-
 --
 --
 deriveBlameProv :: Theory -> ProvInfo -> Model -> BlameProv

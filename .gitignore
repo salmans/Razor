@@ -13,3 +13,4 @@ cabal.config
 .#*
 .DS_Store
 *~
+src/makefile

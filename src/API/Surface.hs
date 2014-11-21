@@ -23,11 +23,11 @@ import Data.Maybe
 import qualified Data.Map as Map
 import System.Environment
 
-data UError = UErr String
 data UState = UState (Config, Theory) (ChaseHerbrandBaseType, ProvInfo, SATTheoryType) (SATIteratorType, Model) ModelProv
-data UAnswer = AOrigin UOrigin | ABlame UBlame
-data UOrigin = UOriginLeaf Term (Either UError TheorySub) | UOriginNode Term (Either UError TheorySub) [UOrigin]
 type UBlame = Either UError (Blame, ObservationSequent)
+data UOrigin = UOriginLeaf Term UBlame | UOriginNode Term UBlame [UOrigin]
+data UError = UErr String
+data UAnswer = AOrigin UOrigin | ABlame UBlame
 
 getConfig :: IO Config
 getConfig = do 
@@ -68,17 +68,20 @@ getOrigin :: UState -> (Bool, Bool) -> Term -> UOrigin
 getOrigin state@(UState (cfg, thy) (b,p,t) (stream, mdl) modelProv) mods@(isall, isrec) term = do
   case name of
     Left err -> UOriginLeaf term (Left err)
-    Right (thynames, nextterms) -> do
+    Right (origin, nextterms) -> do
       case isrec of
-        False -> UOriginLeaf term (Right thynames)
-        True -> UOriginNode term (Right thynames) (map (getOrigin state mods) nextterms)
+        False -> UOriginLeaf term (blamed origin)
+        True -> UOriginNode term (blamed origin) (map (getOrigin state mods) nextterms)
   where 
-    name = case (getEqualElements mdl term) of
+    name = case getEqualElements mdl term of
       [] -> Left (UErr ("element "++(show term)++" not in the current model"))
       eqelms -> do
-        case (Map.lookup (head eqelms) (nameProv modelProv)) of
+        case getElementBlameTree thy (elementProvs p) mdl eqelms of
           Nothing -> Left (UErr ("no provenance information for element "++(show term)++"\n"))
-          Just (thynames, nextterms) -> Right (thynames, (map Elem nextterms))
+          Just (blame, nextelms) -> Right (blame, (map Elem nextelms))
+    blamed origin = case getBlamedSequent t origin of
+      Nothing -> Left $ UErr $ "unable to find blamed theory sequent from provenance info\n"
+      Just bseq -> Right (origin, bseq)
                 
 getJustification :: UState -> Formula -> UBlame
 getJustification state@(UState (cfg, thy) (b,p,t) (stream, mdl) modelProv) fml = case getObservation fml of
@@ -87,7 +90,7 @@ getJustification state@(UState (cfg, thy) (b,p,t) (stream, mdl) modelProv) fml =
     Nothing -> Left (UErr "no provenance info for blame observation")
     Just blame -> case getBlamedSequent t blame of
       Nothing -> Left $ UErr $ "unable to find blamed theory sequent from provenance info\n"++(show blame)++"\n"++(show (getBlameMap t))
-      Just blamed -> Right (blame, blamed)
+      Just bseq -> Right (blame, bseq)
 
 replaceTheory :: Theory -> TheorySub -> [Maybe Sequent]
 replaceTheory thy reps = do

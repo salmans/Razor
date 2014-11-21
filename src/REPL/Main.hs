@@ -5,9 +5,13 @@
   Maintainer  : Salman Saghafi, Ryan Danas
 -}
 {-| TODO / BUGS
-change chase structure of proptheory to just a list of sequents to a (Map freevarsubs to propsequent)
-augmentation does not support functions
+better way to match skolem tree to naming sequent?
+origin does not support dealing with equality / printing out all origins
+blaming information from observationalprov is wrong???
+-}
+{- COMING SOON
 augmentation does not fully support positive existential formulas 
+augmentation does not support functions
 allow model queries -> true/false
 -}
 {-| PEDANDTIC / DISPLAY
@@ -95,7 +99,7 @@ printOrigin thy mods@(isall, tabs) (UOriginLeaf term origin) = do
   lift $ prettyPrint tabs foutput ("origin of "++(show term)++"\n")
   case origin of
     Left (UErr err) -> (lift $ prettyPrint tabs ferror (err++"\n"))
-    Right reps -> printDiff (thy,(replaceTheory thy reps)) ((show term),tabs,isall)
+    Right ((TheoryBlame i sub), blamed) -> lift $ printDiffNew (thy !! i) blamed ((show term),0)
 printOrigin thy mods@(isall, tabs) (UOriginNode term origin depends) = do
   printOrigin thy mods (UOriginLeaf term origin)
   mapM_ (printOrigin thy (isall, tabs+1)) depends
