@@ -12,7 +12,7 @@ module Syntax.IGeometric where
 import Data.List (intercalate)
 
 -- Control
-import Control.Applicative
+import Control.Applicative hiding ( many )
 
 import Common.Basic
 
@@ -117,73 +117,20 @@ infixr 5 +++
 (+++)   :: Parser a -> Parser a -> Parser a
 p +++ q = ( Text.ParserCombinators.Parsec.try p) <|> q
 
+
+parseGeometricTheory :: String -> Theory
+parseGeometricTheory input =
+ let pResult =  parse pTheory "parsing sequent" input
+    in case pResult of
+           Left err -> error (show err)
+           Right val -> val
+
 parseSequent :: String -> Sequent
 parseSequent input =
  let pResult =  parse pSequent "parsing sequent" input
     in case pResult of
            Left err -> error (show err)
            Right val -> val
-
-xparseSequent :: String -> Sequent
-xparseSequent input =
-    let pResult =  parse xpSequent "parsing sequent" input
-    in case pResult of
-         Left err -> error (show err)
-         Right val -> val
-
--- parsing sequents
-pSequent :: Parser Sequent
-pSequent = pSeqBoth +++ pSeqHead +++ pSeqBody
-           <?> "sequent"
-
-xpSequent :: Parser Sequent
-xpSequent = xpSeqBoth +++ xpSeqHead +++ xpSeqBody
-            <?> "sequent"
-
--- sequents with body and head
-pSeqBoth :: Parser Sequent
-pSeqBoth = do {whiteSpace; 
-               b <- pBody; 
-               reservedOp "=>";
-               h <- pHead;
-               eof;
-               return (Sequent b h)}
-
-xpSeqBoth :: Parser Sequent
-xpSeqBoth = do {whiteSpace; 
-                b <- xpBody; 
-                reservedOp "=>";
-                h <- xpHead;
-                eof;
-                return (Sequent b h)}
-
--- headless sequents
-pSeqBody :: Parser Sequent
-pSeqBody = do {whiteSpace;
-               reservedOp "~";
-               b <- pBody;
-               eof;
-               return (Sequent b Fls)}
-
-xpSeqBody :: Parser Sequent
-xpSeqBody = do {whiteSpace;
-                reservedOp "~";
-                b <- xpBody;
-                eof;
-                return (Sequent b Fls)}
-
--- bodyless sequents
-pSeqHead :: Parser Sequent
-pSeqHead = do {whiteSpace;
-               b <- pHead;
-               eof;
-               return (Sequent Tru b)}
-
-xpSeqHead :: Parser Sequent
-xpSeqHead = do {whiteSpace;
-                b <- xpHead;
-                eof;
-                return (Sequent Tru b)}
 
 parseFormula :: String -> Formula
 parseFormula input = let pResult =  parse pFormula "parsing Formula" input
@@ -196,6 +143,69 @@ xparseFormula input = let pResult =  parse xpFormula "parsing XFormula" input
                       in case pResult of
                            Left err -> error (show err)
                            Right val -> val
+
+xparseSequent :: String -> Sequent
+xparseSequent input =
+    let pResult =  parse xpSequent "parsing sequent" input
+    in case pResult of
+         Left err -> error (show err)
+         Right val -> val
+
+pTheory :: Parser Theory
+pTheory =  manyTill pSequent eof;
+-- parsing sequents
+pSequent :: Parser Sequent
+pSequent = pSeqBoth +++ pSeqHead +++ pSeqBody
+           <?> "sequent"
+
+xpSequent :: Parser Sequent
+xpSequent = xpSeqBoth +++ xpSeqHead +++ xpSeqBody
+            <?> "sequent"
+
+-- sequents with body and head
+pSeqBoth :: Parser Sequent
+pSeqBoth = do {whiteSpace; 
+               b <- pBody;
+               reservedOp "=>";
+               h <- pHead;
+               reservedOp ";";
+               return (Sequent b h)}
+
+xpSeqBoth :: Parser Sequent
+xpSeqBoth = do {whiteSpace; 
+                b <- xpBody; 
+                reservedOp "=>";
+                h <- xpHead;
+                reservedOp ";";
+                return (Sequent b h)}
+
+-- headless sequents:
+pSeqBody :: Parser Sequent
+pSeqBody = do {whiteSpace;
+               reservedOp "~";
+               b <- pBody;
+               reservedOp ";";
+               return (Sequent b Fls)}
+
+xpSeqBody :: Parser Sequent
+xpSeqBody = do {whiteSpace;
+                reservedOp "~";
+                b <- xpBody;
+                reservedOp ";";
+                return (Sequent b Fls)}
+
+-- bodyless sequents:
+pSeqHead :: Parser Sequent
+pSeqHead = do {whiteSpace;
+               b <- pHead;
+               reservedOp ";";
+               return (Sequent Tru b)}
+
+xpSeqHead :: Parser Sequent
+xpSeqHead = do {whiteSpace;
+                b <- xpHead;
+                reservedOp ";";
+                return (Sequent Tru b)}
 
 -- scans initial whitespace and tests that input string is exhausted
 pFormula :: Parser Formula
@@ -217,23 +227,23 @@ xpFmla = Expr.buildExpressionParser table xpFactor
          
 -- scans initial whitespace and tests that input string is exhausted
 pBodyFormula :: Parser Formula
-pBodyFormula = do { whiteSpace; f <- pBody; eof; return f }
+pBodyFormula = do { whiteSpace; f <- pBody; return f }
 
 pHeadFormula :: Parser Formula
-pHeadFormula = do { whiteSpace; f <- pHead; eof; return f }
+pHeadFormula = do { whiteSpace; f <- pHead; return f }
 
 -- Like pFormula but over the extended language
 xpBodyFormula :: Parser Formula
-xpBodyFormula = do { whiteSpace; f <- xpBody; eof; return f }
+xpBodyFormula = do { whiteSpace; f <- xpBody; return f }
 
 xpHeadFormula :: Parser Formula
-xpHeadFormula = do { whiteSpace; f <- xpHead; eof; return f }
+xpHeadFormula = do { whiteSpace; f <- xpHead; return f }
 
 pBody  = pConjunctive
 xpBody = xpConjunctive
 
 pHead  = Expr.buildExpressionParser disjTable pHeadFactor
-       <?> "head formula"
+         <?> "head formula"
        
 xpHead  = Expr.buildExpressionParser disjTable xpHeadFactor
        <?> "head formula"
