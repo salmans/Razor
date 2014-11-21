@@ -32,7 +32,7 @@ top_forms_pp(Out, [[forall|Rest]|Forms]) :-
 	!,
 	form_to_pretty([forall|Rest], Pretty),
 	pp:pr(Out, 72, Pretty),
-	put_char(Out, '.'),
+	put_char(Out, ';'),
 	nl(Out),
 	nl(Out),
 	top_forms_pp(Out, Forms).
@@ -209,17 +209,19 @@ term_to_pretty(Term, Pretty) :-
 %% Load a term using CPSA's parsing rules for terms.  Also, convert
 %% variables into uppercase atoms, and constants into lowercase atoms.
 
-load_term(Term, Term) :-
-	atom(Term).
+load_term(Term, Internal) :-
+	atom(Term),
+	symbol(Term, Internal).
 load_term(Term, '\'lsn') :-
 	string(Term),
 	string_length(Term, 0),
 	!.
 load_term(Term, Internal) :-
 	string(Term),
-	string_to_list(Term, List),
-        atom_codes('\'', [Quote]),
-	atom_codes(Internal, [Quote|List]).
+	string_to_atom(Term, Atom),
+	symbol(Atom, Symbol),
+        atom_chars(Symbol, List),
+        atom_chars(Internal, ['\''|List]).
 load_term(Term, Internal) :-
 	integer(Term),
 	Term >= 0,
@@ -246,6 +248,18 @@ load_enc(Terms, [enc, X, Y]) :-
 	split(Terms, As, B),
 	load_term([cat|As], X),
 	load_term(B, Y).
+
+symbol(Atom, Symbol) :-
+	atom_chars(Atom, Chars),
+	hyphen(Chars, Parts),
+	atom_chars(Symbol, Parts).
+        
+hyphen([], []).
+hyphen(['-'|Rest], ['_'|Tail]) :-
+	!,
+	hyphen(Rest, Tail).
+hyphen([First|Rest], [First|Tail]) :-
+	hyphen(Rest, Tail).
 
 split([X], [], X).
 split([X, Y|Z], [X|A], B) :-

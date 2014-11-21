@@ -83,10 +83,8 @@ parseConfig args = do
 -- Out: a theory if parsing success
 parseTheory :: Config -> String -> IO (Maybe Theory)
 parseTheory config input = do
-	let inputLines = lines input
-	-- let sequents = mapM (parseFolToSequents False) (filter isRealLine inputLines)
-	-- return $ concat <$> sequents
-        let sequents = map parseSequent (filter isRealLine inputLines)
+	-- let inputLines = lines input
+        let sequents = parseGeometricTheory input -- inputLines
         return $ Just sequents
 -- In: configuration, theory
 -- Out: G*, which consists of ground facts, provenance info, and a propositional theory

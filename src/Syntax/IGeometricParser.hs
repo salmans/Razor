@@ -9,13 +9,30 @@ module Syntax.IGeometricParser where
 
 import Text.Parsec.Token ( TokenParser )
 import qualified Text.Parsec.Token as Token
-import Text.ParserCombinators.Parsec.Language ( haskellStyle )
+import Text.ParserCombinators.Parsec.Language
+
+import Text.Parsec
+import Text.Parsec.String
+import Text.Parsec.Expr
+
+import Text.Parsec.Language
+
+def :: LanguageDef ()
+def = emptyDef{ commentStart          = "{-"
+              , commentEnd            = "-}"
+              , commentLine           = "--"
+              , identStart            = letter <|> char '_'
+              , identLetter           = alphaNum <|> char '_'
+              , opStart               = oneOf "~|.;="
+              , opLetter              = oneOf "~|.;=>"
+              , Token.reservedOpNames = ["&", "|", "=>", ".", ";"]
+              , Token.reservedNames   = ["exists", "Exists"
+                                        ,"Truth", "Falsehood"]
+              , caseSensitive         = True }
+
 
 lexer :: TokenParser ()
-lexer = Token.makeTokenParser $ haskellStyle
-    { Token.reservedOpNames = [ "&", "|", "=>", "."]
-    , Token.reservedNames = [ "exists", "Exists", "Truth", "Falsehood" ]
-    }
+lexer = Token.makeTokenParser def
 
 -- Token parsers provided by Text.Parsec.Token
 whiteSpace = Token.whiteSpace lexer
