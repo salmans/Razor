@@ -16,7 +16,7 @@ module Chase.IData where
 import qualified Data.Map as Map
 
 -- Syntax
-import Syntax.Term (Constant, Variable, Sub)
+import Syntax.Term (Constant, Variable)
 import Syntax.Geometric (Theory, Sequent(..), Formula (..))
 
 -- Control
@@ -29,7 +29,7 @@ import qualified Control.Monad.RWS.Lazy as RWS
 -- Common
 import Common.Basic (Id)
 import Common.Data ( SequentLike (..) )
-import Common.Provenance (ProvInfo)
+import Common.Provenance (ProvInfo, Blame)
 import Common.Observation (Observation, ObservationSequent)
 
 -- SAT
@@ -180,7 +180,7 @@ class (HerbrandBase h, SequentLike s, Show r) =>
     pull                   :: s -> h -> h -> PullM h r
     push                   :: (SATAtom t) => s -> r -> h -> PushM h t h
     observationalInstances :: s -> h -> h -> r -> ProvInfo
-                           -> Map.Map Sub ObservationSequent
+                           -> Map.Map Blame ObservationSequent
 
 {-| 'Problem' is a type that passes information from an iteration of the Chase
   to the next iteration. A 'Problem' contains 

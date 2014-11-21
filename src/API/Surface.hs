@@ -23,7 +23,7 @@ data UError = UErr String
 data UState = UState (Config, Theory) (ChaseHerbrandBaseType, ProvInfo, SATTheoryType) (SATIteratorType, Model) ModelProv
 data UAnswer = AOrigin UOrigin | ABlame UBlame
 data UOrigin = UOriginLeaf Term (Either UError TheorySub) | UOriginNode Term (Either UError TheorySub) [UOrigin]
-type UBlame = Either UError TheorySub
+type UBlame = Either UError (Blame, ObservationSequent)
 
 getConfig :: IO Config
 getConfig = do 
@@ -79,13 +79,11 @@ getOrigin state@(UState (cfg, thy) (b,p,t) (stream, mdl) modelProv) mods@(isall,
 getJustification :: UState -> Formula -> UBlame
 getJustification state@(UState (cfg, thy) (b,p,t) (stream, mdl) modelProv) fml = case getObservation fml of
   Nothing -> Left (UErr "blame formula is not an observation")
-  Just (Obs fact) -> do
-    let matches = Map.toList $ Map.filterWithKey (\k _->(elem fact k)) (blameProv modelProv)
-    case matches of
-      [] -> Left (UErr ("no provenance information for fact "++(show fml)))
-      match -> do
-        let (atms, thyblames) = head match
-        Right thyblames
+  Just obv -> case getObservationBlame (observationProvs p) mdl obv of
+    Nothing -> Left (UErr "no provenance info for blame observation")
+    Just blame -> case getBlamedSequent t blame of
+      Nothing -> Left (UErr "unable to find blamed theory sequent from provenance info")
+      Just blamed -> Right (blame, blamed)
 
 replaceTheory :: Theory -> TheorySub -> [Maybe Sequent]
 replaceTheory thy reps = do

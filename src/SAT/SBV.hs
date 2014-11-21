@@ -36,6 +36,7 @@ import Syntax.GeometricUtils ( FnSym, RelSym, Atom (..), Term (..)
 
 -- Common
 import Common.Observation (Observation (..), ObservationSequent (..))
+import Common.Provenance (Blame)
 import Common.Model (Model, createModel)
 
 -- SAT
@@ -113,6 +114,7 @@ data SMTObservation = SMTFact SMTAtom
 instance SATAtom SMTObservation where
     emptySATTheory = emptySMTTheory
     storeSequent   = addToSMTTheory
+    blameSequent   = getFromSMTTheory
 
 
 {- Creates an instance of 'SMTObservation' from an input 'Observation'. -}
@@ -134,23 +136,26 @@ type SMTSequent = SATSequent SMTObservation
 {-| A theory of sequents in SMT solving is a an instance of 'SATTheory' family.
   This type is essentially a wrapper around a computation context of type SMT.  
  -}
-data instance SATTheory SMTObservation = SMTTheory (SMT ())
+data instance SATTheory SMTObservation = SMTTheory (SMT ()) (Map.Map Blame ObservationSequent) 
 
 {- A convenient type for working with SMT theories -}
 type SMTTheory = SATTheory SMTObservation
 
 {- Empty 'SMTTheory' -}
 emptySMTTheory :: SMTTheory
-emptySMTTheory = SMTTheory (State.put emptySMTContainer)
+emptySMTTheory = SMTTheory (State.put emptySMTContainer) Map.empty
                  -- The computation context is initialized with an empty 
                  -- instance of SMTContainer. 
 
 {- Converts an 'ObservationSequent' to 'SMTObsSequent' and adds it to an 
    existing SMTTheory -}
-addToSMTTheory :: SMTTheory -> ObservationSequent -> SMTTheory
-addToSMTTheory (SMTTheory context) seq = 
+addToSMTTheory :: SMTTheory -> (Blame, ObservationSequent) -> SMTTheory
+addToSMTTheory (SMTTheory context blamemap) (blame, seq) = 
     SMTTheory (do context
-                  addObservationSequent seq)
+                  addObservationSequent seq) (Map.insert blame seq blamemap)
+
+getFromSMTTheory :: SMTTheory -> Blame -> Maybe ObservationSequent
+getFromSMTTheory (SMTTheory context blamemap) blame = Map.lookup blame blamemap
 --------------------------------------------------------------------------------
 -- Translation
 --------------------------------------------------------------------------------
@@ -563,7 +568,7 @@ termValue fn term unintFunc sParams = do
    this implementation is SMTObservation and the type of SMT solving data is 
    SMT (). -}
 instance SATSolver SMTObservation (SMT ()) where
-    satInitialize (SMTTheory context)      = context
+    satInitialize (SMTTheory context blamemap)      = context
     satSolve context = let (res, context') = minimumResult context
                        in  (translateSolution res, context')
     satClose         = id -- no close connection!

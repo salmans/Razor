@@ -13,6 +13,7 @@
 module SAT.IData where
 
 -- Standard
+import qualified Data.Map as Map
 import Data.List (intercalate)
 
 -- Control
@@ -22,6 +23,7 @@ import qualified Control.Monad.State.Lazy as State
 -- Common
 import Common.Data (SequentLike (..))
 import Common.Observation (Observation, ObservationSequent)
+import Common.Provenance (Blame)
 import Common.Model (Model)
 
 -- Tools
@@ -43,7 +45,8 @@ import qualified Tools.ExtendedSet as ExSet
  -}
 class (Show a) => SATAtom a where
     emptySATTheory    :: SATTheory a    
-    storeSequent      :: SATTheory a -> ObservationSequent -> SATTheory a
+    storeSequent      :: SATTheory a -> (Blame, ObservationSequent) -> SATTheory a
+    blameSequent      :: SATTheory a -> Blame -> Maybe ObservationSequent
 
 {-| SATSequent is a datatype that represents a sequent in SAT/SMT solving. A 
   type @a@ is the type of atomic formulas in the sequent, e.g., a proposition 
