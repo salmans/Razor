@@ -4,19 +4,6 @@
   Description : The module provides a REPL for user interaction with Razor.
   Maintainer  : Salman Saghafi, Ryan Danas
 -}
-{-| TODO / BUGS
-update observational Tosequent to print out more sensible sequents
-origin does not support dealing with equality / printing out all origins
--}
-{- COMING SOON
-augmentation does not fully support positive existential formulas 
-augmentation does not support functions
-allow model queries -> true/false
--}
-{-| PEDANDTIC / DISPLAY
-the text output for larger theories should still be managable (e^0, e^11 is a lot for each element)
-origin* should not print redundant info as it goes down the tree
--}
 module Main where
 import API.Surface
 import API.UserSyntax

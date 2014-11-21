@@ -4,11 +4,6 @@
   Description : The module provides a Command Line Interface for interation and integration with Razor.
   Maintainer  : Salman Saghafi, Ryan Danas
 -}
-{-| TODO / BUGS
-cleanup / change XML representation dependent on ISP team needs for GUI
-exploration (next) not implemented yet; needs to change SATIterator structure on the haskell side first
--}
-
 module Main where
 import API.Surface
 import API.UserSyntax
