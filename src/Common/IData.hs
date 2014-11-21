@@ -40,7 +40,7 @@ type ConstantValueMap = Map.Map Constant Element
   [@failSequent@] returns true if the head of the sequent is empty. 
   [@startSequent@] returns true if the body of the sequent is empty. -}
 class (Show s) => SequentLike s where
-    fromSequent      :: Sequent -> s
+    fromSequent      :: Sequent -> Maybe s
     toSequent        :: s -> Sequent
     skolemFunctions  :: s -> [Either FnSym (FnSym, Atom)]
     sequentConstants :: s -> [Constant]
@@ -51,7 +51,7 @@ class (Show s) => SequentLike s where
 {- 'Sequnet' is 'SequentLike' -}
 instance SequentLike Sequent where
     toSequent        = id
-    fromSequent      = id
+    fromSequent s     = Just s
     startSequent s   = (sequentBody s) == Tru
     failSequent  s   = (sequentHead s) == Fls
     skolemFunctions  = sequentExistentials

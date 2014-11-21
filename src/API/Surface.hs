@@ -10,7 +10,6 @@ import API.Core
 import Common.Model
 import Common.Provenance
 import SAT.IData
-import Common.Observation
 import Syntax.GeometricUtils
 import SAT.Impl
 import Tools.Config
@@ -21,7 +20,7 @@ import qualified Data.Map as Map
 import System.Environment
 
 data UState = UState (Config, Theory) (ChaseHerbrandBaseType, ProvInfo, SATTheoryType) (SATIteratorType, Model) ModelProv
-type UBlame = Either UError (Blame, ObservationSequent)
+type UBlame = Either UError (Blame, Sequent)
 data UOrigin = UOriginLeaf Term UBlame | UOriginNode Term UBlame [UOrigin]
 data UError = UErr String
 data UAnswer = AOrigin UOrigin | ABlame UBlame

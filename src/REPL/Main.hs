@@ -6,7 +6,6 @@
 -}
 {-| TODO / BUGS
 origin does not support dealing with equality / printing out all origins
-make observational sequents pretty
 -}
 {- COMING SOON
 augmentation does not fully support positive existential formulas 
@@ -23,7 +22,6 @@ import API.UserSyntax
 import REPL.Display
 import Common.Model
 import Common.Provenance
-import Common.Observation
 import Data.Maybe
 import Data.List
 import Syntax.GeometricUtils 
@@ -98,7 +96,7 @@ printOrigin thy mods@(isall, tabs) (UOriginLeaf term origin) = do
   lift $ prettyPrint tabs foutput ("origin of "++(show term)++"\n")
   case origin of
     Left (UErr err) -> (lift $ prettyPrint tabs ferror (err++"\n"))
-    Right ((TheoryBlame i sub), blamed) -> lift $ printDiffNew (thy !! (i-1)) blamed ((show term),0)
+    Right ((TheoryBlame i sub), blamed) -> lift $ printDiffNew (thy !! (i-1)) blamed ((show term),tabs)
 printOrigin thy mods@(isall, tabs) (UOriginNode term origin depends) = do
   printOrigin thy mods (UOriginLeaf term origin)
   mapM_ (printOrigin thy (isall, tabs+1)) depends
@@ -110,7 +108,7 @@ printJustification atom thy justification = do
     Left (UErr err) -> lift $ prettyPrint 0 ferror (err++"\n")
     Right ((TheoryBlame i sub), blamed) -> lift $ printDiffNew (thy !! (i-1)) blamed ((show atom),0)
 
-printDiffNew :: Sequent -> ObservationSequent -> (String, Int) -> IO()
+printDiffNew :: Sequent -> Sequent -> (String, Int) -> IO()
 printDiffNew original diff format@(highlight, tabs) = do
   prettyPrint tabs finput ("thy rule: "++(show original)++"\n")
   prettyHighlight tabs highlight ("instance: "++(show diff)++"\n")

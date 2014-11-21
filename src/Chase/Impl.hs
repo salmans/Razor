@@ -31,6 +31,8 @@ import Chase.HerbrandBase.RelAlg.HerbrandBase
 -- <><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
 import qualified Chase.Chase (chase)
 
+-- Data
+import Data.Maybe(fromJust)
 -- SAT
 import SAT.Impl
 
@@ -45,7 +47,7 @@ chase :: Config -> Theory -> ( ChaseHerbrandBaseType
                              , ProvInfo
                              , SATTheoryType )
 chase cfg thy = let thy'   = preprocess thy
-                    seqMap = buildSequentMap $ fromSequent <$> thy' 
+                    seqMap = buildSequentMap $ fromJust <$> fromSequent <$> thy' 
                            :: SequentMap ChaseSequentType
                 in  Chase.Chase.chase cfg seqMap
 

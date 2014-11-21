@@ -141,12 +141,12 @@ instance HerbrandImpl Database RelSequent RelResultSet where
 type RelHerbrandBase = Database
 
 {- Builds an instance of 'RelSequent' from a 'Sequent'. -}
-buildRelSequent :: Sequent -> RelSequent
+buildRelSequent :: Sequent -> Maybe RelSequent
 buildRelSequent seq@(Sequent bdy hds)  = 
     let bdyExp = bodyRelExp bdy
         hdsExp = headRelExp hds
         funcs  = trans bdyExp <$> hdsExp
-    in  RelSequent { relSequentBody      = bdyExp
+    in  Just RelSequent { relSequentBody      = bdyExp
                    , relSequentHead      = zip hdsExp funcs
                    , relSequentBodyDelta = delta bdyExp
                    , relSequentBodyRefs  = relExpRefs bdyExp

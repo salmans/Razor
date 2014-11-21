@@ -7,6 +7,7 @@ module Common.IObservation where
 
 -- Standard
 import Data.List (intercalate)
+import Data.Maybe (fromMaybe)
 
 -- Control
 import Control.Applicative
@@ -77,20 +78,32 @@ instance Show ObservationSequent where
         (show bdy) ++ " -> " ++ showHead ++ "\n"
         where showHead = intercalate " \\/ " (show <$> hd)
 
--- instance SequentLike ObservationSequent where
---     toSequent        = undefined
---     fromSequent      = buildObservationSequent
---     startSequent     = (null.observationSequentBody)
---     failSequent      = (null.observationSequentHead)
---     skolemFunctions  = const [] -- They should not have any
---     sequentConstants = const []
+instance SequentLike ObservationSequent where
+     toSequent        = destroyObservationSequent
+     fromSequent      = buildObservationSequent
+     startSequent     = (null.observationSequentBody)
+     failSequent      = (null.observationSequentHead)
+     skolemFunctions  = const [] -- They should not have any
+     sequentConstants = const []
 
-
+{-| Creates a Sequent from the given ObservationSequent -}
+destroyObservationSequent :: ObservationSequent -> Sequent
+destroyObservationSequent (ObservationSequent bdy hds) =
+  Sequent (processConjuncts bdy) (processDisjuncts hds)
 {-| Creates an 'ObservationSequent' form an input 'Sequent'. -}
 buildObservationSequent :: Sequent -> Maybe ObservationSequent
 buildObservationSequent seq@(Sequent bdy hds) = 
-    ObservationSequent <$> processBody bdy <*> processHead hds
+  ObservationSequent <$> processBody bdy <*> processHead hds
 
+-- Parses the inner list of an observational formula, which is a list of atoms separated by conjunction
+processConjuncts :: [Observation] -> Formula
+processConjuncts [] = Tru
+processConjuncts ((Obs atm):[]) = (Atm atm)
+processConjuncts ((Obs atm):cs) = And (Atm atm) (processConjuncts cs)
+-- Parses the outer list of an observational formula, which is a list of conjuncts separated by disjunction
+processDisjuncts :: [[Observation]] -> Formula
+processDisjuncts (d:[]) = processConjuncts d
+processDisjuncts (d:ds) = Or (processConjuncts d) (processDisjuncts ds)
 {- Constructs the head of an 'ObservationSequent' from the head of a sequent. 
    Here, we assume that the sequent is in the standard form, i.e. disjunctions 
    appear only at the top level of the head.

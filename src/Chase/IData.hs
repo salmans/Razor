@@ -32,6 +32,9 @@ import Common.Data ( SequentLike (..) )
 import Common.Provenance (ProvInfo)
 import Common.Observation (Observation, ObservationSequent)
 
+--Data
+import Data.Maybe(fromJust)
+
 -- SAT
 import SAT.Data (SATAtom, SATTheory)
 
@@ -229,7 +232,7 @@ buildProblem :: (HerbrandImpl h s r, SATAtom t)
                 => [(Id, Sequent)] -> h -> h -> ProvInfo 
                                    -> SATTheory t -> Problem h s t
 buildProblem seqs db dlt provs propTheory = 
-    let seqMap = Map.fromList $ ((fromSequent <$>) <$> seqs)
+    let seqMap = Map.fromList $ ((fromJust <$> fromSequent <$>) <$> seqs)
     in  Problem seqMap db dlt provs propTheory
 
 

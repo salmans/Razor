@@ -95,7 +95,7 @@ generateGS config theory = chase config theory
 augment :: Config -> Theory -> (ChaseHerbrandBaseType, ProvInfo, SATTheoryType) -> Observation -> (ChaseHerbrandBaseType, ProvInfo, SATTheoryType)
 augment cfg thy (b, p, t) obs = do
   let thy' = preprocess thy
-  let seqMap = (buildSequentMap $ fromSequent <$> thy') :: SequentMap ChaseSequentType
+  let seqMap = (buildSequentMap $ fromJust <$> fromSequent <$> thy') :: SequentMap ChaseSequentType
   let (b', p', t') = augmentGS cfg seqMap (b, p, t) obs
   let newSeq = ObservationSequent [] [[obs]]
   let t'' = storeSequent t' (UserBlame obs, newSeq)
@@ -161,8 +161,10 @@ getObservationBlame prov mdl obv@(Obs (Rel sym ts)) = do
 getObservationBlame _ _ _ = Nothing
 --
 --
-getBlamedSequent :: SATTheoryType -> Blame -> Maybe ObservationSequent
-getBlamedSequent satthy blame = blameSequent satthy blame
+getBlamedSequent :: SATTheoryType -> Blame -> Maybe Sequent
+getBlamedSequent satthy blame = case blameSequent satthy blame of
+  Nothing -> Nothing
+  Just oseq -> Just $ toSequent oseq
 
 
 
