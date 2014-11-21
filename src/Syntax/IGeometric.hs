@@ -276,7 +276,7 @@ pExistential = (quantWithFn "exists" Exists <|> quantWithFn "Exists" Exists)
                         vars <- many1 identifier
                         let vars' = map Variable vars
                         reservedOp "."
-                        fmla <- pConjunctive
+                        fmla <- pExistential
                         return $ (foldr ($) fmla ((f Nothing) <$> vars'))
           quantWithFn q f =  do
                         reserved q
@@ -284,7 +284,7 @@ pExistential = (quantWithFn "exists" Exists <|> quantWithFn "Exists" Exists)
                         vars <- many1 identifier
                         let vars' = map Variable vars
                         reservedOp "."
-                        fmla <- pConjunctive
+                        fmla <- pExistential
                         return $ (foldr ($) fmla ((f (Just fn)) <$> vars'))
 
 xpExistential :: Parser Formula
@@ -296,7 +296,7 @@ xpExistential = (quantWithFn "exists" Exists <|> quantWithFn "Exists" Exists)
                         vars <- many1 identifier
                         let vars' = map Variable vars
                         reservedOp "."
-                        fmla <- xpConjunctive
+                        fmla <- xpExistential
                         return $ (foldr ($) fmla ((f Nothing) <$> vars'))
           quantWithFn q f =  do
                         reserved q
@@ -304,7 +304,7 @@ xpExistential = (quantWithFn "exists" Exists <|> quantWithFn "Exists" Exists)
                         vars <- many1 identifier
                         let vars' = map Variable vars
                         reservedOp "."
-                        fmla <- xpConjunctive
+                        fmla <- xpExistential
                         return $ (foldr ($) fmla ((f (Just fn)) <$> vars'))
 
 
