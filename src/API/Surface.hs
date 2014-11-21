@@ -12,10 +12,7 @@ import Common.Provenance
 import SAT.IData
 import Common.Observation
 import Syntax.GeometricUtils
-
--- TODO REMOVE
 import SAT.Impl
-
 import Tools.Config
 import Data.List
 import Data.Either
@@ -80,7 +77,7 @@ getOrigin state@(UState (cfg, thy) (b,p,t) (stream, mdl) modelProv) mods@(isall,
           Nothing -> Left (UErr ("no provenance information for element "++(show term)++"\n"))
           Just (blame, nextelms) -> Right (blame, (map Elem nextelms))
     blamed origin = case getBlamedSequent t origin of
-      Nothing -> Left $ UErr $ "unable to find blamed theory sequent from provenance info\n"
+      Nothing -> Left $ UErr $ "unable to find blamed theory sequent from provenance info"
       Just bseq -> Right (origin, bseq)
                 
 getJustification :: UState -> Formula -> UBlame
@@ -89,7 +86,7 @@ getJustification state@(UState (cfg, thy) (b,p,t) (stream, mdl) modelProv) fml =
   Just obv -> case getObservationBlame (observationProvs p) mdl obv of
     Nothing -> Left (UErr "no provenance info for blame observation")
     Just blame -> case getBlamedSequent t blame of
-      Nothing -> Left $ UErr $ "unable to find blamed theory sequent from provenance info\n"++(show blame)++"\n"++(show (getBlameMap t))
+      Nothing -> Left $ UErr $ "unable to find blamed theory sequent from provenance info"
       Just bseq -> Right (blame, bseq)
 
 replaceTheory :: Theory -> TheorySub -> [Maybe Sequent]

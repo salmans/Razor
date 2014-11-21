@@ -115,8 +115,6 @@ instance SATAtom SMTObservation where
     emptySATTheory = emptySMTTheory
     storeSequent   = addToSMTTheory
     blameSequent   = getFromSMTTheory
-    getBlameMap    = getBMap
-
 
 {- Creates an instance of 'SMTObservation' from an input 'Observation'. -}
 smtObservation :: Observation -> SMTObservation
@@ -157,9 +155,6 @@ addToSMTTheory (SMTTheory context blamemap) (blame, seq) =
 
 getFromSMTTheory :: SMTTheory -> Blame -> Maybe ObservationSequent
 getFromSMTTheory (SMTTheory context blamemap) blame = Map.lookup blame blamemap
-
-getBMap       :: SMTTheory -> Map.Map Blame ObservationSequent
-getBMap (SMTTheory context blamemap) = blamemap
 
 --------------------------------------------------------------------------------
 -- Translation

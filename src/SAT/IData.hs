@@ -47,8 +47,6 @@ class (Show a) => SATAtom a where
     emptySATTheory    :: SATTheory a    
     storeSequent      :: SATTheory a -> (Blame, ObservationSequent) -> SATTheory a
     blameSequent      :: SATTheory a -> Blame -> Maybe ObservationSequent
-    -- TODO REMOVE
-    getBlameMap       :: SATTheory a -> Map.Map Blame ObservationSequent
 
 {-| SATSequent is a datatype that represents a sequent in SAT/SMT solving. A 
   type @a@ is the type of atomic formulas in the sequent, e.g., a proposition 
