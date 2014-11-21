@@ -5,6 +5,7 @@
   Maintainer  : Salman Saghafi, Ryan Danas
 -}
 {-| TODO / BUGS
+update observational Tosequent to print out more sensible sequents
 origin does not support dealing with equality / printing out all origins
 -}
 {- COMING SOON

@@ -13,6 +13,9 @@
 
 module SAT.SMTLib2 where
 
+-- Common 
+import Common.Provenance (Blame)
+
 -- Standard
 import Data.List (intercalate, sortBy, groupBy, union, partition)
 import qualified Data.Map as Map
@@ -122,6 +125,7 @@ data SMTObservation = SMTFactObs SMTAtom
 instance SATAtom SMTObservation where
     emptySATTheory = emptySMTTheory
     storeSequent   = addToSMTTheory
+    blameSequent   = getFromSMTTheory
 
 {- Creates an 'SMTObservation' for an input 'Observation'. -}
 smtObservation :: Observation -> SMTObservation
@@ -142,23 +146,26 @@ type SMTSequent = SATSequent SMTObservation
 {-| A theory of sequents in SMT solving is a an instance of 'SATTheory' family:
   this type is essentially a wrapper around a computation context of type SMT.  
  -}
-data instance SATTheory SMTObservation = SMTTheory (SMTM ())
+data instance SATTheory SMTObservation = SMTTheory (SMTM ()) (Map.Map Blame ObservationSequent) 
 
 {- A convenient type for working with SMT theories -}
 type SMTTheory = SATTheory SMTObservation
 
 {- Empty 'SMTTheory' -}
 emptySMTTheory :: SMTTheory
-emptySMTTheory =  SMTTheory (return ())
+emptySMTTheory =  SMTTheory (return ()) Map.empty
                  -- The computation context is initialized with an empty 
                  -- instance of SMTContainer.
 
 {- Converts an 'ObservationSequent' to 'SMTObsSequent' and adds it to an 
    existing SMTTheory -}
-addToSMTTheory :: SMTTheory -> ObservationSequent -> SMTTheory
-addToSMTTheory (SMTTheory context) seq = 
-    SMTTheory (context >> addObservationSequent seq)
+addToSMTTheory :: SMTTheory -> (Blame, ObservationSequent) -> SMTTheory
+addToSMTTheory (SMTTheory context blamemap) (blame, seq) = 
+    SMTTheory (do context
+                  addObservationSequent seq) (Map.insert blame seq blamemap)
 
+getFromSMTTheory :: SMTTheory -> Blame -> Maybe ObservationSequent
+getFromSMTTheory (SMTTheory context blamemap) blame = Map.lookup blame blamemap
 
 {- ResKind determines the type of a value in a SatResult structure. -}
 data ResKind  = RKBool | RKInteger
@@ -676,7 +683,7 @@ termValue fn term unintFunc sParams = do
    this implementation is SMTObservation and the type of SMT solving iterator is 
    SMTContainer. -}
 instance SATSolver SMTObservation SMTContainer where
-    satInitialize (SMTTheory context) =
+    satInitialize (SMTTheory context blamemap) =
                   unsafePerformIO $ State.execStateT (perform context) emptySMTContainer
     satSolve cont = let (res, cont')  = minimumResult cont
                     in  (translateSolution res, cont')
