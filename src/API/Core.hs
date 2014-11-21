@@ -228,6 +228,11 @@ getObservationBlame _ _ _ = Nothing
 --
 getBlamedSequent :: SATTheoryType -> Blame -> Maybe ObservationSequent
 getBlamedSequent satthy blame = blameSequent satthy blame
+
+
+
+
+
 --
 --
 deriveBlameProv :: Theory -> ProvInfo -> Model -> BlameProv

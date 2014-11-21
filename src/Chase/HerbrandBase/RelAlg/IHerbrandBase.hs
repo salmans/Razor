@@ -219,7 +219,7 @@ insertRelSequent seq resSet db = do
                $ zip (fst <$> hds) tbls
                -- Fold the deduce facts for all heads- 
                -- eventually remove references to empty tables
-  (_, _, provs) <- liftPushMProvs State.get
+  (seqid, _, provs) <- liftPushMProvs State.get
   uni           <- liftPushMBase  State.get
   propThy       <- liftPushMSATTheory State.get
 
@@ -229,7 +229,7 @@ insertRelSequent seq resSet db = do
   let propSeqs = observationalInstances seq uni result resSet provs
   -- MONITOR
 
-  let propThy' = foldr (flip storeSequent) propThy (Map.toList propSeqs)
+  let propThy' = foldr (\(sub, oseq)-> (flip storeSequent) ((TheoryBlame seqid sub), oseq)) propThy propSeqs
 
   liftPushMSATTheory (State.put propThy')
   return result
@@ -247,11 +247,11 @@ filterTable t = if t == tableFromList [[]]
    -
 -}
 relSequentInstances :: RelSequent -> Database -> Database -> RelResultSet 
-                    -> ProvInfo -> Map.Map Blame ObservationSequent
+                    -> ProvInfo -> [(Sub, ObservationSequent)]
 relSequentInstances relSeq uni new resSet provs = 
     let subs = createSubs relSeq uni new (allResultTuples resSet) provs
-    in Map.fromList $ nub [ ((TheoryBlame i s), fromJust inst) | 
-              (i, s, bs, es) <- subs
+    in nub [ (s, fromJust inst) | 
+              (s, bs, es) <- subs
             , inst        <-  buildObservationSequent <$>
                               (instantiateSequent uni new s bs es seq)
             , isJust inst ]
@@ -271,31 +271,28 @@ instantiateSequent uni new sub bodySub exSub seq =
                      in  applyLoneSubs uni new skMap seq''
 
 createSubs :: RelSequent -> Database -> Database -> TableSub
-           -> ProvInfo -> [(Id, Sub, ExistsSub, Maybe ExistsSub)]
+           -> ProvInfo -> [(Sub, ExistsSub, Maybe ExistsSub)]
 createSubs seq uni new tbl provs = 
     if   bodyExp == TblFull
-    then (\(i, (Tuple tup exSub)) -> 
-              ( i
-              , emptySub
+    then (\(Tuple tup exSub) -> 
+              ( emptySub
               , exSub
               , case createExistsSub tup elmProvs skFuns of
                   -- < MONITOR
                   Nothing -> Nothing -- Just Map.empty
                   -- Nothing -> Just exSub
                   -- MONITOR >
-                  Just es -> Just es)) <$> dblistI
-    else (\(i, (Tuple tup exSub)) -> 
-              ( i
-              , createSub tup heads
+                  Just es -> Just es)) <$> dblist
+    else (\(Tuple tup exSub) -> 
+              ( createSub tup heads
               , exSub
               , case createExistsSub tup elmProvs skFuns of
                   -- < MONITOR
                   Nothing ->  Nothing -- Just Map.empty
                   -- Nothing -> Just exSub
                   -- MONITOR >
-                  Just es -> Just es)) <$> dblistI
+                  Just es -> Just es)) <$> dblist
     where dblist   = DB.toList tbl
-          dblistI  = map (\t->((fromJust (elemIndex t dblist)), t)) dblist
           elmProvs = elementProvs provs
           bodyExp  = relSequentBodyDelta seq
           heads    = header bodyExp

@@ -9,9 +9,13 @@ import Chase.Impl
 import API.Core
 import Common.Model
 import Common.Provenance
+import SAT.IData
 import Common.Observation
 import Syntax.GeometricUtils
+
+-- TODO REMOVE
 import SAT.Impl
+
 import Tools.Config
 import Data.List
 import Data.Either
@@ -82,7 +86,7 @@ getJustification state@(UState (cfg, thy) (b,p,t) (stream, mdl) modelProv) fml =
   Just obv -> case getObservationBlame (observationProvs p) mdl obv of
     Nothing -> Left (UErr "no provenance info for blame observation")
     Just blame -> case getBlamedSequent t blame of
-      Nothing -> Left (UErr "unable to find blamed theory sequent from provenance info")
+      Nothing -> Left $ UErr $ "unable to find blamed theory sequent from provenance info\n"++(show blame)++"\n"++(show (getBlameMap t))
       Just blamed -> Right (blame, blamed)
 
 replaceTheory :: Theory -> TheorySub -> [Maybe Sequent]
