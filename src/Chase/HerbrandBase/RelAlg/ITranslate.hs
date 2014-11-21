@@ -399,19 +399,18 @@ insertTuples _ TblFull db  _ = return db
 insertTuples tblPair (Tbl ref vars heads) db _
     | nullTablePair tblPair  = return db
     | otherwise              = do      
-  (id, vars, _) <- liftPushMProvs State.get -- get information required for 
+  (id, vs, _) <- liftPushMProvs State.get -- get information required for 
                                             -- constructing blaming data
-
-  let content'   = let makeSub = Map.fromList . zip vars . toTerms . Vect.toList
+  let content'   =  let makeSub = Map.fromList . zip vs . toTerms . Vect.toList
                                  -- given a vector of tuples, create a 
                                  -- substitution from free variables of the 
                                  -- sequent to the elements in the tuple.
-                   in  DB.map (\(Tuple t1 t2) -> 
+                    in  DB.map (\(Tuple t1 t2) -> 
                                (tuple t2, TheoryBlame id $ makeSub t1)) tblPair
-                   -- Separate the tuples of the input 'TablePair', construct 
-                   -- the second part to create a tuple that is inserted into
-                   -- the target database, and the first tuple to create blaming
-                   -- information.
+                    -- Separate the tuples of the input 'TablePair', construct 
+                    -- the second part to create a tuple that is inserted into
+                    -- the target database, and the first tuple to create blaming
+                    -- information.
 
   -- Filter out those tuples that already exist in the previous iterations of 
   -- the database (@uni@):
@@ -429,7 +428,7 @@ insertTuples tblPair (Tbl ref vars heads) db _
                  $ \(_, _, ps) -> 
                      let oldProvs = observationProvs ps                         
                      in  ( id
-                         , vars
+                         , vs
                          , ps { observationProvs = Map.union oldProvs newProvs })
                      -- Update the provenance information with the new blaming
                      -- data

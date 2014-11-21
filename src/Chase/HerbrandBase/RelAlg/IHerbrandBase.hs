@@ -17,7 +17,7 @@ import qualified Data.Map as Map
 import qualified Data.Vector as Vect
 import Data.Vector ((!))
 import Data.Maybe
-import Data.List (elemIndex, nub)
+import Data.List (elemIndex, nub, sortBy)
 import Data.Either
 
 -- Control
@@ -210,7 +210,9 @@ insertRelSequent seq resSet db = do
   let vars  = case body of
                 TblEmpty -> []
                 TblFull  -> []
-                _        -> Map.keys $ header body
+                _        -> let l = Map.toList $ header body 
+                                l' = sortBy (\(_, i1) (_, i2)->compare i1 i2) l
+                            in fst <$> l'
   liftPushMProvs $ State.modify 
                  $ \(id, _, ps) -> (id, vars, ps) 
   let depth = configSkolemDepth cfg
