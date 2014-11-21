@@ -9,19 +9,29 @@ module Syntax.IFirstOrderParser where
 
 import Text.Parsec.Token ( TokenParser )
 import qualified Text.Parsec.Token as Token
-import Text.ParserCombinators.Parsec.Language ( haskellStyle )
+import Text.ParserCombinators.Parsec.Language
 
+import Text.Parsec
+import Text.Parsec.String
+import Text.Parsec.Expr
 
-basicOpNames = [ "~", "&", "|", "=>", "<=>", "." ]
-basicNames   = [ "forall", "Forall", "exists", "Exists", "Truth", "Falsehood" ] 
+import Text.Parsec.Language
 
-basicLanguage = haskellStyle 
-                { Token.reservedOpNames = basicOpNames
-                , Token.reservedNames   = basicNames
-                }
+def :: LanguageDef ()
+def = emptyDef{ commentStart          = "{-"
+              , commentEnd            = "-}"
+              , commentLine           = "--"
+              , identStart            = letter <|> char '_'
+              , identLetter           = alphaNum <|> char '_'
+              , opStart               = oneOf "~|.;="
+              , opLetter              = oneOf "~|.;=>"
+              , Token.reservedOpNames = [ "~", "&", "|", "=>", "<=>", ".", ";" ]
+              , Token.reservedNames   = [ "forall", "Forall", "exists", "Exists"
+                                        , "Truth", "Falsehood" ]
+              , caseSensitive         = True }
 
 lexer :: TokenParser ()
-lexer = Token.makeTokenParser $ basicLanguage
+lexer = Token.makeTokenParser def
 
 -- Token parsers provided by Text.Parsec.Token
 whiteSpace = Token.whiteSpace lexer

@@ -78,7 +78,7 @@ equal([L, R], Pretty) :-
 implication([H, C], Pretty) :-
 	form_to_pretty(H, Hypoth),
 	pp:brk(1, Brk),
-	pp:atm('-> ', Op),
+	pp:atm('=> ', Op),
 	form_to_pretty(C, Concl),
 	pp:blo(0, [Hypoth, Brk, Op, Concl], Pretty).
 
@@ -171,16 +171,21 @@ quantifier_rest(_, _, [], Body, [Pretty]) :-
         !,
         form_to_pretty(Body, Pretty).
 quantifier_rest(forall, _, _, Body, [Pretty]) :-
-        !,
         form_to_pretty(Body, Pretty).
-quantifier_rest(Kind, Op, [Var|Vars], Body,
-                [Op, Sp, V, Period, Brk|Pretties]) :-
+quantifier_rest(exists, Op, [Var|Vars], Body, [Op|Pretties]) :-
+        quantifier_rest_exists(Var, Vars, Body, Pretties).
+
+quantifier_rest_exists(Var, [], Body, [Sp, V, Period, Brk, Pretty]) :-
 	pp:atm(' ', Sp),
 	term_to_pretty(Var, V),
         pp:atm('.', Period),
 	pp:brk(1, Brk),
-	quantifier_rest(Kind, Op, Vars, Body, Pretties).
-
+        form_to_pretty(Body, Pretty).
+quantifier_rest_exists(Var, [Vn|Vars], Body, [Brk, V| Pretties]) :-
+	pp:brk(1, Brk),
+	term_to_pretty(Var, V),
+        quantifier_rest_exists(Vn, Vars, Body, Pretties).
+        
 % Atomic formulas
 
 atomic_form([Pred], Pretty) :-
