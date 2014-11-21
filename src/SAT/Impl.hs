@@ -6,18 +6,20 @@
   Maintainer  : Salman Saghafi -}
 
 module SAT.Impl ( SATTheoryType, SATIteratorType, 
-                  satInitialize, satSolve, storeSequent) where 
+                  satInitialize, satSolve, storeSequent, blameSequent) where 
 
 
 -- Common
 import Common.Model (Model)
 import Common.Observation (ObservationSequent)
+import Common.Provenance (Blame)
+
 
 -- Control
 import qualified Control.Monad.State.Lazy as State
 
 -- SAT
-import qualified SAT.Data (satInitialize, satSolve, storeSequent)
+import qualified SAT.Data (satInitialize, satSolve, storeSequent, blameSequent)
 
 -- <><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
 -- Uncomment to select the implementation:
@@ -41,5 +43,8 @@ satSolve =  SAT.Data.satSolve
 
 {-| Adds an instance of 'ObservationSequent' to an instance of 'SATTheoryType'.
   This function is primarily used to implement augmentation. -}
-storeSequent :: SATTheoryType -> ObservationSequent -> SATTheoryType
+storeSequent :: SATTheoryType -> (Blame, ObservationSequent) -> SATTheoryType
 storeSequent =  SAT.Data.storeSequent
+
+blameSequent :: SATTheoryType -> Blame -> Maybe ObservationSequent
+blameSequent = SAT.Data.blameSequent

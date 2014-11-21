@@ -38,7 +38,7 @@ type ElementProvs = ( Map.Map Element [SkolemTerm]
 {-| Blaming information for an 'Observation' is a sequent of the theory (or the
   extended theory after augmentation), which is identified by its 'Id', together
   with a binding from its free variables to elements of the model. -}
-data Blame = TheoryBlame Id Sub
+data Blame = TheoryBlame Id Sub | UserBlame Observation
            deriving (Show, Eq, Ord)
 
 

@@ -100,7 +100,7 @@ augment cfg thy (b, p, t) obs = do
   let seqMap = (buildSequentMap $ fromSequent <$> thy') :: SequentMap ChaseSequentType
   let (b', p', t') = augmentGS cfg seqMap (b, p, t) obs
   let newSeq = ObservationSequent [] [[obs]]
-  let t'' = storeSequent t' newSeq
+  let t'' = storeSequent t' (UserBlame obs, newSeq)
   (b', p', t'')
 --
 --
@@ -212,6 +212,22 @@ nameFuncSub obvs fn elm = do
 ----------------------
 -- BLAME PROVENANCE --
 ----------------------
+--
+--
+getObservationBlame :: ObservationProvs -> Model -> Observation -> Maybe Blame
+getObservationBlame prov mdl obv@(Obs (Rel sym ts)) = do
+  let eqelms = (map (getEqualElements mdl) ts)
+  let possibilities = combination eqelms
+  let obvs = map (\ts->(Obs (Rel sym (map(\t->(Elem t))ts)))) possibilities
+  let blames = catMaybes $ map (\o->(Map.lookup o prov)) obvs
+  case blames of
+    [] -> Nothing
+    blame:bs -> Just blame
+getObservationBlame _ _ _ = Nothing
+--
+--
+getBlamedSequent :: SATTheoryType -> Blame -> Maybe ObservationSequent
+getBlamedSequent satthy blame = blameSequent satthy blame
 --
 --
 deriveBlameProv :: Theory -> ProvInfo -> Model -> BlameProv

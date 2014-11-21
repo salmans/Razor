@@ -20,6 +20,7 @@ import API.UserSyntax
 import REPL.Display
 import Common.Model
 import Common.Provenance
+import Common.Observation
 import Data.Maybe
 import Data.List
 import Syntax.GeometricUtils 
@@ -103,8 +104,13 @@ printJustification :: Formula -> Theory -> UBlame -> InputT IO()
 printJustification atom thy justification = do 
   lift $ prettyPrint 0 foutput ("justification of "++(show atom)++"\n")
   case justification of
-    Left (UErr err) -> (lift $ prettyPrint 0 ferror (err++"\n"))
-    Right reps -> printDiff (thy,(replaceTheory thy reps)) ((show atom),0,True)
+    Left (UErr err) -> lift $ prettyPrint 0 ferror (err++"\n")
+    Right ((TheoryBlame i sub), blamed) -> lift $ printDiffNew (thy !! i) blamed ((show atom),0)
+
+printDiffNew :: Sequent -> ObservationSequent -> (String, Int) -> IO()
+printDiffNew original diff format@(highlight, tabs) = do
+  prettyPrint tabs finput ("thy rule: "++(show original)++"\n")
+  prettyHighlight tabs highlight ("instance: "++(show diff)++"\n")
 
 printDiff :: (Theory, [Maybe Sequent]) -> (String, Int, Bool) -> InputT IO()
 printDiff (thy,dthy) format@(highlight,tabs,printall) = printDiffPlus (zip thy dthy) format
