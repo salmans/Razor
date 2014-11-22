@@ -121,6 +121,12 @@ nextModel it = (satSolve it)
 ----------------
 --
 --
+getBlamedSequent :: SATTheoryType -> Blame -> Maybe Sequent
+getBlamedSequent satthy blame = case blameSequent satthy blame of
+  Nothing -> Nothing
+  Just oseq -> Just $ toSequent oseq
+--
+--
 getElementBlameTree :: Theory -> ElementProvs -> Model -> [Element] -> Maybe (Blame, [Element])
 getElementBlameTree thy prov mdl eqelms = do
   let elm = head eqelms
@@ -161,126 +167,6 @@ getObservationBlame prov mdl obv@(Obs (Rel sym ts)) = do
 getObservationBlame _ _ _ = Nothing
 --
 --
-getBlamedSequent :: SATTheoryType -> Blame -> Maybe Sequent
-getBlamedSequent satthy blame = case blameSequent satthy blame of
-  Nothing -> Nothing
-  Just oseq -> Just $ toSequent oseq
-
-
-
-----------------------
--- MODEL PROVENANCE --
-----------------------
-data ModelProv = ModelProv { nameProv :: NameProv, blameProv :: BlameProv }
-
-type NameProv = Map.Map Element (TheorySub, [Element])
-type BlameProv = Map.Map [Atom] TheorySub
-type TheorySub = Map.Map Int RuleSub
-data RuleSub = RuleSub { existSub :: ExistSub
-                        ,freeSub :: FreeSub
-                        ,funcSub :: FuncSub}
-type FreeSub = Sub
-type ExistSub = Map.Map (Int,Variable) Term
-type FuncSub = Map.Map (FnSym, [Term]) Term
---
---
-deriveModelProv :: Theory -> ProvInfo -> Model -> ModelProv
-deriveModelProv thy prov mdl = ModelProv (deriveNameProvs thy (elementProvs prov) mdl) (deriveBlameProv thy prov mdl)
---
---
-emptyModelProv :: ModelProv
-emptyModelProv = ModelProv Map.empty Map.empty
-
----------------------
--- NAME PROVENANCE --
----------------------
---
---
-deriveNameProvs :: Theory -> ElementProvs -> Model -> NameProv
-deriveNameProvs thy prov mdl = Map.fromList $ map (\e@(actual, equal)->(actual, (nameTheorySub (preprocess thy) prov mdl e))) (Map.toList (modelElements mdl))
---
---
-nameTheorySub :: Theory -> ElementProvs -> Model -> (Element, [Element]) -> (TheorySub, [Element])
-nameTheorySub thy prov mdl (elm, eqelms) = do
-  case (getSkolemTree prov mdl elm) of
-    Nothing -> (Map.empty, [])
-    Just actual@(e, f, r) -> do
-      let equal = catMaybes $ map (getSkolemTree prov mdl) (delete elm eqelms)
-      let trees = actual:equal
-      let irules = map (\r->((fromMaybe 0 (elemIndex r thy)), r)) thy
-      (Map.fromList (concatMap (\(i, r)->case nameRuleSub r mdl trees of
-        Nothing -> []
-        Just rsub -> [(i, rsub)]) irules), r)
---
---
-nameRuleSub :: Sequent -> Model -> [(Element, FnSym, [Element])] -> Maybe RuleSub
-nameRuleSub rule@(Sequent bd hd) mdl trees = do
-  let exists = headExistentials hd 0
-  case (catMaybes (map (\(e,f,r)->
-    case nameExistSub exists f e of
-      Nothing -> Nothing
-      Just esub -> Just (esub, nameFreeSub rule r)) trees)) of
-    [] -> Nothing
-    subs -> do
-      let (esubs, fsubs) = unzip subs
-      let fnsubs = catMaybes $ (map (\(e,f,r)->nameFuncSub (modelObservations mdl) f e) trees)
-      Just $ RuleSub (Map.fromList esubs) (Map.fromList (concat fsubs)) (Map.fromList fnsubs)
---
---
-nameExistSub :: [(FnSym, Int, Variable)] -> FnSym -> Element -> Maybe ((Int,Variable), Term)
-nameExistSub exists fn elm = do
-  let matches = filter (\(f, i, v)->(f==fn)) exists
-  case matches of
-    [] -> Nothing
-    match -> do
-      let (f, i, v) = head match
-      Just ((i, v), (Elem elm))
---
---
-nameFreeSub :: Sequent -> [Element] -> [(Variable, Term)]
-nameFreeSub rule elms = do
-  let frees = freeVars rule
-  let terms = map (\e->(Elem e)) elms
-  (zip frees terms)
---
---
-nameFuncSub :: [Observation] -> FnSym -> Element -> Maybe ((FnSym, [Term]), Term)
-nameFuncSub obvs fn elm = do
-  case (filter (\(Obs o)-> 
-    case o of
-      (Rel _ _) -> False
-      (FnRel fnsym _) -> (fnsym==fn)) obvs) of
-    [] -> Nothing
-    match -> do
-      case (head match) of
-        (Obs (FnRel fnsym ts)) -> case (length ts) of
-          0 -> Nothing
-          1 -> Just $ ((fnsym, (tail ts)), (Elem elm))
-          _ -> Just $ ((fnsym, (init ts)), (Elem elm))
-        _ -> Nothing
-
-----------------------
--- BLAME PROVENANCE --
-----------------------
---
---
-deriveBlameProv :: Theory -> ProvInfo -> Model -> BlameProv
-deriveBlameProv thy prov mdl = do
-  let theoryBlames = catMaybes (map (\obv->(possibleAtoms (observationProvs prov) mdl obv)) (modelObservations mdl))
-  Map.fromList $ map (\(terms, thyblame, atoms)->(atoms, (blameTheorySub (preprocess thy) (elementProvs prov) mdl terms thyblame))) theoryBlames
---
---
-possibleAtoms :: ObservationProvs -> Model -> Observation -> Maybe ([Term], Blame, [Atom])
-possibleAtoms prov mdl obv@(Obs (Rel sym ts)) = case (Map.lookup obv prov) of
-  Just thyblame -> do
-    let eqelms = (map (getEqualElements mdl) ts)
-    let possibilities = combination eqelms
-    let atms = map (\ts->(Rel sym (map(\t->(Elem t))ts))) possibilities
-    Just (ts, thyblame, atms)
-  Nothing -> Nothing
-possibleAtoms _ _ _ = Nothing
---
---
 combination :: [[a]] -> [[a]]
 combination [l] = do
   choose <- l
@@ -290,47 +176,6 @@ combination (l:ls) = do
   rest <- (combination ls)
   return (choose : rest)
 combination [] = []
---
---
-blameTheorySub :: Theory -> ElementProvs -> Model -> [Term] -> Blame -> TheorySub
-blameTheorySub thy prov mdl terms (TheoryBlame i sub) = do
-  let eqelms = map (getEqualElements mdl) terms
-  let elms = map (\es->((head es), (tail es))) eqelms
-  let thysubs = map (nameTheorySub thy prov mdl) elms
-  let rulesubs = catMaybes $ map (\(thysub,_)->(Map.lookup (i-1) thysub)) thysubs
-  let namerulesub = (RuleSub Map.empty sub Map.empty)
-  Map.fromList $ [((i-1), (concatRuleSubs (namerulesub:rulesubs)))]
-
-------------------------
--- THEORY REPLACEMENT --
-------------------------
-replaceExists :: Formula -> Int -> ExistSub -> Formula
-replaceExists (And f1 f2) i es           = (And (replaceExists f1 i es) (replaceExists f2 i es))
-replaceExists (Or f1 f2) i es            = (Or (replaceExists f1 i es) (replaceExists f2 (i+1) es))
-replaceExists (Exists fn v f) i es  = case (Map.lookup (i,v) es) of
-  Nothing -> (Exists fn v (replaceExists f i es))
-  Just t -> substitute (Map.fromList [(v, t)]) f
-replaceExists fml _ _                    = fml
---
---
-replaceFrees :: Formula -> FreeSub -> Formula
-replaceFrees fml fs = substitute fs fml
---
---
-replaceFuncs :: Formula -> FuncSub -> Formula
-replaceFuncs (And f1 f2) fns           = (And (replaceFuncs f1 fns) (replaceFuncs f2 fns))
-replaceFuncs (Or f1 f2) fns            = (Or (replaceFuncs f1 fns) (replaceFuncs f2 fns))
-replaceFuncs (Exists fn v f) fns       = (Exists fn v (replaceFuncs f fns))
-replaceFuncs atm@(Atm (Rel relsym terms)) fns = (Atm (Rel "" [substituteFunctions fns (Fn relsym terms)]))
-replaceFuncs atm@(Atm (FnRel fnsym terms)) fns = (Atm (FnRel "" [substituteFunctions fns (Fn fnsym terms)]))
-replaceFuncs fml _ = fml
---
---
-substituteFunctions :: FuncSub -> Term -> Term
-substituteFunctions fns term@(Fn name terms) = case (Map.lookup (name, terms) fns) of
-  Nothing -> (Fn name (map (substituteFunctions fns) terms))
-  Just t -> t
-substituteFunctions fns term = term
 
 -------------------
 -- OTHER HELPERS --
@@ -388,15 +233,3 @@ getObservation (Atm atm@(Rel rsym terms)) = do
       _ -> Nothing
     else Nothing
 getObservation _ = Nothing
---
---
-concatRuleSubs :: [RuleSub] -> RuleSub
-concatRuleSubs [] = (RuleSub Map.empty Map.empty Map.empty)
-concatRuleSubs [r] = r
-concatRuleSubs ((RuleSub es1 fs1 fns1):rs) = do
-  let (RuleSub es2 fs2 fns2) = concatRuleSubs rs
-  let es' = Map.fromList $ (Map.toList es1)++(Map.toList es2)
-  let fs' = Map.fromList $ (Map.toList fs1)++(Map.toList fs2)
-  let fns' = Map.fromList $ (Map.toList fns1)++(Map.toList fns2)
-  (RuleSub es' fs' fns')
-  

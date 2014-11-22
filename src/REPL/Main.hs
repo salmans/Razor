@@ -34,17 +34,17 @@ main = do
   startState <- getStartState config
   case startState of
     Left (UErr err) -> error err
-    Right state@(UState (cfg, thy) (b,p,t) (stream, mdl) modelProv) -> do
+    Right state@(UState (cfg, thy) (b,p,t) (stream, mdl)) -> do
       (prettyPrint 0 flow (show mdl))
       runInputT defaultSettings (loop state)
   -- exit display
   displayExit
 
 loop :: UState -> InputT IO ()
-loop state@(UState (cfg, thy) (b,p,t) (stream, mdl) modelProv) = do
+loop state@(UState (cfg, thy) (b,p,t) (stream, mdl)) = do
   -- possible REPL loops
   let sameLoop = loop state
-  let newLoop state'@(UState _ _ (stream', mdl') _) = (lift $ prettyPrint 0 flow (show mdl')) >> loop state'
+  let newLoop state'@(UState _ _ (stream', mdl')) = (lift $ prettyPrint 0 flow (show mdl')) >> loop state'
   -- get input
   minput <- getInputLine "% "
   -- parse input into a command and act depending on the case
