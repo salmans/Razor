@@ -127,20 +127,16 @@ getBlamedSequent satthy blame = case blameSequent satthy blame of
   Just oseq -> Just $ toSequent oseq
 --
 --
-getElementBlameTree :: Theory -> ElementProvs -> Model -> [Element] -> Maybe (Blame, [Element])
-getElementBlameTree thy prov mdl eqelms = do
+getElementBlames :: Theory -> ElementProvs -> Model -> [Element] -> [(Blame, [Element])]
+getElementBlames thy prov mdl eqelms = do
   let elm = head eqelms
-  case getSkolemTree prov mdl elm of
-    Nothing -> Nothing
-    Just actual@(e, f, r) -> do
-      --TODO equality handling
-      --let equal = catMaybes $ map (getSkolemTree prov mdl) (delete elm eqelms)
-      --let trees = actual:equal
+  case catMaybes $ map (getSkolemTree prov mdl) eqelms of
+    [] -> []
+    trees -> do
+      tree@(e, f, r) <- trees
       let irules = map (\r->((fromMaybe 0 (elemIndex r (preprocess thy)))+1, r)) (preprocess thy)
-      let blames = catMaybes $ map (\rule->getElementBlame rule mdl actual) irules
-      case blames of
-        [] -> Nothing
-        blame:bs -> Just (blame, r)
+      let blames = catMaybes $ map (\rule->getElementBlame rule mdl tree) irules
+      return ((head blames), r)
 --
 --
 getElementBlame :: (Id, Sequent) -> Model -> (Element, FnSym, [Element]) -> Maybe Blame

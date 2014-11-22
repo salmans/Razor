@@ -66,12 +66,14 @@ loop state@(UState (cfg, thy) (b,p,t) (stream, mdl)) = do
         -- explanation
         Ask question -> case question of
           Name isall isrec term -> do
-            let origins = getOrigin state (isall,isrec) term
-            printOrigin thy (isall, 0) origins
+            let origins = getOrigin state isrec term
+            if isall
+              then lift $ mapM_ (printOrigin thy 0) origins
+              else lift $ printOrigin thy 0 (head origins)
             sameLoop
           Blame atom -> do
             let justification = getJustification state atom
-            printJustification atom thy justification
+            lift $ printJustification atom thy justification
             sameLoop
         -- others
         Other utility -> case utility of
@@ -79,40 +81,27 @@ loop state@(UState (cfg, thy) (b,p,t) (stream, mdl)) = do
           Exit -> (lift $ prettyPrint 0 foutput "closing...\n") >> return ()
         SyntaxError err -> (lift $ prettyPrint 0 ferror (err++"\n")) >> sameLoop
 
-printOrigin :: Theory -> (Bool, Int) -> UOrigin -> InputT IO ()
-printOrigin thy mods@(isall, tabs) (UOriginLeaf term origin) = do
-  lift $ prettyPrint tabs foutput ("origin of "++(show term)++"\n")
-  case origin of
-    Left (UErr err) -> (lift $ prettyPrint tabs ferror (err++"\n"))
-    Right ((TheoryBlame i sub), blamed) -> lift $ printDiffNew (thy !! (i-1)) blamed ((show term),tabs)
-printOrigin thy mods@(isall, tabs) (UOriginNode term origin depends) = do
-  printOrigin thy mods (UOriginLeaf term origin)
-  mapM_ (printOrigin thy (isall, tabs+1)) depends
+printOrigin :: Theory -> Int -> UOrigin -> IO ()
+printOrigin thy tabs (UOriginLeaf term origin) = do
+  prettyPrint tabs foutput ("origin of "++(show term)++"\n")
+  printBlame thy origin tabs (show term)
+printOrigin thy tabs (UOriginNode term origin depends) = do
+  printOrigin thy tabs (UOriginLeaf term origin)
+  mapM_ (printOrigin thy (tabs+1)) depends
 
-printJustification :: Formula -> Theory -> UBlame -> InputT IO()
+printJustification :: Formula -> Theory -> UBlame -> IO()
 printJustification atom thy justification = do 
-  lift $ prettyPrint 0 foutput ("justification of "++(show atom)++"\n")
-  case justification of
-    Left (UErr err) -> lift $ prettyPrint 0 ferror (err++"\n")
-    Right ((TheoryBlame i sub), blamed) -> lift $ printDiffNew (thy !! (i-1)) blamed ((show atom),0)
+  prettyPrint 0 foutput ("justification of "++(show atom)++"\n")
+  printBlame thy justification 0 (show atom)
+    
 
-printDiffNew :: Sequent -> Sequent -> (String, Int) -> IO()
-printDiffNew original diff format@(highlight, tabs) = do
+printBlame :: Theory -> UBlame -> Int -> String -> IO()
+printBlame thy blame tabs highlight = case blame of
+  Left (UErr err) -> prettyPrint tabs ferror (err++"\n")
+  Right ((TheoryBlame i sub), blamed) -> printDiff (thy !! (i-1)) blamed (highlight,tabs)
+  Right ((UserBlame augmentation), blamed) -> prettyPrint tabs finput ("user augmentation: "++(show augmentation)++"\n")
+
+printDiff :: Sequent -> Sequent -> (String, Int) -> IO()
+printDiff original diff format@(highlight, tabs) = do
   prettyPrint tabs finput ("thy rule: "++(show original)++"\n")
   prettyHighlight tabs highlight ("instance: "++(show diff)++"\n")
-
-printDiff :: (Theory, [Maybe Sequent]) -> (String, Int, Bool) -> InputT IO()
-printDiff (thy,dthy) format@(highlight,tabs,printall) = printDiffPlus (zip thy dthy) format
-printDiffPlus :: [(Sequent, Maybe Sequent)] -> (String, Int, Bool) -> InputT IO()
-printDiffPlus [] _ = return ()
-printDiffPlus diff format@(highlight,tabs,printall) = do
-  let (s, ms) = head diff
-  let keepprinting = printDiffPlus (tail diff) format
-  case ms of
-    Nothing -> keepprinting
-    Just ds -> do
-      lift $ prettyPrint tabs finput ("thy rule: "++(show s)++"\n")
-      lift $ prettyHighlight tabs highlight ("instance: "++(show ds)++"\n")
-      if printall
-        then keepprinting
-        else return ()

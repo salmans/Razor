@@ -60,21 +60,22 @@ getNextModel state@(UState (cfg, thy) (b,p,t) (stream, mdl)) = case (nextModel s
   (Nothing, stream') -> Left (UErr "no more minimal models")
   (Just mdl', stream') -> Right (UState (cfg,thy) (b,p,t) (stream',mdl'))
 
-getOrigin :: UState -> (Bool, Bool) -> Term -> UOrigin
-getOrigin state@(UState (cfg, thy) (b,p,t) (stream, mdl)) mods@(isall, isrec) term = do
+getOrigin :: UState -> Bool -> Term -> [UOrigin]
+getOrigin state@(UState (cfg, thy) (b,p,t) (stream, mdl)) isrec term = do
   case name of
-    Left err -> UOriginLeaf term (Left err)
-    Right (origin, nextterms) -> do
+    Left err -> [UOriginLeaf term (Left err)]
+    Right origins -> do
+      (origin, nextelms) <- origins
       case isrec of
-        False -> UOriginLeaf term (blamed origin)
-        True -> UOriginNode term (blamed origin) (map (getOrigin state mods) nextterms)
+        False -> return $ UOriginLeaf term (blamed origin)
+        True -> return $ UOriginNode term (blamed origin) (concatMap (\e->(getOrigin state isrec (Elem e))) nextelms)
   where 
     name = case getEqualElements mdl term of
       [] -> Left (UErr ("element "++(show term)++" not in the current model"))
       eqelms -> do
-        case getElementBlameTree thy (elementProvs p) mdl eqelms of
-          Nothing -> Left (UErr ("no provenance information for element "++(show term)++"\n"))
-          Just (blame, nextelms) -> Right (blame, (map Elem nextelms))
+        case getElementBlames thy (elementProvs p) mdl eqelms of
+          [] -> Left (UErr ("no provenance information for element "++(show term)++"\n"))
+          origins -> Right origins
     blamed origin = case getBlamedSequent t origin of
       Nothing -> Left $ UErr $ "unable to find blamed theory sequent from provenance info"
       Just bseq -> Right (origin, bseq)
