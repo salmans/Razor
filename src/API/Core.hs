@@ -137,21 +137,23 @@ getElementBlames thy prov mdl eqelms = do
     [] -> []
     trees -> do
       tree@(e, f, r) <- trees
-      let irules = map (\r->((fromMaybe 0 (elemIndex r (preprocess thy)))+1, r)) (preprocess thy)
+      let irules = map (\(r', r)->((fromMaybe 0 (elemIndex r' (preprocess thy)))+1, r', r)) $ zip (preprocess thy) thy
       let blames = catMaybes $ map (\rule->getElementBlame rule mdl tree) irules
       return ((head blames), r)
 --
 --
-getElementBlame :: (Id, Sequent) -> Model -> (Element, FnSym, [Element]) -> Maybe Blame
-getElementBlame (rid, rule@(Sequent bd hd)) mdl (e, f, r) = do
-  let exists = headExistentials hd 0
+getElementBlame :: (Id, Sequent, Sequent) -> Model -> (Element, FnSym, [Element]) -> Maybe Blame
+getElementBlame (rid, (Sequent bd' hd'), (Sequent bd hd)) mdl (e, f, r) = do
+  let exists = headExistentials hd' 0
   let ruleskolems = map (\(name, _, _)->name) exists
   case elem f ruleskolems of
     False -> Nothing
     True -> do
-      let frees = freeVars rule
+      let freevars = freeVars bd
+      let freefns = freeVars bd' \\ freevars
       let terms = map (\e->(Elem e)) r
-      Just $ TheoryBlame rid (Map.fromList $ zip frees terms)
+      let (varterms, fnterms) = splitAt (length freevars) terms
+      Just $ TheoryBlame rid $ Map.fromList $ (zip freevars varterms) ++ (zip freefns fnterms)
 --
 --
 getObservationBlame :: ObservationProvs -> Model -> Observation -> Maybe Blame
