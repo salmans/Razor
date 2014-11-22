@@ -1,9 +1,9 @@
 {- Razor
-   Module      : Chase.HerbrandBase.RelAlg.Test.TTranslate
+   Module      : Chase.PossibleFacts.RelAlg.Test.TTranslate
    Description : Unit tests for Translate
    Maintainer  : Salman Saghafi -}
 
-module Chase.HerbrandBase.RelAlg.Test.TTranslate where
+module Chase.PossibleFacts.RelAlg.Test.TTranslate where
 
 -- Standard
 import qualified Data.Map as Map
@@ -14,7 +14,7 @@ import Test.HUnit.Text (runTestTT)
 
 -- Test
 import Syntax.Test.TestData -- import test data for formulas
-import Chase.HerbrandBase.RelAlg.Test.TestData
+import Chase.PossibleFacts.RelAlg.Test.TestData
 
 -- Common
 import Common.Provenance
@@ -29,10 +29,10 @@ import Syntax.Term (Variable (..), Term (..))
 import Chase.Data (PushM, evalPushM, evalPullM)
 
 -- RelAlg
-import Chase.HerbrandBase.RelAlg.Lang
-import qualified Chase.HerbrandBase.RelAlg.DB as DB
-import Chase.HerbrandBase.RelAlg.ITranslate
-import Chase.HerbrandBase.RelAlg.HerbrandBase
+import Chase.PossibleFacts.RelAlg.Lang
+import qualified Chase.PossibleFacts.RelAlg.DB as DB
+import Chase.PossibleFacts.RelAlg.ITranslate
+import Chase.PossibleFacts.RelAlg.PossibleFacts
 
 -- Tools
 import Tools.Config (Config (..), defaultConfig)

@@ -6,11 +6,11 @@
 {-# LANGUAGE DoAndIfThenElse #-}
 
 {- Razor
-   Module      : Chase.HerbrandBase.RelAlg.IHerbrandBase
-   Description : Implements a HerbrandBase structure based on relational algebra
+   Module      : Chase.PossibleFacts.RelAlg.IPossibleFacts
+   Description : Implements a PossibleFacts structure based on relational algebra
    Maintainer  : Salman Saghafi -}
 
-module Chase.HerbrandBase.RelAlg.IHerbrandBase where
+module Chase.PossibleFacts.RelAlg.IPossibleFacts where
 
 --Standard
 import qualified Data.Map as Map
@@ -39,9 +39,9 @@ import Common.Provenance
 import Chase.Data
 
 -- RelAlg
-import qualified Chase.HerbrandBase.RelAlg.DB as DB
-import Chase.HerbrandBase.RelAlg.Lang
-import Chase.HerbrandBase.RelAlg.Translate 
+import qualified Chase.PossibleFacts.RelAlg.DB as DB
+import Chase.PossibleFacts.RelAlg.Lang
+import Chase.PossibleFacts.RelAlg.Translate 
     ( bodyRelExp, headRelExp, delta, evaluateRelExp, tupleTransformer
     , insertTuples )
 
@@ -51,7 +51,7 @@ import SAT.Data (SATAtom (..))
 -- Tools
 import Tools.Config (Config (..))
 
-unitName                 = "Chase.HerbrandSet.RelAlg.HerbrandBase"
+unitName                 = "Chase.PossibleFacts.RelAlg.PossibleFacts"
 error_TblEmptyInBody     = "TblEmpty cannot appear in the body of a sequent"
 error_TblFullInHead      = "cannot compare to TblFull"
 error_TblEmptyInHead     = "cannot compare to TblEmpty"
@@ -95,7 +95,7 @@ instance Show RelSequent where
     show (RelSequent bdy hd _ _ _ _ _) = 
         (show bdy) ++ " => " ++ (show (fst <$> hd))
 
-{-| The result of evaluating a 'RelSequent' in a 'RelHerbrandBase' is of type 
+{-| The result of evaluating a 'RelSequent' in a 'RelPossibleFacts' is of type 
   'RelResultSet'. 
   [@allResultTuples@] contains all tuples that make the body of the sequent true
   in the base. This table is used for constructing 'ObservationSequent's. 
@@ -112,7 +112,7 @@ data RelResultSet = RelResultSet
     } deriving (Show, Eq)
 
 {- RelSequent acts like a sequent -}
-instance HerbrandBase Database where
+instance PossibleFacts Database where
     emptyBase              = emptyDatabase
     emptyBaseWithConstants = emptyDatabaseWithConstants
     nullBase               = nullDatabase
@@ -130,7 +130,7 @@ instance SequentLike RelSequent where
     skolemFunctions  = relSequentExists
     sequentConstants = relSequentConstants
 
-instance HerbrandImpl Database RelSequent RelResultSet where
+instance ChaseImpl Database RelSequent RelResultSet where
     relevant               = relevantRelSequent
     pull                   = evaluateRelSequent
     push                   = insertRelSequent
@@ -138,7 +138,7 @@ instance HerbrandImpl Database RelSequent RelResultSet where
 
 
 -- the database as the relational Herbranad base:
-type RelHerbrandBase = Database
+type RelPossibleFacts = Database
 
 {- Builds an instance of 'RelSequent' from a 'Sequent'. -}
 buildRelSequent :: Sequent -> Maybe RelSequent

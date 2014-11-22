@@ -1,11 +1,11 @@
 {-| 
   Razor
-  Module      : Chase.HerbrandBase.RelAlg.Lang
+  Module      : Chase.PossibleFacts.RelAlg.Lang
   Description : Provides the language of relational algebra for evaluating 
   sequents in HerbandBase in a run of the Chase.
   Maintainer  : Salman Saghafi
 -}
-module Chase.HerbrandBase.RelAlg.Lang 
+module Chase.PossibleFacts.RelAlg.Lang 
     ( TableRef (..), Header, RelExp(..), Tup
     , Column, TupleD (..), Tuple (..), TuplePair (..), TupleSub (..)
     , TableD, Table, TablePair, TableSub, Database (..)
@@ -24,4 +24,4 @@ module Chase.HerbrandBase.RelAlg.Lang
     , deleteColumnProjector, similarColumnsSelector, columnValuesSelector
     , mergeJoinTables ) where
 
-import Chase.HerbrandBase.RelAlg.ILang
+import Chase.PossibleFacts.RelAlg.ILang

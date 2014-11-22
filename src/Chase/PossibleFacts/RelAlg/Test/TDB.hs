@@ -1,9 +1,9 @@
 {- Razor
-   Module      : Chase.HerbrandBase.RelAlg.Test.TDB
+   Module      : Chase.PossibleFacts.RelAlg.Test.TDB
    Description : Unit tests for database operations
    Maintainer  : Salman Saghafi -}
 
-module Chase.HerbrandBase.RelAlg.Test.TDB where
+module Chase.PossibleFacts.RelAlg.Test.TDB where
 
 -- Standard
 import Control.Applicative
@@ -13,14 +13,14 @@ import Test.HUnit
 import Test.HUnit.Text (runTestTT)
 
 -- Test
-import Chase.HerbrandBase.RelAlg.Test.TestData
+import Chase.PossibleFacts.RelAlg.Test.TestData
 
 -- Syntax
 import Syntax.Term (Variable (..))
 
 -- RelAlg
 import qualified Tools.ExtendedSet as ExSet
-import Chase.HerbrandBase.RelAlg.IDB
+import Chase.PossibleFacts.RelAlg.IDB
 
 
 test_emptySet =

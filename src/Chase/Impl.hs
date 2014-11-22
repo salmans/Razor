@@ -8,7 +8,7 @@
   of the Chase for constructing the set of possible facts.
   Maintainer  : Salman Saghafi -}
 
-module Chase.Impl ( ChaseSequentType, ChaseHerbrandBaseType 
+module Chase.Impl ( ChaseSequentType, ChasePossibleFactsType 
                   , chase ) where
 
 
@@ -27,7 +27,7 @@ import Chase.Data
 -- <><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
 -- Uncomment to select the implementation:
 
-import Chase.HerbrandBase.RelAlg.HerbrandBase
+import Chase.PossibleFacts.RelAlg.PossibleFacts
 -- <><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
 import qualified Chase.Chase (chase)
 
@@ -42,8 +42,8 @@ import Tools.Trace
 
 
 {-| Gives access to a particular implementation of the chase based on the 
-  selected HerbrandBase implementation. -}
-chase :: Config -> Theory -> ( ChaseHerbrandBaseType
+  selected PossibleFacts implementation. -}
+chase :: Config -> Theory -> ( ChasePossibleFactsType
                              , ProvInfo
                              , SATTheoryType
                              , Int )
@@ -55,8 +55,8 @@ chase cfg thy = let thy'   = preprocess thy
 
 -- TEMPORARY: THIS IS HOW AUGMENTATION WORKS!
 -- {-| Gives access to a particular implementation of the chase based on the 
---   selected HerbrandBase implementation. -}
--- chase :: Config -> Theory -> ( ChaseHerbrandBaseType
+--   selected PossibleFacts implementation. -}
+-- chase :: Config -> Theory -> ( ChasePossibleFactsType
 --                              , ProvInfo
 --                              , SATTheoryType )
 -- chase cfg thy = 

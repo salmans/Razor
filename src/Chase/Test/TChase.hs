@@ -21,12 +21,12 @@ import Syntax.GeometricUtils (parseSequent, preprocess, Element)
 
 -- Common
 import Common.Provenance
-import Common.Data (HerbrandBase (..), SequentLike (..), SequentMap (..))
+import Common.Data (PossibleFacts (..), SequentLike (..), SequentMap (..))
 
 -- Chase
 import Chase.IChase
 import Chase.Data
-import Chase.HerbrandBase.RelAlg.HerbrandBase
+import Chase.PossibleFacts.RelAlg.PossibleFacts
 
 -- SAT
 import SAT.Data
@@ -47,10 +47,10 @@ relationalMap :: [String] -> SequentMap RelSequent
 relationalMap thy = let thy'  = parseSequent <$> thy
                     in  sequentMap thy'
 
-relationalChase' :: [String] -> RelHerbrandBase
+relationalChase' :: [String] -> RelPossibleFacts
 relationalChase' thy =  chase' defaultConfig (relationalMap thy)
 
-relationalChase :: [String] -> (RelHerbrandBase, ProvInfo, PropTheory)
+relationalChase :: [String] -> (RelPossibleFacts, ProvInfo, PropTheory)
 relationalChase thy =  chase defaultConfig (relationalMap thy)
 
 test_relationalChase' = 

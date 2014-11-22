@@ -1,10 +1,10 @@
 {-| 
   Razor
-  Module      : Chase.HerbrandBase.RelAlg.DB
+  Module      : Chase.PossibleFacts.RelAlg.DB
   Description : Provides an interface for interacting with the database
   Maintainer  : Salman Saghafi
 -}
-module Chase.HerbrandBase.RelAlg.DB ( Set(..)
+module Chase.PossibleFacts.RelAlg.DB ( Set(..)
                                     , Select(..), Project(..)
                                     , select, project, join
                                     , fromList, toList
@@ -14,6 +14,6 @@ module Chase.HerbrandBase.RelAlg.DB ( Set(..)
                                     , union, unions, difference ) where
 
 {- Select DB implementation: -}
--- import Chase.HerbrandBase.RelAlg.IListDB as IDB -- based on Haskell lists
--- import Chase.HerbrandBase.RelAlg.ISetDB as IDB -- based on Data.Set
-import Chase.HerbrandBase.RelAlg.IHashSetDB as IDB -- based on Data.HashSet
+-- import Chase.PossibleFacts.RelAlg.IListDB as IDB -- based on Haskell lists
+-- import Chase.PossibleFacts.RelAlg.ISetDB as IDB -- based on Data.Set
+import Chase.PossibleFacts.RelAlg.IHashSetDB as IDB -- based on Data.HashSet

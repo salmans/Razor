@@ -88,11 +88,11 @@ parseTheory config input = do
         return $ Just sequents
 -- In: configuration, theory
 -- Out: G*, which consists of ground facts, provenance info, and a propositional theory
-generateGS :: Config -> Theory -> (ChaseHerbrandBaseType, ProvInfo, SATTheoryType, Int)
+generateGS :: Config -> Theory -> (ChasePossibleFactsType, ProvInfo, SATTheoryType, Int)
 generateGS config theory = chase config theory
 -- In: G*, new observation
 -- Out: an augmented G* with the new observation
-augment :: Config -> Theory -> (ChaseHerbrandBaseType, ProvInfo, SATTheoryType, Int) -> Observation -> (ChaseHerbrandBaseType, ProvInfo, SATTheoryType, Int)
+augment :: Config -> Theory -> (ChasePossibleFactsType, ProvInfo, SATTheoryType, Int) -> Observation -> (ChasePossibleFactsType, ProvInfo, SATTheoryType, Int)
 augment cfg thy (b, p, t, c) obs = do
   let thy' = preprocess thy
   let seqMap = (buildSequentMap $ fromJust <$> fromSequent <$> thy') :: SequentMap ChaseSequentType
@@ -105,7 +105,7 @@ augment cfg thy (b, p, t, c) obs = do
   (b', p'', t'', c')
 --
 --
-augmentBase :: Config -> SequentMap ChaseSequentType -> (ChaseHerbrandBaseType, ProvInfo, SATTheoryType, Int) -> Observation -> (ChaseHerbrandBaseType, ProvInfo, SATTheoryType, Int)
+augmentBase :: Config -> SequentMap ChaseSequentType -> (ChasePossibleFactsType, ProvInfo, SATTheoryType, Int) -> Observation -> (ChasePossibleFactsType, ProvInfo, SATTheoryType, Int)
 augmentBase _ _ gs eqobs@(Obs (Rel "=" terms)) = gs
 augmentBase cfg seqMap (b, p, t, c) obs@(Obs (Rel rsym terms)) = do
   let d = addToBase obs emptyBase

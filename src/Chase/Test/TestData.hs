@@ -20,9 +20,9 @@ import Common.Provenance (ProvInfo (ProvInfo))
 
 -- Chase
 import Chase.Data
-import Chase.HerbrandBase.RelAlg.Lang 
+import Chase.PossibleFacts.RelAlg.Lang 
     (emptyTable, tableFromList, databaseFromList)
-import Chase.HerbrandBase.RelAlg.HerbrandBase (RelSequent)
+import Chase.PossibleFacts.RelAlg.PossibleFacts (RelSequent)
 
 -- SAT
 import SAT.Data
@@ -31,7 +31,7 @@ import SAT.Data
 import qualified Tools.ExtendedSet as ExSet
 
 -- Test
-import Chase.HerbrandBase.RelAlg.Test.TestData
+import Chase.PossibleFacts.RelAlg.Test.TestData
 import Common.Test.TestData
 
 -- Helpers

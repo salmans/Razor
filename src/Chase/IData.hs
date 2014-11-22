@@ -43,19 +43,19 @@ import Tools.Counter (Counter, CounterT)
 import Tools.Config (Config, ConfigMonad)
 
 
-{-| HerbrandBase is the class of types that can act as a container for facts
+{-| PossibleFacts is the class of types that can act as a container for facts
   in some implementation of the Chase, e.g. a database or a term rewrite system.
   
-  [@emptyBase@] returns an empty 'HerbrandBase'.
-  [@emptyBaseWithConstants@] creates an empty 'HerbrandBase' with a list of
+  [@emptyBase@] returns an empty 'PossibleFacts'.
+  [@emptyBaseWithConstants@] creates an empty 'PossibleFacts' with a list of
   constants (and their corresponding elements) in them.
-  [@nullBase@] returns true if the input 'HerbrandBase' instance is empty.
-  [@unionBases@] unions to instances of type 'HerbrandBase'
+  [@nullBase@] returns true if the input 'PossibleFacts' instance is empty.
+  [@unionBases@] unions to instances of type 'PossibleFacts'
   [@baseSize@] returns the size of a 'HebrandBase' instance.
   [@addToBase@] adds new information of type 'Observation' to the base. The 
   function is primarily used for augmentation purposes.
  -}
-class Show a => HerbrandBase a where
+class Show a => PossibleFacts a where
     emptyBase              :: a
     emptyBaseWithConstants :: [Constant] -> a
     nullBase               :: a -> Bool
@@ -73,8 +73,8 @@ buildSequentMap :: (SequentLike s) => [s] -> SequentMap s
 buildSequentMap seqs =  Map.fromList $ zip [1..] seqs
 
 {-| PullM is the context of computation for retrieving data from a 
-  'HerbrandBase'. -}
-type PullM h a = (HerbrandBase h) => 
+  'PossibleFacts'. -}
+type PullM h a = (PossibleFacts h) => 
     State.StateT h (State.State ProvInfo) a
 
 {-| Lifting the monad in the 'PullM' stack. -}
@@ -86,22 +86,22 @@ liftPullMProvs =  liftPullMBase.State.lift
 {-| Runs a 'PullM' stack of monads: since the two internal states are not 
   supposed to change in the computation, runPullM does not return their values.
  -}
-runPullM :: (HerbrandBase h) => PullM h a -> h -> ProvInfo -> a
+runPullM :: (PossibleFacts h) => PullM h a -> h -> ProvInfo -> a
 runPullM pFn b ps = let runBase = State.evalStateT pFn b
                     in  State.evalState runBase ps
 
 {-| Evaluates a 'Pull' stack of monads. -}
-evalPullM :: (HerbrandBase h) => PullM h a -> h -> ProvInfo -> a
+evalPullM :: (PossibleFacts h) => PullM h a -> h -> ProvInfo -> a
 evalPullM = runPullM
 
 
-{-| PushM is the context of computation for building a HerbrandBase. It is a
+{-| PushM is the context of computation for building a PossibleFacts. It is a
   Counter monad for keeping track of indices of the new elements wrapped in
   a State transformer to carry the Id of sequent being pushed, variables in the 
   body of the sequent, and provenance infromation,. The combination is then 
   wrapped inside another State transformer that contains the old database of
-  type 'HerbrandBase', which was computed in the previous iteration. -}
-type PushM h t a = (HerbrandBase h, SATAtom t) => 
+  type 'PossibleFacts', which was computed in the previous iteration. -}
+type PushM h t a = (PossibleFacts h, SATAtom t) => 
     State.StateT h 
              (State.StateT (Id, [Variable], ProvInfo)
                        (CounterT (State.StateT (SATTheory t) ConfigMonad))) a
@@ -130,7 +130,7 @@ liftPushMConfig :: ( Monad (t1 (t2 (t3 m))), Monad (t2 (t3 m))
 liftPushMConfig =  liftPushMSATTheory.State.lift
 
 {-| Runs a 'PushM' stack of monads. -}
-runPushM :: (HerbrandBase h, SATAtom t) => PushM h t a -> h -> (Id, ProvInfo)
+runPushM :: (PossibleFacts h, SATAtom t) => PushM h t a -> h -> (Id, ProvInfo)
          -> Int -> SATTheory t -> Config -> (a, ProvInfo, Int, SATTheory t)
 runPushM pFn base (id, provs) cnt propThy cfg = 
     let runBase = State.evalStateT pFn base
@@ -141,19 +141,19 @@ runPushM pFn base (id, provs) cnt propThy cfg =
     where flatTup = \((((v, (_, _, w)), x), y), z) -> (v, w, x, y)
 
 {-| Evaluates a 'PushM' stack of monads and returns the resulting 
-  'HerbrandBase'-}
-evalPushM :: (HerbrandBase h, SATAtom t) => PushM h t a -> h -> (Id, ProvInfo)
+  'PossibleFacts'-}
+evalPushM :: (PossibleFacts h, SATAtom t) => PushM h t a -> h -> (Id, ProvInfo)
           -> Int -> SATTheory t -> Config -> a
 evalPushM pFn base provs cnt propThy cfg = 
     let (x, _, _, _) = runPushM pFn base provs cnt propThy cfg in x
 
-{-| HerbrandImpl specifies the interface between types that implement a 
-  HerbrandBase and its related functions in some implementation of the Chase. 
+{-| ChaseImpl specifies the interface between types that implement a 
+  PossibleFacts and its related functions in some implementation of the Chase. 
   The input type parameters are:
-    1. [@h@] a container for facts of type 'HerbrandBase'
+    1. [@h@] a container for facts of type 'PossibleFacts'
     2. [@s@] an instance of 'SequentLike', e.g., a pair of relational 
     expressions.
-    3. [@r@] is the type of the result set that is pushed from a 'HerbrandBase' 
+    3. [@r@] is the type of the result set that is pushed from a 'PossibleFacts' 
     @h@ according to an instance @s@ of 'SequentLike'. Intuitively, @r@ contains
     the data in an increment, resulted by evaluating a sequent of type @s@.
 
@@ -177,8 +177,8 @@ evalPushM pFn base provs cnt propThy cfg =
     also needs two instance of @h@ corresponding to the old and the new bases, 
     to fetch the values for constants in the sequent being converted.
 -}
-class (HerbrandBase h, SequentLike s, Show r) => 
-    HerbrandImpl h s r | s h -> r where
+class (PossibleFacts h, SequentLike s, Show r) => 
+    ChaseImpl h s r | s h -> r where
     relevant               :: s -> h -> Bool
     pull                   :: s -> h -> h -> PullM h r
     push                   :: (SATAtom t) => s -> r -> h -> PushM h t h
@@ -189,8 +189,8 @@ class (HerbrandBase h, SequentLike s, Show r) =>
   to the next iteration. A 'Problem' contains 
   - a map from 'Id' to instances of type 'SequentLike' to keep track of the 
   sequents of the theory in the Chase.
-  - an instance of a 'HerbrandBase' type to store the deduced facts.
-  - an instance of a 'HerbrandBase' type to store the facts that were deduced in
+  - an instance of a 'PossibleFacts' type to store the deduced facts.
+  - an instance of a 'PossibleFacts' type to store the facts that were deduced in
   the previous iteration as a delta set.
   - an instance of 'ProvInfo' to maintain provenance information for facts and
   elements constructed so far.
@@ -198,7 +198,7 @@ class (HerbrandBase h, SequentLike s, Show r) =>
   first-order theory, which is computed in parallel with the run of the Chase.
  -}
 data Problem h s t where
-    Problem :: (HerbrandBase h, SequentLike s, SATAtom t) 
+    Problem :: (PossibleFacts h, SequentLike s, SATAtom t) 
                => SequentMap s -> h -> h -> ProvInfo 
                                -> SATTheory t -> Problem h s t
 
@@ -221,14 +221,14 @@ problemSATTheory (Problem _ _ _ _ p) = p
   Input:
   - a list of (Id, SequentLike) pairs, providing the sequents of the theory 
   together with their identifiers.
-  - an instance of a 'HerbrandBase' type @h@, as the set of deduced facts.
+  - an instance of a 'PossibleFacts' type @h@, as the set of deduced facts.
   - another instance of type @h@, as the delta set of facts.
   - an instance of 'ProvInfo' containing the provenance information for 
   elements.
   - an instance of 'PropTheory' containing propositional instances of the input
-  theory in the input 'HerbrandBase' set.
+  theory in the input 'PossibleFacts' set.
  -}
-buildProblem :: (HerbrandImpl h s r, SATAtom t) 
+buildProblem :: (ChaseImpl h s r, SATAtom t) 
                 => [(Id, Sequent)] -> h -> h -> ProvInfo 
                                    -> SATTheory t -> Problem h s t
 buildProblem seqs db dlt provs propTheory = 
@@ -237,13 +237,13 @@ buildProblem seqs db dlt provs propTheory =
 
 
 {-| 'ChaseM' is the computation context for running the Chase. Given a 
-  'HerbrandBase' type @h@ and a 'SequentLike' type @s@, the computation context
+  'PossibleFacts' type @h@ and a 'SequentLike' type @s@, the computation context
   is a 'ConfigMonad' in a 'CounterT' wrapped inside an RWS monad transformer 
   with a 'Problem' as its state. The 'CounterT' monad transformer keeps 
   track of the indices for the elements of the model and the ConfigMonad 
   makes user preferences available to the Chase.
  -}
-type ChaseM h s a = forall r t . (HerbrandImpl h s r)  => 
+type ChaseM h s a = forall r t . (ChaseImpl h s r)  => 
     RWS.RWST [String] [String] (Problem h s t) 
     (CounterT ConfigMonad) a
 

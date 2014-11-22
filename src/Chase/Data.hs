@@ -5,7 +5,7 @@
   the Chase algorithm.
   Maintainer  : Salman Saghafi -}
 
-module Chase.Data ( HerbrandBase (..) , HerbrandImpl (..)
+module Chase.Data ( PossibleFacts (..) , ChaseImpl (..)
                   , SequentMap, buildSequentMap
                   , Problem (..), buildProblem
                   , problemSequentMap, problemBase, problemDelta, problemProvs

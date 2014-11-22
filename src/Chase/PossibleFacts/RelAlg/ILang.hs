@@ -2,11 +2,11 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 
 {- Razor
-   Module      : Chase.HerbrandBase.RelAlg.ILang
+   Module      : Chase.PossibleFacts.RelAlg.ILang
    Description : Implements the language of relational algebra
    Maintainer  : Salman Saghafi -}
 
-module Chase.HerbrandBase.RelAlg.ILang where
+module Chase.PossibleFacts.RelAlg.ILang where
 
 -- Standard
 import Data.List (union, nub)
@@ -25,7 +25,7 @@ import Syntax.Term ( Variable, Constant (..), Element (..), FnSym
 import Syntax.Geometric (RelSym)
 
 -- RelAlg
-import qualified Chase.HerbrandBase.RelAlg.DB as DB
+import qualified Chase.PossibleFacts.RelAlg.DB as DB
 
 
 {-| An atrribute is a variable name. -}
@@ -38,7 +38,7 @@ type Column     = Int
   column number in a 'Table'). -}
 type Header = Map.Map Attribute Column
 
-{-| TableRef captures various types of tables in HerbrandBase. -}
+{-| TableRef captures various types of tables in PossibleFacts. -}
 data TableRef  = ConstTable Constant -- constant tables
                | RelTable   RelSym   -- relation tables
                | FnTable    FnSym    -- function tables
@@ -215,7 +215,7 @@ databaseFromList pairs = Map.fromList pairs
     
 
 {-| RelExp defines a relational algebra expression for evaluating sequents in 
- HerbrandBase.
+ PossibleFacts.
 
  [@TblEmpty@] An empty table, representing the empty head of a sequent
  [@TblFull@] A full table, representing the empty body of a sequent 
@@ -355,7 +355,7 @@ columnValuesSelector colPairs =
         and $ (\(p1, elm) -> x Vect.! p1 == elm) <$> colPairs
 
 {-| Merges a pair of 'Set' instances into one 'Set'. This kind of pairs are 
-   constructed by the join operation in "Chase.HerbrandBase.RelAlg.DB".
+   constructed by the join operation in "Chase.PossibleFacts.RelAlg.DB".
    The function also removes duplicate columns based on a list of 'Column's
    from the second table. Moreover, it merges the decorating data of the 
    corresponding tuples using the given function. -}

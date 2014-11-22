@@ -32,12 +32,12 @@ import Common.Data (SequentMap (..), sequentMap)
 
 -- Chase
 import Chase.Data
-import Chase.HerbrandBase.RelAlg.HerbrandBase (RelHerbrandBase, RelSequent)
+import Chase.PossibleFacts.RelAlg.PossibleFacts (RelPossibleFacts, RelSequent)
 import Chase.Chase (chase, chaseWithInitialConstants)
 
-import qualified Chase.HerbrandBase.RelAlg.DB as DB (Set) 
+import qualified Chase.PossibleFacts.RelAlg.DB as DB (Set) 
        -- to define NFData instance
-import qualified Chase.HerbrandBase.RelAlg.ILang as RelAlg (TableRef, Tuple)
+import qualified Chase.PossibleFacts.RelAlg.ILang as RelAlg (TableRef, Tuple)
        -- to define NFData instance
 
 -- Tools
@@ -175,10 +175,10 @@ main = do
           case configInputType config of
                 TPTPCNF -> (\(h, _, _) -> h)
                            (chaseWithInitialConstants config seqMap consts)
-                               :: RelHerbrandBase
+                               :: RelPossibleFacts
                 TPTPFOF -> (\(h, _, _) -> h)
                            (chase config seqMap) 
-                               :: RelHerbrandBase
+                               :: RelPossibleFacts
 
   time2 <- model `deepseq` getCurrentTime
 

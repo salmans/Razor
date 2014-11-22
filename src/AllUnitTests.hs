@@ -17,9 +17,9 @@ import qualified Syntax.Test.TGeometricUtils as TGeometricUtils
 import qualified Syntax.Test.TFirstOrderUtils as TFirstOrderUtils
 
 -- RelAlg
-import qualified Chase.HerbrandBase.RelAlg.Test.TDB as TDB
-import qualified Chase.HerbrandBase.RelAlg.Test.TLang as TLang
-import qualified Chase.HerbrandBase.RelAlg.Test.TTranslate as TTranslate
+import qualified Chase.PossibleFacts.RelAlg.Test.TDB as TDB
+import qualified Chase.PossibleFacts.RelAlg.Test.TLang as TLang
+import qualified Chase.PossibleFacts.RelAlg.Test.TTranslate as TTranslate
 
 -- Chase
 import qualified Chase.Test.TChase as TChase
@@ -43,7 +43,7 @@ runAllTests = runTestTT $ TestList $
               ++ TGeometric.test_all ++ TFirstOrder.test_all
               ++ TGeometricUtils.test_all ++ TFirstOrderUtils.test_all
 
-              -- Chase.HerbrandBase.RelAlg
+              -- Chase.PossibleFacts.RelAlg
               ++ TTranslate.test_all ++ TLang.test_all ++ TDB.test_all
 
               -- Chase

@@ -4,12 +4,12 @@
 
 
 {- Razor
-   Module      : Chase.HerbrandBase.RelAlg.ITranslate
+   Module      : Chase.PossibleFacts.RelAlg.ITranslate
    Description : Implements the translating functions from geometric logic to
    relational algebra.
    Maintainer  : Salman Saghafi -}
 
-module Chase.HerbrandBase.RelAlg.ITranslate where
+module Chase.PossibleFacts.RelAlg.ITranslate where
 
 -- Standard
 import Data.Tuple (swap)
@@ -43,11 +43,11 @@ import Common.Provenance ( ProvInfo (..), Blame (..)
 -- Chase
 import Chase.Data ( PushM, PullM, liftPushMBase, liftPushMProvs
                   , liftPushMCounter, liftPullMProvs )
-import Chase.HerbrandBase.RelAlg.Lang -- import everything
-import qualified Chase.HerbrandBase.RelAlg.DB as DB
+import Chase.PossibleFacts.RelAlg.Lang -- import everything
+import qualified Chase.PossibleFacts.RelAlg.DB as DB
 
 -- Error Messages:
-unitName               = "Chase.HerbrandSet.RelAlg.Translate"
+unitName               = "Chase.PossibleFacts.RelAlg.Translate"
 error_noFunctionSymbol = "function symbols are not permitted"
 error_noElement        = "elements are not permitted- " 
                          ++ "terms must be over the original vocabulary"

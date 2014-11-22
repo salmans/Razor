@@ -1,9 +1,9 @@
 {- Razor
-   Module      : Chase.HerbrandBase.RelAlg.TestData
+   Module      : Chase.PossibleFacts.RelAlg.TestData
    Description : Test data for RelAlg
    Maintainer  : Salman Saghafi -}
 
-module Chase.HerbrandBase.RelAlg.Test.TestData where
+module Chase.PossibleFacts.RelAlg.Test.TestData where
 
 -- Standard
 import qualified Data.Map as Map
@@ -16,9 +16,9 @@ import Syntax.Term (Constant (..), Variable (..), Element (..))
 import Syntax.Test.TestData
 
 -- RelAgl
-import Chase.HerbrandBase.RelAlg.Lang
-import Chase.HerbrandBase.RelAlg.Translate
-import qualified Chase.HerbrandBase.RelAlg.DB as DB
+import Chase.PossibleFacts.RelAlg.Lang
+import Chase.PossibleFacts.RelAlg.Translate
+import qualified Chase.PossibleFacts.RelAlg.DB as DB
 
 
 -- shortcuts

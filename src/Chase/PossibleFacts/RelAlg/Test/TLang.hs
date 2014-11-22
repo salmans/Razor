@@ -1,9 +1,9 @@
 {- Razor
-   Module      : Chase.HerbrandBase.RelAlg.Test.TLang
+   Module      : Chase.PossibleFacts.RelAlg.Test.TLang
    Description : Unit tests for Translate
    Maintainer  : Salman Saghafi -}
 
-module Chase.HerbrandBase.RelAlg.Test.TLang where
+module Chase.PossibleFacts.RelAlg.Test.TLang where
 
 -- HUnit
 import Test.HUnit
@@ -13,10 +13,10 @@ import Test.HUnit.Text (runTestTT)
 import Syntax.Term (Constant (..))
 
 -- Test
-import Chase.HerbrandBase.RelAlg.Test.TestData
+import Chase.PossibleFacts.RelAlg.Test.TestData
 
 -- RelAlg
-import Chase.HerbrandBase.RelAlg.ILang
+import Chase.PossibleFacts.RelAlg.ILang
 
 test_relExpRefs =
     [ "test relExpRefs for TblEmpty" ~: [] ~=? relExpRefs TblEmpty

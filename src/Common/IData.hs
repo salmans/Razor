@@ -28,8 +28,8 @@ import Common.Basic
 type ConstantValueMap = Map.Map Constant Element
 
 {-| The SequentLike type class captures types that represent geometric 
-  'Sequent's in 'HerbrandBase'. This allows for different implementations of 
-  'HerbrandBase' with different algorithms. 
+  'Sequent's in 'PossibleFacts'. This allows for different implementations of 
+  'PossibleFacts' with different algorithms. 
 
   [@fromSequent@] creates a SequentLike instance for an input 'Sequent'. 
   [@toSequent@] returns the original 'Sequent' for a 'SequentLike' instance.

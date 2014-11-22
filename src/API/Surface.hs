@@ -19,7 +19,7 @@ import Data.Maybe
 import qualified Data.Map as Map
 import System.Environment
 
-data UState = UState (Config, Theory) (ChaseHerbrandBaseType, ProvInfo, SATTheoryType, Int) (SATIteratorType, Model)
+data UState = UState (Config, Theory) (ChasePossibleFactsType, ProvInfo, SATTheoryType, Int) (SATIteratorType, Model)
 type UBlame = Either UError (Blame, Sequent)
 data UOrigin = UOriginLeaf Term UBlame | UOriginNode Term UBlame [UOrigin]
 data UError = UErr String
