@@ -47,11 +47,11 @@ import Tools.FolToGeo (parseFolToSequents)
   A triple of a base of type @h@, its corresponding provenance information of
   type 'ProvInfo', and a set of ground sequents of type 'SATTheory t' -}
 chase :: (HerbrandImpl h s r, SATAtom t) => Config -> SequentMap s 
-      -> (h, ProvInfo, SATTheory t)
+      -> (h, ProvInfo, SATTheory t, Int)
 chase cfg seqs = 
-    let prob         = Problem seqs emptyBase emptyBase emptyProvInfo emptySATTheory
-        (b, p, t, _) = runChase cfg prob $ initM >> stepsM
-    in  (b, p, t)
+    let prob            = Problem seqs emptyBase emptyBase emptyProvInfo emptySATTheory
+        (b, p, t, _, c) = runChase cfg 0 prob $ initM >> stepsM
+    in  (b, p, t, c)
 
 
 {-| Resumes the Chase algorithm on a partially computed set of structures and
@@ -71,24 +71,24 @@ chase cfg seqs =
   A triple of the new base of type @h@, its corresponding provenance information
   of type 'ProvInfo', and the new set of ground sequents of type 'SATTheory t'. 
  -}
-resumeChase :: (HerbrandImpl h s r, SATAtom t) => Config -> SequentMap s
-            -> h -> h -> ProvInfo -> SATTheory t -> (h, ProvInfo, SATTheory t)
-resumeChase cfg seqs base delt provs propThy = 
-    let prob          = Problem seqs base delt provs propThy
-        (b, p, pt, _) = runChase cfg prob $ initM >> stepsM
-    in  (b, p, pt)
+resumeChase :: (HerbrandImpl h s r, SATAtom t) => Config -> Int -> SequentMap s
+            -> h -> h -> ProvInfo -> SATTheory t -> (h, ProvInfo, SATTheory t, Int)
+resumeChase cfg cnt seqs base delt provs propThy = 
+    let prob             = Problem seqs base delt provs propThy
+        (b, p, pt, _, c) = runChase cfg cnt prob $ initM >> stepsM
+    in  (b, p, pt, c)
 
 {-| Runs the Chase algorithm, ensuring that the initial set of constants will
   denote elements in the output instnace of 'HerbrandBase'. -}
-chaseWithInitialConstants :: (HerbrandImpl h s r, SATAtom t) => Config 
+chaseWithInitialConstants :: (HerbrandImpl h s r, SATAtom t) => Config -> Int
                           -> SequentMap s -> [Constant] 
-                          -> (h, ProvInfo, SATTheory t)
-chaseWithInitialConstants cfg seqs consts = 
-    let base          = emptyBaseWithConstants consts
-        provs         = emptyProvInfoWithConstants consts
-        prob          = Problem seqs base emptyBase provs emptySATTheory
-        (b, p, pt, _) = runChase cfg prob $ initM >> stepsM
-    in  (b, p, pt)
+                          -> (h, ProvInfo, SATTheory t, Int)
+chaseWithInitialConstants cfg cnt seqs consts = 
+    let base             = emptyBaseWithConstants consts
+        provs            = emptyProvInfoWithConstants consts
+        prob             = Problem seqs base emptyBase provs emptySATTheory
+        (b, p, pt, _, c) = runChase cfg cnt prob $ initM >> stepsM
+    in  (b, p, pt, c)
 
 {- Runs a monadic function of type 'ChaseM h s ()' based on instances of type 
    @h@ and @s@ and @r@ that implement a 'HerbrandImpl'.
@@ -106,13 +106,13 @@ chaseWithInitialConstants cfg seqs consts =
   - An instance of 'SATTheory t' as the new instance of ground sequents.
   - Log information.
 -}
-runChase :: (HerbrandImpl h s r, SATAtom t) => Config -> Problem h s t
-          -> ChaseM h s () -> (h, ProvInfo, SATTheory t, [String])
-runChase cfg prob context = 
-    let runCM  = RWS.execRWST context [] prob
-        runCt  = State.evalStateT runCM 0
-        (p, l) = State.evalState runCt cfg
-    in (problemBase p, problemProvs p, problemSATTheory p, l)
+runChase :: (HerbrandImpl h s r, SATAtom t) => Config -> Int -> Problem h s t
+          -> ChaseM h s () -> (h, ProvInfo, SATTheory t, [String], Int)
+runChase cfg counter prob context = 
+    let runCM       = RWS.execRWST context [] prob
+        runCt       = State.runStateT runCM counter
+        ((p, l), c) = State.evalState runCt cfg
+    in (problemBase p, problemProvs p, problemSATTheory p, l, c)
 
 
 {- Initializes a run of the Chase inside a 'ChaseM' context for some 

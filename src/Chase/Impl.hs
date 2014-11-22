@@ -45,7 +45,8 @@ import Tools.Trace
   selected HerbrandBase implementation. -}
 chase :: Config -> Theory -> ( ChaseHerbrandBaseType
                              , ProvInfo
-                             , SATTheoryType )
+                             , SATTheoryType
+                             , Int )
 chase cfg thy = let thy'   = preprocess thy
                     seqMap = buildSequentMap $ fromJust <$> fromSequent <$> thy' 
                            :: SequentMap ChaseSequentType
