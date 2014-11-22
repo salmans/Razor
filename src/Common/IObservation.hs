@@ -7,7 +7,7 @@ module Common.IObservation where
 
 -- Standard
 import Data.List (intercalate)
-import Data.Maybe (fromMaybe)
+import Data.Maybe (catMaybes)
 
 -- Control
 import Control.Applicative
@@ -95,11 +95,19 @@ buildObservationSequent :: Sequent -> Maybe ObservationSequent
 buildObservationSequent seq@(Sequent bdy hds) = 
   ObservationSequent <$> processBody bdy <*> processHead hds
 
+-- Converts a single observational atom into it's user provided form, or nothing
+processAtom :: Atom -> Maybe Formula
+processAtom (Rel ('@':rsym) terms) = Nothing
+processAtom (FnRel fsym terms) = Just $ Atm (Rel "=" [(Fn fsym (init terms)), (last terms)])
+processAtom atm = Just $ Atm atm
+-- Converts observational atoms into the form the user originally provided them in
+-- If they are extra additions, they are removed
+processAtoms :: [Observation] -> [Formula]
+processAtoms atms = catMaybes $ map (\(Obs atm) -> processAtom atm) atms
 -- Parses the inner list of an observational formula, which is a list of atoms separated by conjunction
 processConjuncts :: [Observation] -> Formula
 processConjuncts [] = Tru
-processConjuncts ((Obs atm):[]) = (Atm atm)
-processConjuncts ((Obs atm):cs) = And (Atm atm) (processConjuncts cs)
+processConjuncts cs = foldl1 (\f1 f2 -> And f1 f2) $ processAtoms cs
 -- Parses the outer list of an observational formula, which is a list of conjuncts separated by disjunction
 processDisjuncts :: [[Observation]] -> Formula
 processDisjuncts (d:[]) = processConjuncts d
