@@ -96,15 +96,18 @@ augment :: Config -> Theory -> (ChaseHerbrandBaseType, ProvInfo, SATTheoryType) 
 augment cfg thy (b, p, t) obs = do
   let thy' = preprocess thy
   let seqMap = (buildSequentMap $ fromJust <$> fromSequent <$> thy') :: SequentMap ChaseSequentType
-  let (b', p', t') = augmentGS cfg seqMap (b, p, t) obs
+  let (b', p', t') = augmentBase cfg seqMap (b, p, t) obs
   let newSeq = ObservationSequent [] [[obs]]
+  -- add user prov
+  let p'' = ProvInfo (elementProvs p) $ Map.insert obs (UserBlame obs) (observationProvs p)
+  -- return new GS
   let t'' = storeSequent t' (UserBlame obs, newSeq)
-  (b', p', t'')
+  (b', p'', t'')
 --
 --
-augmentGS :: Config -> SequentMap ChaseSequentType -> (ChaseHerbrandBaseType, ProvInfo, SATTheoryType) -> Observation -> (ChaseHerbrandBaseType, ProvInfo, SATTheoryType)
-augmentGS _ _ gs eqobs@(Obs (Rel "=" terms)) = gs
-augmentGS cfg seqMap (b, p, t) obs@(Obs (Rel rsym terms)) = do
+augmentBase :: Config -> SequentMap ChaseSequentType -> (ChaseHerbrandBaseType, ProvInfo, SATTheoryType) -> Observation -> (ChaseHerbrandBaseType, ProvInfo, SATTheoryType)
+augmentBase _ _ gs eqobs@(Obs (Rel "=" terms)) = gs
+augmentBase cfg seqMap (b, p, t) obs@(Obs (Rel rsym terms)) = do
   let d = addToBase obs emptyBase
   Chase.Chase.resumeChase cfg seqMap b d p t
 -- In: a propositional theory

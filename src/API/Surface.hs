@@ -77,7 +77,7 @@ getOrigin state@(UState (cfg, thy) (b,p,t) (stream, mdl)) isrec term = do
           [] -> Left (UErr ("no provenance information for element "++(show term)++"\n"))
           origins -> Right origins
     blamed origin = case getBlamedSequent t origin of
-      Nothing -> Left $ UErr $ "unable to find blamed theory sequent from provenance info"
+      Nothing -> Left $ UErr $ "unable to find blamed theory sequent from provenance info\n"++(show origin)
       Just bseq -> Right (origin, bseq)
                 
 getJustification :: UState -> Formula -> UBlame
