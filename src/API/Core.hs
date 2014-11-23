@@ -109,7 +109,13 @@ augmentBase :: Config -> SequentMap ChaseSequentType -> (ChasePossibleFactsType,
 augmentBase _ _ gs eqobs@(Obs (Rel "=" terms)) = gs
 augmentBase cfg seqMap (b, p, t, c) obs@(Obs (Rel rsym terms)) = do
   let d = addToBase obs emptyBase
-  Chase.Chase.resumeChase cfg c seqMap b d p t
+  let seqMap' = Map.filter (not.startSequent) seqMap
+      -- The current implementation of the Chase instantiate existential
+      -- quantifiers even if they are already witnessed by an element in the
+      -- model. We don't want to regenerate new elements by processing sequents
+      -- with empty body for a second time.
+      -- FIX: How should we systematically address this issue?
+  Chase.Chase.resumeChase cfg c seqMap' b d p t
 -- In: a propositional theory
 -- Out: an iterator that can be used to sequentially generate models (model stream)
 modelStream :: SATTheoryType -> SATIteratorType
