@@ -38,51 +38,51 @@ data Config = Config { configInput       :: Maybe String
                        -- input theory
                      , configDebug       :: Bool
                        -- debug mode (on/off)
-                     , configIncremental :: Bool
+                     -- , configIncremental :: Bool
                        -- incremental view maintenance (on/off)
-                     , configAllModels   :: Bool
+                     -- , configAllModels   :: Bool
                        -- return all models
-                     , configBound       :: Maybe Int
+                     -- , configBound       :: Maybe Int
                        -- maximum size of models
-                     , configTPTPPath    :: String
+                     -- , configTPTPPath    :: String
                        -- the path to TPTP folder
-                     , configInputType   :: InputType
+                     -- , configInputType   :: InputType
                        -- type of the input formulas to process
-                     , configIsoElim     :: Bool
+                     -- , configIsoElim     :: Bool
                        -- eliminate isomorphic models
                      , configSkolemDepth :: Int
                        -- depth of skolem term for reusing elements
                      , configCommand :: Maybe String
                        -- CLI UserSyntax command string
-                    , configState :: Maybe String
+                     , configState :: Maybe String
                        -- CLI State XML file path
                      }
 
 instance Show Config where
     show cfg = "--input=" ++ show (configInput cfg) ++ "\n" ++
                "--debug=" ++ show (configDebug cfg) ++ "\n" ++
-               "--incremental=" ++ show (configIncremental cfg) ++ "\n" ++
-               "--one=" ++ show ((not.configAllModels) cfg) ++ "\n" ++
-               "--bound=" ++ 
-                              (case configBound cfg of
-                                 Nothing -> "unbounded"
-                                 Just b  -> show b) ++ "\n" ++
-               "--tptp-path=" ++ (configTPTPPath cfg) ++ "\n" ++
-               "--input-type=" ++ show (configInputType cfg) ++ "\n" ++
-               "--iso-elim=" ++ show (configIsoElim cfg) ++ "\n" ++
-               "--skolem-depth=" ++ show (configSkolemDepth cfg) ++ "\n" ++
+               -- "--incremental=" ++ show (configIncremental cfg) ++ "\n" ++
+               -- "--one=" ++ show ((not.configAllModels) cfg) ++ "\n" ++
+               -- "--bound=" ++ 
+               --                (case configBound cfg of
+               --                   Nothing -> "unbounded"
+               --                   Just b  -> show b) ++ "\n" ++
+               -- "--tptp-path=" ++ (configTPTPPath cfg) ++ "\n" ++
+               -- "--input-type=" ++ show (configInputType cfg) ++ "\n" ++
+               -- "--iso-elim=" ++ show (configIsoElim cfg) ++ "\n" ++
+               "--depth=" ++ show (configSkolemDepth cfg) ++ "\n" ++
                "--command=" ++ show (configCommand cfg) ++ "\n" ++
                "--state=" ++ show (configState cfg)
 
 {-| Returns an instance of 'Config' with default values. -}
 defaultConfig = Config { configInput       = Nothing 
                        , configDebug       = False
-                       , configIncremental = False
-                       , configAllModels   = True
-                       , configBound       = Nothing
-                       , configTPTPPath    = "./"
-                       , configInputType = GeoLog
-                       , configIsoElim     = False
+                       -- , configIncremental = True
+                       -- , configAllModels   = True
+                       -- , configBound       = Nothing
+                       -- , configTPTPPath    = "./"
+                       -- , configInputType = GeoLog
+                       -- , configIsoElim     = False
                        , configSkolemDepth = -1 
                        , configCommand = Nothing 
                        , configState = Nothing }

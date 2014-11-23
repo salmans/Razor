@@ -46,7 +46,7 @@ options =
         (NoArg
             (\cfg -> return cfg { configDebug = True }))
         "Debug mode"
-    , Option "s" ["skolem-depth"]
+    , Option "s" ["depth"]
         (OptArg
             (\arg cfg -> return $ 
                          case join (readMaybe <$> arg) of

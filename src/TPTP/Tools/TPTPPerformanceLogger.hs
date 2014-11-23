@@ -122,7 +122,7 @@ options =
             (\cfg -> return cfg { configIsoElim = True }))
         "Eliminate isomorphic models"
 
-    , Option "" ["skolem-depth"]
+    , Option "" ["depth"]
         (OptArg
             (\arg cfg -> return $ 
                          case join (readMaybe <$> arg) of
