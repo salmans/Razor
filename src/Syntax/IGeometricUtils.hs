@@ -40,6 +40,9 @@ err_existsInBody = "the body of a sequent cannot contain existential"
                    ++ " quantifiers!"
 --------------------------------------------------------------------------------
 -- Simplifying Formulas
+simplifySequent :: Sequent -> Sequent
+simplifySequent (Sequent body head) = Sequent (simplify body) (simplify head)
+
 {-| Simplifies an input geometric 'Formula', if possible. -}
 simplify :: Formula -> Formula
 simplify (And p q)        = simplify_helper $ And (simplify p) (simplify q)
@@ -64,7 +67,7 @@ simplify_helper f                  = f   -- otherwise
 --------------------------------------------------------------------------------
 -- Converting sequents with function symbols to purely relational sequents
 preprocess :: Theory -> Theory
-preprocess = (addElementPreds <$>).linearize.relationalize
+preprocess = (simplifySequent <$>).(addElementPreds <$>).linearize.relationalize
 
 {-| Eliminates all function symbols in the sequents of a theory and replaces 
   them with relational symbols. It also adds a set of additional sequents to 
