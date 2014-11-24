@@ -7,6 +7,20 @@
 
 %% Known to work in SWI-Prolog, but not with GNU Prolog.
 
+%% To handle the subsort relations of the message algebra, add the
+%% following axioms.
+
+%%    akey(t) => mesg(t);
+%%    skey(t) => mesg(t);
+%%    name(t) => mesg(t);
+%%    text(t) => mesg(t);
+%%    name(t) => mesg(t);
+
+%% The precedes axioms are:
+
+%%    sprec(x, y) => prec(x, y);
+%%    prec(x, y) & prec(y, z) => prec(x, y);
+
 %% Copyright (c) 2011 The MITRE Corporation
 %%
 %% This program is free software: you can redistribute it and/or
@@ -144,9 +158,6 @@ decl([Var|Decl], Sort, [(Var,Sort)|SVars], End) :-
 	decl(Decl, Sort, SVars, End).
 
 quantifier_preds([], [], []).
-quantifier_preds([(Var,mesg)|SVars], [Var|Vars], Preds) :-
-        !,
-        quantifier_preds(SVars, Vars, Preds).
 quantifier_preds([(Var,Sort)|SVars], [Var|Vars], [[Sort, Var]|Preds]) :-
         quantifier_preds(SVars, Vars, Preds).
 
@@ -185,7 +196,7 @@ quantifier_rest_exists(Var, [Vn|Vars], Body, [Brk, V| Pretties]) :-
 	pp:brk(1, Brk),
 	term_to_pretty(Var, V),
         quantifier_rest_exists(Vn, Vars, Body, Pretties).
-        
+
 % Atomic formulas
 
 atomic_form([Pred], Pretty) :-
@@ -258,7 +269,7 @@ symbol(Atom, Symbol) :-
 	atom_chars(Atom, Chars),
 	hyphen(Chars, Parts),
 	atom_chars(Symbol, Parts).
-        
+
 hyphen([], []).
 hyphen(['-'|Rest], ['_'|Tail]) :-
 	!,

@@ -1,0 +1,12 @@
+-- The subsort relations of the message algebra axioms.
+
+   akey(t) => mesg(t);
+   skey(t) => mesg(t);
+   name(t) => mesg(t);
+   text(t) => mesg(t);
+   name(t) => mesg(t);
+
+-- The precedes axioms.
+
+   sprec(x, y) => prec(x, y);
+   prec(x, y) & prec(y, z) => prec(x, y);
