@@ -25,8 +25,8 @@ import qualified SAT.Data (satInitialize, satSolve, storeSequent, blameSequent)
 -- Uncomment to select the implementation:
 
 -- import SAT.Picosat -- Experimental implementation (Not working)
-import SAT.SBV
--- import SAT.SMTLib2
+-- import SAT.SBV
+import SAT.SMTLib2
 -- <><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
 
 type SATIteratorState = State.State SATIteratorType
