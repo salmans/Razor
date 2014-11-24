@@ -47,7 +47,6 @@ import SAT.Impl
 -- Tools
 import Tools.Config
 import Tools.Utils (isRealLine)
-import Tools.Trace
 
 -- In: command line args
 -- Out: configuration options structure
@@ -101,7 +100,7 @@ parseTheory :: Config -> String -> IO (Maybe Theory)
 parseTheory config input = do
         -- let sequents = parseGeometricTheory input
         let (Input sequents depths) = parseInput input
-        return $ (traceShow depths) Just sequents
+        return $ Just sequents
 -- In: configuration, theory
 -- Out: G*, which consists of ground facts, provenance info, and a propositional theory
 generateGS :: Config -> Theory -> (ChasePossibleFactsType, ProvInfo, SATTheoryType, Int)
