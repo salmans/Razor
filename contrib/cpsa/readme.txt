@@ -9,7 +9,7 @@ sentences using Make.hs from the CPSA documents directory, type:
 $ echo 'sas "or"' | ghci Make.hs
 $ swipl
 ?- [razor].
-?- razor('or_sas.text', 'or_sas.rz').
+?- razor('or_sas.text', 'or_sas.raz').
 ?- halt.
 $
 
