@@ -14,7 +14,7 @@
 module SAT.SBV where
 
 -- Standard
-import Data.List (intercalate, sortBy, groupBy, union, partition)
+import Data.List (intercalate, sortBy, groupBy, union, partition, isPrefixOf )
 import qualified Data.Map as Map
 import Data.Maybe
 import qualified Data.Text as Text
@@ -22,7 +22,7 @@ import System.IO.Unsafe
 
 -- Control
 import Control.Applicative
-import Control.Monad
+import Control.Monad hiding (join)
 import qualified Control.Monad.State.Lazy as State
 
 -- SBV
@@ -67,11 +67,11 @@ type SMTTerm    = String
 
 {- Creates an instance of 'SMTTerm' from a functional 'Atom'. -}
 smtTerm :: Atom -> SMTTerm
-smtTerm (FnRel c [_]) = c
+smtTerm (FnRel c [_]) = (smtFnName c)
 smtTerm (FnRel f ts)  = 
     let elms = fromJust <$> termToElement <$> (init ts)
                -- Expecting only flat terms
-    in  f ++ "-" ++ (intercalate "-" $ smtElement <$> elms)
+    in  (smtFnName f) ++ "-" ++ (intercalate "-" $ smtElement <$> elms)
 smtTerm _            = error $ unitName ++ ".smtTerm: " 
                        ++ error_FunctionalAtomExpected
 
@@ -98,6 +98,18 @@ smtRelSym r          = r
 relSymFromSMT :: RelSym -> RelSym
 relSymFromSMT "Element0000" = "@Element"
 relSymFromSMT r             = r
+
+{- SBV doesn't allow identifiers to start with _. Similar to 'smtRelSym'
+   and 'relSymFromSMT', the follwing functions are used for an ad-hoc 
+   workaround to this problem. -}
+smtFnName :: FnSym -> String
+smtFnName ('_':str) = "AAAA" ++ str
+smtFnName str       = str
+
+fnNameFromSMT :: String -> FnSym
+fnNameFromSMT ('A':'A':'A':'A':str) = '_':str
+fnNameFromSMT str                   = str
+
 
 {- SMTObservation represents an 'Observation' in SMT solving:
 
@@ -254,7 +266,8 @@ obsFromSMTAtom str =
    fact.  -}
 obsFromSMTTerm :: SMTTerm -> SMTElement -> Observation
 obsFromSMTTerm str e = 
-    let strs = Text.unpack <$> Text.splitOn (Text.pack "-") (Text.pack str)
+    let str' = fnNameFromSMT str
+        strs = Text.unpack <$> Text.splitOn (Text.pack "-") (Text.pack str')
         sym  = head strs
         es   = tail strs
     in  Obs $ FnRel sym $ (Elem . readElement) <$> (es ++ [e])
@@ -509,11 +522,12 @@ unintRelValue rel arity = do
    does not exists in the container of computation.-}
 unintFnValue :: FnSym -> Int -> SMT UninterpretFn
 unintFnValue fn arity = do
+  let fn'       = smtFnName fn
   container     <- liftContainer State.get
   let fnMap     = containerFns container
-  let unintFunc = Map.findWithDefault (uninterpretFn fn arity) fn fnMap
+  let unintFunc = Map.findWithDefault (uninterpretFn fn' arity) fn' fnMap
   -- update container:
-  let fnMap'    = Map.insertWith (flip const) fn unintFunc fnMap
+  let fnMap'    = Map.insertWith (flip const) fn' unintFunc fnMap
                  -- do not insert if exists
   liftContainer $ State.modify (\c -> c { containerFns = fnMap' })
   return unintFunc
