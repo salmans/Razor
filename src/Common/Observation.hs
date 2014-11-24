@@ -5,6 +5,6 @@
   'Observation' is the building block of models.
   Maintainer  : Salman Saghafi -}
 module Common.Observation ( Observation (..), ObservationSequent (..) 
-                          , buildObservationSequent ) where
+                          , buildObservationSequent, toObservation ) where
 
 import Common.IObservation

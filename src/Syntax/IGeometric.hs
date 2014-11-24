@@ -25,6 +25,8 @@ import Syntax.Term
 import Syntax.GeometricParser
 
 -- Tools
+import Tools.Config
+
 type RelSym = Sym
 
 {-| An atomic formula is a relation applied to a list of terms. For convenience,
@@ -151,9 +153,11 @@ xparseSequent input =
          Left err -> error (show err)
          Right val -> val
 
+-- parsing theories:
 pTheory :: Parser Theory
-pTheory =  manyTill pSequent eof;
--- parsing sequents
+pTheory =  many pSequent;
+
+-- parsing sequents:
 pSequent :: Parser Sequent
 pSequent = pSeqBoth +++ pSeqHead +++ pSeqBody
            <?> "sequent"

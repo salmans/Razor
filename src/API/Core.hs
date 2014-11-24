@@ -7,31 +7,47 @@
   Maintainer  : Salman Saghafi, Ryan Danas
 -}
 module API.Core where
-import Chase.Impl
-import qualified Chase.Chase
-import Chase.Data
-import Common.Data
-import Common.Basic
-import Common.IProvenance
-import Common.IObservation
-import Common.Model (Model (..))
-import Control.Applicative
-import Control.Monad
-import Data.Maybe
-import qualified Data.Map as Map
+
+-- Standard
 import Data.List
+import qualified Data.Map as Map
+import Data.Maybe
 import qualified Data.Text as T
-import SAT.Impl
-import Syntax.GeometricUtils
-import Syntax.Term
 import System.Console.GetOpt
 import System.Environment
 import System.Exit (exitWith, ExitCode (..))
 import System.IO (hPutStrLn, stderr)
 import Text.Read (readMaybe)
+
+-- Control
+import Control.Applicative
+import Control.Monad
+import Control.Monad.Trans
+
+-- Syntax
+import Syntax.GeometricUtils
+import Syntax.Term
+
+-- Common
+import Common.Data
+import Common.Basic
+import Common.Provenance
+import Common.Observation
+import Common.Model (Model (..))
+import Common.Input
+
+-- Chase
+import Chase.Data
+import Chase.Impl
+import qualified Chase.Chase
+
+-- SAT
+import SAT.Impl
+
+-- Tools
 import Tools.Config
 import Tools.Utils (isRealLine)
-import Control.Monad.Trans
+import Tools.Trace
 
 -- In: command line args
 -- Out: configuration options structure
@@ -83,9 +99,9 @@ parseConfig args = do
 -- Out: a theory if parsing success
 parseTheory :: Config -> String -> IO (Maybe Theory)
 parseTheory config input = do
-	-- let inputLines = lines input
-        let sequents = parseGeometricTheory input -- inputLines
-        return $ Just sequents
+        -- let sequents = parseGeometricTheory input
+        let (Input sequents depths) = parseInput input
+        return $ (traceShow depths) Just sequents
 -- In: configuration, theory
 -- Out: G*, which consists of ground facts, provenance info, and a propositional theory
 generateGS :: Config -> Theory -> (ChasePossibleFactsType, ProvInfo, SATTheoryType, Int)

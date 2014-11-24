@@ -6,6 +6,7 @@
   Maintainer  : Salman Saghafi -}
 module Syntax.Geometric ( RelSym
                         , Atom (..), Formula (..), Sequent (..), Theory
+                        , pTheory
                         , parseGeometricTheory, parseSequent, parseFormula
                         , xparseSequent, xparseFormula) where
 
