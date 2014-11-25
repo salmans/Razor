@@ -83,7 +83,7 @@ pSkolemDepthMap = do
 pSkolemDepth :: P.Parser SkolemDepth
 pSkolemDepth  = do
   symbol "@DEPTH"
-  sk     <- identifier
+  sk     <- pSkolemFunction
   symbol "="
   depth  <- natural
   return (sk, fromIntegral depth)

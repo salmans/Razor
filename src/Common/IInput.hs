@@ -33,4 +33,5 @@ pInput :: P.Parser Input
 pInput  = do
   thy   <- pTheory
   skMap <- pSkolemDepthMap
+  P.eof;
   return $ Input thy skMap

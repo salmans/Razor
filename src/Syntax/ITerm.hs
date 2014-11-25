@@ -176,11 +176,6 @@ xpTerm :: Parser Term
 xpTerm = pElement <|> pConstant <|> (identifier >>= xpTermWithIden)
          <?> "term"
 
--- pVariable :: Parser Term
--- pVariable = do
---   elem   <- identifier
---   return $ Var $ Variable elem
-
 {- Parses a constant -}
 pConstant :: Parser Term
 pConstant = do

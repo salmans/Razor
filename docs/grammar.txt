@@ -1,18 +1,21 @@
 Razor's Input Syntax
 ====================
+input       ::= theory depths?
 theory      ::= [sequent ";"]*
 sequent     ::= body "=>" head | head | "~" body
 body        ::= conjunctive
 head        ::= [existential "|"]* existential
-existential ::= ["exists" variable "."]* conjunctive
+existential ::= ["exists" [skolemfun? variable]+ "."]* conjunctive
 conjunctive ::= [atom "&"]* atom
 atom        ::= identifier terms? | term "=" term | "Truth" | "Falsehood"
 terms       ::= "(" [[term ","]* term]? ")"
 term        ::= identifier terms | variable | constant
+skolemfun   ::= "<" identifier ">"
 constant    ::= "'" identifier
 variable    ::= identifier
 identifier  ::= [_a-zA-Z][_a-zA-Z0-9]*
-
+depths      ::= [depth ","]* depth
+depth       ::= "@DEPTH" skolemfun "=" number
 
 ## Operators
 Precedence (from high to low):

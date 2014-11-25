@@ -269,52 +269,60 @@ disjTable = [ [binOp "|" Or Expr.AssocLeft] ]
 -- change the last line to return (f vars fmla) if want to allow quantifiers
 -- to bind lists of vars
 pExistential :: Parser Formula
-pExistential = (quantWithFn "exists" Exists <|> quantWithFn "Exists" Exists)
-               +++ (quant "exists" Exists <|> quant "Exists" Exists)
+pExistential = (quant "exists" Exists <|> quant "Exists" Exists)
                +++ pConjunctive
     where quant q f =  do
                         reserved q
-                        vars <- many1 identifier
-                        let vars' = map Variable vars
+                        vars <- many1 pExistentialVar
                         reservedOp "."
                         fmla <- pExistential
-                        return $ (foldr ($) fmla ((f Nothing) <$> vars'))
-          quantWithFn q f =  do
-                        reserved q
-                        fn <- identifier
-                        vars <- many1 identifier
-                        let vars' = map Variable vars
-                        reservedOp "."
-                        fmla <- pExistential
-                        return $ (foldr ($) fmla ((f (Just fn)) <$> vars'))
+                        return $ foldr ($) fmla $ (uncurry f) <$> vars
 
 xpExistential :: Parser Formula
-xpExistential = (quantWithFn "exists" Exists <|> quantWithFn "Exists" Exists)
-                +++ (quant "exists" Exists <|> quant "Exists" Exists)
-                +++ xpConjunctive
+xpExistential = (quant "exists" Exists <|> quant "Exists" Exists)
+               +++ xpConjunctive
     where quant q f =  do
                         reserved q
-                        vars <- many1 identifier
-                        let vars' = map Variable vars
+                        vars <- many1 xpExistentialVar
                         reservedOp "."
                         fmla <- xpExistential
-                        return $ (foldr ($) fmla ((f Nothing) <$> vars'))
-          quantWithFn q f =  do
-                        reserved q
-                        fn <- identifier
-                        vars <- many1 identifier
-                        let vars' = map Variable vars
-                        reservedOp "."
-                        fmla <- xpExistential
-                        return $ (foldr ($) fmla ((f (Just fn)) <$> vars'))
+                        return $ foldr ($) fmla $ (uncurry f) <$> vars
 
+pExistentialVar :: Parser (Maybe FnSym, Variable)
+pExistentialVar =  do
+  fn  <- optionMaybe pSkolemFunction
+  var <- identifier
+  return (fn, Variable var)
+  <?> "variable"
+
+xpExistentialVar :: Parser (Maybe FnSym, Variable)
+xpExistentialVar =  do
+  fn  <- optionMaybe xpSkolemFunction
+  var <- identifier
+  return (fn, Variable var)
+  <?> "variable"
+
+pSkolemFunction :: Parser FnSym
+pSkolemFunction =  do
+  symbol "<"
+  fn     <- identifier
+  symbol ">"
+  return fn
+  <?> "Skolem function"
+
+xpSkolemFunction :: Parser FnSym
+xpSkolemFunction =  do
+  symbol "<"
+  fn     <- identifier
+  symbol ">"
+  return fn
+  <?> "Skolem function"
 
 pFactor :: Parser Formula
 pFactor = parens pFmla
         <|> pFls
         <|> pTru
         <|> pExistential
-        <|> (pEql +++ pAtom)
         <?> "formula"
 
 xpFactor :: Parser Formula
@@ -322,7 +330,6 @@ xpFactor = parens xpFmla
         <|> pFls
         <|> pTru
         <|> xpExistential
-        <|> (xpEql +++ xpAtom)
         <?> "formula"
 
 -- | factors of a formula.
