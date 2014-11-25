@@ -371,11 +371,11 @@ data UninterpretFn =
      | UnintFn1 (SMTFunction SElement Integer)
      | UnintFn2 (SMTFunction (SElement, SElement) Integer)
      | UnintFn3 (SMTFunction (SElement, SElement, SElement) Integer)
---      | UnintFn4 (SMTFunction (SElement, SElement, SElement, SElement) Integer)
---      | UnintFn5 (SMTFunction (SElement, SElement, SElement, SElement, SElement)
---                              Integer)
---      | UnintFn6 (SMTFunction (SElement, SElement, SElement, SElement, SElement
---                              , SElement) Integer)
+     | UnintFn4 (SMTFunction (SElement, SElement, SElement, SElement) Integer)
+     | UnintFn5 (SMTFunction (SElement, SElement, SElement, SElement, SElement)
+                             Integer)
+     | UnintFn6 (SMTFunction (SElement, SElement, SElement, SElement, SElement
+                             , SElement) Integer)
 --      | UnintFn7 (SMTFunction (SElement, SElement, SElement, SElement, SElement
 --                              , SElement, SElement) Integer)
 
@@ -385,9 +385,9 @@ instance Show UninterpretFn where
     show (UnintFn1 _) = "UnintFn1"
     show (UnintFn2 _) = "UnintFn2"
     show (UnintFn3 _) = "UnintFn3"
-    -- show (UnintFn4 _) = "UnintFn4"
-    -- show (UnintFn5 _) = "UnintFn5"
-    -- show (UnintFn6 _) = "UnintFn6"
+    show (UnintFn4 _) = "UnintFn4"
+    show (UnintFn5 _) = "UnintFn5"
+    show (UnintFn6 _) = "UnintFn6"
     -- show (UnintFn7 _) = "UnintFn7"
 
 {- Creating 'UninterpretFn' for a given arity -}
@@ -397,9 +397,9 @@ uninterpretFn fn 0 = (liftM UnintFn0) var -- TODO: is this correct?
 uninterpretFn fn 1 = (liftM UnintFn1) fun
 uninterpretFn fn 2 = (liftM UnintFn2) fun
 uninterpretFn fn 3 = (liftM UnintFn3) fun
--- uninterpretFn fn 4 = (liftM UnintFn4) fun
--- uninterpretFn fn 5 = (liftM UnintFn5) fun
--- uninterpretFn fn 6 = (liftM UnintFn6) fun
+uninterpretFn fn 4 = (liftM UnintFn4) fun
+uninterpretFn fn 5 = (liftM UnintFn5) fun
+uninterpretFn fn 6 = (liftM UnintFn6) fun
 -- uninterpretFn fn 7 = (liftM UnintFn7) fun
 
 {- Returns the arity of a given 'UninterpretFn' -}
@@ -408,9 +408,9 @@ unintFnArity (UnintFn0 _) = 0
 unintFnArity (UnintFn1 _) = 1
 unintFnArity (UnintFn2 _) = 2
 unintFnArity (UnintFn3 _) = 3
--- unintFnArity (UnintFn4 _) = 4
--- unintFnArity (UnintFn5 _) = 5
--- unintFnArity (UnintFn6 _) = 6
+unintFnArity (UnintFn4 _) = 4
+unintFnArity (UnintFn5 _) = 5
+unintFnArity (UnintFn6 _) = 6
 -- unintFnArity (UnintFn7 _) = 7
 
 {- Applies an instance of 'UninterpretFn' to a list of symbolic arguments -}
@@ -423,15 +423,15 @@ applyUnintFn (UnintFn2 f) [x1, x2]
     = f `app` (x1, x2)
 applyUnintFn (UnintFn3 f) [x1, x2, x3] 
     = f `app` (x1, x2, x3)
--- applyUnintFn (UnintFn4 f) [x1, x2, x3, x4] 
---     = f `app` (x1, x2, x3, x4)
--- applyUnintFn (UnintFn5 f) [x1, x2, x3, x4, x5]
---     = f `app` (x1, x2, x3, x4, x5)
--- applyUnintFn (UnintFn6 f) [x1, x2, x3, x4, x5, x6] 
---     = f `app` (x1, x2, x3, x4, x5, x6)
+applyUnintFn (UnintFn4 f) [x1, x2, x3, x4] 
+    = f `app` (x1, x2, x3, x4)
+applyUnintFn (UnintFn5 f) [x1, x2, x3, x4, x5]
+    = f `app` (x1, x2, x3, x4, x5)
+applyUnintFn (UnintFn6 f) [x1, x2, x3, x4, x5, x6] 
+    = f `app` (x1, x2, x3, x4, x5, x6)
 -- applyUnintFn (UnintFn7 f) [x1, x2, x3, x4, x5, x6, x7] 
 --     = f `app` (x1, x2, x3, x4, x5, x6, x7)
--- applyUnintFn _ _ = error $ unitName ++ ".applyUnintFn: " ++ error_InvalidFnArity
+applyUnintFn _ _ = error $ unitName ++ ".applyUnintFn: " ++ error_InvalidFnArity
 
 {- UninterpretRel presents symbolic relations that are used in SBV for creating 
    the input query to the SMT solver. Because these relations are Haskell 
@@ -442,12 +442,12 @@ data UninterpretRel = UnintRel0 SBool
                     | UnintRel2 (SMTFunction (SElement, SElement) Bool)
                     | UnintRel3 (SMTFunction (SElement, SElement, SElement)
                                 Bool)
-                    -- | UnintRel4 (SMTFunction (SElement, SElement, SElement
-                    --             , SElement) Bool)
-                    -- | UnintRel5 (SMTFunction (SElement, SElement, SElement
-                    --             , SElement, SElement) Bool)
-                    -- | UnintRel6 (SMTFunction (SElement, SElement, SElement
-                    --             , SElement, SElement, SElement) Bool)
+                    | UnintRel4 (SMTFunction (SElement, SElement, SElement
+                                , SElement) Bool)
+                    | UnintRel5 (SMTFunction (SElement, SElement, SElement
+                                , SElement, SElement) Bool)
+                    | UnintRel6 (SMTFunction (SElement, SElement, SElement
+                                , SElement, SElement, SElement) Bool)
                     -- | UnintRel7 (SMTFunction (SElement, SElement, SElement
                     --             , SElement, SElement, SElement, SElement) Bool)
 
@@ -457,9 +457,9 @@ instance Show UninterpretRel where
     show (UnintRel1 _) = "UnintRel1"
     show (UnintRel2 _) = "UnintRel2"
     show (UnintRel3 _) = "UnintRel3"
---     show (UnintRel4 _) = "UnintRel4"
---     show (UnintRel5 _) = "UnintRel5"
---     show (UnintRel6 _) = "UnintRel6"
+    show (UnintRel4 _) = "UnintRel4"
+    show (UnintRel5 _) = "UnintRel5"
+    show (UnintRel6 _) = "UnintRel6"
 --     show (UnintRel7 _) = "UnintRel7"
 
 {- Creating 'UninterpretRel' for a given arity -}
@@ -468,10 +468,10 @@ uninterpretRel rel 0 = (liftM UnintRel0) var
 uninterpretRel rel 1 = (liftM UnintRel1) fun
 uninterpretRel rel 2 = (liftM UnintRel2) fun
 uninterpretRel rel 3 = (liftM UnintRel3) fun
--- uninterpretRel rel 4 = UnintRel4 (uninterpret rel)
--- uninterpretRel rel 5 = UnintRel5 (uninterpret rel)
--- uninterpretRel rel 6 = UnintRel6 (uninterpret rel)
--- uninterpretRel rel 7 = UnintRel7 (uninterpret rel)
+uninterpretRel rel 4 = (liftM UnintRel4) fun
+uninterpretRel rel 5 = (liftM UnintRel5) fun
+uninterpretRel rel 6 = (liftM UnintRel6) fun
+-- uninterpretRel rel 7 = (liftM UnintRel7) fun
 
 {- Returns the arity of a given 'UninterpretRel' -}
 unintRelArity :: UninterpretRel -> Int
@@ -479,9 +479,9 @@ unintRelArity (UnintRel0 _) = 0
 unintRelArity (UnintRel1 _) = 1
 unintRelArity (UnintRel2 _) = 2
 unintRelArity (UnintRel3 _) = 3
--- unintRelArity (UnintRel4 _) = 4
--- unintRelArity (UnintRel5 _) = 5
--- unintRelArity (UnintRel6 _) = 6
+unintRelArity (UnintRel4 _) = 4
+unintRelArity (UnintRel5 _) = 5
+unintRelArity (UnintRel6 _) = 6
 -- unintRelArity (UnintRel7 _) = 7
 
 {- Applies an instance of 'UninterpretRel' to a list of symbolic arguments. -}
@@ -494,16 +494,16 @@ applyUnintRel (UnintRel2 r) [x1, x2]
     = r `app` (x1, x2)
 applyUnintRel (UnintRel3 r) [x1, x2, x3] 
     = r `app` (x1, x2, x3)
--- applyUnintRel (UnintRel4 r) [x1, x2, x3, x4] 
---     = r `app` (x1, x2, x3, x4)
--- applyUnintRel (UnintRel5 r) [x1, x2, x3, x4, x5]
---     = f `app` (x1, x2, x3, x4, x5)
--- applyUnintRel (UnintRel6 r) [x1, x2, x3, x4, x5, x6] 
---     = f `app` (x1, x2, x3, x4, x5, x6)
+applyUnintRel (UnintRel4 r) [x1, x2, x3, x4] 
+    = r `app` (x1, x2, x3, x4)
+applyUnintRel (UnintRel5 r) [x1, x2, x3, x4, x5]
+    = r `app` (x1, x2, x3, x4, x5)
+applyUnintRel (UnintRel6 r) [x1, x2, x3, x4, x5, x6] 
+    = r `app` (x1, x2, x3, x4, x5, x6)
 -- applyUnintRel (UnintRel7 r) [x1, x2, x3, x4, x5, x6, x7] 
---     = f `app` (x1, x2, x3, x4, x5, x6, x7)
--- applyUnintRel _ _ = error $ unitName ++ ".applyUnintRel: " 
---                     ++ error_InvalidRelArity
+--     = r `app` (x1, x2, x3, x4, x5, x6, x7)
+applyUnintRel _ _ = error $ unitName ++ ".applyUnintRel: " 
+                    ++ error_InvalidRelArity
 
 {- ContainerMonad is the computation context that provides an IO backend to 
    interact with the SMT solver and provides an SMTContainer to keep track of
