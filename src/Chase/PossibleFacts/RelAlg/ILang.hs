@@ -295,7 +295,10 @@ data RelExp = TblEmpty
                     , rightDelta       :: RelExp
                     , header           :: Header
                     , joinTransformer  :: TupleSub -> TupleSub -> TupleSub
-                    }
+                    } deriving Show
+
+instance Show (TupleSub -> TupleSub -> TupleSub) where
+  show _ = ""
 
 {- Eq instance for 'RelExp' -}
 -- NOTE: this instantiation is naive; its performance may be improved
@@ -317,8 +320,8 @@ instance Eq RelExp where
     exp == exp'                                         = False --otherwise
 
 {- Show instance for 'RelExp' -}
-instance Show RelExp where
-    show _ = ""
+-- instance Show RelExp where
+--     show _ = ""
 
 --------------------------------------------------------------------------------
 -- Some Helpers

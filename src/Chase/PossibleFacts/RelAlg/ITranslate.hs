@@ -487,7 +487,7 @@ insertTuples tblPair (Proj innerExp col heading skFn unqExp) db depth dpths
                                     
   insertTuples (DB.fromList new) innerExp db depth dpths
   where fetchUniqueTable :: Database -> RelExp -> Table
-        fetchUniqueTable db (Tbl t _ _) = Map.findWithDefault emptyTable t db
+        fetchUniqueTable db exp = undecorateTable $ evaluateRelExp db emptyDatabase exp
 
 insertTuples tbl (Sel exp colPairs _) db depth dpths = do
   let totalColumns = length colPairs

@@ -78,7 +78,7 @@ instance Show Config where
                -- "--tptp-path=" ++ (configTPTPPath cfg) ++ "\n" ++
                -- "--input-type=" ++ show (configInputType cfg) ++ "\n" ++
                -- "--iso-elim=" ++ show (configIsoElim cfg) ++ "\n" ++
-               "--depth=" ++ show (configSkolemDepth cfg) ++ "\n" ++
+               "--depth=" ++ show (configDefaultSkolemDepth cfg) ++ "\n" ++
                "--command=" ++ show (configCommand cfg) ++ "\n" ++
                "--state=" ++ show (configState cfg)
 
