@@ -4,6 +4,8 @@
   Description : Defines common datatypes and their corresponding functions that
   may be used by various layers of the program.
   Maintainer  : Salman Saghafi -}
-module Common.Data ( SequentLike (..) ) where
+module Common.Data ( SequentLike (..), SkolemDepthMap
+                   , emptySkolemDepthMap, findSkolemDepthWithDefault
+                   , pSkolemDepthMap ) where
 
 import Common.IData

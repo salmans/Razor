@@ -69,6 +69,9 @@ data Term = Var  Variable
           | DistinctTerm String -- For compatibility with TPTP
           deriving (Eq, Ord)
 
+{- Provenance information in Common.Provenance are stored as skolem terms. -}
+type SkolemTerm = Term
+
 -- Looks like the default implementation (deriving) is more efficient:
 -- instance Eq Term where
 --     (Var  v1)       == (Var  v2)       = v1 == v2

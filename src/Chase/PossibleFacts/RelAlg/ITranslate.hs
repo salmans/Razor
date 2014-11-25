@@ -36,6 +36,7 @@ import Syntax.GeometricUtils
 
 -- Common
 import Common.Basic (Id)
+import Common.Data (SkolemDepthMap, findSkolemDepthWithDefault)
 import Common.Observation (Observation (..))
 import Common.Provenance ( ProvInfo (..), Blame (..)
                          , addElementProv, modifyElementProvs, getElementProv )
@@ -392,11 +393,11 @@ evaluateRelExp db delts exp@(Union lExp lDlt rExp rDlt heads tran) =
    
    NOTE: the function assumes that the expression does not contain any delta
    subexpressions (unlike 'evaluateRelExp'). -}
-insertTuples :: TablePair -> RelExp -> Database -> Int 
+insertTuples :: TablePair -> RelExp -> Database -> Int -> SkolemDepthMap
              -> PushM Database t Database
-insertTuples _ TblEmpty db _ = return db
-insertTuples _ TblFull db  _ = return db
-insertTuples tblPair (Tbl ref vars heads) db _
+insertTuples _ TblEmpty db _ _ = return db
+insertTuples _ TblFull db  _ _ = return db
+insertTuples tblPair (Tbl ref vars heads) db _ _
     | nullTablePair tblPair  = return db
     | otherwise              = do      
   (id, vs, _) <- liftPushMProvs State.get -- get information required for 
@@ -442,7 +443,7 @@ insertTuples tblPair (Tbl ref vars heads) db _
           toTerms es               = Elem <$> es
 
 
-insertTuples tblPair (Proj innerExp col heading skFn unqExp) db depth
+insertTuples tblPair (Proj innerExp col heading skFn unqExp) db depth dpths
     | nullTablePair tblPair = return db
     | otherwise             = do
   let totalColumns          = Map.size $ header innerExp
@@ -471,7 +472,8 @@ insertTuples tblPair (Proj innerExp col heading skFn unqExp) db depth
                                    (termDepth <$>) <$>
                                    (flip getElementProv) provs <$> 
                                    tup1
-                          if depth > -1 && Vect.any (>= depth) ds
+                              d  = findSkolemDepthWithDefault depth skFn dpths
+                          if d > -1 && Vect.any (>= d) ds
                           then return set
                           else do
                             tup2' <- (Vect.mapM (inject (tuple tup2))
@@ -483,11 +485,11 @@ insertTuples tblPair (Proj innerExp col heading skFn unqExp) db depth
   liftPushMProvs $ State.modify 
                  $ \(id, vs, ps) -> (id, vs, newElementsProvs new skFn col ps)
                                     
-  insertTuples (DB.fromList new) innerExp db depth
+  insertTuples (DB.fromList new) innerExp db depth dpths
   where fetchUniqueTable :: Database -> RelExp -> Table
         fetchUniqueTable db (Tbl t _ _) = Map.findWithDefault emptyTable t db
 
-insertTuples tbl (Sel exp colPairs _) db depth = do
+insertTuples tbl (Sel exp colPairs _) db depth dpths = do
   let totalColumns = length colPairs
   let inject tup = Vect.map 
                    (\i -> case lookup i colPairs of
@@ -497,19 +499,19 @@ insertTuples tbl (Sel exp colPairs _) db depth = do
                             Just j  -> tup ! j) 
                    $ Vect.fromList [0..(totalColumns - 1)]
   let new        = DB.map (\(Tuple tup1 tup2) -> Tuple tup1 (inject tup2)) tbl
-  insertTuples new exp db depth
+  insertTuples new exp db depth dpths
              
-insertTuples tbl exp@(Join lExp rExp heads _) db depth = do
+insertTuples tbl exp@(Join lExp rExp heads _) db depth dpths = do
   let lTran = unjoinTupleTransformer (header lExp) heads
   let rTran = unjoinTupleTransformer (header rExp) heads
   let lSet  = DB.map (\(Tuple tup1 tup2) -> Tuple tup1 (lTran tup2)) tbl
   let rSet  = DB.map (\(Tuple tup1 tup2) -> Tuple tup1 (rTran tup2)) tbl
 
-  db' <- insertTuples lSet lExp db depth
-  insertTuples rSet rExp db' depth
-insertTuples tbl (Delta _ _)          _  _ = 
+  db' <- insertTuples lSet lExp db depth dpths
+  insertTuples rSet rExp db' depth dpths
+insertTuples tbl (Delta _ _)          _  _ _ = 
     error $ unitName ++ ".insertTuples: " ++ error_insertIntoDeltaView
-insertTuples tbl (Union _ _ _ _ _ _ ) _  _ =
+insertTuples tbl (Union _ _ _ _ _ _ ) _  _ _ =
     error $ unitName ++ ".insertTuples: " ++ error_insertIntoUnionView
 
 {- Acts as a helper for 'insertTuple' when inserting into a Proj expression.

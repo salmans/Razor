@@ -127,7 +127,7 @@ options =
             (\arg cfg -> return $ 
                          case join (readMaybe <$> arg) of
                            Nothing -> cfg
-                           Just sk -> cfg { configSkolemDepth = sk})
+                           Just sk -> cfg { configDefaultSkolemDepth = sk})
             "#")
         "Depth of skolem term for reusing elements (-1 for pure minimal models)"
 

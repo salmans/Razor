@@ -24,9 +24,6 @@ import qualified Text.ParserCombinators.Parsec.Expr as Expr
 import Syntax.Term
 import Syntax.GeometricParser
 
--- Tools
-import Tools.Config
-
 type RelSym = Sym
 
 {-| An atomic formula is a relation applied to a list of terms. For convenience,

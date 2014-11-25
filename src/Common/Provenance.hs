@@ -9,7 +9,6 @@ module Common.Provenance ( Blame (..), ObservationProvs, ProvInfo (..)
                          , addElementProv, getElementProv
                          , findElementWithProv, modifyElementProvs
                          , findObservationWithProv
-                         , emptyProvInfo, emptyProvInfoWithConstants
-                         , SkolemTerm ) where
+                         , emptyProvInfo, emptyProvInfoWithConstants ) where
 
 import Common.IProvenance

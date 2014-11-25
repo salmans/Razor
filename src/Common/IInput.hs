@@ -15,14 +15,9 @@ import qualified Text.ParserCombinators.Parsec as P
 -- Syntax
 import Syntax.Term (pTerm)
 import Syntax.Geometric (Theory, pTheory)
-import Syntax.FirstOrderParser -- for parsing skolem terms
 
 -- Common
-import Common.Provenance (SkolemTerm)
-
-type SkolemDepthMap = Map.Map SkolemTerm Int
-type SkolemDepth    = (SkolemTerm, Int)
-
+import Common.Data ( SkolemDepthMap, pSkolemDepthMap )
 
 data Input = Input { inputTheory         :: Theory
                    , inputSkolemDepthMap :: SkolemDepthMap }
@@ -39,16 +34,3 @@ pInput  = do
   thy   <- pTheory
   skMap <- pSkolemDepthMap
   return $ Input thy skMap
-
-pSkolemDepthMap :: P.Parser SkolemDepthMap
-pSkolemDepthMap = do
-  skDepths <- commaSep pSkolemDepth
-  return $ Map.fromList skDepths
-
-pSkolemDepth :: P.Parser SkolemDepth
-pSkolemDepth  = do
-  symbol "@DEPTH"
-  sk     <- pTerm  
-  symbol "="
-  depth  <- natural
-  return (sk, fromIntegral depth)

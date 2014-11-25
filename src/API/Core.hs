@@ -66,7 +66,7 @@ options =
             (\arg cfg -> return $ 
                          case join (readMaybe <$> arg) of
                            Nothing -> cfg
-                           Just sk -> cfg { configSkolemDepth = sk})
+                           Just sk -> cfg { configDefaultSkolemDepth = sk})
             "#")
         "Depth of skolem term for reusing elements (-1 for pure minimal models)"
     , Option "c" ["command", "cmd"]
@@ -95,12 +95,9 @@ parseConfig args = do
   config <- foldl (>>=) (return defaultConfig) actions
   return config
 -- In: configuration options, user input theory
--- Out: a theory if parsing success
-parseTheory :: Config -> String -> IO (Maybe Theory)
-parseTheory config input = do
-        -- let sequents = parseGeometricTheory input
-        let (Input sequents depths) = parseInput input
-        return $ Just sequents
+-- Out: an input if parsing success
+parseInputFile :: Config -> String -> IO (Maybe Input)
+parseInputFile config input = return $ Just $ parseInput input
 -- In: configuration, theory
 -- Out: G*, which consists of ground facts, provenance info, and a propositional theory
 generateGS :: Config -> Theory -> (ChasePossibleFactsType, ProvInfo, SATTheoryType, Int)

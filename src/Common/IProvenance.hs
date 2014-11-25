@@ -15,7 +15,8 @@ import Data.Hashable
 import Control.Applicative
 
 -- Syntax
-import Syntax.Term (Term (..), Element (..), Constant (..), Sub, FnSym)
+import Syntax.Term ( Term (..), SkolemTerm, Element (..), Constant (..)
+                   , Sub, FnSym)
 
 -- Common
 import Common.Basic (Id)
@@ -23,9 +24,6 @@ import Common.Observation (Observation)
 
 unitName               = "Common.Provenance"
 error_missingProv      = "provenance information for element is missing"
-
-{-| Provenance information for elements are stored as skolem terms. -}
-type SkolemTerm = Term
 
 {-| Provenance of elements that are created by existential quantifiers are 
   stored as an ElemHistory structure inside a model. 

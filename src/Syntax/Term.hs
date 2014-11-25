@@ -5,7 +5,7 @@
   Maintainer  : Salman Saghafi -}
 
 module Syntax.Term ( FnSym, Variable (..), Constant (..), Element (..)
-                   , Term (..), Sub, ExistsSub, ConsSub
+                   , Term (..), SkolemTerm, Sub, ExistsSub, ConsSub
                    , emptySub, emptyExistsSub, emptyConsSub
                    , TermBased (..), termDepth
                    , variant, freshVariable, freshConstant, freshElement

@@ -7,6 +7,7 @@
 module API.Surface where
 import Chase.Impl
 import API.Core
+import Common.Input (Input (..))
 import Common.Model
 import Common.Provenance
 import SAT.IData
@@ -36,15 +37,15 @@ getStartState config = do
     Nothing -> return $ Left (UErr "No input file specified")
     Just infile -> do
       input <- readFile infile
-      thy <- parseTheory config input
-      case thy of
-        Just thy -> do
-          let (b,p,t,c) = generateGS config thy
+      inp   <- parseInputFile config input
+      case inp of
+        Just (Input thy dps) -> do
+          let (b,p,t,c) = generateGS config {configSkolemDepth = dps} thy
           let stream = modelStream t
           case (nextModel stream) of
             (Nothing, _) -> return $ Left (UErr "no models exist for given theory")
             (Just mdl', stream') -> return $ Right (UState (config,thy) (b,p,t,c) (stream',mdl'))
-        Nothing -> return $ Left (UErr "Unable to parse input theory!")
+        Nothing -> return $ Left (UErr "Unable to parse input file!")
 
 getAugmentedState :: UState -> Formula -> Either UError UState
 getAugmentedState state@(UState (cfg, thy) (b,p,t,c) (stream, mdl)) fml = case getObservation fml of

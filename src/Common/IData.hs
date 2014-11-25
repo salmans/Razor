@@ -10,8 +10,12 @@ module Common.IData where
 -- Standard
 import qualified Data.Map as Map
 
+-- Parsec
+import qualified Text.ParserCombinators.Parsec as P
+
 -- Syntax
 import Syntax.GeometricUtils
+import Syntax.FirstOrderParser -- for parsing skolem terms
 
 -- Common
 import Common.Basic
@@ -56,3 +60,30 @@ instance SequentLike Sequent where
     failSequent  s   = (sequentHead s) == Fls
     skolemFunctions  = sequentExistentials
     sequentConstants = constants
+
+{- Custom Skolem depth for a given Skolem depth -}
+type SkolemDepth    = (FnSym, Int)
+
+{- SkolemDepthMap is a structure for mapping Skolem term functions -}
+type SkolemDepthMap = Map.Map FnSym Int
+
+{- empty SkolemDepthMap -}
+emptySkolemDepthMap :: SkolemDepthMap
+emptySkolemDepthMap =  Map.empty
+
+{- find in SkolemDepthMap -}
+findSkolemDepthWithDefault :: Int -> FnSym -> SkolemDepthMap -> Int
+findSkolemDepthWithDefault =  Map.findWithDefault
+
+pSkolemDepthMap :: P.Parser SkolemDepthMap
+pSkolemDepthMap = do
+  skDepths <- commaSep pSkolemDepth
+  return $ Map.fromList skDepths
+
+pSkolemDepth :: P.Parser SkolemDepth
+pSkolemDepth  = do
+  symbol "@DEPTH"
+  sk     <- identifier
+  symbol "="
+  depth  <- natural
+  return (sk, fromIntegral depth)

@@ -38,7 +38,7 @@ import Chase.PossibleFacts.RelAlg.PossibleFacts
 import Tools.Config (Config (..), defaultConfig)
 
 
-defaultDepth = configSkolemDepth defaultConfig
+defaultDepth = configDefaultSkolemDepth defaultConfig
 
 
 test_createInternalVarMap = 

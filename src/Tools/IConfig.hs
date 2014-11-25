@@ -6,8 +6,14 @@
 
 module Tools.IConfig where
 
+-- Standard
 import Data.Maybe
+
+-- Control
 import Control.Monad.State.Lazy as State
+
+-- Common
+import Common.Data (SkolemDepthMap, emptySkolemDepthMap)
 
 {-| The type of input formula: 
  [@GeoLog@] Razor's input geometric form 
@@ -34,27 +40,29 @@ instance Show InputType where
  [@configSkolemDepth@] depth of Skolem terms for provenance information
 -}
 
-data Config = Config { configInput       :: Maybe String
+data Config = Config { configInput              :: Maybe String
                        -- input theory
-                     , configDebug       :: Bool
+                     , configDebug              :: Bool
                        -- debug mode (on/off)
-                     -- , configIncremental :: Bool
+                     -- , configIncremental     :: Bool
                        -- incremental view maintenance (on/off)
-                     -- , configAllModels   :: Bool
+                     -- , configAllModels       :: Bool
                        -- return all models
-                     -- , configBound       :: Maybe Int
+                     -- , configBound           :: Maybe Int
                        -- maximum size of models
-                     -- , configTPTPPath    :: String
+                     -- , configTPTPPath        :: String
                        -- the path to TPTP folder
-                     -- , configInputType   :: InputType
+                     -- , configInputType       :: InputType
                        -- type of the input formulas to process
-                     -- , configIsoElim     :: Bool
+                     -- , configIsoElim         :: Bool
                        -- eliminate isomorphic models
-                     , configSkolemDepth :: Int
-                       -- depth of skolem term for reusing elements
-                     , configCommand :: Maybe String
+                     , configDefaultSkolemDepth :: Int
+                       -- default depth of Skolem terms for bounding the search
+                     , configSkolemDepth        :: SkolemDepthMap
+                       -- customized Skolem depth for each Skolem function
+                     , configCommand            :: Maybe String
                        -- CLI UserSyntax command string
-                     , configState :: Maybe String
+                     , configState              :: Maybe String
                        -- CLI State XML file path
                      }
 
@@ -75,17 +83,18 @@ instance Show Config where
                "--state=" ++ show (configState cfg)
 
 {-| Returns an instance of 'Config' with default values. -}
-defaultConfig = Config { configInput       = Nothing 
-                       , configDebug       = False
-                       -- , configIncremental = True
-                       -- , configAllModels   = True
-                       -- , configBound       = Nothing
-                       -- , configTPTPPath    = "./"
-                       -- , configInputType = GeoLog
-                       -- , configIsoElim     = False
-                       , configSkolemDepth = -1 
-                       , configCommand = Nothing 
-                       , configState = Nothing }
+defaultConfig = Config { configInput              = Nothing 
+                       , configDebug              = False
+                       -- , configIncremental     = True
+                       -- , configAllModels       = True
+                       -- , configBound           = Nothing
+                       -- , configTPTPPath        = "./"
+                       -- , configInputType       = GeoLog
+                       -- , configIsoElim         = False
+                       , configDefaultSkolemDepth = -1
+                       , configSkolemDepth        = emptySkolemDepthMap
+                       , configCommand            = Nothing 
+                       , configState              = Nothing }
 
 {-| ConfigMonad is  a state monad with a 'Config' instance as state. -}
 type ConfigMonad  = State Config

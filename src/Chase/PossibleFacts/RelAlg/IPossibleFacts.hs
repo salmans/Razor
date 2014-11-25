@@ -215,9 +215,10 @@ insertRelSequent seq resSet db = do
                             in fst <$> l'
   liftPushMProvs $ State.modify 
                  $ \(id, _, ps) -> (id, vars, ps) 
-  let depth = configSkolemDepth cfg
+  let depth = configDefaultSkolemDepth cfg
+  let dpths = configSkolemDepth cfg
   result    <- (liftM removeEmptyTables)              
-               $ foldM ( \d (e, t) -> insertTuples t e d depth) db 
+               $ foldM ( \d (e, t) -> insertTuples t e d depth dpths) db 
                $ zip (fst <$> hds) tbls
                -- Fold the deduce facts for all heads- 
                -- eventually remove references to empty tables
