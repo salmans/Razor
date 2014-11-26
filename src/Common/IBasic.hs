@@ -20,4 +20,5 @@ type Sym = String
 freshSymbol :: Sym -> Counter Sym
 freshSymbol sym = State.get >>=
                   (\c -> State.put (c + 1) >>
-                  (return $ sym ++ "#" ++ (show c)))
+                  (return $ sym ++ (show c)))
+--                   (return $ sym ++ "#" ++ (show c))) -- FIXME: SBV complains
