@@ -2,8 +2,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ExistentialQuantification #-}
--- {-# LANGUAGE Rank2Types #-}
--- {-# LANGUAGE ConstraintKinds #-}
 
 {- Razor
    Module      : SAT.SMTLib2
@@ -50,7 +48,7 @@ import Common.Model (Model, createModel)
 import SAT.Data
 
 -- Tools
-import Tools.Trace
+import Tools.Config ( Config (configRelaxMin) )
 
 -- Error Messages
 unitName = "SAT.SMT"
@@ -565,7 +563,9 @@ closeConnection = do
    [@containerAtoms@]  is a map from a relation symbol to the atoms of that
    symbol (of type 'SAtoms')  
    [@containerConnection@] stores an open connection to perform SMT queies 
-   incrementally. -}
+   incrementally. 
+   [@containerRelaxMin@] if the resulting model is purely minimal 
+   (homomorphically minimal) or the condition is relaxed -}
 data SMTContainer  = SMTContainer 
     { containerDomain     :: SDomain
     , containerFns        :: Map.Map FnSym UninterpretFn
@@ -573,14 +573,16 @@ data SMTContainer  = SMTContainer
     , containerTerms      :: STerms
     , containerAtoms      :: SAtoms
     , containerConnection :: Maybe (SMTConnection SMTPipe)
+    , containerRelaxMin   :: Bool
     }
 
 
 instance Show SMTContainer where
-    show (SMTContainer d _ _ t a c) =
+    show (SMTContainer d _ _ t a c m) =
          (show d) ++ "\n" ++
          (show t) ++ "\n" ++
-         (show a) ++ "\n"
+         (show a) ++ "\n" ++
+         (show m)
          
 {- Initial empty container -}
 emptySMTContainer :: SMTContainer 
@@ -589,7 +591,8 @@ emptySMTContainer  = SMTContainer { containerDomain     = Map.empty
                                   , containerRels       = Map.empty
                                   , containerTerms      = Map.empty
                                   , containerAtoms      = Map.empty
-                                  , containerConnection = Nothing }
+                                  , containerConnection = Nothing
+                                  , containerRelaxMin   = True }
 
 {- Returns an SMTLib2 expression for an element name of type 'SMTElement' inside
    the SMTM computation. The symbolic value is fetched from the 'SMTContaiener'
@@ -683,8 +686,10 @@ termValue fn term unintFunc sParams = do
    this implementation is SMTObservation and the type of SMT solving iterator is 
    SMTContainer. -}
 instance SATSolver SMTObservation SMTContainer where
-    satInitialize (SMTTheory context blamemap) =
-                  unsafePerformIO $ State.execStateT (perform context) emptySMTContainer
+    satInitialize cfg (SMTTheory context blamemap) =
+                  let cntr = emptySMTContainer {containerRelaxMin =
+                                                          configRelaxMin cfg}
+                  in  unsafePerformIO $ State.execStateT (perform context) cntr
     satSolve cont = let (res, cont')  = minimumResult cont
                     in  (translateSolution res, cont')
     satClose      =  unsafePerformIO . State.execStateT closeConnection
@@ -741,6 +746,7 @@ reduce res                 = return res
 minimizeResult :: SatResult -> SMTM SBool
 minimizeResult res = do
   container   <- lift State.get
+  let relax    = containerRelaxMin container
   let domain   = containerDomain container
   let rels     = Map.toList $ containerRels container
   let dic      = getSatResultDictionary res
@@ -765,6 +771,17 @@ minimizeResult res = do
       -- The keys in the map that correspond to terms have type other than
       -- KBool (coming from othDic) and they are not element names.
 
+  axiom <- if   relax
+           then relaxMinimize classes rels posAtoms negAtoms termStrs
+           else pureMinimize classes sClasses rels posAtoms negAtoms termStrs
+  return axiom
+
+-- a helper for minimizeResult for cases where the resulting model has to be
+-- homomorphically minimal
+pureMinimize :: Map.Map Result [SMTElement] -> [[SElement]]
+     -> [(String, UninterpretRel)] -> [(String, [SMTAtom])]
+     -> [(String, [SMTAtom])] -> [(SMTTerm, Result)] -> SMTM (SMTExpr Bool)
+pureMinimize classes sClasses rels posAtoms negAtoms termStrs = do
   let eqNegAx  = equalityNegativeAxioms sClasses
   let eqFlipAx = foldr (.||.) false $ equalityFlipAxioms <$> sClasses -- TODO
   negs  <- mapM (\(r, unintRel) -> 
@@ -780,6 +797,28 @@ minimizeResult res = do
   let negAx    = foldr (.&&.) true negs -- TODO
   let flipAx   = foldr (.||.) false flips -- TODO
   return $ negAx .&&. fnNeg .&&. eqNegAx .&&. (flipAx .||. fnFlips .||. eqFlipAx)
+
+-- a helper for minimizeResult for cases where the resulting model does not
+-- have to be homomorphically minimal
+relaxMinimize :: Map.Map Result [SMTElement] -> [(String, UninterpretRel)]
+     -> [(String, [SMTAtom])] -> [(String, [SMTAtom])] -> [(SMTTerm, Result)]
+     -> SMTM (SMTExpr Bool)
+relaxMinimize classes rels posAtoms negAtoms termStrs = do
+  negs  <- mapM (\(r, unintRel) -> 
+                     case lookup r negAtoms of
+                       Nothing -> return true
+                       Just as -> negativeAxioms unintRel as) rels
+  fnNeg <- functionNegativeAxioms termStrs classes
+  fnFlips <- functionFlipAxioms termStrs classes
+  flips <- mapM (\(r, unintRel) -> 
+                     case lookup r posAtoms of
+                       Nothing -> return false
+                       Just as -> flipAxioms unintRel as) rels
+  let negAx    = foldr (.&&.) true negs -- TODO
+  let flipAx   = foldr (.||.) false flips -- TODO
+  return $ negAx .&&. fnNeg .&&. ( flipAx .||. fnFlips )
+
+
 
 {- This function creates Negative Axioms for a set of facts that are named by
    a list of SMTAtom instances: every SMTAtom names a *negative* fact in a 
@@ -890,6 +929,7 @@ smtSymAtomMap atoms =
 nextResult :: SatResult -> SMTM SBool
 nextResult res = do
   container   <- lift State.get
+  let relax    = containerRelaxMin container
   let domain   = containerDomain container
   let rels     = Map.toList $ containerRels container
   let dic      = getSatResultDictionary res
@@ -906,7 +946,9 @@ nextResult res = do
                      in  flipAxioms unintRel as) rels
   let flipAx   = foldr (.||.) false flips -- TODO
   funFlipAx   <- functionFlipAxioms termStrs classes
-  return $ flipAx .||. eqFlipAx .||. funFlipAx
+  if relax
+     then return $ flipAx .||. funFlipAx
+     else return $ flipAx .||. eqFlipAx .||. funFlipAx
 
 {- Given the name of an atomic fact as an instance of type 'SMTAtom', returns 
    the names of the symbolic values of the arguments. -}

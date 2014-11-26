@@ -27,7 +27,7 @@ import Common.Provenance (Blame)
 import Common.Model (Model)
 
 -- Tools
-import qualified Tools.ExtendedSet as ExSet
+import Tools.Config (Config)
 
 
 {-| SATAtom is the class of types that can be used as the atomic pieces of 
@@ -98,6 +98,6 @@ instance Show (SATTheory a) where
   [@satClose@] closes the connection to the SMT solver.
 -}
 class (SATAtom a) => SATSolver a b | b -> a where
-    satInitialize :: SATTheory a -> b
+    satInitialize :: Config -> SATTheory a -> b
     satSolve      :: b -> (Maybe Model, b)
     satClose      :: b -> b

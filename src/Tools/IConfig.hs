@@ -60,6 +60,9 @@ data Config = Config { configInput              :: Maybe String
                        -- default depth of Skolem terms for bounding the search
                      , configSkolemDepth        :: SkolemDepthMap
                        -- customized Skolem depth for each Skolem function
+                     , configRelaxMin           :: Bool
+                       -- whether the resulting models are purely minimal or
+                       -- the condition is relaxed
                      , configCommand            :: Maybe String
                        -- CLI UserSyntax command string
                      , configState              :: Maybe String
@@ -79,6 +82,7 @@ instance Show Config where
                -- "--input-type=" ++ show (configInputType cfg) ++ "\n" ++
                -- "--iso-elim=" ++ show (configIsoElim cfg) ++ "\n" ++
                "--depth=" ++ show (configDefaultSkolemDepth cfg) ++ "\n" ++
+               "--relax=" ++ show (configRelaxMin cfg) ++ "\n" ++ 
                "--command=" ++ show (configCommand cfg) ++ "\n" ++
                "--state=" ++ show (configState cfg)
 
@@ -93,6 +97,7 @@ defaultConfig = Config { configInput              = Nothing
                        -- , configIsoElim         = False
                        , configDefaultSkolemDepth = -1
                        , configSkolemDepth        = emptySkolemDepthMap
+                       , configRelaxMin           = False
                        , configCommand            = Nothing 
                        , configState              = Nothing }
 

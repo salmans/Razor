@@ -41,7 +41,7 @@ getStartState config = do
       case inp of
         Just (Input thy dps) -> do
           let (b,p,t,c) = generateGS config {configSkolemDepth = dps} thy
-          let stream = modelStream t
+          let stream = modelStream config t
           case (nextModel stream) of
             (Nothing, _) -> return $ Left (UErr "no models exist for given theory")
             (Just mdl', stream') -> return $ Right (UState (config,thy) (b,p,t,c) (stream',mdl'))
@@ -52,7 +52,7 @@ getAugmentedState state@(UState (cfg, thy) (b,p,t,c) (stream, mdl)) fml = case g
   Nothing -> Left (UErr "augmentation formula is not an observation")
   Just obs -> do
     let (b', p', t', c') = augment cfg thy (b, p, t, c) obs
-    case nextModel (modelStream t') of
+    case nextModel (modelStream cfg t') of
       (Nothing, _) -> Left (UErr "no models exist for given augmentation")
       (Just mdl', stream') -> Right (UState (cfg,thy) (b',p',t',c') (stream',mdl'))
 

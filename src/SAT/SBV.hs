@@ -42,6 +42,9 @@ import Common.Model (Model, createModel)
 -- SAT
 import SAT.Data
 
+-- Tools
+import Tools.Config (Config (configRelaxMin))
+
 -- Error Messages
 unitName = "SAT.SMT"
 error_InvalidFnArity         = "invalid function arity!"
@@ -154,7 +157,7 @@ type SMTTheory = SATTheory SMTObservation
 
 {- Empty 'SMTTheory' -}
 emptySMTTheory :: SMTTheory
-emptySMTTheory = SMTTheory (State.put emptySMTContainer) Map.empty
+emptySMTTheory = SMTTheory (return ()) Map.empty
                  -- The computation context is initialized with an empty 
                  -- instance of SMTContainer. 
 
@@ -463,19 +466,22 @@ applyUnintRel _ _ = error $ unitName ++ ".applyUnintRel: "
    [@containerTerms@]  is a map from a function symbol to the terms of that
    symbol (of type 'STerms') 
    [@containerAtoms@]  is a map from a relation symbol to the atoms of that
-   symbol (of type 'SAtoms')  -}
+   symbol (of type 'SAtoms')
+   [@containerRelaxMin@] if the resulting model is purely minimal 
+   (homomorphically minimal) or the condition is relaxed -}   
 data SMTContainer     = SMTContainer 
-    { containerDomain :: SDomain
-    , containerFns    :: Map.Map FnSym  UninterpretFn
-    , containerRels   :: Map.Map RelSym UninterpretRel
-    , containerTerms  :: STerms
-    , containerAtoms  :: SAtoms 
+    { containerDomain   :: SDomain
+    , containerFns      :: Map.Map FnSym  UninterpretFn
+    , containerRels     :: Map.Map RelSym UninterpretRel
+    , containerTerms    :: STerms
+    , containerAtoms    :: SAtoms
+    , containerRelaxMin :: Bool
     }
 
 {- Initial empty container -}
 emptySMTContainer :: SMTContainer 
 emptySMTContainer  = 
-    SMTContainer Map.empty Map.empty Map.empty Map.empty Map.empty
+    SMTContainer Map.empty Map.empty Map.empty Map.empty Map.empty True
 
 {- 'SMT' is the computation context for translation to SMT and storing SMT 
    queries, a context for sending 'Observation's to symbolic values and running 
@@ -582,7 +588,10 @@ termValue fn term unintFunc sParams = do
    this implementation is SMTObservation and the type of SMT solving data is 
    SMT (). -}
 instance SATSolver SMTObservation (SMT ()) where
-    satInitialize (SMTTheory context blamemap)      = context
+    satInitialize cfg (SMTTheory context blamemap) = do
+                  State.put emptySMTContainer { containerRelaxMin
+                                                        = configRelaxMin cfg}
+                  context
     satSolve context = let (res, context') = minimumResult context
                        in  (translateSolution res, context')
     satClose         = id -- no close connection!
@@ -654,6 +663,7 @@ reduce context res = (res, context)
 minimizeResult :: SatResult -> SMT SBool
 minimizeResult res = do
   container   <- liftContainer State.get
+  let relax    = containerRelaxMin container
   let domain   = containerDomain container
   let rels     = Map.toList $ containerRels container
   let dic      = getModelDictionary res
@@ -692,7 +702,11 @@ minimizeResult res = do
                        Just as -> flipAxioms unintRel as) rels
   let negAx    = bAnd negs
   let flipAx   = bOr flips
-  return $ negAx &&& fnNeg &&& eqNegAx &&& (flipAx ||| fnFlips ||| eqFlipAx)
+  if relax
+     then return $ negAx &&& fnNeg &&& (flipAx ||| fnFlips)
+     else return $ negAx &&& fnNeg &&& eqNegAx &&&
+                                       (flipAx ||| fnFlips ||| eqFlipAx)
+     
 
 {- This function creates Negative Axioms for a set of facts that are named by
    a list of SMTAtom instances: every SMTAtom names a *negative* fact in a 
@@ -801,6 +815,7 @@ smtSymAtomMap atoms =
 nextResult :: SatResult -> SMT SBool
 nextResult res = do
   container   <- liftContainer State.get
+  let relax    = containerRelaxMin container
   let domain   = containerDomain container
   let rels     = Map.toList $ containerRels container
   let dic      = getModelDictionary res
@@ -817,7 +832,9 @@ nextResult res = do
                      in  flipAxioms unintRel as) rels
   let flipAx   = bOr flips
   funFlipAx   <- functionFlipAxioms termStrs classes
-  return $ flipAx ||| eqFlipAx ||| funFlipAx
+  if relax
+     then return $ flipAx ||| funFlipAx
+     else return $ flipAx ||| eqFlipAx ||| funFlipAx
   
 {- Given the name of an atomic fact as an instance of type 'SMTAtom', returns 
    the names of the symbolic values of the arguments. -}

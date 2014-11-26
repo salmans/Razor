@@ -69,6 +69,10 @@ options =
                            Just sk -> cfg { configDefaultSkolemDepth = sk})
             "#")
         "Depth of skolem term for reusing elements (-1 for pure minimal models)"
+    , Option "r" ["relax"]
+        (NoArg
+            (\cfg -> return cfg { configRelaxMin = True }))
+        "Allow models that are not purely minimal"        
     , Option "c" ["command", "cmd"]
         (ReqArg
             (\arg cfg -> return cfg { configCommand = Just arg })
@@ -130,8 +134,8 @@ augmentBase cfg seqMap (b, p, t, c) obs@(Obs (Rel rsym terms)) = do
   Chase.Chase.resumeChase cfg c seqMap' b d p t
 -- In: a propositional theory
 -- Out: an iterator that can be used to sequentially generate models (model stream)
-modelStream :: SATTheoryType -> SATIteratorType
-modelStream propThy = satInitialize propThy
+modelStream :: Config -> SATTheoryType -> SATIteratorType
+modelStream = satInitialize
 -- In: a model stream
 -- Out: an updated model stream and the next model
 nextModel :: SATIteratorType -> (Maybe Model, SATIteratorType)
