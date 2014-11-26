@@ -261,51 +261,38 @@ relSequentInstances relSeq uni new resSet provs =
     where seq = toSequent relSeq
 
 instantiateSequent :: Database -> Database -> Sub -> ExistsSub
-                   -> Maybe ExistsSub -> Sequent -> [Sequent]
+                   -> Either FnSym ExistsSub -> Sequent -> [Sequent]
 instantiateSequent uni new sub bodySub exSub seq = 
     let bdy  = formulaExistsSubstitute bodySub (sequentBody seq)
         seq' = substitute sub seq { sequentBody = bdy }
     in  case exSub of
-          Nothing -> [Sequent (sequentBody seq') (Atm $ Rel "Incomplete" [])]
-          Just s  -> let seq''      = sequentExistsSubstitute s seq'
-                         loneSkFuns = rights $ skolemFunctions seq''
-                         skMap      = Map.fromListWith (++) 
+          Left skFn -> [incompleteSequent (sequentBody seq') skFn]
+          Right s   -> let seq''      = sequentExistsSubstitute s seq'
+                           loneSkFuns = rights $ skolemFunctions seq''
+                           skMap      = Map.fromListWith (++) 
                                       $ (pure <$>) <$> loneSkFuns
-                     in  applyLoneSubs uni new skMap seq''
+                       in  applyLoneSubs uni new skMap seq''
 
 createSubs :: RelSequent -> Database -> Database -> TableSub
-           -> ProvInfo -> [(Sub, ExistsSub, Maybe ExistsSub)]
-createSubs seq uni new tbl provs = 
-    if   bodyExp == TblFull
-    then (\(Tuple tup exSub) -> 
-              ( emptySub
+           -> ProvInfo -> [(Sub, ExistsSub, Either FnSym ExistsSub)]
+createSubs seq uni new tbl provs =
+    let subsOf t = if   bodyExp == TblFull
+                   then emptySub
+                   else createSub t heads
+    in  (\(Tuple tup exSub) -> 
+              ( subsOf tup
               , exSub
-              , case createExistsSub tup elmProvs skFuns of
-                  -- < MONITOR
-                  Nothing -> Nothing -- Just Map.empty
-                  -- Nothing -> Just exSub
-                  -- MONITOR >
-                  Just es -> Just es)) <$> dblist
-    else (\(Tuple tup exSub) -> 
-              ( createSub tup heads
-              , exSub
-              , case createExistsSub tup elmProvs skFuns of
-                  -- < MONITOR
-                  Nothing ->  Nothing -- Just Map.empty
-                  -- Nothing -> Just exSub
-                  -- MONITOR >
-                  Just es -> Just es)) <$> dblist
+              , createExistsSub tup elmProvs skFuns)) <$> dblist
     where dblist   = DB.toList tbl
           elmProvs = elementProvs provs
           bodyExp  = relSequentBodyDelta seq
           heads    = header bodyExp
           skFuns   = lefts $ skolemFunctions seq
 
-
 createSub :: Tup -> Header -> Sub
 createSub tup heads = Map.map (\i -> Elem (tup ! i)) heads
 
-createExistsSub :: Tup -> ElementProvs -> [FnSym] -> Maybe ExistsSub
+createExistsSub :: Tup -> ElementProvs -> [FnSym] -> Either FnSym ExistsSub
 createExistsSub tup elmProvs skFuns =     
     let paramProvs = head <$>  -- any of the existing provenance terms works
                      (\e -> getElementProv e elmProvs) <$> 
@@ -317,8 +304,9 @@ createExistsSub tup elmProvs skFuns =
                      (\t -> findElementWithProv t elmProvs)
                      <$> provsToBe
     in  if   all (isJust.snd) skElems
-        then Just $ Map.fromList $ (Elem . fromJust <$>) <$> skElems
-        else Nothing
+        then Right $ Map.fromList $ (Elem . fromJust <$>) <$> skElems
+        else Left  $ fst . head . filter (isNothing.snd) $ skElems
+             -- Any of the skFuns that have reached the maximum limit works!
 
 
 transformTuples :: [(a, b)] -> ([a], [b])

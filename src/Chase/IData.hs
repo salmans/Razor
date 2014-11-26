@@ -16,8 +16,9 @@ module Chase.IData where
 import qualified Data.Map as Map
 
 -- Syntax
-import Syntax.Term (Constant, Variable, Sub)
-import Syntax.Geometric (Theory, Sequent(..), Formula (..))
+import Syntax.Term ( Term (Cons), Constant (..), Variable, Sub, FnSym)
+import Syntax.Term ( Term (Elem), Element (..), Variable, Sub, FnSym)
+import Syntax.Geometric (Theory, Sequent(..), Formula (..), Atom (..))
 
 -- Control
 import Control.Applicative
@@ -253,3 +254,13 @@ liftChaseMCounter = liftChaseMState.RWS.lift
 liftChaseMConfig  :: ( Monad (t1 m), Monad m
                      , RWS.MonadTrans t, RWS.MonadTrans t1) => m a -> t (t1 m) a
 liftChaseMConfig  = liftChaseMCounter.State.lift
+
+{-| Incomplete sequents are those sequents whose heads don't get instantiated 
+    because of the maximum Skolem depth for search. This function enforces a 
+    contract for such sequents: given the body and the Skolem depth of the 
+    quantifier that has reached the maximum depth, the function returns an 
+    incomplete sequent. -}
+-- FIXME: After developing the idea of "incomplete sequents", the function may
+-- be moved to another module.
+incompleteSequent :: Formula -> FnSym -> Sequent
+incompleteSequent body skFn = Sequent body (Atm $ Rel ("Incomplete_" ++ skFn) [])

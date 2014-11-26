@@ -15,6 +15,7 @@ module Chase.Data ( PossibleFacts (..) , ChaseImpl (..)
                   , liftPushMSATTheory, liftPushMConfig
                   , PullM, runPullM, evalPullM, liftPullMBase, liftPullMProvs
                   , ChaseM (..), liftChaseMState, liftChaseMCounter
-                  , liftChaseMConfig) where
+                  , liftChaseMConfig
+                  , incompleteSequent ) where
 
 import Chase.IData
