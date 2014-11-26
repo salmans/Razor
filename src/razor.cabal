@@ -8,7 +8,7 @@ synopsis:            Razor is a model-finder for geometric theories.
 homepage:            https://github.com/salmans/razor
 -- license:             
 license-file:        LICENSE
-author:              Salman Saghafi
+author:              Salman Saghafi <salmans@cs.wpi.edu>, Ryan Danas <ryandanas@wpi.edu>
 maintainer:          salmans@cs.wpi.edu
 -- copyright:           
 category:            Math
