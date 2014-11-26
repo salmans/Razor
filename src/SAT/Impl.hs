@@ -21,6 +21,9 @@ import qualified Control.Monad.State.Lazy as State
 -- SAT
 import qualified SAT.Data (satInitialize, satSolve, storeSequent, blameSequent)
 
+-- Tools
+import Tools.Config (Config)
+
 -- <><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
 -- Uncomment to select the implementation:
 
@@ -33,7 +36,7 @@ type SATIteratorState = State.State SATIteratorType
 
 {-| Initializes the solver with the selected theory type and returns an iterator
   of the selected iterator type. -}
-satInitialize :: SATTheoryType -> SATIteratorType
+satInitialize :: Config -> SATTheoryType -> SATIteratorType
 satInitialize = SAT.Data.satInitialize
 
 {-| Given an instance of the selected iterator type, returns a model (if a 
