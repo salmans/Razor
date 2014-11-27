@@ -540,6 +540,14 @@ openConnection = do
       State.modify (\cont -> cont { containerConnection = Just c })
       return c
 
+{- Sends a @push@ query to the SMT solver. -}
+pushToSolver :: SMTContainer -> SMTContainer
+pushToSolver = unsafePerformIO . State.execStateT (perform push)
+
+{- Sends a @pop@ query to the SMT solver. -}
+popFromSolver :: SMTContainer -> SMTContainer
+popFromSolver = unsafePerformIO . State.execStateT (perform pop)
+
 {- Closes the connection to the SMT solver. -}
 closeConnection :: ContainerMonad ()
 closeConnection = do
@@ -694,6 +702,8 @@ instance SATSolver SMTObservation SMTContainer where
                     in  (translateSolution res, cont')
     satClose cont = unsafePerformIO $
                       State.execStateT closeConnection cont >> return ()
+    satPush       = pushToSolver
+    satPop        = popFromSolver
 
 {- Given a query of type SMTM, executes the query and returns the result. It 
    also returns a new 'SMTM' computation where the homomorphism cone of the 

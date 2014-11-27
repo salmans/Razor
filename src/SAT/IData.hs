@@ -96,8 +96,14 @@ instance Show (SATTheory a) where
   [@satSolve@] given an iterator of type @b@, returns a 'Model' (if exists) and
   a new iterator for fetching the next model.
   [@satClose@] closes the connection to the SMT solver.
+  [@satPush@] makes a call to the @push@ function of the underlying SMT solver
+  or fakes a push action if the connection to the solver is not incremental.
+  [@satPop@] makes a call to the @pop@ function of the underlying SMT solver
+  or fakes a pop action if the connection to the solver is not incremental.
 -}
 class (SATAtom a) => SATSolver a b | b -> a where
     satInitialize :: Config -> SATTheory a -> b
     satSolve      :: b -> (Maybe Model, b)
     satClose      :: b -> ()
+    satPush       :: b -> b
+    satPop        :: b -> b

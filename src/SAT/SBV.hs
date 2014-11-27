@@ -55,8 +55,7 @@ error_RelationalAtomExpected = "relational atom expected!"
 
 {-|Solver Interface Types -}
 type SATTheoryType   = SMTTheory
-type SATIteratorType = SMT ()
- 
+type SATIteratorType = SBVIterator
 
 {- A name equivalent to an 'Element' in SMT solving -}
 type SMTElement = String
@@ -468,7 +467,8 @@ applyUnintRel _ _ = error $ unitName ++ ".applyUnintRel: "
    [@containerAtoms@]  is a map from a relation symbol to the atoms of that
    symbol (of type 'SAtoms')
    [@containerRelaxMin@] if the resulting model is purely minimal 
-   (homomorphically minimal) or the condition is relaxed -}   
+   (homomorphically minimal) or the condition is relaxed 
+   -}
 data SMTContainer     = SMTContainer 
     { containerDomain   :: SDomain
     , containerFns      :: Map.Map FnSym  UninterpretFn
@@ -480,8 +480,7 @@ data SMTContainer     = SMTContainer
 
 {- Initial empty container -}
 emptySMTContainer :: SMTContainer 
-emptySMTContainer  = 
-    SMTContainer Map.empty Map.empty Map.empty Map.empty Map.empty True
+emptySMTContainer  = SMTContainer Map.empty Map.empty Map.empty Map.empty Map.empty True
 
 {- 'SMT' is the computation context for translation to SMT and storing SMT 
    queries, a context for sending 'Observation's to symbolic values and running 
@@ -584,17 +583,31 @@ termValue fn term unintFunc sParams = do
 -- SMT Solving and Model Generation
 -- !! The efficiency of this section may be improved.
 --------------------------------------------------------------------------------
+{- Because SBV doesn't support incremental connection to the solver, thus, 
+   the solver's @push@ and @pop@ operations, we save the previous state of the 
+   computation inside Maybe. This allows us to mimic a @push@ operation and 
+   load the computation from this field to mimic a @pop@ operation. -}
+data SBVIterator = SBVIterator { iteratorContext  :: SMT ()
+                               , iteratorPrevious :: Maybe SBVIterator
+                               }
+
 {- Defining a SATSolver instance that does SMT solving. The 'SMTAtom' type of 
    this implementation is SMTObservation and the type of SMT solving data is 
    SMT (). -}
-instance SATSolver SMTObservation (SMT ()) where
-    satInitialize cfg (SMTTheory context blamemap) = do
-                  State.put emptySMTContainer { containerRelaxMin
-                                                        = configRelaxMin cfg}
-                  context
-    satSolve context = let (res, context') = minimumResult context
-                       in  (translateSolution res, context')
-    satClose         = const () -- no connection to close!
+instance SATSolver SMTObservation (SBVIterator) where
+    satInitialize cfg (SMTTheory context blamemap) =
+                  let cont     = emptySMTContainer {
+                                    containerRelaxMin = configRelaxMin cfg
+                                    }
+                      context' = State.put cont >> context
+                  in  SBVIterator context' Nothing
+    satSolve iter  = let SBVIterator context prev = iter
+                         (res, context') = minimumResult context
+                     in  ( translateSolution res
+                         , iter {iteratorContext = context'})
+    satClose       = const () -- no connection to close!
+    satPush  iter  = iter { iteratorPrevious = Just iter}
+    satPop   iter  = fromMaybe iter (iteratorPrevious iter)
 
 mySolver = Yices.sbvCurrentSolver {smtFile = Just "/Users/Salman/Desktop/log.txt"}
 {- Given a query of type SMT, executes the query and returns the result. It also
