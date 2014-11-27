@@ -594,7 +594,7 @@ instance SATSolver SMTObservation (SMT ()) where
                   context
     satSolve context = let (res, context') = minimumResult context
                        in  (translateSolution res, context')
-    satClose         = id -- no close connection!
+    satClose         = const () -- no connection to close!
 
 mySolver = Yices.sbvCurrentSolver {smtFile = Just "/Users/Salman/Desktop/log.txt"}
 {- Given a query of type SMT, executes the query and returns the result. It also

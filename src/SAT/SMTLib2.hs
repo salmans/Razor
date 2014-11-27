@@ -692,7 +692,8 @@ instance SATSolver SMTObservation SMTContainer where
                   in  unsafePerformIO $ State.execStateT (perform context) cntr
     satSolve cont = let (res, cont')  = minimumResult cont
                     in  (translateSolution res, cont')
-    satClose      =  unsafePerformIO . State.execStateT closeConnection
+    satClose cont = unsafePerformIO $
+                      State.execStateT closeConnection cont >> return ()
 
 {- Given a query of type SMTM, executes the query and returns the result. It 
    also returns a new 'SMTM' computation where the homomorphism cone of the 

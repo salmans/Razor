@@ -5,8 +5,9 @@
   of SAT/SMT solving.
   Maintainer  : Salman Saghafi -}
 
-module SAT.Impl ( SATTheoryType, SATIteratorType, 
-                  satInitialize, satSolve, storeSequent, blameSequent) where 
+module SAT.Impl ( SATTheoryType, SATIteratorType
+                , satInitialize, satSolve, satClose
+                , storeSequent, blameSequent) where
 
 
 -- Common
@@ -19,7 +20,8 @@ import Common.Provenance (Blame)
 import qualified Control.Monad.State.Lazy as State
 
 -- SAT
-import qualified SAT.Data (satInitialize, satSolve, storeSequent, blameSequent)
+import qualified SAT.Data (satInitialize, satSolve, satClose
+                          , storeSequent, blameSequent)
 
 -- Tools
 import Tools.Config (Config)
@@ -43,6 +45,10 @@ satInitialize = SAT.Data.satInitialize
   solution exists) and an iterator for getting the next list of observations. -}
 satSolve :: SATIteratorType -> (Maybe Model, SATIteratorType)
 satSolve =  SAT.Data.satSolve
+
+{-| Closes the connection to the SMT solver if applicable. -}
+satClose :: SATIteratorType -> ()
+satClose =  SAT.Data.satClose
 
 {-| Adds an instance of 'ObservationSequent' to an instance of 'SATTheoryType'.
   This function is primarily used to implement augmentation. -}

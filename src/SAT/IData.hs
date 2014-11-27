@@ -100,4 +100,4 @@ instance Show (SATTheory a) where
 class (SATAtom a) => SATSolver a b | b -> a where
     satInitialize :: Config -> SATTheory a -> b
     satSolve      :: b -> (Maybe Model, b)
-    satClose      :: b -> b
+    satClose      :: b -> ()
