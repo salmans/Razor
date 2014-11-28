@@ -23,6 +23,8 @@ import Data.Either
 -- Control
 import Control.Applicative
 import Control.Monad
+import Control.Monad.Trans
+import Control.Monad.List
 import qualified Control.Monad.State as State
 
 -- Syntax
@@ -271,7 +273,9 @@ instantiateSequent uni new sub bodySub exSub seq =
                            loneSkFuns = rights $ skolemFunctions seq''
                            skMap      = Map.fromListWith (++) 
                                       $ (pure <$>) <$> loneSkFuns
-                       in  applyLoneSubs uni new skMap seq''
+                       in  case runListT $ applyLoneSubs uni new skMap seq'' of
+                             Left skFn -> [incompleteSequent (sequentBody seq') skFn]
+                             Right sqs -> sqs
 
 createSubs :: RelSequent -> Database -> Database -> TableSub
            -> ProvInfo -> [(Sub, ExistsSub, Either FnSym ExistsSub)]
@@ -308,52 +312,56 @@ createExistsSub tup elmProvs skFuns =
         else Left  $ fst . head . filter (isNothing.snd) $ skElems
              -- Any of the skFuns that have reached the maximum limit works!
 
-
-transformTuples :: [(a, b)] -> ([a], [b])
-transformTuples xs = (fst <$> xs, snd <$> xs)
-
 applyLoneSubs :: Database -> Database -> Map.Map FnSym [Atom] -> Sequent
-                 -> [Sequent]
+              -> ListT (Either FnSym) Sequent
 applyLoneSubs uni new skMap seq =
     if   Map.null skMap
-    then return seq
-    else do
-      if   Map.null completeAtoms
-      then []
-      else do 
-        let atomSubs skFun a@(FnRel _ ts) =
-              let elms    = fromMaybe DB.empty (lookupElement a)
-                  (Var v) = last ts
-              in  (\e -> ((v, Elem e), (skFun, Elem e))) <$> DB.toList elms
-        temp                 <- mapM (\(k, a) -> atomSubs k a) 
-                                    completeAtomsList
-        let res                  = transformTuples temp
-        let (sub, existsSub)     = (\(x, y) -> (Map.fromList x, Map.fromList y))
-                                   res
-        let rest'                = Map.map (substitute sub) rest
-        applyLoneSubs uni new rest' $ sequentExistsSubstitute existsSub seq
+    then return seq -- done!
+    else if   Map.null completeAtoms -- no more complete atoms, thus no progress!
+         then lift . Left . head . Map.keys $ rest
+              -- Any of the unassigned function values can be used for
+              -- constructing an "incomplete sequent".
+         else do
+           let atomSubs skFun a@(FnRel f ts) = do
+                 let  Var v = last ts
+                 case lookupElement a of
+                   Nothing   -> lift $ Left f
+                   Just elms -> return $
+                                  (\e -> ((v, Elem e), (skFun, Elem e))) <$>
+                                  DB.toList elms
+           temp            <- mapM (uncurry atomSubs) completeAtomsList
+           let res          = transformTuples $ concat temp
+           let (sub, exSub) = (\(x, y) -> (Map.fromList x, Map.fromList y)) res
+           let rest'        = Map.map (substitute sub) rest
+           applyLoneSubs uni new rest' $ sequentExistsSubstitute exSub seq
     where (completeAtoms, rest) = Map.partition (all completeAtom) skMap
           func (a, ls)          = (\l -> (a, l)) <$> ls
           completeAtomsList     = concatMap func $ Map.toList completeAtoms
           completeAtom (FnRel _ ts) = not $ any isVariable (init ts)
           lookupElement atm = lookupElementInDB atm uni 
                               <|> lookupElementInDB atm new
-          lookupElementInDB (FnRel f ts) db = 
-              let ref = case ts of
-                          [_] -> ConstTable (Constant f)
-                          _   -> FnTable f
-              in case Map.lookup ref db of
-                   Nothing           -> Nothing
-                   Just set          -> 
-                       let tups = DB.filter (\(Tuple es _) -> 
-                                          ((\e -> Elem e) <$> 
-                                           (init (Vect.toList es))) 
-                                          == (init ts)) set 
-                       in  if   DB.null tups
-                           then Nothing
-                           else Just 
-                                $ DB.map (\(Tuple es _) -> Vect.last es) tups
 
+{- As a helper for 'applyLoneSubs', returns the value corresponding to the 
+   input atomic functional atom from a given database. -}
+lookupElementInDB :: Atom -> Database -> Maybe (DB.Set Element)
+lookupElementInDB (FnRel f ts) db = 
+  case Map.lookup ref db of
+    Nothing           -> Nothing -- table not found!
+    Just set          ->
+      let filterFunc = \(Tuple es _) ->
+                         (Elem <$> (init $ Vect.toList es)) == init ts
+                       -- filter records curresponding to the input atomic fact
+          tups = DB.filter filterFunc set
+      in  if   DB.null tups
+          then Nothing -- term value not found
+          else Just $  DB.map (\(Tuple es _) -> Vect.last es) tups
+  where ref = case ts of
+                [_] -> ConstTable (Constant f) -- unary function
+                _   -> FnTable f
+
+{- Another helper for 'applyLoneSubs' -}
+transformTuples :: [(a, b)] -> ([a], [b])
+transformTuples xs = (fst <$> xs, snd <$> xs)
 
 {- Adds an 'Observation' to a 'Database'. -}
 addToDatabase :: Observation -> Database -> Database
