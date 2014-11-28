@@ -21,10 +21,9 @@ import qualified Data.Map as Map
 import System.Environment
 
 data UState = UState (Config, Theory) (ChasePossibleFactsType, ProvInfo, SATTheoryType, Int) (SATIteratorType, Model)
+data UError = UErr String
 type UBlame = Either UError (Blame, Sequent)
 data UOrigin = UOriginLeaf Term UBlame | UOriginNode Term UBlame [UOrigin]
-data UError = UErr String
-data UAnswer = AOrigin UOrigin | ABlame UBlame
 
 getConfig :: IO Config
 getConfig = do 

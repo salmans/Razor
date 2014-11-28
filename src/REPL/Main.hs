@@ -6,7 +6,6 @@
 -}
 module Main where
 import API.Surface
-import API.UserSyntax
 import REPL.Display
 import Common.Model
 import Common.Provenance
@@ -15,9 +14,15 @@ import Data.List
 import Syntax.GeometricUtils 
 import SAT.Impl
 import System.Console.Haskeline
+import Chase.Impl
 import System.Environment
 import Tools.Config
 import Control.Monad.Trans
+
+import REPL.Mode
+import qualified REPL.Mode.Theory
+
+data MainState = MainState Config (Maybe Theory) (Maybe (ChasePossibleFactsType, ProvInfo, SATTheoryType, Int)) (Maybe (SATIteratorType, Model))
 
 main :: IO ()
 main = do
@@ -25,22 +30,34 @@ main = do
   displayInit
   -- get configuration
   config <- getConfig 
-  -- print preprocess information
-  putStrLn "<><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>"
-  putStrLn "Input Options: "
-  putStrLn $ show config
-  putStrLn "<><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>"
-  -- get the start state
+  {--- get the start state
   startState <- getStartState config
   case startState of
     Left (UErr err) -> error err
     Right state@(UState (cfg, thy) (b,p,t,_) (stream, mdl)) -> do
       (prettyPrint 0 flow (show mdl))
-      runInputT defaultSettings (loop state)
+      runInputT defaultSettings (loop state)-}
+
+  -- enter starting mode
+  modestatus <- enterMode config
+  case modestatus of
+    Left err -> prettyPrint 0 ferror (show err)
+    Right config' -> runInputT defaultSettings $ loop (MainState config' Nothing Nothing Nothing) config'
   -- exit display
   displayExit
 
-loop :: UState -> InputT IO ()
+loop :: LoopMode m => MainState -> m -> InputT IO()
+loop state@(MainState config theory gstar stream) mode = do
+  -- get input
+  minput <- getInputLine "% "
+  -- parse input into a command and act depending on the case
+  case minput of
+      Nothing -> return ()
+      Just command -> do
+        mode' <- lift $ runOnce mode command
+        loop state mode'
+
+{-loop :: UState -> InputT IO ()
 loop state@(UState (cfg, thy) (b,p,t,_) (stream, mdl)) = do
   -- possible REPL loops
   let sameLoop = loop state
@@ -105,3 +122,4 @@ printDiff :: Sequent -> Sequent -> (String, Int) -> IO()
 printDiff original diff format@(highlight, tabs) = do
   prettyPrint tabs finput ("thy rule: "++(show original)++"\n")
   prettyHighlight tabs highlight ("instance: "++(show diff)++"\n")
+-}
