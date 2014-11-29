@@ -94,7 +94,7 @@ options =
 parseConfig :: [String] -> IO Config
 parseConfig args = do
   -- Parse options, getting a list of option actions
-  let (actions, nonOptions, errors) = getOpt RequireOrder options args
+  let (actions, nonOptions, errors) = getOpt Permute options args
   -- Here we thread startOptions through all supplied option actions
   config      <- foldl (>>=) (return defaultConfig) actions
   let config'  = case configInput config of  -- if the input file not specified
