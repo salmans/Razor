@@ -96,8 +96,14 @@ parseConfig args = do
   -- Parse options, getting a list of option actions
   let (actions, nonOptions, errors) = getOpt RequireOrder options args
   -- Here we thread startOptions through all supplied option actions
-  config <- foldl (>>=) (return defaultConfig) actions
-  return config
+  config      <- foldl (>>=) (return defaultConfig) actions
+  let config'  = case configInput config of  -- if the input file not specified
+                   Nothing -> if   null nonOptions
+                              then config
+                              else config {configInput = Just $ head nonOptions}
+                                   -- use the first nonOption for the input file
+                   Just _  -> config
+  return config'
 -- In: configuration options, user input theory
 -- Out: an input if parsing success
 parseInputFile :: Config -> String -> IO (Maybe Input)
