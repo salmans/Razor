@@ -10,6 +10,7 @@ module Tools.IConfig where
 import Data.Maybe
 
 -- Control
+import Control.Applicative
 import Control.Monad.State.Lazy as State
 
 -- Common
@@ -70,7 +71,7 @@ data Config = Config { configInput              :: Maybe String
                      }
 
 instance Show Config where
-    show cfg = "--input=" ++ show (configInput cfg) ++ "\n" ++
+    show cfg = "--input=" ++ showOptional (configInput cfg) ++ "\n" ++
                "--debug=" ++ show (configDebug cfg) ++ "\n" ++
                -- "--incremental=" ++ show (configIncremental cfg) ++ "\n" ++
                -- "--one=" ++ show ((not.configAllModels) cfg) ++ "\n" ++
@@ -83,8 +84,14 @@ instance Show Config where
                -- "--iso-elim=" ++ show (configIsoElim cfg) ++ "\n" ++
                "--depth=" ++ show (configDefaultSkolemDepth cfg) ++ "\n" ++
                "--relax=" ++ show (configRelaxMin cfg) ++ "\n" ++ 
-               "--command=" ++ show (configCommand cfg) ++ "\n" ++
-               "--state=" ++ show (configState cfg)
+               "--command=" ++ showOptional (configCommand cfg) ++ "\n" ++
+               "--state=" ++ showOptional (configState cfg)
+
+-- Helper for the show
+showOptional :: Show a => Maybe a -> String
+showOptional Nothing  = "Not specified!"
+showOptional (Just v) = show v
+
 
 {-| Returns an instance of 'Config' with default values. -}
 defaultConfig = Config { configInput              = Nothing 
