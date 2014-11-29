@@ -15,39 +15,41 @@ import Text.ParserCombinators.Parsec
 import Text.Parsec.Prim
 import Syntax.GeometricParser
 
-instance LoopMode TheoryState where
+instance LoopMode TheoryM where
   runOnce	  = theoryRun
   enterMode = enterTheory
   exitMode  = exitTheory
   showHelp  = theoryHelp
 
-type TheoryState = Config
+data TheoryM = TheoryM
 
-data TheoryCommand = Load TheoryFile | ShowTheory
+data TheoryCommand = Load TheoryFile
 type TheoryFile = String
 
 --------------------
 -- Mode Functions --
 --------------------
-theoryRun :: TheoryState -> String -> IO(TheoryState)
-theoryRun state command = case parseTheoryCommand command of
-  Left err -> putStrLn "error" >> return state
+theoryRun :: TheoryM -> REPLState -> String -> IO(Either Error REPLState)
+theoryRun mode state@(REPLState config theory gstar stream) command = case parseTheoryCommand command of
+  Left err -> return $ Left err
   Right cmd -> case cmd of
-    Load file -> putStrLn "load" >> return state
-    ShowTheory -> putStrLn "theory" >> return state
-
+    Load file -> putStrLn "load" >> return (Right state)
 ---------------------
 -- chmod Functions --
 ---------------------
-enterTheory :: TheoryState -> IO(Either Error TheoryState)
-enterTheory state = return $ Right state
+enterTheory :: TheoryM -> REPLState -> IO(Either Error REPLState)
+enterTheory mode state@(REPLState config theory gstar stream) = return $ Right state
 
-exitTheory :: TheoryState -> IO()
-exitTheory state = return ()
+exitTheory :: TheoryM -> IO()
+exitTheory mode = return ()
 
 -----------------------
 -- Command Functions --
 -----------------------
+theoryHelp :: TheoryM -> IO()
+theoryHelp cmd = putStrLn $ 
+  "ld <string>:   load the given theory by filename"++"\n"
+
 parseTheoryCommand :: String -> Either Error TheoryCommand
 parseTheoryCommand cmd = 
 	let pResult = parse pCommand "parsing theory command" cmd
@@ -56,7 +58,7 @@ parseTheoryCommand cmd =
 		Right val -> Right $ val
 
 pCommand :: Parser TheoryCommand
-pCommand = pLoad <|> pShow
+pCommand = pLoad
 
 pLoad :: Parser TheoryCommand
 pLoad = do
@@ -64,13 +66,3 @@ pLoad = do
 	spaces
 	Load <$> many (noneOf "\n")
 
-pShow :: Parser TheoryCommand
-pShow = do
-  symbol "!"
-  spaces
-  return ShowTheory
-
-theoryHelp :: TheoryState -> IO()
-theoryHelp cmd = putStrLn $ 
-  "!:             show the input theory"++"\n"++
-  "ld <string>:   load the given theory by filename"++"\n"

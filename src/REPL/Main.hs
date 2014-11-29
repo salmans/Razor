@@ -20,9 +20,9 @@ import Tools.Config
 import Control.Monad.Trans
 
 import REPL.Mode
-import qualified REPL.Mode.Theory
+import qualified REPL.Mode.Theory as T
 
-data MainState = MainState Config (Maybe Theory) (Maybe (ChasePossibleFactsType, ProvInfo, SATTheoryType, Int)) (Maybe (SATIteratorType, Model))
+data REPLMode = TheoryMode T.TheoryM
 
 main :: IO ()
 main = do
@@ -39,23 +39,32 @@ main = do
       runInputT defaultSettings (loop state)-}
 
   -- enter starting mode
-  modestatus <- enterMode config
-  case modestatus of
-    Left err -> prettyPrint 0 ferror (show err)
-    Right config' -> runInputT defaultSettings $ loop (MainState config' Nothing Nothing Nothing) config'
+  let state = REPLState config Nothing Nothing Nothing
+  let startmode = T.TheoryM
+  enter <- enterMode startmode state
+  case enter of
+    Left err -> prettyPrint 0 ferror err
+    Right state' -> runInputT defaultSettings $ loop state' startmode
   -- exit display
   displayExit
 
-loop :: LoopMode m => MainState -> m -> InputT IO()
-loop state@(MainState config theory gstar stream) mode = do
+loop :: LoopMode m => REPLState -> m -> InputT IO()
+loop state mode = do
+  -- loop types
+  let stay = loop state mode
+  let go state' = loop state' mode
   -- get input
   minput <- getInputLine "% "
   -- parse input into a command and act depending on the case
   case minput of
       Nothing -> return ()
       Just command -> do
-        mode' <- lift $ runOnce mode command
-        loop state mode'
+        run <- lift $ runOnce mode state command
+        case run of
+          Left err -> do
+            lift $ prettyPrint 0 ferror err
+            stay
+          Right state' -> go state'
 
 {-loop :: UState -> InputT IO ()
 loop state@(UState (cfg, thy) (b,p,t,_) (stream, mdl)) = do

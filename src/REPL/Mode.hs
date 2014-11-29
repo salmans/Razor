@@ -5,11 +5,20 @@
   Maintainer  : Salman Saghafi, Ryan Danas
 -}
 module REPL.Mode where
+import Common.Model
+import Common.Provenance
+import Tools.Config
+import Data.Maybe
+import Data.List
+import Syntax.GeometricUtils 
+import SAT.Impl
+import Chase.Impl
 
+data REPLState = REPLState Config (Maybe Theory) (Maybe (ChasePossibleFactsType, ProvInfo, SATTheoryType, Int)) (Maybe (SATIteratorType, Model))
 type Error = String
 
-class LoopMode state where
-	runOnce			::		state -> String -> IO(state)
-	exitMode		::		state -> IO()
-	enterMode		::		state -> IO(Either Error state)
-	showHelp		::		state -> IO()
+class LoopMode mode where
+	runOnce			::		mode -> REPLState -> String -> IO(Either Error REPLState)
+	exitMode		::		mode -> IO()
+	enterMode		::		mode -> REPLState -> IO(Either Error REPLState)
+	showHelp		::		mode -> IO()
