@@ -15,5 +15,5 @@ module Chase.PossibleFacts.RelAlg.DB ( Set(..)
 
 {- Select DB implementation: -}
 -- import Chase.PossibleFacts.RelAlg.IListDB as IDB -- based on Haskell lists
--- import Chase.PossibleFacts.RelAlg.ISetDB as IDB -- based on Data.Set
-import Chase.PossibleFacts.RelAlg.IHashSetDB as IDB -- based on Data.HashSet
+import Chase.PossibleFacts.RelAlg.ISetDB as IDB -- based on Data.Set
+-- import Chase.PossibleFacts.RelAlg.IHashSetDB as IDB -- based on Data.HashSet
