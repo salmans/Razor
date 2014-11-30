@@ -20,6 +20,7 @@ instance LoopMode TheoryM where
   enterMode = enterTheory
   exitMode  = exitTheory
   showHelp  = theoryHelp
+  showMode  = showTheoryMode
 
 data TheoryM = TheoryM
 
@@ -47,8 +48,11 @@ exitTheory mode = return ()
 -----------------------
 -- Command Functions --
 -----------------------
+showTheoryMode :: TheoryM -> IO()
+showTheoryMode mode = prettyPrint 0 finput $ "theory "
+
 theoryHelp :: TheoryM -> IO()
-theoryHelp cmd = putStrLn $ 
+theoryHelp cmd = prettyPrint 0 foutput $ ""++ 
   "ld <string>:   load the given theory by filename"
 
 parseTheoryCommand :: String -> Either Error TheoryCommand

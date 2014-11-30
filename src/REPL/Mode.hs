@@ -23,3 +23,4 @@ class LoopMode mode where
 	exitMode		::		mode -> IO()
 	enterMode		::		mode -> REPLState -> IO(Either Error REPLState)
 	showHelp		::		mode -> IO()
+	showMode		::		mode -> IO()

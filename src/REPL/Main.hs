@@ -44,7 +44,9 @@ main = do
   enter <- enterMode startmode state
   case enter of
     Left err -> prettyPrint 0 ferror err
-    Right state' -> runInputT defaultSettings $ loop state' startmode
+    Right state' -> do
+      replSplash
+      runInputT defaultSettings $ loop state' startmode
   -- exit display
   displayExit
 
@@ -55,6 +57,7 @@ loop state@(REPLState config theory gstar stream model) mode = do
   let go state' = loop state' mode
   -- get input
   lift $ putStr "\n"
+  lift $ showMode mode
   minput <- getInputLine "% "
   -- parse input into a command and act depending on the case
   case minput of
@@ -72,9 +75,9 @@ loop state@(REPLState config theory gstar stream model) mode = do
           -- Run the overall REPL command
           Just command -> case command of
             Display substate -> case substate of
-              TheConfig -> lift (putStrLn (show config)) >> stay
-              TheTheory -> lift (putStrLn (show theory)) >> stay
-              TheModel -> lift (putStrLn (show model)) >> stay
+              TheConfig -> lift (prettyPrint 0 foutput (show config)) >> stay
+              TheTheory -> lift (prettyPrint 0 finput (show theory)) >> stay
+              TheModel -> lift (prettyPrint 0 flow (show model)) >> stay
             Change mode -> case mode of
               TheoryMode m -> lift (putStrLn "no chmod yet") >> stay
             ModeHelp -> lift (showHelp mode) >> stay
@@ -84,8 +87,25 @@ loop state@(REPLState config theory gstar stream model) mode = do
 ------------------------
 -- Main REPL Commands --
 ------------------------
+replSplash :: IO()
+replSplash = prettyPrint 0 foutput $ ""++
+  "Welcome to\n"++
+  "   / __ \\____ _____  ____  _____\n"++
+  "  / /_/ / __ `/_  / / __ \\/ ___/\n"++
+  " / _, _/ /_/ / / /_/ /_/ / /    \n"++
+  "/_/ |_|\\__,_/ /___/\\____/_/\n"++
+  "A model finding assistant!"
 replHelp :: IO()
-replHelp = putStrLn "repl help"
+replHelp = prettyPrint 0 foutput $ ""++
+  "!c             Display The Current Configuration Options\n"++
+  "!m             Display The Current Model\n"++
+  "!t             Display The Currently Loaded Theory\n"++
+  "@t             Enter Theory Editing / Configuration Mode\n"++
+  "@m             Enter Modelspace Exploration Mode\n"++
+  "@q             Enter Query Mode\n"++
+  "?              Display Mode Specific Help\n"++
+  "help           Print This Message\n"++
+  "q|quit|exit    Exit Razor"
 
 parseREPLCommand :: String -> Maybe REPLCommand
 parseREPLCommand cmd = 
