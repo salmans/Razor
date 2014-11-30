@@ -44,8 +44,8 @@ streamRun mode state@(REPLState config theory gstar stream model) command = case
 ---------------------
 -- chmod Functions --
 ---------------------
-enterStream :: StreamMode -> REPLState -> Either Error REPLState
-enterStream mode state@(REPLState config theory gstar stream model) = Right state
+enterStream :: StreamMode -> REPLState -> Either Error (REPLState, StreamMode)
+enterStream mode state@(REPLState config theory gstar stream model) = Right (state, mode)
 
 exitStream :: StreamMode -> IO()
 exitStream mode = return ()

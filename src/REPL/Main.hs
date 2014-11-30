@@ -1,8 +1,4 @@
-{-# LANGUAGE FunctionalDependencies #-}
-{-# LANGUAGE GADTs #-}
-{-# LANGUAGE Rank2Types #-}
-{-# LANGUAGE LiberalTypeSynonyms #-}
-{-# LANGUAGE ImpredicativeTypes #-}{-|
+{-|
   Razor
   Module      : REPL.Main
   Description : The module provides a REPL for user interaction with Razor.
@@ -32,7 +28,7 @@ import qualified REPL.Mode.Stream as H
 
 data REPLCommand = Display Substate | Change Mode | ModeHelp | Help | Exit
 data Substate = TheConfig | TheTheory | TheModel
-type Mode = (LoopMode m) => m
+data Mode = ModeTheory | ModeStream
 
 --------------------
 -- Main REPL/Loop --
@@ -48,7 +44,7 @@ main = do
   let startmode = T.TheoryM
   case enterMode startmode state of
     Left err -> prettyPrint 0 ferror err
-    Right state' -> do
+    Right (state', mode') -> do
       replSplash
       runInputT defaultSettings $ loop state' startmode
   -- exit display
@@ -80,9 +76,13 @@ loop state@(REPLState config theory gstar stream model) mode = do
               TheConfig -> lift (prettyPrint 0 foutput (show config)) >> stay
               TheTheory -> lift (prettyTheory theory) >> stay
               TheModel -> lift (prettyPrint 0 flow (show model)) >> stay
-            Change mode' -> case enterMode mode' state of
-              Left err -> lift (prettyPrint 0 ferror err) >> stay
-              Right state' -> lift (exitMode mode) >> chmod state' mode'
+            Change m -> case m of
+              ModeTheory -> change T.TheoryM
+              ModeStream -> change H.StreamM
+              where
+                change m' = case enterMode m' state of
+                  Left err -> lift (prettyPrint 0 ferror err) >> stay
+                  Right (state', mode') -> lift (exitMode mode) >> chmod state' mode'
             ModeHelp -> lift (showHelp mode) >> stay
             Help -> lift replHelp >> stay
             Exit -> return ()
@@ -100,17 +100,18 @@ replSplash = prettyPrint 0 foutput $ ""++
   "A model finding assistant!"
 replHelp :: IO()
 replHelp = prettyPrint 0 foutput $ ""++
-  "!c             Display The Current Configuration Options\n"++
-  "!t             Display The Currently Loaded Theory\n"++
-  "!m             Display The Current Model\n"++
-  "@t             Enter Theory Editing / Configuration Mode\n"++
-  "@v             Enter Modelspace Vertical Exploration Mode\n"++
-  "@h             Enter Modelspace Horizontal Exploration Mode\n"++
-  "@q             Enter Query Mode\n"++
-  "?              Display Mode Specific Help\n"++
-  "help           Print This Message\n"++
-  "q|quit|exit    Exit Razor"
-
+  "<expr>:= |   !<substate>       Display information\n"++
+  "   <substate>:=  |   c           Configuration\n"++
+  "                 |   t           Loaded Theory\n"++
+  "                 |   m           Current Model\n"++
+  "         |   @<mode>           Transition to a different REPL Mode\n"++
+  "   <mode>:=    |   t             Edit Theory and Configuration\n"++
+  "               |   v             Vertically Explore Modelspace\n"++
+  "               |   h             Horizontally Explore Modelspace\n"++
+  "               |   q             Query Current Model\n"++
+  "         |   ?                 Show Mode Specific Help\n"++
+  "         |   help              Print This Message\n"++
+  "         |   q|quit|exit       Exit Razor"
 parseREPLCommand :: String -> Maybe REPLCommand
 parseREPLCommand cmd = 
   let pResult = parse pCommand "parsing REPL command" cmd
@@ -131,10 +132,10 @@ pMode :: Parser Mode
 pMode = pTheoryM <|> pStreamM
 
 pTheoryM :: Parser Mode
-pTheoryM = symbol "t" >> return T.TheoryM
+pTheoryM = symbol "t" >> return ModeTheory
 
 pStreamM :: Parser Mode
-pStreamM = symbol "h" >> return H.StreamM 
+pStreamM = symbol "h" >> return ModeStream
 
 -- Display
 pDisplay :: Parser REPLCommand

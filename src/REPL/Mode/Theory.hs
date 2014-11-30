@@ -44,8 +44,8 @@ theoryRun mode state@(REPLState config theory gstar stream model) command = case
 ---------------------
 -- chmod Functions --
 ---------------------
-enterTheory :: TheoryMode -> REPLState -> Either Error REPLState
-enterTheory mode state@(REPLState config theory gstar stream model) = Right state
+enterTheory :: TheoryMode -> REPLState -> Either Error (REPLState, TheoryMode)
+enterTheory mode state@(REPLState config theory gstar stream model) = Right (state, mode)
 
 exitTheory :: TheoryMode -> IO()
 exitTheory mode = return ()
