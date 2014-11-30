@@ -5,6 +5,7 @@
    -}
 module REPL.Display where
 
+import Syntax.GeometricUtils 
 import Common.Basic
 import Control.Monad.Trans
 import System.Console.Haskeline
@@ -44,3 +45,10 @@ prettyHighlight tabs high str = do
 		Just i -> if (even i)
 			then prettyPrint 0 flow (T.unpack p)
 			else prettyPrint 0 fhigh (T.unpack p)) highpieces
+
+prettyTheory :: Maybe Theory -> IO()
+prettyTheory thy = case thy of
+	Nothing -> prettyPrint 0 ferror "No geometric theory loaded"
+	Just theory -> do
+		let displaytheory = intersperse "\n" $ map show theory
+		mapM_ (prettyPrint 0 finput) displaytheory

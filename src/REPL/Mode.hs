@@ -5,6 +5,7 @@
   Maintainer  : Salman Saghafi, Ryan Danas
 -}
 module REPL.Mode where
+import API.Surface
 import Common.Model
 import Common.Provenance
 import Tools.Config
@@ -14,13 +15,9 @@ import Syntax.GeometricUtils
 import SAT.Impl
 import Chase.Impl
 
-data REPLState = REPLState Config (Maybe Theory) (Maybe GStar) (Maybe SATIteratorType) (Maybe Model)
-type GStar = (ChasePossibleFactsType, ProvInfo, SATTheoryType, Int)
-type Error = String
-
 class LoopMode mode where
 	runOnce			::		mode -> REPLState -> String -> IO(Either Error REPLState)
 	exitMode		::		mode -> IO()
 	enterMode		::		mode -> REPLState -> IO(Either Error REPLState)
 	showHelp		::		mode -> IO()
-	showMode		::		mode -> IO()
+	modeTag			::		mode -> String

@@ -57,8 +57,7 @@ loop state@(REPLState config theory gstar stream model) mode = do
   let go state' = loop state' mode
   -- get input
   lift $ putStr "\n"
-  lift $ showMode mode
-  minput <- getInputLine "% "
+  minput <- getInputLine $ modeTag mode
   -- parse input into a command and act depending on the case
   case minput of
       Nothing -> return ()
@@ -76,7 +75,7 @@ loop state@(REPLState config theory gstar stream model) mode = do
           Just command -> case command of
             Display substate -> case substate of
               TheConfig -> lift (prettyPrint 0 foutput (show config)) >> stay
-              TheTheory -> lift (prettyPrint 0 finput (show theory)) >> stay
+              TheTheory -> lift (prettyTheory theory) >> stay
               TheModel -> lift (prettyPrint 0 flow (show model)) >> stay
             Change mode -> case mode of
               TheoryMode m -> lift (putStrLn "no chmod yet") >> stay

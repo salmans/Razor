@@ -13,6 +13,7 @@ import Common.Provenance
 import SAT.IData
 import Syntax.GeometricUtils
 import SAT.Impl
+import Control.Exception
 import Tools.Config
 import Data.List
 import Data.Either
@@ -25,10 +26,32 @@ data UError = UErr String
 type UBlame = Either UError (Blame, Sequent)
 data UOrigin = UOriginLeaf Term UBlame | UOriginNode Term UBlame [UOrigin]
 
+data REPLState = REPLState Config (Maybe Theory) (Maybe GStar) (Maybe SATIteratorType) (Maybe Model)
+type GStar = (ChasePossibleFactsType, ProvInfo, SATTheoryType, Int)
+type Error = String
+
 getConfig :: IO Config
 getConfig = do 
 	args <- getArgs
 	parseConfig args
+
+loadTheory :: Config -> String -> IO(Either Error (Theory, GStar))
+loadTheory config file = do
+  res1 <- try (readFile file) :: IO (Either SomeException String)
+  case res1 of
+    Left ex -> return $ Left $ "Unable to read file! "++(show ex)
+    Right raw -> do
+      res2 <- try (parseInputFile config raw) :: IO (Either SomeException (Maybe Input)) 
+      case res2 of
+        Left ex -> return $ Left $ "Unable to parse file! "++(show ex)
+        Right input -> case input of
+          Just (Input thy dps) -> do
+            let gs = generateGS config {configSkolemDepth = dps} thy
+            return $ Right (thy, gs)
+          Nothing -> return $ Left $ "Unable to parse input theory!"
+
+
+
 
 getStartState :: Config -> IO (Either UError UState)
 getStartState config = do
