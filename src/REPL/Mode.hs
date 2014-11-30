@@ -14,7 +14,8 @@ import Syntax.GeometricUtils
 import SAT.Impl
 import Chase.Impl
 
-data REPLState = REPLState Config (Maybe Theory) (Maybe (ChasePossibleFactsType, ProvInfo, SATTheoryType, Int)) (Maybe (SATIteratorType, Model))
+data REPLState = REPLState Config (Maybe Theory) (Maybe GStar) (Maybe SATIteratorType) (Maybe Model)
+type GStar = (ChasePossibleFactsType, ProvInfo, SATTheoryType, Int)
 type Error = String
 
 class LoopMode mode where

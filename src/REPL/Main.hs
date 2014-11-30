@@ -18,28 +18,28 @@ import Chase.Impl
 import System.Environment
 import Tools.Config
 import Control.Monad.Trans
-
+import Control.Applicative hiding ((<|>), many)
+import Text.ParserCombinators.Parsec
+import Text.Parsec.Prim
+import Syntax.GeometricParser
 import REPL.Mode
 import qualified REPL.Mode.Theory as T
 
-data REPLMode = TheoryMode T.TheoryM
+data REPLCommand = Display Substate | Change Mode | ModeHelp | Help | Exit
+data Substate = TheConfig | TheTheory | TheModel
+data Mode = TheoryMode T.TheoryM
 
+--------------------
+-- Main REPL/Loop --
+--------------------
 main :: IO ()
 main = do
   -- init display
   displayInit
   -- get configuration
   config <- getConfig 
-  {--- get the start state
-  startState <- getStartState config
-  case startState of
-    Left (UErr err) -> error err
-    Right state@(UState (cfg, thy) (b,p,t,_) (stream, mdl)) -> do
-      (prettyPrint 0 flow (show mdl))
-      runInputT defaultSettings (loop state)-}
-
   -- enter starting mode
-  let state = REPLState config Nothing Nothing Nothing
+  let state = REPLState config Nothing Nothing Nothing Nothing
   let startmode = T.TheoryM
   enter <- enterMode startmode state
   case enter of
@@ -49,86 +49,92 @@ main = do
   displayExit
 
 loop :: LoopMode m => REPLState -> m -> InputT IO()
-loop state mode = do
+loop state@(REPLState config theory gstar stream model) mode = do
   -- loop types
   let stay = loop state mode
   let go state' = loop state' mode
   -- get input
+  lift $ putStr "\n"
   minput <- getInputLine "% "
   -- parse input into a command and act depending on the case
   case minput of
       Nothing -> return ()
-      Just command -> do
-        run <- lift $ runOnce mode state command
-        case run of
-          Left err -> do
-            lift $ prettyPrint 0 ferror err
-            stay
-          Right state' -> go state'
+      Just cmd -> do
+        case parseREPLCommand cmd of
+          -- Try and run the mode command
+          Nothing -> do
+            run <- lift $ runOnce mode state cmd
+            case run of
+              Left err -> do
+                lift $ prettyPrint 0 ferror err
+                stay
+              Right state' -> go state'
+          -- Run the overall REPL command
+          Just command -> case command of
+            Display substate -> case substate of
+              TheConfig -> lift (putStrLn (show config)) >> stay
+              TheTheory -> lift (putStrLn (show theory)) >> stay
+              TheModel -> lift (putStrLn (show model)) >> stay
+            Change mode -> case mode of
+              TheoryMode m -> lift (putStrLn "no chmod yet") >> stay
+            ModeHelp -> lift (showHelp mode) >> stay
+            Help -> lift replHelp >> stay
+            Exit -> return ()
 
-{-loop :: UState -> InputT IO ()
-loop state@(UState (cfg, thy) (b,p,t,_) (stream, mdl)) = do
-  -- possible REPL loops
-  let sameLoop = loop state
-  let newLoop state'@(UState _ _ (stream', mdl')) = (lift $ prettyPrint 0 flow (show mdl')) >> loop state'
-  -- get input
-  minput <- getInputLine "% "
-  -- parse input into a command and act depending on the case
-  case minput of
-      Nothing -> return ()
-      Just command -> case (parseCommand command) of
-        -- display
-        Display thing -> case thing of
-          DispTheory -> (lift $ mapM_ (\s-> prettyPrint 0 finput ((show s)++"\n")) thy) >> sameLoop
-          DispModel -> newLoop state
-        -- exploration
-        Go explore -> case explore of
-          Next -> case getNextModel state of
-            Left (UErr err) -> (lift $ prettyPrint 0 ferror (err++"\n")) >> sameLoop
-            Right state' -> newLoop state'
-          Augment fml -> case getAugmentedState state fml of
-            Left (UErr err) -> (lift $ prettyPrint 0 ferror (err++"\n")) >> sameLoop
-            Right state' -> newLoop state'
-        -- explanation
-        Ask question -> case question of
-          Name isall isrec term -> do
-            let origins = getOrigin state isrec term
-            if isall
-              then lift $ mapM_ (printOrigin thy 0) origins
-              else lift $ printOrigin thy 0 (head origins)
-            sameLoop
-          Blame atom -> do
-            let justification = getJustification state atom
-            lift $ printJustification atom thy justification
-            sameLoop
-        -- others
-        Other utility -> case utility of
-          Help -> (lift $ prettyPrint 0 foutput helpCommand) >> sameLoop
-          Exit -> (lift $ prettyPrint 0 foutput "closing...\n") >> return ()
-        SyntaxError err -> (lift $ prettyPrint 0 ferror (err++"\n")) >> sameLoop
+------------------------
+-- Main REPL Commands --
+------------------------
+replHelp :: IO()
+replHelp = putStrLn "repl help"
 
-printOrigin :: Theory -> Int -> UOrigin -> IO ()
-printOrigin thy tabs (UOriginLeaf term origin) = do
-  prettyPrint tabs foutput ("origin of "++(show term)++"\n")
-  printBlame thy origin tabs (show term)
-printOrigin thy tabs (UOriginNode term origin depends) = do
-  printOrigin thy tabs (UOriginLeaf term origin)
-  mapM_ (printOrigin thy (tabs+1)) depends
+parseREPLCommand :: String -> Maybe REPLCommand
+parseREPLCommand cmd = 
+  let pResult = parse pCommand "parsing REPL command" cmd
+  in case pResult of
+    Left err -> Nothing
+    Right val -> Just val
 
-printJustification :: Formula -> Theory -> UBlame -> IO()
-printJustification atom thy justification = do 
-  prettyPrint 0 foutput ("justification of "++(show atom)++"\n")
-  printBlame thy justification 0 (show atom)
-    
+pCommand :: Parser REPLCommand
+pCommand = pChange <|> pDisplay <|> pModeHelp <|> pHelp <|> pExit
 
-printBlame :: Theory -> UBlame -> Int -> String -> IO()
-printBlame thy blame tabs highlight = case blame of
-  Left (UErr err) -> prettyPrint tabs ferror (err++"\n")
-  Right ((TheoryBlame i sub), blamed) -> printDiff (thy !! (i-1)) blamed (highlight,tabs)
-  Right ((UserBlame augmentation), blamed) -> prettyPrint tabs finput ("user augmentation: "++(show augmentation)++"\n")
+-- Change
+pChange :: Parser REPLCommand
+pChange = do
+  symbol "@"
+  Change <$> pMode
 
-printDiff :: Sequent -> Sequent -> (String, Int) -> IO()
-printDiff original diff format@(highlight, tabs) = do
-  prettyPrint tabs finput ("thy rule: "++(show original)++"\n")
-  prettyHighlight tabs highlight ("instance: "++(show diff)++"\n")
--}
+pMode :: Parser Mode
+pMode = pTheoryM
+
+pTheoryM :: Parser Mode
+pTheoryM = symbol "t" >> return (TheoryMode T.TheoryM)
+
+-- Display
+pDisplay :: Parser REPLCommand
+pDisplay = do
+  symbol "!"
+  Display <$> pSubstate
+
+pSubstate :: Parser Substate
+pSubstate = pTheConfig <|> pTheTheory <|> pTheModel
+
+pTheConfig :: Parser Substate
+pTheConfig = do
+  symbol "c"
+  return TheConfig
+
+pTheTheory :: Parser Substate
+pTheTheory = symbol "t" >> return TheTheory
+
+pTheModel :: Parser Substate
+pTheModel = symbol "m" >> return TheModel
+
+-- Mode Help / Help / Exit
+pModeHelp :: Parser REPLCommand
+pModeHelp = symbol "?" >> return ModeHelp
+
+pHelp :: Parser REPLCommand
+pHelp = symbol "help" >> return Help
+
+pExit :: Parser REPLCommand
+pExit = (symbol "q" <|> symbol "quit" <|> symbol "exit") >> return Exit

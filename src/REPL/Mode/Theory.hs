@@ -30,15 +30,16 @@ type TheoryFile = String
 -- Mode Functions --
 --------------------
 theoryRun :: TheoryM -> REPLState -> String -> IO(Either Error REPLState)
-theoryRun mode state@(REPLState config theory gstar stream) command = case parseTheoryCommand command of
+theoryRun mode state@(REPLState config theory gstar stream model) command = case parseTheoryCommand command of
   Left err -> return $ Left err
   Right cmd -> case cmd of
     Load file -> putStrLn "load" >> return (Right state)
+
 ---------------------
 -- chmod Functions --
 ---------------------
 enterTheory :: TheoryM -> REPLState -> IO(Either Error REPLState)
-enterTheory mode state@(REPLState config theory gstar stream) = return $ Right state
+enterTheory mode state@(REPLState config theory gstar stream model) = return $ Right state
 
 exitTheory :: TheoryM -> IO()
 exitTheory mode = return ()
@@ -48,11 +49,11 @@ exitTheory mode = return ()
 -----------------------
 theoryHelp :: TheoryM -> IO()
 theoryHelp cmd = putStrLn $ 
-  "ld <string>:   load the given theory by filename"++"\n"
+  "ld <string>:   load the given theory by filename"
 
 parseTheoryCommand :: String -> Either Error TheoryCommand
 parseTheoryCommand cmd = 
-	let pResult = parse pCommand "parsing theory command" cmd
+	let pResult = parse pCommand "parsing THEORYMODE command" cmd
 	in case pResult of
 		Left err -> Left $ show err
 		Right val -> Right $ val
