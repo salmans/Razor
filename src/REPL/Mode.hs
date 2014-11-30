@@ -18,6 +18,6 @@ import Chase.Impl
 class LoopMode mode where
 	runOnce			::		mode -> REPLState -> String -> IO(Either Error REPLState)
 	exitMode		::		mode -> IO()
-	enterMode		::		mode -> REPLState -> IO(Either Error REPLState)
+	enterMode		::		mode -> REPLState -> Either Error REPLState
 	showHelp		::		mode -> IO()
 	modeTag			::		mode -> String

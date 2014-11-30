@@ -1,4 +1,8 @@
-{-|
+{-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE Rank2Types #-}
+{-# LANGUAGE LiberalTypeSynonyms #-}
+{-# LANGUAGE ImpredicativeTypes #-}{-|
   Razor
   Module      : REPL.Main
   Description : The module provides a REPL for user interaction with Razor.
@@ -24,10 +28,11 @@ import Text.Parsec.Prim
 import Syntax.GeometricParser
 import REPL.Mode
 import qualified REPL.Mode.Theory as T
+import qualified REPL.Mode.Stream as H
 
 data REPLCommand = Display Substate | Change Mode | ModeHelp | Help | Exit
 data Substate = TheConfig | TheTheory | TheModel
-data Mode = TheoryMode T.TheoryM
+type Mode = (LoopMode m) => m
 
 --------------------
 -- Main REPL/Loop --
@@ -41,8 +46,7 @@ main = do
   -- enter starting mode
   let state = REPLState config Nothing Nothing Nothing Nothing
   let startmode = T.TheoryM
-  enter <- enterMode startmode state
-  case enter of
+  case enterMode startmode state of
     Left err -> prettyPrint 0 ferror err
     Right state' -> do
       replSplash
@@ -50,11 +54,12 @@ main = do
   -- exit display
   displayExit
 
-loop :: LoopMode m => REPLState -> m -> InputT IO()
+loop :: (LoopMode m) => REPLState -> m -> InputT IO()
 loop state@(REPLState config theory gstar stream model) mode = do
   -- loop types
   let stay = loop state mode
   let go state' = loop state' mode
+  let chmod state' mode' = loop state' mode'
   -- get input
   lift $ putStr "\n"
   minput <- getInputLine $ modeTag mode
@@ -67,9 +72,7 @@ loop state@(REPLState config theory gstar stream model) mode = do
           Nothing -> do
             run <- lift $ runOnce mode state cmd
             case run of
-              Left err -> do
-                lift $ prettyPrint 0 ferror err
-                stay
+              Left err -> lift (prettyPrint 0 ferror err) >> stay
               Right state' -> go state'
           -- Run the overall REPL command
           Just command -> case command of
@@ -77,8 +80,9 @@ loop state@(REPLState config theory gstar stream model) mode = do
               TheConfig -> lift (prettyPrint 0 foutput (show config)) >> stay
               TheTheory -> lift (prettyTheory theory) >> stay
               TheModel -> lift (prettyPrint 0 flow (show model)) >> stay
-            Change mode -> case mode of
-              TheoryMode m -> lift (putStrLn "no chmod yet") >> stay
+            Change mode' -> case enterMode mode' state of
+              Left err -> lift (prettyPrint 0 ferror err) >> stay
+              Right state' -> lift (exitMode mode) >> chmod state' mode'
             ModeHelp -> lift (showHelp mode) >> stay
             Help -> lift replHelp >> stay
             Exit -> return ()
@@ -97,10 +101,11 @@ replSplash = prettyPrint 0 foutput $ ""++
 replHelp :: IO()
 replHelp = prettyPrint 0 foutput $ ""++
   "!c             Display The Current Configuration Options\n"++
-  "!m             Display The Current Model\n"++
   "!t             Display The Currently Loaded Theory\n"++
+  "!m             Display The Current Model\n"++
   "@t             Enter Theory Editing / Configuration Mode\n"++
-  "@m             Enter Modelspace Exploration Mode\n"++
+  "@v             Enter Modelspace Vertical Exploration Mode\n"++
+  "@h             Enter Modelspace Horizontal Exploration Mode\n"++
   "@q             Enter Query Mode\n"++
   "?              Display Mode Specific Help\n"++
   "help           Print This Message\n"++
@@ -123,10 +128,13 @@ pChange = do
   Change <$> pMode
 
 pMode :: Parser Mode
-pMode = pTheoryM
+pMode = pTheoryM <|> pStreamM
 
 pTheoryM :: Parser Mode
-pTheoryM = symbol "t" >> return (TheoryMode T.TheoryM)
+pTheoryM = symbol "t" >> return T.TheoryM
+
+pStreamM :: Parser Mode
+pStreamM = symbol "h" >> return H.StreamM 
 
 -- Display
 pDisplay :: Parser REPLCommand

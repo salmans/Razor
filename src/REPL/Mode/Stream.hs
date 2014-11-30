@@ -1,10 +1,10 @@
 {-|
   Razor
-  Module      : REPL.Mode.Theory
-  Description : This module defines the Theory Mode in the REPL
+  Module      : REPL.Mode.Stream
+  Description : This module defines the Stream (Horizontal Model Exploration) Mode in the REPL
   Maintainer  : Salman Saghafi, Ryan Danas
 -}
-module REPL.Mode.Theory where
+module REPL.Mode.Stream where
 import API.Surface
 import REPL.Mode
 import REPL.Display
@@ -14,14 +14,14 @@ import Text.ParserCombinators.Parsec
 import Text.Parsec.Prim
 import Syntax.GeometricParser
 
-instance LoopMode TheoryMode where
-  runOnce	  = theoryRun
-  enterMode = enterTheory
-  exitMode  = exitTheory
-  showHelp  = theoryHelp
-  modeTag   = theoryTag
+instance LoopMode StreamMode where
+  runOnce	  = streamRun
+  enterMode = enterStream
+  exitMode  = exitStream
+  showHelp  = streamHelp
+  modeTag   = streamTag
 
-data TheoryMode = TheoryM
+data StreamMode = StreamM
 
 data TheoryCommand = Load TheoryFile
 type TheoryFile = String
@@ -29,8 +29,8 @@ type TheoryFile = String
 --------------------
 -- Mode Functions --
 --------------------
-theoryRun :: TheoryMode -> REPLState -> String -> IO(Either Error REPLState)
-theoryRun mode state@(REPLState config theory gstar stream model) command = case parseTheoryCommand command of
+streamRun :: StreamMode -> REPLState -> String -> IO(Either Error REPLState)
+streamRun mode state@(REPLState config theory gstar stream model) command = case parseTheoryCommand command of
   Left err -> return $ Left err
   Right cmd -> case cmd of
     Load file -> do
@@ -44,20 +44,20 @@ theoryRun mode state@(REPLState config theory gstar stream model) command = case
 ---------------------
 -- chmod Functions --
 ---------------------
-enterTheory :: TheoryMode -> REPLState -> Either Error REPLState
-enterTheory mode state@(REPLState config theory gstar stream model) = Right state
+enterStream :: StreamMode -> REPLState -> Either Error REPLState
+enterStream mode state@(REPLState config theory gstar stream model) = Right state
 
-exitTheory :: TheoryMode -> IO()
-exitTheory mode = return ()
+exitStream :: StreamMode -> IO()
+exitStream mode = return ()
 
 -----------------------
 -- Command Functions --
 -----------------------
-theoryTag :: TheoryMode -> String
-theoryTag mode = "%theory% "
+streamTag :: StreamMode -> String
+streamTag mode = "%stream% "
 
-theoryHelp :: TheoryMode -> IO()
-theoryHelp cmd = prettyPrint 0 foutput $ ""++ 
+streamHelp :: StreamMode -> IO()
+streamHelp cmd = prettyPrint 0 foutput $ ""++ 
   "ld <string>:   load the given theory by filename"
 
 parseTheoryCommand :: String -> Either Error TheoryCommand
