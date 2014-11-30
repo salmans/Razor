@@ -580,13 +580,14 @@ data SMTContainer  = SMTContainer
     , containerRels       :: Map.Map RelSym UninterpretRel
     , containerTerms      :: STerms
     , containerAtoms      :: SAtoms
+    , containerLastResult :: Maybe SatResult
     , containerConnection :: Maybe (SMTConnection SMTPipe)
     , containerRelaxMin   :: Bool
     }
 
 
 instance Show SMTContainer where
-    show (SMTContainer d _ _ t a c m) =
+    show (SMTContainer d _ _ t a _ c m) =
          (show d) ++ "\n" ++
          (show t) ++ "\n" ++
          (show a) ++ "\n" ++
@@ -599,6 +600,7 @@ emptySMTContainer  = SMTContainer { containerDomain     = Map.empty
                                   , containerRels       = Map.empty
                                   , containerTerms      = Map.empty
                                   , containerAtoms      = Map.empty
+                                  , containerLastResult = Nothing
                                   , containerConnection = Nothing
                                   , containerRelaxMin   = True }
 
@@ -624,8 +626,9 @@ unintRelValue :: RelSym -> Int -> SMTM UninterpretRel
 unintRelValue rel arity = do
   container   <- lift State.get
   let relMap   = containerRels container
-  relExp      <- uninterpretRel rel arity
-  let unintRel = Map.findWithDefault relExp rel relMap
+  unintRel    <- case Map.lookup rel relMap of
+                   Nothing -> uninterpretRel rel arity
+                   Just r  -> return r
   -- update container:
   let relMap'  = Map.insertWith (flip const) rel unintRel relMap
                  -- do not insert if exists
@@ -639,8 +642,9 @@ unintFnValue :: FnSym -> Int -> SMTM UninterpretFn
 unintFnValue fn arity = do
   container    <- lift State.get
   let fnMap     = containerFns container
-  fnExp        <- uninterpretFn fn arity
-  let unintFunc = Map.findWithDefault fnExp fn fnMap
+  unintFunc    <- case Map.lookup fn fnMap of
+                    Nothing -> uninterpretFn fn arity
+                    Just f  -> return f
   -- update container:
   let fnMap'    = Map.insertWith (flip const) fn unintFunc fnMap
                  -- do not insert if exists
@@ -652,17 +656,17 @@ unintFnValue fn arity = do
    given uninterpreted function to the given element expressions to create the
    value and add it to the container of computation. -}
 atomValue :: RelSym -> SMTAtom -> UninterpretRel -> [SElement] -> SMTM SBool
-atomValue rel term unintRel sParams = do
+atomValue rel atom unintRel sParams = do
   container  <- lift State.get
   let atomMap =  containerAtoms container
-  sym        <- case Map.lookup term atomMap of
+  sym        <- case Map.lookup atom atomMap of
                   Nothing -> do
                     s <- var
                     assert $ (applyUnintRel unintRel sParams) .==. s
                     return s
                   Just s  -> return s
   -- update container:
-  let atomMap' = Map.insertWith (flip const) term sym atomMap
+  let atomMap' = Map.insertWith (flip const) atom sym atomMap
                  -- do not insert if exists
   lift $ State.modify (\c -> c { containerAtoms = atomMap' })
   return sym
@@ -710,12 +714,26 @@ instance SATSolver SMTObservation SMTContainer where
    minimum result is eliminated. -}
 minimumResult :: SMTContainer -> (SatResult, SMTContainer)
 minimumResult cont =
-    let context       = push >> getSatResult >>= reduce
-        run           = perform context
-        (res, cont')  = unsafePerformIO $ State.runStateT run cont
-        run'          = pop >> nextResult res >>= assert
-        cont''        = unsafePerformIO $ State.execStateT (perform run') cont'
-    in  (res, cont'')
+  let context = do 
+            container  <- lift State.get
+            assertNext <- case containerLastResult container of
+                            Nothing -> return true
+                            Just lr -> nextResult lr
+            assert assertNext
+            push
+            next <- getSatResult
+            min  <- reduce next
+            lift $ State.modify (\c -> c {containerLastResult = Just min})
+            pop
+            return min
+      run     = perform context
+  in unsafePerformIO $ State.runStateT run cont
+    -- let context       = push >> getSatResult >>= reduce
+    --     run           = perform context
+    --     (res, cont')  = unsafePerformIO $ State.runStateT run cont
+    --     run'          = pop >> nextResult res >>= assert
+    --     cont''        = unsafePerformIO $ State.execStateT (perform run') cont'
+    -- in  (res, cont'')
 
 {- This recursively reduces the initial result of the SMT solver to construct a 
    minimal model based on an Aluminum-like algorithm. The result of the function
