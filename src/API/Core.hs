@@ -135,12 +135,12 @@ augmentBase cfg seqMap (b, p, t, c) obs@(Obs (Rel rsym terms)) = do
   Chase.Chase.resumeChase cfg c seqMap' b d p t
 -- In: a propositional theory
 -- Out: an iterator that can be used to sequentially generate models (model stream)
-openStream :: Config -> SATTheoryType -> SATIteratorType
-openStream = satInitialize
+openSAT :: Config -> SATTheoryType -> SATIteratorType
+openSAT = satInitialize
 --
 --
-closeStream :: SATIteratorType -> ()
-closeStream = satClose
+closeSAT :: SATIteratorType -> ()
+closeSAT = satClose
 -- In: a model stream
 -- Out: an updated model stream and the next model
 nextModel :: SATIteratorType -> (Maybe Model, SATIteratorType)

@@ -35,7 +35,7 @@ data StackMode = StackM
 type StackIn = (Config, Theory, GStar, SATIteratorType, Model, [Formula])
 type StackOut = (Theory, GStar, SATIteratorType, Model, [Formula])
 
-data StackCommand = Current | Push Formula
+data StackCommand = Current | Push Formula | Pop
 
 --------------------
 -- Mode Functions --
@@ -48,18 +48,25 @@ stackRun mode state@(config, theory, gstar, stack, model, augs) command = case p
       prettyModelWithStack model augs
       return $ Right $ (theory, gstar, stack, model, augs)
     Push fml -> case modelUp config theory gstar fml of
-      Nothing -> return $ Left $ "Given formula is not in the form of an augmentation"
+      Nothing -> return $ Left $ "Given formula is not in the form of an augmentation!"
       Just gstar'@(b',p',t',c') -> case modelNext (Left (config, t')) of
-        Nothing -> return $ Left "No models exist from adding the given augmentation"
+        Nothing -> return $ Left "No models exist from adding the given augmentation!"
         Just (stack', model') -> do
           prettyModelWithStack model' (fml:augs)
           return $ Right $ (theory, gstar', stack', model', fml:augs)
+    Pop -> case augs of
+      [] -> return $ Left $ "No pushed augmentations to pop!"
+      _ -> case modelDown stack of
+        Nothing -> return $ Left $ "Somehow undoing the augmentation did not return a model!"
+        Just (stack', model') -> do
+          prettyModelWithStack model' (tail augs)
+          return $ Right $ (theory, gstar, stack', model', (tail augs))
 
 ------------------------
 -- RazorState Related --
 ------------------------
 updateStack :: StackMode -> StackOut -> RazorState -> (RazorState, StackIn)
-updateStack mode (theory', gstar', stack', model', augs') state@(RazorState config theory gstar stack model) = (RazorState config (Just theory') (Just gstar') (Just stack') (Just model'), (config, theory', gstar', stack', model', augs'))
+updateStack mode (theory', gstar', stack', model', augs') state@(RazorState config theory gstar stack model) = (RazorState config theory gstar (Just stack') (Just model'), (config, theory', gstar', stack', model', augs'))
 
 enterStack :: StackMode -> RazorState -> IO(Either Error StackOut)
 enterStack mode state@(RazorState config theory gstar stack model) = case (theory, gstar, stack, model) of
@@ -87,7 +94,8 @@ stackTag mode = "%stack% "
 stackHelp :: StackMode -> IO()
 stackHelp cmd = prettyPrint 0 foutput $ ""++ 
   "<expr>:= | current           Display the model and augmentations at the top of the stack\n"++
-  "         | push <formula>    Augment the current model with the given formula"
+  "         | push <formula>    Augment the current model with the given formula\n"++
+  "         | pop               Undo the most recently pushed augmentation"
 
 parseStackCommand :: String -> Either Error StackCommand
 parseStackCommand cmd = 
@@ -97,7 +105,10 @@ parseStackCommand cmd =
 		Right val -> Right $ val
 
 pCommand :: Parser StackCommand
-pCommand = pPush
+pCommand = pPush +++ pPop
 
 pPush :: Parser StackCommand
 pPush = symbol "push" >> Push <$> xpFactor
+
+pPop :: Parser StackCommand
+pPop = symbol "pop" >> return Pop

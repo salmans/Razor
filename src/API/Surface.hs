@@ -40,9 +40,9 @@ setupState = do
   return $ RazorState config Nothing Nothing Nothing Nothing
 
 teardownState :: RazorState -> ()
-teardownState state@(RazorState config theory gstar stream model) = case stream of
+teardownState state@(RazorState config theory gstar sat model) = case sat of
   Nothing -> ()
-  Just openstream -> closeStream openstream
+  Just opensat -> closeSAT opensat
 
 ----------------------------
 -- Surface API Operations --
@@ -64,7 +64,7 @@ loadTheory config file = do
 
 modelNext :: Either (Config, SATTheoryType) SATIteratorType -> Maybe (SATIteratorType, Model)
 modelNext seed = case seed of
-  Left (config, t) -> case nextModel (openStream config t) of
+  Left (config, t) -> case nextModel (openSAT config t) of
     (Nothing, _) -> Nothing
     (Just mdl', stream') -> Just (stream',mdl')
   Right stream -> case nextModel stream of
@@ -75,6 +75,11 @@ modelUp :: Config -> Theory -> GStar -> Formula -> Maybe GStar
 modelUp config theory gstar@(b,p,t,c) fml = case getObservation fml of
   Nothing -> Nothing
   Just obs -> Just $ augment config theory gstar obs
+
+modelDown :: SATIteratorType -> Maybe (SATIteratorType, Model)
+modelDown sat = case undoAndNext sat of
+  (Nothing, _) -> Nothing
+  (Just mdl', stack') -> Just (stack', mdl')
     
 
 
