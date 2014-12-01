@@ -16,8 +16,7 @@ import SAT.Impl
 import Chase.Impl
 
 class LoopMode mode where
-	runOnce			::		mode -> REPLState -> String -> IO(Either Error REPLState)
-	exitMode		::		mode -> IO()
-	enterMode		::		mode -> REPLState -> Either Error (REPLState, mode)
+	runOnce			::		mode -> RazorState -> String -> IO(Either Error RazorState)
+	enterMode		::		mode -> RazorState -> IO(Either Error (RazorState, mode))
 	showHelp		::		mode -> IO()
 	modeTag			::		mode -> String

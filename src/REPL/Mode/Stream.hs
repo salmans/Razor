@@ -6,6 +6,8 @@
 -}
 module REPL.Mode.Stream where
 import API.Surface
+import Common.Model
+import SAT.Impl
 import REPL.Mode
 import REPL.Display
 import Tools.Config
@@ -17,38 +19,45 @@ import Syntax.GeometricParser
 instance LoopMode StreamMode where
   runOnce	  = streamRun
   enterMode = enterStream
-  exitMode  = exitStream
   showHelp  = streamHelp
   modeTag   = streamTag
 
 data StreamMode = StreamM
 
-data TheoryCommand = Load TheoryFile
-type TheoryFile = String
+data StreamCommand = Next
 
 --------------------
 -- Mode Functions --
 --------------------
-streamRun :: StreamMode -> REPLState -> String -> IO(Either Error REPLState)
-streamRun mode state@(REPLState config theory gstar stream model) command = case parseTheoryCommand command of
+streamRun :: StreamMode -> RazorState -> String -> IO(Either Error RazorState)
+streamRun mode state@(RazorState config theory gstar stream model) command = case parseStreamCommand command of
   Left err -> return $ Left err
   Right cmd -> case cmd of
-    Load file -> do
-      load <- loadTheory config file
-      case load of
-        Right (thy', gs') -> do
-          prettyTheory (Just thy')
-          return $ Right (REPLState config (Just thy') (Just gs') stream model)
-        Left err -> return $ Left err
+    Next -> return $ Right state
+
+runNext :: Either Error (SATIteratorType, Model) -> RazorState -> IO(Either Error RazorState)
+runNext next state@(RazorState config theory gstar stream model) = case next of
+  Left err -> return $ Left err
+  Right (stream', model') -> do
+    prettyModel (Just model')
+    return $ Right (RazorState config theory gstar (Just stream') (Just model'))
 
 ---------------------
 -- chmod Functions --
 ---------------------
-enterStream :: StreamMode -> REPLState -> Either Error (REPLState, StreamMode)
-enterStream mode state@(REPLState config theory gstar stream model) = Right (state, mode)
-
-exitStream :: StreamMode -> IO()
-exitStream mode = return ()
+enterStream :: StreamMode -> RazorState -> IO(Either Error (RazorState, StreamMode))
+enterStream mode state@(RazorState config theory gstar stream model) = do
+  s' <- runNext next state
+  case s' of
+    Left err -> return $ Left err
+    Right state' -> return $ Right (state', mode)
+  where
+    next = case (stream, model) of
+      (Just str, Just mdl) -> Right (str, mdl)
+      (Just str, _) -> modelNext $ Right str
+      (Nothing, _) -> case gstar of
+        Nothing -> Left $ "No theory loaded!"
+        Just gs -> modelNext $ Left (config, gs)
 
 -----------------------
 -- Command Functions --
@@ -58,21 +67,20 @@ streamTag mode = "%stream% "
 
 streamHelp :: StreamMode -> IO()
 streamHelp cmd = prettyPrint 0 foutput $ ""++ 
-  "ld <string>:   load the given theory by filename"
+  "<expr>:= |   next       Load the given filename as an input theory"
 
-parseTheoryCommand :: String -> Either Error TheoryCommand
-parseTheoryCommand cmd = 
+parseStreamCommand :: String -> Either Error StreamCommand
+parseStreamCommand cmd = 
 	let pResult = parse pCommand "parsing THEORYMODE command" cmd
 	in case pResult of
 		Left err -> Left $ show err
 		Right val -> Right $ val
 
-pCommand :: Parser TheoryCommand
-pCommand = pLoad
+pCommand :: Parser StreamCommand
+pCommand = pNext
 
-pLoad :: Parser TheoryCommand
-pLoad = do
-	symbol "ld"
+pNext :: Parser StreamCommand
+pNext = do
+	symbol "next"
 	spaces
-	Load <$> many (noneOf "\n\t ")
-
+	return $ Next

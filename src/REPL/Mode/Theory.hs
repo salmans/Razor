@@ -17,7 +17,6 @@ import Syntax.GeometricParser
 instance LoopMode TheoryMode where
   runOnce	  = theoryRun
   enterMode = enterTheory
-  exitMode  = exitTheory
   showHelp  = theoryHelp
   modeTag   = theoryTag
 
@@ -29,8 +28,8 @@ type TheoryFile = String
 --------------------
 -- Mode Functions --
 --------------------
-theoryRun :: TheoryMode -> REPLState -> String -> IO(Either Error REPLState)
-theoryRun mode state@(REPLState config theory gstar stream model) command = case parseTheoryCommand command of
+theoryRun :: TheoryMode -> RazorState -> String -> IO(Either Error RazorState)
+theoryRun mode state@(RazorState config theory gstar stream model) command = case parseTheoryCommand command of
   Left err -> return $ Left err
   Right cmd -> case cmd of
     Load file -> do
@@ -38,17 +37,14 @@ theoryRun mode state@(REPLState config theory gstar stream model) command = case
       case load of
         Right (thy', gs') -> do
           prettyTheory (Just thy')
-          return $ Right (REPLState config (Just thy') (Just gs') stream model)
+          return $ Right (RazorState config (Just thy') (Just gs') stream model)
         Left err -> return $ Left err
 
 ---------------------
 -- chmod Functions --
 ---------------------
-enterTheory :: TheoryMode -> REPLState -> Either Error (REPLState, TheoryMode)
-enterTheory mode state@(REPLState config theory gstar stream model) = Right (state, mode)
-
-exitTheory :: TheoryMode -> IO()
-exitTheory mode = return ()
+enterTheory :: TheoryMode -> RazorState -> IO(Either Error (RazorState, TheoryMode))
+enterTheory mode state@(RazorState config theory gstar stream model) = return $ Right (state, mode)
 
 -----------------------
 -- Command Functions --
@@ -58,7 +54,7 @@ theoryTag mode = "%theory% "
 
 theoryHelp :: TheoryMode -> IO()
 theoryHelp cmd = prettyPrint 0 foutput $ ""++ 
-  "ld <string>:   load the given theory by filename"
+  "<expr>:= |   ld <string>       Load the given filename as an input theory"
 
 parseTheoryCommand :: String -> Either Error TheoryCommand
 parseTheoryCommand cmd = 

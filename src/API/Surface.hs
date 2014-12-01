@@ -26,14 +26,20 @@ data UError = UErr String
 type UBlame = Either UError (Blame, Sequent)
 data UOrigin = UOriginLeaf Term UBlame | UOriginNode Term UBlame [UOrigin]
 
-data REPLState = REPLState Config (Maybe Theory) (Maybe GStar) (Maybe SATIteratorType) (Maybe Model)
+data RazorState = RazorState Config (Maybe Theory) (Maybe GStar) (Maybe SATIteratorType) (Maybe Model)
 type GStar = (ChasePossibleFactsType, ProvInfo, SATTheoryType, Int)
 type Error = String
 
-getConfig :: IO Config
-getConfig = do 
-	args <- getArgs
-	parseConfig args
+setupState :: IO RazorState
+setupState = do 
+  args <- getArgs
+  config <- parseConfig args
+  return $ RazorState config Nothing Nothing Nothing Nothing
+
+teardownState :: RazorState -> ()
+teardownState state@(RazorState config theory gstar stream model) = case stream of
+  Nothing -> ()
+  Just openstream -> closeStream openstream
 
 loadTheory :: Config -> String -> IO(Either Error (Theory, GStar))
 loadTheory config file = do
@@ -50,38 +56,29 @@ loadTheory config file = do
             return $ Right (thy, gs)
           Nothing -> return $ Left $ "Unable to parse input theory!"
 
+modelNext :: Either (Config, GStar) SATIteratorType -> Either Error (SATIteratorType, Model)
+modelNext seed = case seed of
+  Left (config, (b, p, t, c)) -> case nextModel (openStream config t) of
+    (Nothing, stream') -> Left "No models available!"
+    (Just mdl', stream') -> Right (stream',mdl')
+  Right stream -> case nextModel stream of
+    (Nothing, stream') -> Left "No more minimal models!"
+    (Just mdl', stream') -> Right (stream',mdl')
 
 
 
-getStartState :: Config -> IO (Either UError UState)
-getStartState config = do
-  case (configInput config) of
-    Nothing -> return $ Left (UErr "No input file specified")
-    Just infile -> do
-      input <- readFile infile
-      inp   <- parseInputFile config input
-      case inp of
-        Just (Input thy dps) -> do
-          let (b,p,t,c) = generateGS config {configSkolemDepth = dps} thy
-          let stream = modelStream config t
-          case (nextModel stream) of
-            (Nothing, _) -> return $ Left (UErr "no models exist for given theory")
-            (Just mdl', stream') -> return $ Right (UState (config,thy) (b,p,t,c) (stream',mdl'))
-        Nothing -> return $ Left (UErr "Unable to parse input file!")
 
-getAugmentedState :: UState -> Formula -> Either UError UState
-getAugmentedState state@(UState (cfg, thy) (b,p,t,c) (stream, mdl)) fml = case getObservation fml of
+
+modelUp :: UState -> Formula -> Either UError UState
+modelUp state@(UState (cfg, thy) (b,p,t,c) (stream, mdl)) fml = case getObservation fml of
   Nothing -> Left (UErr "augmentation formula is not an observation")
   Just obs -> do
     let (b', p', t', c') = augment cfg thy (b, p, t, c) obs
-    case nextModel (modelStream cfg t') of
+    case nextModel (openStream cfg t') of
       (Nothing, _) -> Left (UErr "no models exist for given augmentation")
       (Just mdl', stream') -> Right (UState (cfg,thy) (b',p',t',c') (stream',mdl'))
 
-getNextModel :: UState -> Either UError UState
-getNextModel state@(UState (cfg, thy) (b,p,t,c) (stream, mdl)) = case (nextModel stream) of
-  (Nothing, stream') -> Left (UErr "no more minimal models")
-  (Just mdl', stream') -> Right (UState (cfg,thy) (b,p,t,c) (stream',mdl'))
+
 
 getOrigin :: UState -> Bool -> Term -> [UOrigin]
 getOrigin state@(UState (cfg, thy) (b,p,t,_) (stream, mdl)) isrec term = do

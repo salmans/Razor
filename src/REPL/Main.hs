@@ -37,31 +37,33 @@ main :: IO ()
 main = do
   -- init display
   displayInit
-  -- get configuration
-  config <- getConfig 
+  -- get starting state
+  state <- setupState 
   -- enter starting mode
-  let state = REPLState config Nothing Nothing Nothing Nothing
   let startmode = T.TheoryM
-  case enterMode startmode state of
+  enter <- enterMode startmode state
+  case enter of
     Left err -> prettyPrint 0 ferror err
     Right (state', mode') -> do
       replSplash
-      runInputT defaultSettings $ loop state' startmode
+      endstate <- runInputT defaultSettings $ loop state' startmode
+      return $ teardownState endstate
   -- exit display
   displayExit
 
-loop :: (LoopMode m) => REPLState -> m -> InputT IO()
-loop state@(REPLState config theory gstar stream model) mode = do
+loop :: (LoopMode m) => RazorState -> m -> InputT IO(RazorState)
+loop state@(RazorState config theory _ _ model) mode = do
   -- loop types
   let stay = loop state mode
   let go state' = loop state' mode
   let chmod state' mode' = loop state' mode'
+  let finish = return (state)
   -- get input
   lift $ putStr "\n"
   minput <- getInputLine $ modeTag mode
   -- parse input into a command and act depending on the case
   case minput of
-      Nothing -> return ()
+      Nothing -> finish
       Just cmd -> do
         case parseREPLCommand cmd of
           -- Try and run the mode command
@@ -75,17 +77,19 @@ loop state@(REPLState config theory gstar stream model) mode = do
             Display substate -> case substate of
               TheConfig -> lift (prettyPrint 0 foutput (show config)) >> stay
               TheTheory -> lift (prettyTheory theory) >> stay
-              TheModel -> lift (prettyPrint 0 flow (show model)) >> stay
+              TheModel -> lift (prettyModel model) >> stay
             Change m -> case m of
               ModeTheory -> change T.TheoryM
               ModeStream -> change H.StreamM
               where
-                change m' = case enterMode m' state of
-                  Left err -> lift (prettyPrint 0 ferror err) >> stay
-                  Right (state', mode') -> lift (exitMode mode) >> chmod state' mode'
+                change m' = do
+                  enter <- lift $ enterMode m' state
+                  case enter of
+                    Left err -> lift (prettyPrint 0 ferror err) >> stay
+                    Right (state', mode') -> chmod state' mode'
             ModeHelp -> lift (showHelp mode) >> stay
             Help -> lift replHelp >> stay
-            Exit -> return ()
+            Exit -> finish
 
 ------------------------
 -- Main REPL Commands --

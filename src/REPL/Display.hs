@@ -7,6 +7,7 @@ module REPL.Display where
 
 import Syntax.GeometricUtils 
 import Common.Basic
+import Common.Model
 import Control.Monad.Trans
 import System.Console.Haskeline
 import System.Console.ANSI
@@ -48,7 +49,12 @@ prettyHighlight tabs high str = do
 
 prettyTheory :: Maybe Theory -> IO()
 prettyTheory thy = case thy of
-	Nothing -> prettyPrint 0 ferror "No geometric theory loaded"
+	Nothing -> prettyPrint 0 ferror "No geometric theory loaded!"
 	Just theory -> do
 		let displaytheory = intersperse "\n" $ map show theory
 		mapM_ (prettyPrint 0 finput) displaytheory
+
+prettyModel :: Maybe Model -> IO()
+prettyModel mdl = case mdl of
+	Nothing -> prettyPrint 0 ferror "No current model!"
+	Just model -> prettyPrint 0 flow (show model)
