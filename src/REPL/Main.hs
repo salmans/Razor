@@ -111,7 +111,7 @@ loop state@(RazorState config theory _ _ model) mode stin = do
       enter <- lift $ enterMode m' state
       case enter of
         Left err -> do
-          lift (prettyPrint 0 ferror err)
+          lift (prettyPrint 0 ferror (err++"\n"))
           return Nothing
         Right stout -> do
           let (state', _) = (update m' stout state)
