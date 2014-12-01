@@ -49,12 +49,12 @@ prettyHighlight tabs high str = do
 
 prettyTheory :: Maybe Theory -> IO()
 prettyTheory thy = case thy of
-	Nothing -> prettyPrint 0 ferror "No geometric theory loaded!"
+	Nothing -> prettyPrint 0 ferror "No geometric theory loaded!\n"
 	Just theory -> do
 		let displaytheory = intersperse "\n" $ map show theory
-		mapM_ (prettyPrint 0 finput) displaytheory
+		mapM_ (\s->prettyPrint 0 finput ((show s)++"\n")) theory
 
 prettyModel :: Maybe Model -> IO()
 prettyModel mdl = case mdl of
-	Nothing -> prettyPrint 0 ferror "No current model!"
+	Nothing -> prettyPrint 0 ferror "No current model!\n"
 	Just model -> prettyPrint 0 flow (show model)

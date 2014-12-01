@@ -46,7 +46,7 @@ theoryRun mode config command = case parseTheoryCommand command of
       case load of
         Right (thy', gs') -> do
           prettyTheory (Just thy')
-          prettyPrint 0 foutput $ "\nGeometric theory loaded; ready to find models"
+          prettyPrint 0 foutput $ "Geometric theory loaded; ready to find models\n"
           return $ Right $ (Just thy', Just gs')
         Left err -> return $ Left err
 
@@ -67,7 +67,7 @@ theoryTag mode = "%theory% "
 
 theoryHelp :: TheoryMode -> IO()
 theoryHelp cmd = prettyPrint 0 foutput $ ""++ 
-  "<expr>:= | ld <string>     Load the given filename as an input theory"
+  "<expr>:= | ld <string>     Load the given filename as an input theory\n"
 
 parseTheoryCommand :: String -> Either Error TheoryCommand
 parseTheoryCommand cmd = 

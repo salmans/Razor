@@ -28,10 +28,11 @@ import qualified REPL.Mode.Theory as T
 import qualified REPL.Mode.Model as M
 import qualified REPL.Mode.Stream as H
 import qualified REPL.Mode.Stack as V
+import qualified REPL.Mode.Query as Q
 
 data REPLCommand = Display Substate | Change REPLMode | ModeHelp | Help | Exit
 data Substate = TheConfig | TheTheory | TheModel
-data REPLMode = ModeTheory | ModeStream | ModeStack
+data REPLMode = ModeTheory | ModeStream | ModeStack | ModeQuery
 
 --------------------
 -- Main REPL/Loop --
@@ -58,7 +59,6 @@ main = do
 loop :: (LoopMode m i o) => RazorState -> m -> i -> InputT IO(RazorState)
 loop state@(RazorState config theory _ _ model) mode stin = do
   -- get input
-  lift $ putStr "\n"
   minput <- getInputLine $ modeTag mode
   -- parse input into a command and act depending on the case
   case minput of
@@ -68,7 +68,7 @@ loop state@(RazorState config theory _ _ model) mode stin = do
           -- Run the overall REPL command
           Just command -> case command of
             Display substate -> case substate of
-              TheConfig -> lift (prettyPrint 0 foutput (show config)) >> stay
+              TheConfig -> lift (prettyPrint 0 foutput ((show config)++"\n")) >> stay
               TheTheory -> lift (prettyTheory theory) >> stay
               TheModel -> lift (prettyModel model) >> stay
             Change m -> case m of
@@ -79,6 +79,9 @@ loop state@(RazorState config theory _ _ model) mode stin = do
               ModeStack -> case model of
                 Nothing -> eTrans M.ModelM V.StackM
                 _ -> trans V.StackM state
+              ModeQuery -> case model of
+                Nothing -> eTrans M.ModelM Q.QueryM
+                _ -> trans Q.QueryM state
             ModeHelp -> lift (showHelp mode) >> stay
             Help -> lift replHelp >> stay
             Exit -> finish
@@ -86,7 +89,7 @@ loop state@(RazorState config theory _ _ model) mode stin = do
           Nothing -> do
             run <- lift $ runOnce mode stin cmd
             case run of
-              Left err -> lift (prettyPrint 0 ferror err) >> stay
+              Left err -> lift (prettyPrint 0 ferror (err++"\n")) >> stay
               Right stout -> do
                 let (state', stin') = update mode stout state
                 loop state' mode stin'
@@ -130,7 +133,7 @@ replSplash = prettyPrint 0 foutput $ ""++
   "  / /_/ / __ `/_  / / __ \\/ ___/\n"++
   " / _, _/ /_/ / / /_/ /_/ / /    \n"++
   "/_/ |_|\\__,_/ /___/\\____/_/\n"++
-  "A model finding assistant!"
+  "A model finding assistant!\n"
 replHelp :: IO()
 replHelp = prettyPrint 0 foutput $ ""++
   "<expr>:= | !<substate>       Display general information\n"++
@@ -144,7 +147,7 @@ replHelp = prettyPrint 0 foutput $ ""++
   "               | q             Query Current Model\n"++
   "         | ?                 Show REPLMode Specific Help\n"++
   "         | help              Print This Message\n"++
-  "         | q|quit|exit       Exit Razor"
+  "         | q|quit|exit       Exit Razor\n"
 parseREPLCommand :: String -> Maybe REPLCommand
 parseREPLCommand cmd = 
   let pResult = parse pCommand "parsing REPL command" cmd
@@ -162,7 +165,7 @@ pChange = do
   Change <$> pMode
 
 pMode :: Parser REPLMode
-pMode = pTheoryM <|> pStreamM <|> pStackM
+pMode = pTheoryM <|> pStreamM <|> pStackM <|> pQueryM
 
 pTheoryM :: Parser REPLMode
 pTheoryM = symbol "t" >> return ModeTheory
@@ -172,6 +175,9 @@ pStreamM = symbol "h" >> return ModeStream
 
 pStackM :: Parser REPLMode
 pStackM = symbol "v" >> return ModeStack
+
+pQueryM :: Parser REPLMode
+pQueryM = symbol "q" >> return ModeQuery
 
 -- Display
 pDisplay :: Parser REPLCommand

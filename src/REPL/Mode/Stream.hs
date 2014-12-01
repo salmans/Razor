@@ -69,7 +69,6 @@ enterStream mode state@(RazorState config theory gstar stream model) = case (str
 prettyModelWithIndex :: Model -> IO()
 prettyModelWithIndex model = do
   prettyModel (Just model)
-  prettyPrint 0 foutput $ "Minimal model found"
 
 -----------------------
 -- Command Functions --
@@ -80,7 +79,7 @@ streamTag mode = "%stream% "
 streamHelp :: StreamMode -> IO()
 streamHelp cmd = prettyPrint 0 foutput $ ""++ 
   "<expr>:= | current     Display the current minimal model in the stream\n"++
-  "         | next        Display the next minimal model in the stream"
+  "         | next        Display the next minimal model in the stream\n"
 
 parseStreamCommand :: String -> Either Error StreamCommand
 parseStreamCommand cmd = 

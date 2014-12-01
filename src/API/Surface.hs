@@ -21,11 +21,6 @@ import Data.Maybe
 import qualified Data.Map as Map
 import System.Environment
 
-data UState = UState (Config, Theory) (ChasePossibleFactsType, ProvInfo, SATTheoryType, Int) (SATIteratorType, Model)
-data UError = UErr String
-type UBlame = Either UError (Blame, Sequent)
-data UOrigin = UOriginLeaf Term UBlame | UOriginNode Term UBlame [UOrigin]
-
 -----------------
 -- Razor State --
 -----------------
@@ -81,34 +76,37 @@ modelDown sat = case undoAndNext sat of
   (Nothing, _) -> Nothing
   (Just mdl', stack') -> Just (stack', mdl')
     
+type QBlame = Either Error (Blame, Sequent)
+--
+--    
+getJustification :: GStar -> Model -> Formula -> QBlame
+getJustification gstar@(b,p,t,c) mdl fml = case getObservation fml of
+  Nothing -> Left "blame formula is not an observation"
+  Just obv -> case getObservationBlame (observationProvs p) mdl obv of
+    Nothing -> Left "no provenance info for blame observation"
+    Just blame -> case getBlamedSequent t blame of
+      Nothing -> Left "unable to find blamed theory sequent from provenance info"
+      Just bseq -> Right (blame, bseq)
 
-
-
-getOrigin :: UState -> Bool -> Term -> [UOrigin]
-getOrigin state@(UState (cfg, thy) (b,p,t,_) (stream, mdl)) isrec term = do
+data QOrigin = QOriginLeaf Term QBlame | QOriginNode Term QBlame [QOrigin]
+--
+--
+getOrigin :: Theory -> GStar -> Model -> Bool -> Term -> [QOrigin]
+getOrigin thy gstar@(b,p,t,c) mdl isrec term = do
   case name of
-    Left err -> [UOriginLeaf term (Left err)]
+    Left err -> [QOriginLeaf term (Left err)]
     Right origins -> do
       (origin, nextelms) <- origins
       case isrec of
-        False -> return $ UOriginLeaf term (blamed origin)
-        True -> return $ UOriginNode term (blamed origin) (concatMap (\e->(getOrigin state isrec (Elem e))) nextelms)
+        False -> return $ QOriginLeaf term (blamed origin)
+        True -> return $ QOriginNode term (blamed origin) (concatMap (\e->(getOrigin thy gstar mdl isrec (Elem e))) nextelms)
   where 
     name = case getEqualElements mdl term of
-      [] -> Left (UErr ("element "++(show term)++" not in the current model"))
+      [] -> Left $ "element "++(show term)++" not in the current model"
       eqelms -> do
         case getElementBlames thy (elementProvs p) mdl eqelms of
-          [] -> Left (UErr ("no provenance information for element "++(show term)++"\n"))
+          [] -> Left $ "no provenance information for element "++(show term)
           origins -> Right origins
     blamed origin = case getBlamedSequent t origin of
-      Nothing -> Left $ UErr $ "unable to find blamed theory sequent from provenance info\n"++(show origin)
+      Nothing -> Left $ "unable to find blamed theory sequent from provenance info\n"++(show origin)
       Just bseq -> Right (origin, bseq)
-                
-getJustification :: UState -> Formula -> UBlame
-getJustification state@(UState (cfg, thy) (b,p,t,_) (stream, mdl)) fml = case getObservation fml of
-  Nothing -> Left (UErr "blame formula is not an observation")
-  Just obv -> case getObservationBlame (observationProvs p) mdl obv of
-    Nothing -> Left (UErr "no provenance info for blame observation")
-    Just blame -> case getBlamedSequent t blame of
-      Nothing -> Left $ UErr $ "unable to find blamed theory sequent from provenance info"
-      Just bseq -> Right (blame, bseq)

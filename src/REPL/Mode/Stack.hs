@@ -66,7 +66,7 @@ stackRun mode state@(config, theory, gstar, stack, model, augs) command = case p
 -- RazorState Related --
 ------------------------
 updateStack :: StackMode -> StackOut -> RazorState -> (RazorState, StackIn)
-updateStack mode (theory', gstar', stack', model', augs') state@(RazorState config theory gstar stack model) = (RazorState config theory gstar (Just stack') (Just model'), (config, theory', gstar', stack', model', augs'))
+updateStack mode (theory', gstar', stack', model', augs') state@(RazorState config theory gstar stack model) = (RazorState config theory (Just gstar') (Just stack') (Just model'), (config, theory', gstar', stack', model', augs'))
 
 enterStack :: StackMode -> RazorState -> IO(Either Error StackOut)
 enterStack mode state@(RazorState config theory gstar stack model) = case (theory, gstar, stack, model) of
@@ -83,7 +83,7 @@ prettyModelWithStack model augs = do
   prettyModel (Just model)
   prettyPrint 0 foutput $ "TOP Augmentation Stack TOP\n"
   mapM_ (\aug->prettyPrint 0 finput ((show aug)++"\n")) augs
-  prettyPrint 0 foutput $ "BTM Augmentation Stack BTM"
+  prettyPrint 0 foutput $ "BTM Augmentation Stack BTM\n"
 
 -----------------------
 -- Command Functions --
@@ -95,7 +95,7 @@ stackHelp :: StackMode -> IO()
 stackHelp cmd = prettyPrint 0 foutput $ ""++ 
   "<expr>:= | current           Display the model and augmentations at the top of the stack\n"++
   "         | push <formula>    Augment the current model with the given formula\n"++
-  "         | pop               Undo the most recently pushed augmentation"
+  "         | pop               Undo the most recently pushed augmentation\n"
 
 parseStackCommand :: String -> Either Error StackCommand
 parseStackCommand cmd = 
