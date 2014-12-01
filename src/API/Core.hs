@@ -43,6 +43,7 @@ import qualified Chase.Chase
 
 -- SAT
 import SAT.Impl
+import SAT.Data (satPop, satPush)
 
 -- Tools
 import Tools.Config
@@ -143,7 +144,11 @@ closeStream = satClose
 -- In: a model stream
 -- Out: an updated model stream and the next model
 nextModel :: SATIteratorType -> (Maybe Model, SATIteratorType)
-nextModel it = (satSolve it)
+nextModel it = satSolve $ satPush it
+--
+-- does not necessarily give back the "previous model"
+undoAndNext :: SATIteratorType -> (Maybe Model, SATIteratorType)
+undoAndNext it' = nextModel $ satPop it'
 
 ----------------
 -- PROVENANCE --

@@ -71,18 +71,11 @@ modelNext seed = case seed of
     (Nothing, _) -> Nothing
     (Just mdl', stream') -> Just (stream',mdl')
 
-
-
-
-
-modelUp :: UState -> Formula -> Either UError UState
-modelUp state@(UState (cfg, thy) (b,p,t,c) (stream, mdl)) fml = case getObservation fml of
-  Nothing -> Left (UErr "augmentation formula is not an observation")
-  Just obs -> do
-    let (b', p', t', c') = augment cfg thy (b, p, t, c) obs
-    case nextModel (openStream cfg t') of
-      (Nothing, _) -> Left (UErr "no models exist for given augmentation")
-      (Just mdl', stream') -> Right (UState (cfg,thy) (b',p',t',c') (stream',mdl'))
+modelUp :: Config -> Theory -> GStar -> Formula -> Maybe GStar
+modelUp config theory gstar@(b,p,t,c) fml = case getObservation fml of
+  Nothing -> Nothing
+  Just obs -> Just $ augment config theory gstar obs
+    
 
 
 

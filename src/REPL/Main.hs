@@ -27,10 +27,11 @@ import REPL.Mode
 import qualified REPL.Mode.Theory as T
 import qualified REPL.Mode.Model as M
 import qualified REPL.Mode.Stream as H
+import qualified REPL.Mode.Stack as V
 
 data REPLCommand = Display Substate | Change REPLMode | ModeHelp | Help | Exit
 data Substate = TheConfig | TheTheory | TheModel
-data REPLMode = ModeTheory | ModeStream
+data REPLMode = ModeTheory | ModeStream | ModeStack
 
 --------------------
 -- Main REPL/Loop --
@@ -71,14 +72,13 @@ loop state@(RazorState config theory _ _ model) mode stin = do
               TheTheory -> lift (prettyTheory theory) >> stay
               TheModel -> lift (prettyModel model) >> stay
             Change m -> case m of
-              ModeTheory -> change T.TheoryM state
+              ModeTheory -> trans T.TheoryM state 
               ModeStream -> case model of
-                Nothing -> do
-                  s' <- epsilon M.ModelM
-                  case s' of
-                    Nothing -> stay
-                    Just state' -> change H.StreamM state'
-                _ -> change H.StreamM state
+                Nothing -> eTrans M.ModelM H.StreamM 
+                _ -> trans H.StreamM state 
+              ModeStack -> case model of
+                Nothing -> eTrans M.ModelM V.StackM
+                _ -> trans V.StackM state
             ModeHelp -> lift (showHelp mode) >> stay
             Help -> lift replHelp >> stay
             Exit -> finish
@@ -96,15 +96,15 @@ loop state@(RazorState config theory _ _ model) mode stin = do
     -- finish the REPL
     finish = return (state)
     -- change the REPL mode; update state as well
-    change m' s = do
+    trans m' s = do
       enter <- lift $ enterMode m' s
       case enter of
         Left err -> lift (prettyPrint 0 ferror err) >> stay
         Right stout -> do
           let (s', stin') = update m' stout s
           loop s' m' stin'
-    -- enter an implicit mode and update the state without looping
-    epsilon m' = do
+    -- enter an implicit mode and get the updated state without looping
+    eState m' = do
       enter <- lift $ enterMode m' state
       case enter of
         Left err -> do
@@ -113,6 +113,12 @@ loop state@(RazorState config theory _ _ model) mode stin = do
         Right stout -> do
           let (state', _) = (update m' stout state)
           return $ Just state'
+    -- transition from an implicit mode state to another state
+    eTrans m' m'' = do
+      s' <- eState m'
+      case s' of
+        Nothing -> stay
+        Just state' -> trans m'' state'
 
 ------------------------
 -- Main REPL Commands --
@@ -156,13 +162,16 @@ pChange = do
   Change <$> pMode
 
 pMode :: Parser REPLMode
-pMode = pTheoryM <|> pStreamM
+pMode = pTheoryM <|> pStreamM <|> pStackM
 
 pTheoryM :: Parser REPLMode
 pTheoryM = symbol "t" >> return ModeTheory
 
 pStreamM :: Parser REPLMode
 pStreamM = symbol "h" >> return ModeStream
+
+pStackM :: Parser REPLMode
+pStackM = symbol "v" >> return ModeStack
 
 -- Display
 pDisplay :: Parser REPLCommand
