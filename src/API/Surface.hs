@@ -62,14 +62,14 @@ loadTheory config file = do
             return $ Right (thy, gs)
           Nothing -> return $ Left $ "Unable to parse input theory!"
 
-modelNext :: Either (Config, SATTheoryType) SATIteratorType -> Either Error (SATIteratorType, Model)
+modelNext :: Either (Config, SATTheoryType) SATIteratorType -> Maybe (SATIteratorType, Model)
 modelNext seed = case seed of
   Left (config, t) -> case nextModel (openStream config t) of
-    (Nothing, stream') -> Left "No models available!"
-    (Just mdl', stream') -> Right (stream',mdl')
+    (Nothing, _) -> Nothing
+    (Just mdl', stream') -> Just (stream',mdl')
   Right stream -> case nextModel stream of
-    (Nothing, stream') -> Left "No more minimal models!"
-    (Just mdl', stream') -> Right (stream',mdl')
+    (Nothing, _) -> Nothing
+    (Just mdl', stream') -> Just (stream',mdl')
 
 
 

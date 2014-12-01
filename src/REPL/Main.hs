@@ -25,6 +25,7 @@ import Text.Parsec.Prim
 import Syntax.GeometricParser
 import REPL.Mode
 import qualified REPL.Mode.Theory as T
+import qualified REPL.Mode.Model as M
 import qualified REPL.Mode.Stream as H
 
 data REPLCommand = Display Substate | Change REPLMode | ModeHelp | Help | Exit
@@ -70,8 +71,14 @@ loop state@(RazorState config theory _ _ model) mode stin = do
               TheTheory -> lift (prettyTheory theory) >> stay
               TheModel -> lift (prettyModel model) >> stay
             Change m -> case m of
-              ModeTheory -> change T.TheoryM
-              ModeStream -> change H.StreamM
+              ModeTheory -> change T.TheoryM state
+              ModeStream -> case model of
+                Nothing -> do
+                  s' <- epsilon M.ModelM
+                  case s' of
+                    Nothing -> stay
+                    Just state' -> change H.StreamM state'
+                _ -> change H.StreamM state
             ModeHelp -> lift (showHelp mode) >> stay
             Help -> lift replHelp >> stay
             Exit -> finish
@@ -89,13 +96,23 @@ loop state@(RazorState config theory _ _ model) mode stin = do
     -- finish the REPL
     finish = return (state)
     -- change the REPL mode; update state as well
-    change mode' = do
-      enter <- lift $ enterMode mode' state
+    change m' s = do
+      enter <- lift $ enterMode m' s
       case enter of
         Left err -> lift (prettyPrint 0 ferror err) >> stay
         Right stout -> do
-          let (state', stin') = update mode' stout state
-          loop state' mode' stin'
+          let (s', stin') = update m' stout s
+          loop s' m' stin'
+    -- enter an implicit mode and update the state without looping
+    epsilon m' = do
+      enter <- lift $ enterMode m' state
+      case enter of
+        Left err -> do
+          lift (prettyPrint 0 ferror err)
+          return Nothing
+        Right stout -> do
+          let (state', _) = (update m' stout state)
+          return $ Just state'
 
 ------------------------
 -- Main REPL Commands --
@@ -110,18 +127,18 @@ replSplash = prettyPrint 0 foutput $ ""++
   "A model finding assistant!"
 replHelp :: IO()
 replHelp = prettyPrint 0 foutput $ ""++
-  "<expr>:= |   !<substate>       Display information\n"++
-  "   <substate>:=  |   c           Configuration\n"++
-  "                 |   t           Loaded Theory\n"++
-  "                 |   m           Current Model\n"++
-  "         |   @<mode>           Transition to a different REPL Mode\n"++
-  "   <mode>:=    |   t             Edit Theory and Configuration\n"++
-  "               |   v             Vertically Explore Modelspace\n"++
-  "               |   h             Horizontally Explore Modelspace\n"++
-  "               |   q             Query Current Model\n"++
-  "         |   ?                 Show REPLMode Specific Help\n"++
-  "         |   help              Print This Message\n"++
-  "         |   q|quit|exit       Exit Razor"
+  "<expr>:= | !<substate>       Display general information\n"++
+  "  <substate>:=   | c           Configuration\n"++
+  "                 | t           Loaded Theory\n"++
+  "                 | m           Current Model\n"++
+  "         | @<mode>           Transition to a different REPL Mode\n"++
+  "  <mode>:=     | t             Edit Theory and Configuration\n"++
+  "               | v             Vertically Explore Modelspace\n"++
+  "               | h             Horizontally Explore Modelspace\n"++
+  "               | q             Query Current Model\n"++
+  "         | ?                 Show REPLMode Specific Help\n"++
+  "         | help              Print This Message\n"++
+  "         | q|quit|exit       Exit Razor"
 parseREPLCommand :: String -> Maybe REPLCommand
 parseREPLCommand cmd = 
   let pResult = parse pCommand "parsing REPL command" cmd
