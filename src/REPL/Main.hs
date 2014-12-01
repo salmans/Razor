@@ -1,3 +1,4 @@
+{-# LANGUAGE ScopedTypeVariables #-}
 {-|
   Razor
   Module      : REPL.Main
@@ -24,11 +25,11 @@ import Text.Parsec.Prim
 import Syntax.GeometricParser
 import REPL.Mode
 import qualified REPL.Mode.Theory as T
-import qualified REPL.Mode.Stream as H
+--import qualified REPL.Mode.Stream as H
 
-data REPLCommand = Display Substate | Change Mode | ModeHelp | Help | Exit
+data REPLCommand = Display Substate | Change REPLMode | ModeHelp | Help | Exit
 data Substate = TheConfig | TheTheory | TheModel
-data Mode = ModeTheory | ModeStream
+data REPLMode = ModeTheory | ModeStream
 
 --------------------
 -- Main REPL/Loop --
@@ -44,20 +45,16 @@ main = do
   enter <- enterMode startmode state
   case enter of
     Left err -> prettyPrint 0 ferror err
-    Right (state', mode') -> do
+    Right (mode', modein', modeout') -> do
       replSplash
-      endstate <- runInputT defaultSettings $ loop state' startmode
+      let state' = update mode' modeout' state
+      endstate <- runInputT defaultSettings $ loop state' mode' modein'
       return $ teardownState endstate
   -- exit display
   displayExit
 
-loop :: (LoopMode m) => RazorState -> m -> InputT IO(RazorState)
-loop state@(RazorState config theory _ _ model) mode = do
-  -- loop types
-  let stay = loop state mode
-  let go state' = loop state' mode
-  let chmod state' mode' = loop state' mode'
-  let finish = return (state)
+loop :: (LoopMode m i o) => RazorState -> m -> i -> InputT IO(RazorState)
+loop state@(RazorState config theory _ _ model) mode modein = do
   -- get input
   lift $ putStr "\n"
   minput <- getInputLine $ modeTag mode
@@ -68,10 +65,10 @@ loop state@(RazorState config theory _ _ model) mode = do
         case parseREPLCommand cmd of
           -- Try and run the mode command
           Nothing -> do
-            run <- lift $ runOnce mode state cmd
+            run <- lift $ runOnce mode modein cmd
             case run of
               Left err -> lift (prettyPrint 0 ferror err) >> stay
-              Right state' -> go state'
+              Right modeout -> go modeout
           -- Run the overall REPL command
           Just command -> case command of
             Display substate -> case substate of
@@ -80,16 +77,27 @@ loop state@(RazorState config theory _ _ model) mode = do
               TheModel -> lift (prettyModel model) >> stay
             Change m -> case m of
               ModeTheory -> change T.TheoryM
-              ModeStream -> change H.StreamM
-              where
-                change m' = do
-                  enter <- lift $ enterMode m' state
-                  case enter of
-                    Left err -> lift (prettyPrint 0 ferror err) >> stay
-                    Right (state', mode') -> chmod state' mode'
+              ModeStream -> stay--change H.StreamM
             ModeHelp -> lift (showHelp mode) >> stay
             Help -> lift replHelp >> stay
             Exit -> finish
+  where
+    -- stay in the same mode / state; no changes
+    stay = loop state mode modein
+    -- update the state with the changes the mode made
+    go modeout = do
+      let state' = update mode modeout state
+      loop state' mode modein
+    -- finish the REPL
+    finish = return (state)
+    -- change the REPL mode; update state as well
+    change m' = do
+      enter <- lift $ enterMode m' state
+      case enter of
+        Left err -> lift (prettyPrint 0 ferror err) >> stay
+        Right (mode', modein', modeout') -> do
+          let state' = update mode' modeout' state
+          loop state' mode' modein'
 
 ------------------------
 -- Main REPL Commands --
@@ -113,7 +121,7 @@ replHelp = prettyPrint 0 foutput $ ""++
   "               |   v             Vertically Explore Modelspace\n"++
   "               |   h             Horizontally Explore Modelspace\n"++
   "               |   q             Query Current Model\n"++
-  "         |   ?                 Show Mode Specific Help\n"++
+  "         |   ?                 Show REPLMode Specific Help\n"++
   "         |   help              Print This Message\n"++
   "         |   q|quit|exit       Exit Razor"
 parseREPLCommand :: String -> Maybe REPLCommand
@@ -132,13 +140,13 @@ pChange = do
   symbol "@"
   Change <$> pMode
 
-pMode :: Parser Mode
+pMode :: Parser REPLMode
 pMode = pTheoryM <|> pStreamM
 
-pTheoryM :: Parser Mode
+pTheoryM :: Parser REPLMode
 pTheoryM = symbol "t" >> return ModeTheory
 
-pStreamM :: Parser Mode
+pStreamM :: Parser REPLMode
 pStreamM = symbol "h" >> return ModeStream
 
 -- Display
@@ -161,7 +169,7 @@ pTheTheory = symbol "t" >> return TheTheory
 pTheModel :: Parser Substate
 pTheModel = symbol "m" >> return TheModel
 
--- Mode Help / Help / Exit
+-- REPLMode Help / Help / Exit
 pModeHelp :: Parser REPLCommand
 pModeHelp = symbol "?" >> return ModeHelp
 

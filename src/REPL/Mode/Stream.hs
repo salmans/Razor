@@ -18,7 +18,10 @@ import Syntax.GeometricParser
 
 instance LoopMode StreamMode where
   runOnce	  = streamRun
+  update    = updateStream
   enterMode = enterStream
+
+instance Mode StreamMode where
   showHelp  = streamHelp
   modeTag   = streamTag
 

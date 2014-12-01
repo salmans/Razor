@@ -1,3 +1,6 @@
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-|
   Razor
   Module      : REPL.Mode.Theory
@@ -13,14 +16,20 @@ import Control.Applicative hiding ((<|>), many)
 import Text.ParserCombinators.Parsec
 import Text.Parsec.Prim
 import Syntax.GeometricParser
+import Syntax.GeometricUtils
 
-instance LoopMode TheoryMode where
+instance LoopMode TheoryMode TheoryIn TheoryOut where
   runOnce	  = theoryRun
+  update = updateTheory
   enterMode = enterTheory
+
+instance Mode TheoryMode where
   showHelp  = theoryHelp
   modeTag   = theoryTag
 
 data TheoryMode = TheoryM
+type TheoryIn = Config
+type TheoryOut = (Maybe Theory, Maybe GStar)
 
 data TheoryCommand = Load TheoryFile
 type TheoryFile = String
@@ -28,8 +37,8 @@ type TheoryFile = String
 --------------------
 -- Mode Functions --
 --------------------
-theoryRun :: TheoryMode -> RazorState -> String -> IO(Either Error RazorState)
-theoryRun mode state@(RazorState config theory gstar stream model) command = case parseTheoryCommand command of
+theoryRun :: TheoryMode -> TheoryIn -> String -> IO(Either Error TheoryOut)
+theoryRun mode config command = case parseTheoryCommand command of
   Left err -> return $ Left err
   Right cmd -> case cmd of
     Load file -> do
@@ -37,14 +46,17 @@ theoryRun mode state@(RazorState config theory gstar stream model) command = cas
       case load of
         Right (thy', gs') -> do
           prettyTheory (Just thy')
-          return $ Right (RazorState config (Just thy') (Just gs') stream model)
+          return $ Right $ (Just thy', Just gs')
         Left err -> return $ Left err
 
----------------------
--- chmod Functions --
----------------------
-enterTheory :: TheoryMode -> RazorState -> IO(Either Error (RazorState, TheoryMode))
-enterTheory mode state@(RazorState config theory gstar stream model) = return $ Right (state, mode)
+------------------------
+-- RazorState Related --
+------------------------
+updateTheory :: TheoryMode -> TheoryOut -> RazorState -> RazorState
+updateTheory mode (theory', gstar') state@(RazorState config theory gstar stream model) = RazorState config theory' gstar' stream model
+
+enterTheory :: TheoryMode -> RazorState -> IO(Either Error (TheoryMode, TheoryIn, TheoryOut))
+enterTheory mode state@(RazorState config theory gstar stream model) = return $ Right $ (mode, config, (theory, gstar))
 
 -----------------------
 -- Command Functions --
