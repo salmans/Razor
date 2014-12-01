@@ -52,11 +52,11 @@ theoryRun mode config command = case parseTheoryCommand command of
 ------------------------
 -- RazorState Related --
 ------------------------
-updateTheory :: TheoryMode -> TheoryOut -> RazorState -> RazorState
-updateTheory mode (theory', gstar') state@(RazorState config theory gstar stream model) = RazorState config theory' gstar' stream model
+updateTheory :: TheoryMode -> TheoryOut -> RazorState -> (RazorState, TheoryIn)
+updateTheory mode (theory', gstar') state@(RazorState config theory gstar stream model) = (RazorState config theory' gstar' stream model, config)
 
-enterTheory :: TheoryMode -> RazorState -> IO(Either Error (TheoryMode, TheoryIn, TheoryOut))
-enterTheory mode state@(RazorState config theory gstar stream model) = return $ Right $ (mode, config, (theory, gstar))
+enterTheory :: TheoryMode -> RazorState -> IO(Either Error (TheoryOut))
+enterTheory mode state@(RazorState config theory gstar stream model) = return $ Right $ (theory, gstar)
 
 -----------------------
 -- Command Functions --

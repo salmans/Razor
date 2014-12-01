@@ -26,6 +26,9 @@ data UError = UErr String
 type UBlame = Either UError (Blame, Sequent)
 data UOrigin = UOriginLeaf Term UBlame | UOriginNode Term UBlame [UOrigin]
 
+-----------------
+-- Razor State --
+-----------------
 data RazorState = RazorState Config (Maybe Theory) (Maybe GStar) (Maybe SATIteratorType) (Maybe Model)
 type GStar = (ChasePossibleFactsType, ProvInfo, SATTheoryType, Int)
 type Error = String
@@ -41,6 +44,9 @@ teardownState state@(RazorState config theory gstar stream model) = case stream 
   Nothing -> ()
   Just openstream -> closeStream openstream
 
+----------------------------
+-- Surface API Operations --
+----------------------------
 loadTheory :: Config -> String -> IO(Either Error (Theory, GStar))
 loadTheory config file = do
   res1 <- try (readFile file) :: IO (Either SomeException String)
@@ -56,9 +62,9 @@ loadTheory config file = do
             return $ Right (thy, gs)
           Nothing -> return $ Left $ "Unable to parse input theory!"
 
-modelNext :: Either (Config, GStar) SATIteratorType -> Either Error (SATIteratorType, Model)
+modelNext :: Either (Config, SATTheoryType) SATIteratorType -> Either Error (SATIteratorType, Model)
 modelNext seed = case seed of
-  Left (config, (b, p, t, c)) -> case nextModel (openStream config t) of
+  Left (config, t) -> case nextModel (openStream config t) of
     (Nothing, stream') -> Left "No models available!"
     (Just mdl', stream') -> Right (stream',mdl')
   Right stream -> case nextModel stream of

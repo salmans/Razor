@@ -1,3 +1,6 @@
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-|
   Razor
   Module      : REPL.Mode.Stream
@@ -16,7 +19,7 @@ import Text.ParserCombinators.Parsec
 import Text.Parsec.Prim
 import Syntax.GeometricParser
 
-instance LoopMode StreamMode where
+instance LoopMode StreamMode StreamIn StreamOut where
   runOnce	  = streamRun
   update    = updateStream
   enterMode = enterStream
@@ -26,41 +29,44 @@ instance Mode StreamMode where
   modeTag   = streamTag
 
 data StreamMode = StreamM
+type StreamIn = (SATIteratorType, Model)
+type StreamOut = (SATIteratorType, Model)
 
 data StreamCommand = Next
 
 --------------------
 -- Mode Functions --
 --------------------
-streamRun :: StreamMode -> RazorState -> String -> IO(Either Error RazorState)
-streamRun mode state@(RazorState config theory gstar stream model) command = case parseStreamCommand command of
+streamRun :: StreamMode -> StreamIn -> String -> IO(Either Error StreamOut)
+streamRun mode state@(stream, model) command = case parseStreamCommand command of
   Left err -> return $ Left err
   Right cmd -> case cmd of
-    Next -> return $ Right state
+    Next -> case modelNext (Right stream) of
+      Left err -> return $ Left err
+      Right (stream', model') -> do
+        prettyModel (Just model')
+        return $ Right $ (stream', model')
 
-runNext :: Either Error (SATIteratorType, Model) -> RazorState -> IO(Either Error RazorState)
-runNext next state@(RazorState config theory gstar stream model) = case next of
-  Left err -> return $ Left err
-  Right (stream', model') -> do
-    prettyModel (Just model')
-    return $ Right (RazorState config theory gstar (Just stream') (Just model'))
+------------------------
+-- RazorState Related --
+------------------------
+updateStream :: StreamMode -> StreamOut -> RazorState -> (RazorState, StreamIn)
+updateStream mode (stream', model') state@(RazorState config theory gstar stream model) = (RazorState config theory gstar (Just stream') (Just model'), (stream', model'))
 
----------------------
--- chmod Functions --
----------------------
-enterStream :: StreamMode -> RazorState -> IO(Either Error (RazorState, StreamMode))
+enterStream :: StreamMode -> RazorState -> IO(Either Error StreamOut)
 enterStream mode state@(RazorState config theory gstar stream model) = do
-  s' <- runNext next state
-  case s' of
+  case next of
     Left err -> return $ Left err
-    Right state' -> return $ Right (state', mode)
+    Right (stream', model') -> do
+      prettyModel (Just model')
+      return $ Right $ (stream', model')
   where
     next = case (stream, model) of
       (Just str, Just mdl) -> Right (str, mdl)
-      (Just str, _) -> modelNext $ Right str
+      (Just str, Nothing) -> modelNext $ Right str
       (Nothing, _) -> case gstar of
         Nothing -> Left $ "No theory loaded!"
-        Just gs -> modelNext $ Left (config, gs)
+        Just (b,p,t,c) -> modelNext $ Left (config, t)
 
 -----------------------
 -- Command Functions --

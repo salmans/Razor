@@ -25,7 +25,7 @@ import Text.Parsec.Prim
 import Syntax.GeometricParser
 import REPL.Mode
 import qualified REPL.Mode.Theory as T
---import qualified REPL.Mode.Stream as H
+import qualified REPL.Mode.Stream as H
 
 data REPLCommand = Display Substate | Change REPLMode | ModeHelp | Help | Exit
 data Substate = TheConfig | TheTheory | TheModel
@@ -45,16 +45,16 @@ main = do
   enter <- enterMode startmode state
   case enter of
     Left err -> prettyPrint 0 ferror err
-    Right (mode', modein', modeout') -> do
+    Right stout -> do
       replSplash
-      let state' = update mode' modeout' state
-      endstate <- runInputT defaultSettings $ loop state' mode' modein'
+      let (state', stin') = update startmode stout state
+      endstate <- runInputT defaultSettings $ loop state' startmode stin'
       return $ teardownState endstate
   -- exit display
   displayExit
 
 loop :: (LoopMode m i o) => RazorState -> m -> i -> InputT IO(RazorState)
-loop state@(RazorState config theory _ _ model) mode modein = do
+loop state@(RazorState config theory _ _ model) mode stin = do
   -- get input
   lift $ putStr "\n"
   minput <- getInputLine $ modeTag mode
@@ -63,12 +63,6 @@ loop state@(RazorState config theory _ _ model) mode modein = do
       Nothing -> finish
       Just cmd -> do
         case parseREPLCommand cmd of
-          -- Try and run the mode command
-          Nothing -> do
-            run <- lift $ runOnce mode modein cmd
-            case run of
-              Left err -> lift (prettyPrint 0 ferror err) >> stay
-              Right modeout -> go modeout
           -- Run the overall REPL command
           Just command -> case command of
             Display substate -> case substate of
@@ -77,27 +71,31 @@ loop state@(RazorState config theory _ _ model) mode modein = do
               TheModel -> lift (prettyModel model) >> stay
             Change m -> case m of
               ModeTheory -> change T.TheoryM
-              ModeStream -> stay--change H.StreamM
+              ModeStream -> change H.StreamM
             ModeHelp -> lift (showHelp mode) >> stay
             Help -> lift replHelp >> stay
             Exit -> finish
+          -- Try and run the command in the mode
+          Nothing -> do
+            run <- lift $ runOnce mode stin cmd
+            case run of
+              Left err -> lift (prettyPrint 0 ferror err) >> stay
+              Right stout -> do
+                let (state', stin') = update mode stout state
+                loop state' mode stin'
   where
     -- stay in the same mode / state; no changes
-    stay = loop state mode modein
-    -- update the state with the changes the mode made
-    go modeout = do
-      let state' = update mode modeout state
-      loop state' mode modein
+    stay = loop state mode stin
     -- finish the REPL
     finish = return (state)
     -- change the REPL mode; update state as well
-    change m' = do
-      enter <- lift $ enterMode m' state
+    change mode' = do
+      enter <- lift $ enterMode mode' state
       case enter of
         Left err -> lift (prettyPrint 0 ferror err) >> stay
-        Right (mode', modein', modeout') -> do
-          let state' = update mode' modeout' state
-          loop state' mode' modein'
+        Right stout -> do
+          let (state', stin') = update mode' stout state
+          loop state' mode' stin'
 
 ------------------------
 -- Main REPL Commands --
