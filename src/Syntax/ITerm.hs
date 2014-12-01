@@ -10,7 +10,7 @@ module Syntax.ITerm where
 import Data.List
 import qualified Data.Map as Map
 
-import Data.Hashable
+-- import Data.Hashable
 
 -- Control
 import Control.Applicative
@@ -40,8 +40,8 @@ newtype Element  = Element Int  -- Elements of the domain
 
 {- A hash function to work with IHashSet as the underlying database for the
    relational algebraic implementation of the Chase. -}
-instance Hashable Element where
-    s `hashWithSalt` (Element e) = s `hashWithSalt` e
+-- instance Hashable Element where
+--     s `hashWithSalt` (Element e) = s `hashWithSalt` e
 
 type FnSym  = String -- Function Symbols
 

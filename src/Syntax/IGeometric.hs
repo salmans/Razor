@@ -106,9 +106,9 @@ prettyFormula (Lone fn v fmla lfmla)
 
 
 prettySequent :: Sequent -> String
-prettySequent (Sequent b h) = case b of
-  Tru -> (show h)
-  _ -> (show b) ++ " => " ++ (show h)
+prettySequent (Sequent b h)
+  | b == Tru  = show h ++ ";"
+  | otherwise = show b ++ " => " ++ show h ++ ";"
 
 {- Parsing geometric formulas and sequents -}
 -- backtracking choice combinator

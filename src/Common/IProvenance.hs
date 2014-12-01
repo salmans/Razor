@@ -10,7 +10,7 @@ module Common.IProvenance where
 import qualified Data.Map as Map
 import Data.Maybe
 
-import Data.Hashable
+-- import Data.Hashable
 -- Control
 import Control.Applicative
 
@@ -42,8 +42,8 @@ data Blame = TheoryBlame Id Sub | UserBlame Observation
 
 {- A basic hash function to work with IHashSet as the underlying database. -}
 -- THIS IS A TEMPORARY IMPLEMENTATION. THE FUNCTION HAS TO BE REWRITTEN.
-instance Hashable Blame where
-    s `hashWithSalt` _ = s
+-- instance Hashable Blame where
+--     s `hashWithSalt` _ = s
 
 {-| Provenance information for observations is a map from 'Observation's to 
   'Blame'. -}
