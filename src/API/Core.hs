@@ -249,8 +249,8 @@ getSkolemElement prov skolemterm = (findElementWithProv skolemterm prov)
 --
 getSkolemTree :: ElementProvs -> Model -> Element -> Maybe (Element, FnSym, [Element])
 getSkolemTree prov mdl elm = case (getElementProv elm prov) of
-  [] -> Nothing
-  trees -> case (getSkolemHead (head trees)) of
+  Nothing   -> Nothing
+  Just tree -> case (getSkolemHead tree) of
     Nothing -> Nothing
     Just (skolemhead, skolemrest) -> Just (elm, skolemhead, (concatMap (\t->(maybeToList (getSkolemElement prov t))) skolemrest))
 --

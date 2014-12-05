@@ -313,7 +313,7 @@ createSub tup heads = Map.map (\i -> Elem (tup ! i)) heads
 
 createExistsSub :: Tup -> ElementProvs -> [FnSym] -> Either FnSym ExistsSub
 createExistsSub tup elmProvs skFuns =     
-    let paramProvs = head <$>  -- any of the existing provenance terms works
+    let paramProvs = fromJust <$>  -- any of the existing provenance terms works
                      (\e -> getElementProv e elmProvs) <$> 
                      Vect.toList tup
         provsToBe  = (\sk -> if   null paramProvs

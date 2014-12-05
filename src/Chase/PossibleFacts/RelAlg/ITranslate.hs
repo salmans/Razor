@@ -482,12 +482,14 @@ insertTuples tblPair (Proj innerExp col heading skFn unqExp) db depth dpths
   let provs = elementProvs allProvs
   
   new   <- foldM (\set (Tuple tup1 tup2) -> do
-                          let ds = maximum <$>
-                                   (termDepth <$>) <$>
-                                   (flip getElementProv) provs <$> 
-                                   tup1
+                          let ds = if Vect.null tup1
+                                     then -1
+                                     else Vect.maximum $
+                                          (termDepth.fromJust) <$> 
+                                          (flip getElementProv) provs <$> 
+                                          tup1
                               d  = findSkolemDepthWithDefault depth skFn dpths
-                          if d > -1 && Vect.any (>= d) ds
+                          if d > -1 && ds >= d
                           then return set
                           else do
                             tup2' <- (Vect.mapM (inject (tuple tup2))
