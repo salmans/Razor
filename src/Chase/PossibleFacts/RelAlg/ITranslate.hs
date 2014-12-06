@@ -53,7 +53,8 @@ import Common.Basic (Id)
 import Common.Data (SkolemDepthMap, findSkolemDepthWithDefault)
 import Common.Observation (Observation (..))
 import Common.Provenance ( ProvInfo (..), Blame (..)
-                         , addElementProv, modifyElementProvs, getElementProv )
+                         , addElementProv, modifyElementProvs
+                         , getElementProv, testElementProv )
 
 -- Chase
 import Chase.Data ( PushM, PullM, liftPushMBase, liftPushMProvs
@@ -466,12 +467,13 @@ insertTuples tblPair (Proj innerExp col heading skFn unqExp) db depth dpths
                           -- entire set of facts from the previous iteration of
                           -- the Chase
 
-  let inject = case unqExp of
-                 Nothing -> insertProjInject col
+  let inject reuseElm =
+             case unqExp of
+                 Nothing -> insertProjInject col reuseElm
                  Just ue -> let inNew = fetchUniqueTable db ue
                                 inUni = fetchUniqueTable uni ue 
                             in  insertProjUniqueInject inNew inUni (header ue) 
-                                  heading col
+                                  heading col reuseElm
                -- Create a function for injecting the projected out columns.
                -- If the unique expression is a Just value, the injecting 
                -- function looks up the new element that is about to be created
@@ -482,17 +484,20 @@ insertTuples tblPair (Proj innerExp col heading skFn unqExp) db depth dpths
   let provs = elementProvs allProvs
   
   new   <- foldM (\set (Tuple tup1 tup2) -> do
-                          let ds = maximum <$>
-                                   (termDepth <$>) <$>
-                                   (flip getElementProv) provs <$> 
-                                   tup1
+                          let ds = if Vect.null tup1
+                                   then -1
+                                   else Vect.maximum $
+                                        (termDepth.fromJust) <$>
+                                        (flip getElementProv) provs <$> 
+                                        tup1                          
                               d  = findSkolemDepthWithDefault depth skFn dpths
-                          if d > -1 && Vect.any (>= d) ds
+                          if (d > -1 && ds >= d)
                           then return set
                           else do
-                            tup2' <- (Vect.mapM (inject (tuple tup2))
+                            let reuse = testElementProv skFn (Vect.toList tup1)  provs
+                            tup2' <- (Vect.mapM (inject reuse (tuple tup2))
                                      (Vect.fromList [0..(totalColumns - 1)]))
-                            return ((Tuple tup1 tup2'):set)) 
+                            return ((Tuple tup1 tup2'):set))   
            empty $ DB.toList tblPair
            -- Use the injecting function to insert the projected column.
 
@@ -539,10 +544,13 @@ insertTuples tbl (Union _ _ _ _ _ _ ) _  _ _ =
    Output: a function that maps an index number to an 'Element' in a PushM
    context
 -}
-insertProjInject :: Int -> Tuple -> (Int -> PushM Database t Element)
-insertProjInject col (Tuple vs _) = 
+insertProjInject :: Int -> Maybe Element -> Tuple
+                 -> (Int -> PushM Database t Element)
+insertProjInject col reuse (Tuple vs _) = 
     \i -> if   i == col
-          then liftPushMCounter freshElement
+          then if   isJust reuse
+               then return $ fromJust reuse
+               else liftPushMCounter freshElement               
           else let j = if i > col then i - 1 else i
                in return $ vs ! j
                -- a helper function to inject a fresh element at its
@@ -566,16 +574,18 @@ insertProjInject col (Tuple vs _) =
    context
 -}
 insertProjUniqueInject :: Table -> Table -> Header -> Header
-                       -> Int -> Tuple -> (Int -> PushM Database t Element)
-insertProjUniqueInject unqInNew unqInUni unqHdr hdr col tup@(Tuple vs _) =     
+                       -> Int -> Maybe Element -> Tuple
+                       -> (Int -> PushM Database t Element)
+insertProjUniqueInject unqInNew unqInUni unqHdr hdr col reuse tup@(Tuple vs _) =     
     let fetch       = \ftbl -> fetchUnique tup hdr unqHdr col ftbl
     in \i -> if   i == col
              then case (fetch unqInNew) <|> (fetch unqInUni) of
-                    Nothing  -> liftPushMCounter freshElement
+                    Nothing  -> if   isJust reuse
+                                then return $ fromJust reuse
+                                else liftPushMCounter freshElement
                     Just elm -> return elm
              else let j = if i > col then i - 1 else i
                   in return $ vs ! j
-
 
 fetchUnique :: Tuple -> Header -> Header -> Column 
             -> Table -> Maybe Element

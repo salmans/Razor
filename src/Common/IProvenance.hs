@@ -45,7 +45,7 @@ error_missingProv      = "provenance information for element is missing"
   Because we need to search in 'ElementProvs' in both directions, we maintain
   a pair of maps from elements to the provenance terms and from the provenance 
   terms to elements. -}
-type ElementProvs = ( Map.Map Element [SkolemTerm]
+type ElementProvs = ( Map.Map Element SkolemTerm
                     , Map.Map SkolemTerm Element)
 
 {-| Blaming information for an 'Observation' is a sequent of the theory (or the
@@ -91,8 +91,8 @@ emptyProvInfoWithConstants consts = undefined
 
 {-| Returns the skolem term, i.e., the provenance information, for the input
   element. -}
-getElementProv :: Element -> ElementProvs -> [SkolemTerm]
-getElementProv elm (provs, _) = Map.findWithDefault [] elm provs
+getElementProv :: Element -> ElementProvs -> Maybe SkolemTerm
+getElementProv elm (provs, _) = Map.lookup elm provs
 
 {-| Adds provenance information for the input 'Element' where the input skolem 
   function has been assigned to the existential quantifier that creates the
@@ -102,20 +102,16 @@ addElementProv :: Element -> FnSym -> [Element] -> ElementProvs ->
                   ElementProvs
 addElementProv elm fn elms provs = 
     let terms  = (flip getElementProv) provs <$> elms 
-        terms' = combinations terms
-    in  if   any null terms
+    in  if   any isNothing terms
         then error $ unitName ++ ".addElementProv: " ++ error_missingProv
         else insertProv elm (if   null elms 
-                             then [Cons (Constant fn)]
-                             else (Fn fn) <$> terms') provs
-    where combinations [l]     = [l]
-          combinations (l:ls)  = [x:xs | x <- l, xs <- combinations ls]
+                             then Cons (Constant fn)
+                             else Fn fn $ fromJust <$> terms) provs
 
-
-insertProv :: Element -> [SkolemTerm] -> ElementProvs -> ElementProvs
-insertProv elm terms (elemProvs, provElems) =
-    let provElems' = foldr (\t ps -> Map.insert t elm ps) provElems terms
-    in  (Map.insertWith (flip const) elm terms elemProvs, provElems')
+insertProv :: Element -> SkolemTerm -> ElementProvs -> ElementProvs
+insertProv elm term (elemProvs, provElems) =
+    let provElems' = Map.insert term elm provElems
+    in  (Map.insertWith (flip const) elm term elemProvs, provElems')
 
 
 {-| Adds provenance information for the input 'Element' where the input skolem 
@@ -127,3 +123,12 @@ findElementWithProv term (_, provs) =  Map.lookup term provs
 
 findObservationWithProv :: Observation -> ObservationProvs -> Maybe Blame
 findObservationWithProv obs provs = Map.lookup obs provs
+
+testElementProv :: FnSym -> [Element] -> ElementProvs -> Maybe Element
+testElementProv skFn elms provs = do
+  skTerm <- if null elms
+              then return $ Cons $ Constant skFn
+              else do
+                terms <- mapM ((flip getElementProv) provs) elms
+                return $ Fn skFn terms
+  findElementWithProv skTerm provs
