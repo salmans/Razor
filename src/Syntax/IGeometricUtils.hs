@@ -44,7 +44,6 @@ import Syntax.Geometric
 -- Tools
 import Tools.Utils (unions)
 import Tools.Counter (Counter)
-import Tools.Trace
 
 
 
@@ -174,6 +173,13 @@ linearizeFormulaHelper varMap (And fmla1 fmla2)    =
     let (fmla1', varMap' ) = linearizeFormulaHelper varMap fmla1
         (fmla2', varMap'') = linearizeFormulaHelper varMap' fmla2
     in  (And fmla1' fmla2', varMap'')
+linearizeFormulaHelper varMap (Exists sk x fmla) =
+    let prevX    = Map.lookup x varMap                   
+        (fmla', varMap') = linearizeFormulaHelper (Map.insert x 0 varMap) fmla
+        varMap'' = case prevX of
+                     Nothing  -> varMap'
+                     Just val -> Map.insert x val varMap'
+    in  (Exists sk x fmla', varMap'')    
 linearizeFormulaHelper varMap (Lone sk x fmla unq) =
     let prevX    = Map.lookup x varMap                   
         (fmla', varMap') = linearizeFormulaHelper (Map.insert x 0 varMap) fmla
@@ -191,9 +197,13 @@ relationalizeTheory thy = mapM relationalizeSequent thy
    relational symbols. -}
 relationalizeSequent :: Sequent -> Counter Sequent
 relationalizeSequent (Sequent bdy hd) = do
-  bdyres <- relationalizeBody bdy
-  hdres  <- relationalizeHead hd
-  return $ Sequent (makeExists bdyres) (makeExists hdres)
+  (bdy', bdyData) <- relationalizeBody bdy
+  (hd' , hdData ) <- relationalizeHead hd
+  let vars         = freeVars bdy' \\ freeVars hd'  
+  bdy''           <- foldM (\f v -> do
+                               skFn   <- freshSymbol "exists"
+                               return (Exists (Just skFn) v f )) bdy' vars
+  return $ Sequent (makeExists (bdy'', bdyData)) (makeExists (hd', hdData))
     where makeExists (fmla, skvs) = 
               let (vs', fmla') = takeExistsOut fmla
               in putExistsBack vs'
