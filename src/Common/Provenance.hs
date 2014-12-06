@@ -20,7 +20,7 @@
 -}
 module Common.Provenance ( Blame (..), ObservationProvs, ProvInfo (..)
                          , ElementProvs
-                         , addElementProv, getElementProv
+                         , addElementProv, getElementProv, testElementProv
                          , findElementWithProv, modifyElementProvs
                          , findObservationWithProv
                          , emptyProvInfo, emptyProvInfoWithConstants ) where

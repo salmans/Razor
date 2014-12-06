@@ -123,3 +123,12 @@ findElementWithProv term (_, provs) =  Map.lookup term provs
 
 findObservationWithProv :: Observation -> ObservationProvs -> Maybe Blame
 findObservationWithProv obs provs = Map.lookup obs provs
+
+testElementProv :: FnSym -> [Element] -> ElementProvs -> Maybe Element
+testElementProv skFn elms provs = do
+  skTerm <- if null elms
+              then return $ Cons $ Constant skFn
+              else do
+                terms <- mapM ((flip getElementProv) provs) elms
+                return $ Fn skFn terms
+  findElementWithProv skTerm provs
