@@ -39,8 +39,8 @@ import System.Environment
 -----------------
 -- Razor State --
 -----------------
-data RazorState = RazorState Config (Maybe Theory) (Maybe GStar) (Maybe SATIteratorType) (Maybe Model)
-type GStar = (ChasePossibleFactsType, ProvInfo, SATTheoryType, Int)
+data RazorState = RazorState Config (Maybe Theory) (Maybe ChaseState) (Maybe SATIteratorType) (Maybe Model)
+type ChaseState = (ChasePossibleFactsType, ProvInfo, SATTheoryType, Int)
 type Error = String
 
 setupState :: IO RazorState
@@ -57,7 +57,7 @@ teardownState state@(RazorState config theory gstar sat model) = case sat of
 ----------------------------
 -- Surface API Operations --
 ----------------------------
-loadTheory :: Config -> String -> IO(Either Error (Theory, GStar))
+loadTheory :: Config -> String -> IO(Either Error (Theory, ChaseState))
 loadTheory config file = do
   res1 <- try (readFile file) :: IO (Either SomeException String)
   case res1 of
@@ -81,7 +81,7 @@ modelNext seed = case seed of
     (Nothing, _) -> Nothing
     (Just mdl', stream') -> Just (stream',mdl')
 
-modelUp :: Config -> Theory -> GStar -> Formula -> Maybe GStar
+modelUp :: Config -> Theory -> ChaseState -> Formula -> Maybe ChaseState
 modelUp config theory gstar@(b,p,t,c) fml = case getObservation fml of
   Nothing -> Nothing
   Just obs -> Just $ augment config theory gstar obs
@@ -94,7 +94,7 @@ modelDown sat = case undoAndNext sat of
 type QBlame = Either Error (Blame, Sequent)
 --
 --    
-getJustification :: GStar -> Model -> Formula -> QBlame
+getJustification :: ChaseState -> Model -> Formula -> QBlame
 getJustification gstar@(b,p,t,c) mdl fml = case getObservation fml of
   Nothing -> Left "blame formula is not an observation"
   Just obv -> case getObservationBlame (observationProvs p) mdl obv of
@@ -106,7 +106,7 @@ getJustification gstar@(b,p,t,c) mdl fml = case getObservation fml of
 data QOrigin = QOriginLeaf Term QBlame | QOriginNode Term QBlame [QOrigin]
 --
 --
-getOrigin :: Theory -> GStar -> Model -> Bool -> Term -> [QOrigin]
+getOrigin :: Theory -> ChaseState -> Model -> Bool -> Term -> [QOrigin]
 getOrigin thy gstar@(b,p,t,c) mdl isrec term = do
   case name of
     Left err -> [QOriginLeaf term (Left err)]

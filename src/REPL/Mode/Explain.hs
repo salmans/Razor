@@ -1,13 +1,26 @@
-{-# LANGUAGE TypeSynonymInstances #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-|
-  Razor
-  Module      : REPL.Mode.Query
+{- This file is part of Razor.
+
+  Razor is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  Razor is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with Razor.  If not, see <http://www.gnu.org/licenses/>.
+
+  Module      : REPL.Mode.Explain
   Description : This module defines the query mode in the REPL.
   Maintainer  : Salman Saghafi, Ryan Danas
 -}
-module REPL.Mode.Query where
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+module REPL.Mode.Explain where
 import API.Surface
 import Common.Model
 import Common.Provenance
@@ -25,26 +38,26 @@ import Data.List
 import Syntax.IGeometric
 
 
-instance LoopMode QueryMode QueryIn QueryOut where
+instance LoopMode ExplainMode ExplainIn ExplainOut where
   runOnce	  = queryRun
-  update    = updateQuery
-  enterMode = enterQuery
+  update    = updateExplain
+  enterMode = enterExplain
 
-instance Mode QueryMode where
+instance Mode ExplainMode where
   showHelp  = queryHelp
   modeTag   = queryTag
 
-data QueryMode = QueryM
-type QueryIn = (Theory, GStar, Model)
-type QueryOut = (Theory, GStar, Model)
+data ExplainMode = ExplainM
+type ExplainIn = (Theory, ChaseState, Model)
+type ExplainOut = (Theory, ChaseState, Model)
 
-data QueryCommand = Blame Formula | Name Bool Bool Term
+data ExplainCommand = Blame Formula | Name Bool Bool Term
 
 --------------------
 -- Mode Functions --
 --------------------
-queryRun :: QueryMode -> QueryIn -> String -> IO(Either Error QueryOut)
-queryRun mode state@(theory, gstar, model) command = case parseQueryCommand command of
+queryRun :: ExplainMode -> ExplainIn -> String -> IO(Either Error ExplainOut)
+queryRun mode state@(theory, gstar, model) command = case parseExplainCommand command of
   Left err -> return $ Left err
   Right cmd -> case cmd of
     Blame fml -> do
@@ -84,67 +97,70 @@ printOrigin thy tabs (QOriginNode term origin depends) = do
 ------------------------
 -- RazorState Related --
 ------------------------
-updateQuery :: QueryMode -> QueryOut -> RazorState -> (RazorState, QueryIn)
-updateQuery mode (theory, gstar, model) state = (state, (theory, gstar, model))
+updateExplain :: ExplainMode -> ExplainOut -> RazorState -> (RazorState, ExplainIn)
+updateExplain mode (theory, gstar, model) state = (state, (theory, gstar, model))
 
-enterQuery :: QueryMode -> RazorState -> IO(Either Error QueryOut)
-enterQuery mode state@(RazorState config theory gstar stream model) = case (theory, gstar, model) of
-  (Just theory', Just gstar', Just model') -> return $ Right (theory', gstar', model')
+enterExplain :: ExplainMode -> RazorState -> IO(Either Error ExplainOut)
+enterExplain mode state@(RazorState config theory gstar stream model) = case (theory, gstar, model) of
+  (Just theory', Just gstar', Just model') -> do
+    prettyModel model
+    prettyPrint 0 foutput "Running queries over this model\n"
+    return $ Right (theory', gstar', model')
   _ -> return $ Left "Current model not initialized by another mode!"
 
 -----------------------
 -- Command Functions --
 -----------------------
-queryTag :: QueryMode -> String
+queryTag :: ExplainMode -> String
 queryTag mode = "%query% "
 
-queryHelp :: QueryMode -> IO()
+queryHelp :: ExplainMode -> IO()
 queryHelp cmd = prettyPrint 0 foutput $ ""++
-  "<expr>:= | origin<all_flag><rec_flag> <element>    Display the rule that caused this element to exist\n"++
+  "<expr>:= | name<all_flag><rec_flag> <element>    Display the rule that caused this element to exist\n"++
   "  <all_flag>:=   |                                   Only display the origin of the given element\n"++
-  "                 | s                                 Also display the equivalence class origins\n"++
+  "                 | s                                 Also display the origins of the representatives in this element's equivalence class\n"++
   "  <rec_flag>:=   |                                   Only display the origin of the given element\n"++
   "                 | *                                 Recursively display all origins that caused the rule to fire\n"++
   "         | blame <formula>                         Display the rule that fired to make the given fact true\n"
 
-parseQueryCommand :: String -> Either Error QueryCommand
-parseQueryCommand cmd = 
-  let pResult = parse pCommand "parsing QUERY command" cmd
+parseExplainCommand :: String -> Either Error ExplainCommand
+parseExplainCommand cmd = 
+  let pResult = parse pCommand "parsing EXPLAIN command" cmd
   in case pResult of
     Left err -> Left $ show err
     Right val -> Right $ val
 
-pCommand :: Parser QueryCommand
+pCommand :: Parser ExplainCommand
 pCommand = pName <|> pBlame
 
-pName :: Parser QueryCommand
+pName :: Parser ExplainCommand
 pName = pNameOne +++ pNameAll
-pNameOne :: Parser QueryCommand
+pNameOne :: Parser ExplainCommand
 pNameOne = do
-  symbol "origin"
+  symbol "name"
   pNameOneHead +++ pNameOneRec
-pNameOneHead :: Parser QueryCommand
+pNameOneHead :: Parser ExplainCommand
 pNameOneHead = do
   symbol ""
   Name False False <$> pElement
-pNameOneRec :: Parser QueryCommand
+pNameOneRec :: Parser ExplainCommand
 pNameOneRec = do
   symbol "*"
   Name False True <$> pElement
-pNameAll :: Parser QueryCommand
+pNameAll :: Parser ExplainCommand
 pNameAll = do
-  symbol "origins"
+  symbol "names"
   pNameAllHead +++ pNameAllRec
-pNameAllHead :: Parser QueryCommand
+pNameAllHead :: Parser ExplainCommand
 pNameAllHead = do
   symbol ""
   Name True False <$> pElement
-pNameAllRec :: Parser QueryCommand
+pNameAllRec :: Parser ExplainCommand
 pNameAllRec = do
   symbol "*"
   Name True True <$> pElement
 
-pBlame :: Parser QueryCommand
+pBlame :: Parser ExplainCommand
 pBlame = do
   symbol "blame"
   Blame <$> xpFactor

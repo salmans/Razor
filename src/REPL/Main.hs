@@ -17,7 +17,6 @@
   Description : The module provides a REPL for user interaction with Razor.
   Maintainer  : Salman Saghafi <salmans@wpi.edu>, Ryan Danas <ryandanas@wpi.edu>
 -}
-{-# LANGUAGE ScopedTypeVariables #-}
 module Main where
 import API.Surface
 import REPL.Display
@@ -38,14 +37,13 @@ import Text.Parsec.Prim
 import Syntax.GeometricParser
 import REPL.Mode
 import qualified REPL.Mode.Theory as T
-import qualified REPL.Mode.Model as M
-import qualified REPL.Mode.Stream as H
-import qualified REPL.Mode.Stack as V
-import qualified REPL.Mode.Query as Q
+import qualified REPL.Mode.ModelCheck as I
+import qualified REPL.Mode.Explore as M
+import qualified REPL.Mode.Explain as Q
 
 data REPLCommand = Display Substate | Change REPLMode | ModeHelp | Help | Exit
 data Substate = TheConfig | TheTheory | TheModel
-data REPLMode = ModeTheory | ModeStream | ModeStack | ModeQuery
+data REPLMode = ModeTheory | ModeExplore | ModeExplain
 
 --------------------
 -- Main REPL/Loop --
@@ -86,15 +84,12 @@ loop state@(RazorState config theory _ _ model) mode stin = do
               TheModel -> lift (prettyModel model) >> stay
             Change m -> case m of
               ModeTheory -> trans T.TheoryM state 
-              ModeStream -> case model of
-                Nothing -> eTrans M.ModelM H.StreamM 
-                _ -> trans H.StreamM state 
-              ModeStack -> case model of
-                Nothing -> eTrans M.ModelM V.StackM
-                _ -> trans V.StackM state
-              ModeQuery -> case model of
-                Nothing -> eTrans M.ModelM Q.QueryM
-                _ -> trans Q.QueryM state
+              ModeExplore -> case model of
+                Nothing -> eTrans I.ModelCheckM M.ExploreM 
+                _ -> trans M.ExploreM state 
+              ModeExplain -> case model of
+                Nothing -> eTrans I.ModelCheckM Q.ExplainM
+                _ -> trans Q.ExplainM state
             ModeHelp -> lift (showHelp mode) >> stay
             Help -> lift replHelp >> stay
             Exit -> finish
@@ -146,7 +141,10 @@ replSplash = prettyPrint 0 foutput $ ""++
   "  / /_/ / __ `/_  / / __ \\/ ___/\n"++
   " / _, _/ /_/ / / /_/ /_/ / /    \n"++
   "/_/ |_|\\__,_/ /___/\\____/_/\n"++
-  "A model finding assistant!\n"
+  "A model finding assistant!\n"++
+  "\n"++
+  "Distributed under GNU GPL v3 or later\n"++
+  "See LICENSE or <http://www.gnu.org/licenses/> for more details\n"
 replHelp :: IO()
 replHelp = prettyPrint 0 foutput $ ""++
   "<expr>:= | !<substate>       Display general information\n"++
@@ -155,8 +153,7 @@ replHelp = prettyPrint 0 foutput $ ""++
   "                 | m           Current Model\n"++
   "         | @<mode>           Transition to a different REPL Mode\n"++
   "  <mode>:=     | t             Edit Theory and Configuration\n"++
-  "               | v             Vertically Explore Modelspace\n"++
-  "               | h             Horizontally Explore Modelspace\n"++
+  "               | m             Explore the Modelspace of the Current Theory\n"++
   "               | q             Query Current Model\n"++
   "         | ?                 Show REPLMode Specific Help\n"++
   "         | help              Print This Message\n"++
@@ -178,19 +175,16 @@ pChange = do
   Change <$> pMode
 
 pMode :: Parser REPLMode
-pMode = pTheoryM <|> pStreamM <|> pStackM <|> pQueryM
+pMode = pTheoryM <|> pExplore <|> pExplain
 
 pTheoryM :: Parser REPLMode
 pTheoryM = symbol "t" >> return ModeTheory
 
-pStreamM :: Parser REPLMode
-pStreamM = symbol "h" >> return ModeStream
+pExplore :: Parser REPLMode
+pExplore = symbol "m" >> return ModeExplore
 
-pStackM :: Parser REPLMode
-pStackM = symbol "v" >> return ModeStack
-
-pQueryM :: Parser REPLMode
-pQueryM = symbol "q" >> return ModeQuery
+pExplain :: Parser REPLMode
+pExplain = symbol "q" >> return ModeExplain
 
 -- Display
 pDisplay :: Parser REPLCommand
