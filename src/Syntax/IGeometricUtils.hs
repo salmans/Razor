@@ -46,7 +46,6 @@ import Tools.Utils (unions)
 import Tools.Counter (Counter)
 
 
-
 unitName = "Syntax.GeometricUtils"
 err_disjInBody   = "the body of a sequent cannot contain disjunctions!"
 err_existsInBody = "the body of a sequent cannot contain existential"
@@ -352,11 +351,12 @@ relationalizeTerm (Cons (Constant c))
 -- relationalizeTerm (Fn _ []) = return Nothing 
 relationalizeTerm (Fn f ts) = do
   (fs', ts', skvs') <- foldM foldFunc ([], [], []) ts
-  v               <- freshVariable
-  let var         =  Var v
+  v              <- freshVariable
+  let var         = Var v
+  f'              <- freshSymbol f
   return $ Just (andFmlas fs' (Atm (FnRel f (ts' ++ [var])))
                 , var
-                , ( Just $ f
+                , ( Just $ f'
                   , Just $ Atm (FnRel f (ts' ++ [var]))
                   , v):skvs')
     where andFmlas  = \fmlas fmla -> foldr (\f1 f2 -> And f1 f2) fmla fmlas
