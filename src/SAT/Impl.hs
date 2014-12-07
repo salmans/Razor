@@ -44,11 +44,8 @@ import Tools.Config (Config)
 -- Uncomment to select the implementation:
 
 -- import SAT.Picosat -- Experimental implementation (Not working)
-#ifdef RAZOR_SMTLIB2
 import SAT.SMTLib2
-#else
-import SAT.SBV
-#endif
+-- import SAT.SBV
 -- <><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
 
 type SATIteratorState = State.State SATIteratorType
