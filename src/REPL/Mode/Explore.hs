@@ -63,7 +63,7 @@ exploreRun mode state@(config, theory, gstar, mspace, mcoor) command = case pars
       prettyModelCoordinate mcoor
       return $ Right $ (theory, gstar, mspace, mcoor)
     Next -> case modelspaceLookup mspace (Stream mcoor) of
-      Just (_, model) -> do
+      Just (_, _, model) -> do
         prettyModel $ Just model
         prettyModelCoordinate (Stream mcoor)
         return $ Right $ (theory, gstar, mspace, (Stream mcoor))
@@ -77,27 +77,38 @@ exploreRun mode state@(config, theory, gstar, mspace, mcoor) command = case pars
             return $ Right $ (theory, gstar, mspace', mcoor')
     Prev -> case mcoor of
       Stream mcoor' -> case modelspaceLookup mspace mcoor' of
-        Just (_, model) -> do
+        Just (_, _, model) -> do
           prettyModel $ Just model
           prettyModelCoordinate mcoor'
           return $ Right $ (theory, gstar, mspace, mcoor')
         Nothing -> return $ Left "No exploration to undo!"
-      _ -> return $ Left "Last exploration command in history was not 'next'!"
-    {-Push fml -> case augment config theory gstar fml of
+      _ -> return $ Left "Last exploration in history was not 'next'!"
+    Push fml -> case getObservation fml of
       Nothing -> return $ Left $ "Given formula is not in the form of an augmentation!"
-      Just gstar'@(b',p',t',c') -> case modelUp satdata of
-        Nothing -> return $ Left "No models exist from adding the given augmentation!"
-        Just (satdata', model') -> do
-          prettyModel $ Just model'
-          return $ Right $ (theory, gstar', satdata', model', fml:augs)
-    Pop -> case augs of
-      [] -> return $ Left $ "No pushed augmentations to pop!"
-      _ -> case modelDown satdata of
-        Nothing -> return $ Left $ "Somehow undoing the augmentation did not return a model!"
-        Just (satdata', model') -> do
-          prettyModel $ Just model'
-          return $ Right $ (theory, gstar, satdata', model', (tail augs))-}
-
+      Just obs -> case modelspaceLookup mspace (Stack obs mcoor) of
+        Just (_, _, model) -> do
+          prettyModel $ Just model
+          prettyModelCoordinate (Stack obs mcoor)
+          return $ Right $ (theory, gstar, mspace, (Stack obs mcoor))
+        Nothing -> case modelUp config theory gstar obs (mspace, mcoor) of
+          Nothing -> return $ Left "No models exist from adding the given augmentation!"
+          Just (gstar', mspace', mcoor') -> do
+              prettyModel $ modelLookup mspace' (Just mcoor')
+              prettyModelCoordinate mcoor'
+              return $ Right $ (theory, gstar', mspace', mcoor')
+    Pop -> case mcoor of
+      Stack obs mcoor' -> case modelspaceLookup mspace mcoor of
+        Nothing -> error "current model coordinate does not exist"
+        Just (gs', _, _) -> case gs' of
+          Nothing -> error "unable to undo augmentation; missing chasestate before augmentation was applied"
+          Just gstar' -> case modelspaceLookup mspace mcoor' of
+            Nothing -> return $ Left "No exploration to undo!"
+            Just (_,_,model) -> do
+              prettyModel $ Just model
+              prettyModelCoordinate mcoor'
+              return $ Right $ (theory, gstar', mspace, mcoor')
+      _ -> return $ Left "Last exploration in history was not 'aug'!"
+            
 ------------------------
 -- RazorState Related --
 ------------------------
@@ -108,7 +119,7 @@ enterExplore :: ExploreMode -> RazorState -> IO(Either Error ExploreOut)
 enterExplore mode state@(RazorState config theory gstar mspace mcoor) = case (theory, gstar, mcoor) of
   (Just theory', Just gstar', Just mcoor') -> case Map.lookup mcoor' mspace of
     Nothing -> return $ Left "Modelspace not initialized by another mode!"
-    Just (_, model') -> do
+    Just (_, _, model') -> do
       prettyModel $ Just model'
       prettyModelCoordinate mcoor'
       return $ Right $ (theory', gstar', mspace, mcoor')

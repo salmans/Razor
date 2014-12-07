@@ -277,14 +277,3 @@ getSkolemTree prov mdl elm = case (getElementProv elm prov) of
   Just tree -> case (getSkolemHead tree) of
     Nothing -> Nothing
     Just (skolemhead, skolemrest) -> Just (elm, skolemhead, (concatMap (\t->(maybeToList (getSkolemElement prov t))) skolemrest))
---
--- an observation (for now) is just an atom consisting of only elements
-getObservation :: Formula -> Maybe Observation
-getObservation (Atm atm@(Rel rsym terms)) = do
-  let elms = concat (map (\t->maybeToList (termToElement t)) terms)
-  if (length terms) == (length elms)
-    then case toObservation atm of
-      Just obv@(Obs (Rel rsym terms)) -> Just obv
-      _ -> Nothing
-    else Nothing
-getObservation _ = Nothing
