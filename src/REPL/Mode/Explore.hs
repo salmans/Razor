@@ -83,24 +83,26 @@ exploreRun mode state@(config, theory, gstar, mspace, mcoor) command = case pars
           return $ Right $ (theory, gstar, mspace, mcoor')
         Nothing -> return $ Left "No exploration to undo!"
       _ -> return $ Left "Last exploration in history was not 'next'!"
-    Push fml -> case getObservation fml of
-      Nothing -> return $ Left $ "Given formula is not in the form of an augmentation!"
-      Just obs -> case modelspaceLookup mspace (Stack obs mcoor) of
-        Just (_, _, model) -> do
-          prettyModel $ Just model
-          prettyModelCoordinate (Stack obs mcoor)
-          return $ Right $ (theory, gstar, mspace, (Stack obs mcoor))
-        Nothing -> case modelUp config theory gstar obs (mspace, mcoor) of
-          Nothing -> return $ Left "No models exist from adding the given augmentation!"
-          Just (gstar', mspace', mcoor') -> do
-              prettyModel $ modelLookup mspace' (Just mcoor')
-              prettyModelCoordinate mcoor'
-              return $ Right $ (theory, gstar', mspace', mcoor')
+    Push fml -> case modelspaceLookup mspace mcoor of
+      Nothing -> return $ Left "current model coordinate does not exist"
+      Just (_, _, model) -> case getAugmentation model fml of
+        Nothing -> return $ Left $ "Given formula is not in the form of an augmentation!"
+        Just (obs,newelms) -> case modelspaceLookup mspace (Stack obs mcoor) of
+          Just (_, _, model) -> do
+            prettyModel $ Just model
+            prettyModelCoordinate (Stack obs mcoor)
+            return $ Right $ (theory, gstar, mspace, (Stack obs mcoor))
+          Nothing -> case modelUp config theory gstar (obs,newelms) (mspace, mcoor) of
+            Nothing -> return $ Left "No models exist from adding the given augmentation!"
+            Just (gstar', mspace', mcoor') -> do
+                prettyModel $ modelLookup mspace' (Just mcoor')
+                prettyModelCoordinate mcoor'
+                return $ Right $ (theory, gstar', mspace', mcoor')
     Pop -> case mcoor of
       Stack obs mcoor' -> case modelspaceLookup mspace mcoor of
-        Nothing -> error "current model coordinate does not exist"
+        Nothing -> return $ Left "current model coordinate does not exist"
         Just (gs', _, _) -> case gs' of
-          Nothing -> error "unable to undo augmentation; missing chasestate before augmentation was applied"
+          Nothing -> return $ Left "unable to undo augmentation; missing chasestate before augmentation was applied"
           Just gstar' -> case modelspaceLookup mspace mcoor' of
             Nothing -> return $ Left "No exploration to undo!"
             Just (_,_,model) -> do

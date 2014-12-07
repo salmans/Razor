@@ -47,7 +47,7 @@ import Syntax.Term
 -- Common
 import Common.Data
 import Common.Basic
-import Common.Provenance
+import Common.IProvenance
 import Common.Observation
 import Common.Model (Model (..))
 import Common.Input
@@ -137,12 +137,14 @@ generateChase :: Config -> Theory -> (ChasePossibleFactsType, ProvInfo, SATTheor
 generateChase config theory = chase config theory
 -- In: G*, new observation
 -- Out: an augmented G* with the new observation
-augmentChase :: Config -> Theory -> (ChasePossibleFactsType, ProvInfo, SATTheoryType, Int) -> Observation -> (ChasePossibleFactsType, ProvInfo, SATTheoryType, Int)
-augmentChase cfg thy (b, p, t, c) obs = do
+augmentChase :: Config -> Theory -> (ChasePossibleFactsType, ProvInfo, SATTheoryType, Int) -> (Observation,[Element]) -> (ChasePossibleFactsType, ProvInfo, SATTheoryType, Int)
+augmentChase cfg thy (b, p, t, c) (obs@(Obs (Rel rsym terms)),newelms) = do
   let thy' = preprocess thy
   let seqMap = (buildSequentMap $ fromJust <$> fromSequent <$> thy') :: SequentMap ChaseSequentType
   -- update provenance
-  let p' = ProvInfo (elementProvs p) $ Map.insert obs (UserBlame obs) (observationProvs p)
+  let ep' = foldr (\e->insertProv e (Fn "user" [Fn rsym terms])) (elementProvs p) newelms
+  let op' = Map.insert obs (UserBlame obs) (observationProvs p)
+  let p' = ProvInfo ep' op' 
   -- update prop theory
   let newSeq = ObservationSequent [] [[obs]]
   let t' = storeSequent t (UserBlame obs, newSeq)
@@ -200,10 +202,13 @@ getElementBlames thy prov mdl eqelms = do
   case catMaybes $ map (getSkolemTree prov mdl) eqelms of
     [] -> []
     trees -> do
-      tree@(e, f, r) <- trees
-      let irules = map (\(r', r)->((fromMaybe 0 (elemIndex r' (preprocess thy)))+1, r', r)) $ zip (preprocess thy) thy
-      let blames = catMaybes $ map (\rule->getElementBlame rule mdl tree) irules
-      return ((head blames), r)
+      tree <- trees
+      case tree of
+        Right blame -> return (blame, [])
+        Left skolemtree@(e, f, r) -> do
+          let irules = map (\(r', r)->((fromMaybe 0 (elemIndex r' (preprocess thy)))+1, r', r)) $ zip (preprocess thy) thy
+          let blames = catMaybes $ map (\rule->getElementBlame rule mdl skolemtree) irules
+          return ((head blames), r)
 --
 --
 getElementBlame :: (Id, Sequent, Sequent) -> Model -> (Element, FnSym, [Element]) -> Maybe Blame
@@ -259,11 +264,12 @@ getEqualElements mdl term = case term of
   _ -> []
 --
 --
-getSkolemHead :: Term -> Maybe (FnSym, [Term])
+getSkolemHead :: Term -> Maybe (Either (FnSym, [Term]) Observation)
 getSkolemHead skolemtree = do
   case skolemtree of
-    (Fn skolemhead skolemrest) -> Just (skolemhead, skolemrest)
-    (Cons (Constant skolemhead)) -> Just (skolemhead, [])
+    (Fn "user" [(Fn rsym terms)]) -> Just $ Right (Obs (Rel rsym terms))
+    (Fn skolemhead skolemrest) -> Just $ Left (skolemhead, skolemrest)
+    (Cons (Constant skolemhead)) -> Just $ Left (skolemhead, [])
     _ -> Nothing
 --
 --
@@ -271,9 +277,11 @@ getSkolemElement :: ElementProvs -> Term -> Maybe Element
 getSkolemElement prov skolemterm = (findElementWithProv skolemterm prov)
 --
 --
-getSkolemTree :: ElementProvs -> Model -> Element -> Maybe (Element, FnSym, [Element])
+getSkolemTree :: ElementProvs -> Model -> Element -> Maybe (Either (Element, FnSym, [Element]) Blame)
 getSkolemTree prov mdl elm = case (getElementProv elm prov) of
   Nothing   -> Nothing
-  Just tree -> case (getSkolemHead tree) of
+  Just t -> case (getSkolemHead t) of
     Nothing -> Nothing
-    Just (skolemhead, skolemrest) -> Just (elm, skolemhead, (concatMap (\t->(maybeToList (getSkolemElement prov t))) skolemrest))
+    Just tree -> case tree of
+      Left (skolemhead, skolemrest) -> Just $ Left (elm, skolemhead, (concatMap (\t->(maybeToList (getSkolemElement prov t))) skolemrest))
+      Right obs -> Just $ Right (UserBlame obs)

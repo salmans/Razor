@@ -107,9 +107,9 @@ modelNext seed = case seed of
         let mspace' = Map.insert mcoor' (Nothing, stream', mdl') mspace
         Just (mspace', mcoor')
 
-modelUp :: Config -> Theory -> ChaseState -> Observation -> (ModelSpace, ModelCoordinate) -> Maybe (ChaseState, ModelSpace, ModelCoordinate)
-modelUp config theory gstar obs (mspace, mcoor) = do
-  let gstar'@(b',p',t',c') = augmentChase config theory gstar obs
+modelUp :: Config -> Theory -> ChaseState -> (Observation, [Element]) -> (ModelSpace, ModelCoordinate) -> Maybe (ChaseState, ModelSpace, ModelCoordinate)
+modelUp config theory gstar (obs, newelms) (mspace, mcoor) = do
+  let gstar'@(b',p',t',c') = augmentChase config theory gstar (obs, newelms)
   let stack = openSAT config t'
   case upModel stack of
     (Nothing, _) -> Nothing
@@ -122,7 +122,7 @@ type QBlame = Either Error (Blame, Sequent)
 --
 --    
 getJustification :: ChaseState -> Model -> Formula -> QBlame
-getJustification gstar@(b,p,t,c) mdl fml = case getObservation fml of
+getJustification gstar@(b,p,t,c) mdl fml = case getObservation mdl fml of
   Nothing -> Left "blame formula is not an observation"
   Just obv -> case getObservationBlame (observationProvs p) mdl obv of
     Nothing -> Left "no provenance info for blame observation"
@@ -153,13 +153,26 @@ getOrigin thy gstar@(b,p,t,c) mdl isrec term = do
       Nothing -> Left $ "unable to find blamed theory sequent from provenance info\n"++(show origin)
       Just bseq -> Right (origin, bseq)
 --
--- an observation (for now) is just an atom consisting of only elements
-getObservation :: Formula -> Maybe Observation
-getObservation (Atm atm@(Rel rsym terms)) = do
+-- an observation (for now) is just an atom consisting of only elements currently in the model
+getObservation :: Model -> Formula -> Maybe Observation
+getObservation model (Atm atm@(Rel rsym terms)) = do
   let elms = concat (map (\t->maybeToList (termToElement t)) terms)
-  if (length terms) == (length elms)
-    then case toObservation atm of
+  if (any null (map (getEqualElements model) terms)) || (length terms) /= (length elms)
+    then Nothing
+    else case toObservation atm of
       Just obv@(Obs (Rel rsym terms)) -> Just obv
       _ -> Nothing
-    else Nothing
-getObservation _ = Nothing
+getObservation _ _ = Nothing
+--
+-- 
+getAugmentation :: Model -> Formula -> Maybe (Observation,[Element])
+getAugmentation model (Atm atm@(Rel rsym terms)) = do
+  let elms = concat (map (\t->maybeToList (termToElement t)) terms)
+  if (length terms) /= (length elms)
+    then Nothing
+    else case toObservation atm of
+      Just obv@(Obs (Rel rsym terms)) -> do
+        let newelms = filter (\e->(null (getEqualElements model (Elem e)))) elms
+        Just (obv,newelms)
+      _ -> Nothing
+getAugmentation _ _ = Nothing
