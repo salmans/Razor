@@ -595,7 +595,7 @@ data SMTContainer  = SMTContainer
     , containerRels       :: Map.Map RelSym UninterpretRel
     , containerTerms      :: STerms
     , containerAtoms      :: SAtoms
-    , containerLastResult :: Maybe SatResult
+    , containerResult     :: Maybe SatResult
     , containerConnection :: Maybe (SMTConnection SMTPipe)
     , containerRelaxMin   :: Bool
     }
@@ -615,7 +615,7 @@ emptySMTContainer  = SMTContainer { containerDomain     = Map.empty
                                   , containerRels       = Map.empty
                                   , containerTerms      = Map.empty
                                   , containerAtoms      = Map.empty
-                                  , containerLastResult = Nothing
+                                  , containerResult     = Nothing
                                   , containerConnection = Nothing
                                   , containerRelaxMin   = True }
 
@@ -730,6 +730,52 @@ instance SATSolver SMTObservation SMTContainer where
 --
 addResultToContext :: SMTContainer -> SMTContainer
 addResultToContext cont = cont
+
+
+forceResult :: SatResult -> SMTM SBool
+forceResult res = do
+  container   <- lift State.get
+  let domain   = containerDomain container
+  let rels     = Map.toList $ containerRels container
+  let dic      = getSatResultDictionary res
+  let classes  = equivalenceClasses dic
+  let sClasses = ((\e -> fromJust $ Map.lookup e domain) <$>) 
+                 <$> (Map.elems classes)
+
+  let (factDic, othDic ) = Map.partition (\s -> resKind s == RKBool) dic
+      -- Elements of SatResult that are of type KBool correspond to facts
+  let (posDic, negDic)   = Map.partition (\s -> resValue s == RVBool True) factDic
+      -- Partitioning factDic into positive and negative facts
+
+  let posFacts = Map.keys posDic -- Positive Facts
+
+  -- Creating maps from relation names to symAtoms in posFacts and negFacts:
+  let posAtoms = Map.toList $ smtSymAtomMap posFacts
+
+  let termStrs = Map.toList 
+                 $ Map.filterWithKey (\k _ -> not (isElementString k)) othDic
+      -- The keys in the map that correspond to terms have type other than
+      -- KBool (coming from othDic) and they are not element names.
+
+  axiom <- forceResultHelper classes sClasses rels posAtoms termStrs
+  return axiom
+
+-- a helper for minimizeResult for cases where the resulting model has to be
+-- homomorphically minimal
+forceResultHelper :: Map.Map Result [SMTElement] -> [[SElement]]
+     -> [(String, UninterpretRel)] -> [(String, [SMTAtom])]
+     -> [(SMTTerm, Result)] -> SMTM (SMTExpr Bool)
+forceResultHelper classes sClasses rels posAtoms termStrs = do
+  let eqPosAx  = equalityPositiveAxioms sClasses
+  pos         <- mapM (\(r, unintRel) -> 
+                     case lookup r posAtoms of
+                       Nothing -> return false
+                       Just as -> posAxioms unintRel as) rels
+  fnPosAx    <- functionPositiveAxioms termStrs classes
+  let posAx   = foldr (.&&.) true pos -- TODO
+  return $ eqPosAx .&&. fnPosAx .&&. posAx
+
+
 {- Given a query of type SMTM, executes the query and returns the result. It 
    also returns a new 'SMTM' computation where the homomorphism cone of the 
    minimum result is eliminated. -}
@@ -737,24 +783,18 @@ minimumResult :: SMTContainer -> (SatResult, SMTContainer)
 minimumResult cont =
   let context = do 
             container  <- lift State.get
-            assertNext <- case containerLastResult container of
+            assertNext <- case containerResult container of
                             Nothing -> return true
                             Just lr -> nextResult lr
             assert assertNext
             push
             next <- getSatResult
             min  <- reduce next
-            lift $ State.modify (\c -> c {containerLastResult = Just min})
+            lift $ State.modify (\c -> c {containerResult = Just min})
             pop
             return min
       run     = perform context
   in unsafePerformIO $ State.runStateT run cont
-    -- let context       = push >> getSatResult >>= reduce
-    --     run           = perform context
-    --     (res, cont')  = unsafePerformIO $ State.runStateT run cont
-    --     run'          = pop >> nextResult res >>= assert
-    --     cont''        = unsafePerformIO $ State.execStateT (perform run') cont'
-    -- in  (res, cont'')
 
 {- This recursively reduces the initial result of the SMT solver to construct a 
    minimal model based on an Aluminum-like algorithm. The result of the function
@@ -869,7 +909,6 @@ relaxMinimize classes rels posAtoms negAtoms termStrs = do
   return $ negAx .&&. fnNeg .&&. ( flipAx .||. fnFlips )
 
 
-
 {- This function creates Negative Axioms for a set of facts that are named by
    a list of SMTAtom instances: every SMTAtom names a *negative* fact in a 
    result from the SMT solver. -}
@@ -881,6 +920,18 @@ negativeAxioms unintRel atoms = do
   let argNames = atomArgs <$> atoms
   let args     = ((\a -> fromJust $ Map.lookup a domain) <$>) <$> argNames
   return $ foldr (.&&.) true $ (\t -> not' $ applyUnintRel unintRel t) <$> args -- TODO
+
+{- This function creates Positive Axioms for a set of facts that are named by
+   a list of SMTAtom instances: every SMTAtom names a *positive* fact in a 
+   result from the SMT solver. -}   
+posAxioms :: UninterpretRel -> [SMTAtom] -> SMTM SBool
+posAxioms unintRel atoms = do
+  container   <- lift State.get
+  let domain    = containerDomain container
+  let argNames  = map atomArgs atoms      
+  let allArgs   = map (\elm -> fromJust $ Map.lookup elm domain) <$> argNames
+  let negApps   = (applyUnintRel unintRel) <$> allArgs
+  return $ foldr (.&&.) true negApps -- TODO
 
 functionNegativeAxioms :: [(SMTTerm, Result)] -> Map.Map Result [SMTElement]
                        -> SMTM SBool
@@ -899,6 +950,29 @@ functionNegativeAxiomsHelper :: SElement -> [[SElement]] -> SBool
 functionNegativeAxiomsHelper term classes = do
   let eqs   = concatMap ((\e -> not' $ e .==. term) <$>) classes -- TODO
   foldr (.&&.) true eqs -- TODO
+
+
+functionPositiveAxioms :: [(SMTTerm, Result)] -> Map.Map Result [SMTElement]
+                   -> SMTM SBool
+functionPositiveAxioms terms classes = do
+  container    <- lift State.get
+  let domain    = containerDomain container
+  let contTerms = containerTerms container
+  let classes'  = 
+          Map.map (\es -> (\e -> fromJust $ 
+                                 Map.lookup e domain) <$> es) classes
+  let content   = (\(t, cw) -> ( fromJust $ 
+                                 Map.lookup t contTerms
+                               , thisClass cw classes')) <$> terms
+  let results   = (uncurry functionPositiveAxiomsHelper) <$> content
+  return $ foldr (.&&.) true results -- TODO
+    where thisClass c cs = Map.findWithDefault [] c cs
+  
+functionPositiveAxiomsHelper :: SElement -> [SElement] -> SBool
+functionPositiveAxiomsHelper term cls = do
+  let eqs   = (\e -> e .==. term) <$> cls -- TODO
+  foldr (.&&.) true eqs -- TODO
+
 
 functionFlipAxioms :: [(SMTTerm, Result)] -> Map.Map Result [SMTElement]
                    -> SMTM SBool
@@ -943,6 +1017,15 @@ equalityNegativeAxioms []            = true
 equalityNegativeAxioms (cls:classes) =
     let this = foldr (.&&.) true [differentClasses cls cls' | cls' <- classes] -- TODO
     in  this .&&. equalityNegativeAxioms classes
+
+{- Given a set of equivalence classes on all elements, creates the set of 
+   Equality Negative Axioms. The function recursively makes sure that the 
+   elements of an equivalence class will be equal. -}
+equalityPositiveAxioms :: [[SElement]] -> SBool   
+equalityPositiveAxioms classes = foldr (.&&.) true $ sameClass <$> classes -- TODO
+    where sameClass []     = true
+          sameClass [_]    = true
+          sameClass (e:es) = foldr (.&&.) true [e .==. e'| e' <- es]
 
 {- As a helper for 'equalityNegativeAxioms', creates a constraint for two sets 
    of elements in different equivalence classes that prevents them from being
