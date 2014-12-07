@@ -620,11 +620,23 @@ instance SATSolver SMTObservation (SBVIterator) where
                          (res, context') = minimumResult context
                      in  ( translateSolution res
                          , iter {iteratorContext = context'})
+    satAugment iter  = do
+      let SBVIterator context prev = iter
+      case prev of
+        Nothing -> (Nothing, iter)
+        Just (SBVIterator pcon _) -> do
+          let (res, _) = minimumResult pcon
+          let (res', context') = minimumResult (addResultToContext res context)
+          (translateSolution res', iter {iteratorContext = context'})             
     satClose       = const () -- no connection to close!
     satPush  iter  = iter { iteratorPrevious = Just iter}
     satPop   iter  = fromMaybe iter (iteratorPrevious iter)
 
 mySolver = Yices.sbvCurrentSolver {smtFile = Just "/Users/Salman/Desktop/log.txt"}
+--
+--
+addResultToContext :: SatResult -> SMT() -> SMT()
+addResultToContext res context = context
 {- Given a query of type SMT, executes the query and returns the result. It also
    returns a new 'SMT' computation where the homomorphism cone of the minimum 
    result is eliminated. -}

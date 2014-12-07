@@ -24,6 +24,7 @@ module REPL.Mode.Explore where
 import API.Surface
 import Common.Model
 import SAT.Impl
+import qualified Data.Map as Map
 import REPL.Mode
 import REPL.Display
 import Tools.Config
@@ -45,29 +46,46 @@ instance Mode ExploreMode where
   modeTag   = exploreTag
 
 data ExploreMode = ExploreM
-type ExploreIn = (Config, Theory, ChaseState, SATIteratorType, Model, [Formula])
-type ExploreOut = (Theory, ChaseState, SATIteratorType, Model, [Formula])
+type ExploreIn = (Config, Theory, ChaseState, ModelSpace, ModelCoordinate)
+type ExploreOut = (Theory, ChaseState, ModelSpace, ModelCoordinate)
 
-data ExploreCommand = Current | Next | Push Formula | Pop
+data ExploreCommand = Current | Next | Prev | Push Formula | Pop
 
 --------------------
 -- Mode Functions --
 --------------------
 exploreRun :: ExploreMode -> ExploreIn -> String -> IO(Either Error ExploreOut)
-exploreRun mode state@(config, theory, gstar, satdata, model, augs) command = case parseExploreCommand command of
+exploreRun mode state@(config, theory, gstar, mspace, mcoor) command = case parseExploreCommand command of
   Left err -> return $ Left err
   Right cmd -> case cmd of
     Current -> do
-      prettyModel $ Just model
-      return $ Right $ (theory, gstar, satdata, model, augs)
-    Next -> case modelNext (Right satdata) of
-      Nothing -> return $ Left "No more minimal models in the stream!"
-      Just (satdata', model') -> do
-        prettyModel $ Just model'
-        return $ Right $ (theory, gstar, satdata', model', augs)
-    Push fml -> case modelUp config theory gstar fml of
+      prettyModel $ modelLookup mspace (Just mcoor)
+      prettyModelCoordinate mcoor
+      return $ Right $ (theory, gstar, mspace, mcoor)
+    Next -> case modelspaceLookup mspace (Stream mcoor) of
+      Just (_, model) -> do
+        prettyModel $ Just model
+        prettyModelCoordinate (Stream mcoor)
+        return $ Right $ (theory, gstar, mspace, (Stream mcoor))
+      Nothing -> case modelspaceLookup mspace mcoor of 
+        Nothing -> return $ Left "Current modelspace coordinate does not exist?!"
+        Just _ -> case modelNext (Right (mspace, mcoor)) of
+          Nothing -> return $ Left "No more minimal models in the stream!"
+          Just (mspace', mcoor') -> do
+            prettyModel $ modelLookup mspace' (Just mcoor')
+            prettyModelCoordinate mcoor'
+            return $ Right $ (theory, gstar, mspace', mcoor')
+    Prev -> case mcoor of
+      Stream mcoor' -> case modelspaceLookup mspace mcoor' of
+        Just (_, model) -> do
+          prettyModel $ Just model
+          prettyModelCoordinate mcoor'
+          return $ Right $ (theory, gstar, mspace, mcoor')
+        Nothing -> return $ Left "No exploration to undo!"
+      _ -> return $ Left "Last exploration command in history was not 'next'!"
+    {-Push fml -> case augment config theory gstar fml of
       Nothing -> return $ Left $ "Given formula is not in the form of an augmentation!"
-      Just gstar'@(b',p',t',c') -> case modelNext (Left (config, t')) of
+      Just gstar'@(b',p',t',c') -> case modelUp satdata of
         Nothing -> return $ Left "No models exist from adding the given augmentation!"
         Just (satdata', model') -> do
           prettyModel $ Just model'
@@ -78,25 +96,42 @@ exploreRun mode state@(config, theory, gstar, satdata, model, augs) command = ca
         Nothing -> return $ Left $ "Somehow undoing the augmentation did not return a model!"
         Just (satdata', model') -> do
           prettyModel $ Just model'
-          return $ Right $ (theory, gstar, satdata', model', (tail augs))
+          return $ Right $ (theory, gstar, satdata', model', (tail augs))-}
 
 ------------------------
 -- RazorState Related --
 ------------------------
 updateExplore :: ExploreMode -> ExploreOut -> RazorState -> (RazorState, ExploreIn)
-updateExplore mode (theory', gstar', satdata', model', augs') state@(RazorState config theory gstar satdata model) = (RazorState config theory (Just gstar') (Just satdata') (Just model'), (config, theory', gstar', satdata', model', augs'))
+updateExplore mode (theory', gstar', mspace', mcoor') state@(RazorState config theory gstar mspace mcoor) = (RazorState config theory (Just gstar') mspace' (Just mcoor'), (config, theory', gstar', mspace', mcoor'))
 
 enterExplore :: ExploreMode -> RazorState -> IO(Either Error ExploreOut)
-enterExplore mode state@(RazorState config theory gstar satdata model) = case (theory, gstar, satdata, model) of
-  (Just theory', Just gstar', Just satdata', Just model') -> do
-    prettyModel $ Just model'
-    return $ Right $ (theory', gstar', satdata', model', [])
+enterExplore mode state@(RazorState config theory gstar mspace mcoor) = case (theory, gstar, mcoor) of
+  (Just theory', Just gstar', Just mcoor') -> case Map.lookup mcoor' mspace of
+    Nothing -> return $ Left "Modelspace not initialized by another mode!"
+    Just (_, model') -> do
+      prettyModel $ Just model'
+      prettyModelCoordinate mcoor'
+      return $ Right $ (theory', gstar', mspace, mcoor')
   _ -> return $ Left "Modelspace not initialized by another mode!"
 
 -------------
 -- Helpers --
 -------------
+prettyModelCoordinate :: ModelCoordinate -> IO()
+prettyModelCoordinate mcoor = do
+  prettyPrint 0 foutput "Exploration History\n"
+  prettyPrint 0 foutput "-------------------\n"
+  prettyModelCoordinatePlus mcoor
 
+prettyModelCoordinatePlus :: ModelCoordinate -> IO()
+prettyModelCoordinatePlus mcoor = case mcoor of
+  Stream mcoor' -> do
+    prettyPrint 0 foutput "next\n"
+    prettyModelCoordinatePlus mcoor'
+  Stack obs mcoor' -> do
+    prettyPrint 0 foutput ("aug "++(show obs)++"\n")
+    prettyModelCoordinatePlus mcoor'
+  Origin -> prettyPrint 0 foutput "-------------------\n"
 -----------------------
 -- Command Functions --
 -----------------------
@@ -118,13 +153,16 @@ parseExploreCommand cmd =
 		Right val -> Right $ val
 
 pCommand :: Parser ExploreCommand
-pCommand = pCurrent <|> pNext <|> pPush <|> pPop
+pCommand = pCurrent <|> pNext <|> pPrev <|> pPush <|> pPop
 
 pCurrent :: Parser ExploreCommand
 pCurrent = symbol "current" >> return Current
 
 pNext :: Parser ExploreCommand
 pNext = symbol "next" >> return Next
+
+pPrev :: Parser ExploreCommand
+pPrev = symbol "prev" >> return Prev
 
 pPush :: Parser ExploreCommand
 pPush = symbol "aug" >> Push <$> xpFactor

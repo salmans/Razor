@@ -24,6 +24,7 @@ module REPL.Mode.ModelCheck where
 import API.Surface
 import Common.Model
 import SAT.Impl
+import Data.Map
 import REPL.Mode
 import REPL.Display
 import Tools.Config
@@ -43,7 +44,7 @@ instance Mode ModelCheckMode where
 
 data ModelCheckMode = ModelCheckM
 type ModelCheckIn = ()
-type ModelCheckOut = (SATIteratorType, Model)
+type ModelCheckOut = (ModelSpace, ModelCoordinate)
 
 --------------------
 -- Mode Functions --
@@ -55,15 +56,15 @@ modelRun mode _ command = return $ Left "no commands"
 -- RazorState Related --
 ------------------------
 updateModelCheck :: ModelCheckMode -> ModelCheckOut -> RazorState -> (RazorState, ModelCheckIn)
-updateModelCheck mode (stream', model') state@(RazorState config theory gstar stream model) = (RazorState config theory gstar (Just stream') (Just model'), ())
+updateModelCheck mode (mspace', mcoor') state@(RazorState config theory gstar mspace mcoor) = (RazorState config theory gstar mspace' (Just mcoor'), ())
 
 enterModelCheck :: ModelCheckMode -> RazorState -> IO(Either Error ModelCheckOut)
-enterModelCheck mode state@(RazorState config theory gstar stream model) = do
+enterModelCheck mode state@(RazorState config theory gstar mspace mcoor) = do
   case gstar of
     Nothing -> return $ Left $ "No theory loaded!"
     Just (b,p,t,c) -> case modelNext $ Left (config, t) of
       Nothing -> return $ Left "No models available!"
-      Just (stream', model') -> return $ Right $ (stream', model')
+      Just (mspace', mcoor') -> return $ Right $ (mspace', mcoor')
 
 -----------------------
 -- Command Functions --

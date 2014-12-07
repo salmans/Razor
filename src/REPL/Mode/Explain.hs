@@ -23,6 +23,7 @@
 module REPL.Mode.Explain where
 import API.Surface
 import Common.Model
+import qualified Data.Map as Map
 import Common.Provenance
 import SAT.Impl
 import REPL.Mode
@@ -101,11 +102,13 @@ updateExplain :: ExplainMode -> ExplainOut -> RazorState -> (RazorState, Explain
 updateExplain mode (theory, gstar, model) state = (state, (theory, gstar, model))
 
 enterExplain :: ExplainMode -> RazorState -> IO(Either Error ExplainOut)
-enterExplain mode state@(RazorState config theory gstar stream model) = case (theory, gstar, model) of
-  (Just theory', Just gstar', Just model') -> do
-    prettyModel model
-    prettyPrint 0 foutput "Running queries over this model\n"
-    return $ Right (theory', gstar', model')
+enterExplain mode state@(RazorState config theory gstar mspace mcoor) = case (theory, gstar, mcoor) of
+  (Just theory', Just gstar', Just mcoor') -> case Map.lookup mcoor' mspace of
+    Nothing -> return $ Left "Current model not initialized by another mode!"
+    Just (_, model') -> do
+      prettyModel $ Just model'
+      prettyPrint 0 foutput "Running queries over this model\n"
+      return $ Right (theory', gstar', model')
   _ -> return $ Left "Current model not initialized by another mode!"
 
 -----------------------

@@ -25,6 +25,7 @@ import API.Core
 import Common.Input (Input (..))
 import Common.Model
 import Common.Provenance
+import Common.Observation
 import SAT.IData
 import Syntax.GeometricUtils
 import SAT.Impl
@@ -39,20 +40,25 @@ import System.Environment
 -----------------
 -- Razor State --
 -----------------
-data RazorState = RazorState Config (Maybe Theory) (Maybe ChaseState) (Maybe SATIteratorType) (Maybe Model)
+data RazorState = RazorState Config (Maybe Theory) (Maybe ChaseState) ModelSpace (Maybe ModelCoordinate)
 type ChaseState = (ChasePossibleFactsType, ProvInfo, SATTheoryType, Int)
+type ModelSpace = Map.Map ModelCoordinate (SATIteratorType, Model)
+data ModelCoordinate = Stream ModelCoordinate | Stack Observation ModelCoordinate | Origin
+  deriving (Eq, Ord)
 type Error = String
 
 setupState :: IO RazorState
 setupState = do 
   args <- getArgs
   config <- parseConfig args
-  return $ RazorState config Nothing Nothing Nothing Nothing
+  return $ RazorState config Nothing Nothing Map.empty Nothing
 
 teardownState :: RazorState -> ()
-teardownState state@(RazorState config theory gstar sat model) = case sat of
+teardownState state@(RazorState config theory gstar mspace mcoor) = case mcoor of
   Nothing -> ()
-  Just opensat -> closeSAT opensat
+  Just index -> case Map.lookup index mspace of
+    Nothing -> ()
+    Just (opensat, _) -> closeSAT opensat
 
 ----------------------------
 -- Surface API Operations --
@@ -68,28 +74,54 @@ loadTheory config file = do
         Left ex -> return $ Left $ "Unable to parse file! "++(show ex)
         Right input -> case input of
           Just (Input thy dps) -> do
-            let gs = generateGS config {configSkolemDepth = dps} thy
+            let gs = generateChase config {configSkolemDepth = dps} thy
             return $ Right (thy, gs)
           Nothing -> return $ Left $ "Unable to parse input theory!"
 
-modelNext :: Either (Config, SATTheoryType) SATIteratorType -> Maybe (SATIteratorType, Model)
+modelspaceLookup :: ModelSpace -> ModelCoordinate -> Maybe (SATIteratorType, Model)
+modelspaceLookup mspace mcoor = case Map.lookup mcoor mspace of
+  Nothing -> Nothing
+  Just (sat, model) -> Just (sat, model)
+
+modelLookup :: ModelSpace -> Maybe ModelCoordinate -> Maybe Model
+modelLookup mspace mcoor = case mcoor of
+  Nothing -> Nothing
+  Just mcoor' -> case Map.lookup mcoor' mspace of
+    Nothing -> Nothing
+    Just (sat, model) -> Just model
+
+modelNext :: Either (Config, SATTheoryType) (ModelSpace, ModelCoordinate) -> Maybe (ModelSpace, ModelCoordinate)
 modelNext seed = case seed of
   Left (config, t) -> case nextModel (openSAT config t) of
     (Nothing, _) -> Nothing
-    (Just mdl', stream') -> Just (stream',mdl')
-  Right stream -> case nextModel stream of
-    (Nothing, _) -> Nothing
-    (Just mdl', stream') -> Just (stream',mdl')
+    (Just mdl', stream') -> do
+      let mcoor' = Stream Origin
+      let mspace' = Map.insert mcoor' (stream', mdl') Map.empty
+      Just (mspace', mcoor')
+  Right (mspace, mcoor) -> case Map.lookup mcoor mspace of
+    Nothing -> Nothing
+    Just (stream, mdl) -> case nextModel stream of
+      (Nothing, _) -> Nothing
+      (Just mdl', stream') -> do
+        let mcoor' = Stream mcoor
+        let mspace' = Map.insert mcoor' (stream', mdl') mspace
+        Just (mspace', mcoor')
 
-modelUp :: Config -> Theory -> ChaseState -> Formula -> Maybe ChaseState
-modelUp config theory gstar@(b,p,t,c) fml = case getObservation fml of
+modelPrev :: SATIteratorType -> Maybe (SATIteratorType, Model)
+modelPrev sat = Nothing
+
+augment :: Config -> Theory -> ChaseState -> Formula -> Maybe ChaseState
+augment config theory gstar@(b,p,t,c) fml = case getObservation fml of
   Nothing -> Nothing
-  Just obs -> Just $ augment config theory gstar obs
+  Just obs -> Just $ augmentChase config theory gstar obs
 
-modelDown :: SATIteratorType -> Maybe (SATIteratorType, Model)
-modelDown sat = case undoAndNext sat of
+modelUp :: SATIteratorType -> Maybe (SATIteratorType, Model)
+modelUp sat = case upModel sat of
   (Nothing, _) -> Nothing
   (Just mdl', stack') -> Just (stack', mdl')
+
+modelDown :: SATIteratorType -> Maybe (SATIteratorType, Model)
+modelDown sat = Nothing
     
 type QBlame = Either Error (Blame, Sequent)
 --

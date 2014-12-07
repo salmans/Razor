@@ -59,12 +59,14 @@ import qualified Chase.Chase
 
 -- SAT
 import SAT.Impl
-import SAT.Data (satPop, satPush)
 
 -- Tools
 import Tools.Config
 import Tools.Utils (isRealLine)
 
+------------
+-- Config --
+------------
 -- In: command line args
 -- Out: configuration options structure
 options :: [ OptDescr (Config -> IO Config) ]
@@ -125,23 +127,28 @@ parseConfig args = do
 -- Out: an input if parsing success
 parseInputFile :: Config -> String -> IO (Maybe Input)
 parseInputFile config input = return $ Just $ parseInput input
+
+---------------------
+-- Chase Data / G* --
+---------------------
 -- In: configuration, theory
 -- Out: G*, which consists of ground facts, provenance info, and a propositional theory
-generateGS :: Config -> Theory -> (ChasePossibleFactsType, ProvInfo, SATTheoryType, Int)
-generateGS config theory = chase config theory
+generateChase :: Config -> Theory -> (ChasePossibleFactsType, ProvInfo, SATTheoryType, Int)
+generateChase config theory = chase config theory
 -- In: G*, new observation
 -- Out: an augmented G* with the new observation
-augment :: Config -> Theory -> (ChasePossibleFactsType, ProvInfo, SATTheoryType, Int) -> Observation -> (ChasePossibleFactsType, ProvInfo, SATTheoryType, Int)
-augment cfg thy (b, p, t, c) obs = do
+augmentChase :: Config -> Theory -> (ChasePossibleFactsType, ProvInfo, SATTheoryType, Int) -> Observation -> (ChasePossibleFactsType, ProvInfo, SATTheoryType, Int)
+augmentChase cfg thy (b, p, t, c) obs = do
   let thy' = preprocess thy
   let seqMap = (buildSequentMap $ fromJust <$> fromSequent <$> thy') :: SequentMap ChaseSequentType
-  let (b', p', t', c') = augmentBase cfg seqMap (b, p, t, c) obs
+  -- update provenance
+  let p' = ProvInfo (elementProvs p) $ Map.insert obs (UserBlame obs) (observationProvs p)
+  -- update prop theory
   let newSeq = ObservationSequent [] [[obs]]
-  -- add user prov
-  let p'' = ProvInfo (elementProvs p) $ Map.insert obs (UserBlame obs) (observationProvs p)
+  let t' = storeSequent t (UserBlame obs, newSeq)
   -- return new GS
-  let t'' = storeSequent t' (UserBlame obs, newSeq)
-  (b', p'', t'', c')
+  augmentBase cfg seqMap (b, p', t', c) obs
+  
 --
 --
 augmentBase :: Config -> SequentMap ChaseSequentType -> (ChasePossibleFactsType, ProvInfo, SATTheoryType, Int) -> Observation -> (ChasePossibleFactsType, ProvInfo, SATTheoryType, Int)
@@ -155,6 +162,10 @@ augmentBase cfg seqMap (b, p, t, c) obs@(Obs (Rel rsym terms)) = do
       -- with empty body for a second time.
       -- FIX: How should we systematically address this issue?
   Chase.Chase.resumeChase cfg c seqMap' b d p t
+
+--------------
+-- SAT Data --
+--------------
 -- In: a propositional theory
 -- Out: an iterator that can be used to sequentially generate models (model stream)
 openSAT :: Config -> SATTheoryType -> SATIteratorType
@@ -166,11 +177,11 @@ closeSAT = satClose
 -- In: a model stream
 -- Out: an updated model stream and the next model
 nextModel :: SATIteratorType -> (Maybe Model, SATIteratorType)
-nextModel it = satSolve $ satPush it
+nextModel = satNext
 --
--- does not necessarily give back the "previous model"
-undoAndNext :: SATIteratorType -> (Maybe Model, SATIteratorType)
-undoAndNext it' = nextModel $ satPop it'
+--
+upModel :: SATIteratorType -> (Maybe Model, SATIteratorType)
+upModel = satAugment
 
 ----------------
 -- PROVENANCE --
@@ -197,8 +208,8 @@ getElementBlames thy prov mdl eqelms = do
 --
 getElementBlame :: (Id, Sequent, Sequent) -> Model -> (Element, FnSym, [Element]) -> Maybe Blame
 getElementBlame (rid, (Sequent bd' hd'), (Sequent bd hd)) mdl (e, f, r) = do
-  let exists = headExistentials hd' 0
-  let ruleskolems = map (\(name, _, _)->name) exists
+  let exists = formulaExistentials hd'
+  let ruleskolems = map getskolemnames exists
   case elem f ruleskolems of
     False -> Nothing
     True -> do
@@ -207,6 +218,10 @@ getElementBlame (rid, (Sequent bd' hd'), (Sequent bd hd)) mdl (e, f, r) = do
       let terms = map (\e->(Elem e)) r
       let (varterms, fnterms) = splitAt (length freevars) terms
       Just $ TheoryBlame rid $ Map.fromList $ (zip freevars varterms) ++ (zip freefns fnterms)
+  where
+    getskolemnames e = case e of
+      Left fn -> fn
+      Right (fn, _) -> fn
 --
 --
 getObservationBlame :: ObservationProvs -> Model -> Observation -> Maybe Blame
@@ -262,20 +277,6 @@ getSkolemTree prov mdl elm = case (getElementProv elm prov) of
   Just tree -> case (getSkolemHead tree) of
     Nothing -> Nothing
     Just (skolemhead, skolemrest) -> Just (elm, skolemhead, (concatMap (\t->(maybeToList (getSkolemElement prov t))) skolemrest))
---
--- 
-headExistentials :: Formula -> Int -> [(FnSym, Int, Variable)]
-headExistentials Tru _                   = []
-headExistentials Fls _                   = []
-headExistentials (And f1 f2) i           = 
-    headExistentials f1 i ++ headExistentials f2 i
-headExistentials (Or f1 f2) i            = 
-    headExistentials f1 i ++ headExistentials f2 (i+1)
-headExistentials (Atm a) _                = []
-headExistentials (Exists (Just fn) v f) i = (fn, i, v):(headExistentials f i)
-headExistentials (Exists Nothing _ f) i  = headExistentials f i
-headExistentials (Lone (Just fn) v f unq) i = (fn, i, v):(headExistentials f i)
-headExistentials (Lone Nothing _ f _) i  = headExistentials f i
 --
 -- an observation (for now) is just an atom consisting of only elements
 getObservation :: Formula -> Maybe Observation

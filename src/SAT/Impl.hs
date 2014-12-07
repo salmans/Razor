@@ -20,7 +20,7 @@
 -}
 
 module SAT.Impl ( SATTheoryType, SATIteratorType
-                , satInitialize, satSolve, satClose
+                , satInitialize, satSolve, satClose, satNext, satAugment
                 , storeSequent, blameSequent) where
 
 
@@ -34,7 +34,7 @@ import Common.Provenance (Blame)
 import qualified Control.Monad.State.Lazy as State
 
 -- SAT
-import qualified SAT.Data (satInitialize, satSolve, satClose
+import qualified SAT.Data (satInitialize, satSolve, satClose, satAugment
                           , storeSequent, blameSequent)
 
 -- Tools
@@ -58,19 +58,27 @@ type SATIteratorState = State.State SATIteratorType
 satInitialize :: Config -> SATTheoryType -> SATIteratorType
 satInitialize = SAT.Data.satInitialize
 
+{-| Closes the connection to the SMT solver if applicable. -}
+satClose :: SATIteratorType -> ()
+satClose =  SAT.Data.satClose
+
 {-| Given an instance of the selected iterator type, returns a model (if a 
   solution exists) and an iterator for getting the next list of observations. -}
 satSolve :: SATIteratorType -> (Maybe Model, SATIteratorType)
 satSolve =  SAT.Data.satSolve
 
-{-| Closes the connection to the SMT solver if applicable. -}
-satClose :: SATIteratorType -> ()
-satClose =  SAT.Data.satClose
+satNext :: SATIteratorType -> (Maybe Model, SATIteratorType)
+satNext = satSolve
+
+satAugment :: SATIteratorType -> (Maybe Model, SATIteratorType)
+satAugment = SAT.Data.satAugment
 
 {-| Adds an instance of 'ObservationSequent' to an instance of 'SATTheoryType'.
   This function is primarily used to implement augmentation. -}
 storeSequent :: SATTheoryType -> (Blame, ObservationSequent) -> SATTheoryType
 storeSequent =  SAT.Data.storeSequent
 
+{-| Returns the observational sequent associated with the given blame
+  This function is primarily used to implement provenance queries -}
 blameSequent :: SATTheoryType -> Blame -> Maybe ObservationSequent
 blameSequent = SAT.Data.blameSequent

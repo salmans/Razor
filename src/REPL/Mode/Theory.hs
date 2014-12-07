@@ -26,6 +26,7 @@ import REPL.Mode
 import REPL.Display
 import Tools.Config
 import Common.Model
+import qualified Data.Map as Map
 import Control.Applicative hiding ((<|>), many)
 import Text.ParserCombinators.Parsec
 import Text.Parsec.Prim
@@ -43,7 +44,7 @@ instance Mode TheoryMode where
 
 data TheoryMode = TheoryM
 type TheoryIn = Config
-type TheoryOut = (Maybe Theory, Maybe ChaseState, Maybe Model)
+type TheoryOut = (Maybe Theory, Maybe ChaseState, ModelSpace, Maybe ModelCoordinate)
 
 data TheoryCommand = Load TheoryFile
 type TheoryFile = String
@@ -61,17 +62,17 @@ theoryRun mode config command = case parseTheoryCommand command of
         Right (thy', gs') -> do
           prettyTheory (Just thy')
           prettyPrint 0 foutput $ "Geometric theory loaded; ready to find models\n"
-          return $ Right $ (Just thy', Just gs', Nothing)
+          return $ Right $ (Just thy', Just gs', Map.empty, Nothing)
         Left err -> return $ Left err
 
 ------------------------
 -- RazorState Related --
 ------------------------
 updateTheory :: TheoryMode -> TheoryOut -> RazorState -> (RazorState, TheoryIn)
-updateTheory mode (theory', gstar', model') state@(RazorState config theory gstar stream model) = (RazorState config theory' gstar' stream model', config)
+updateTheory mode (theory', gstar', mspace', mcoor') state@(RazorState config theory gstar mspace mcoor) = (RazorState config theory' gstar' mspace' mcoor', config)
 
 enterTheory :: TheoryMode -> RazorState -> IO(Either Error (TheoryOut))
-enterTheory mode state@(RazorState config theory gstar stream model) = return $ Right $ (theory, gstar, model)
+enterTheory mode state@(RazorState config theory gstar mspace mcoor) = return $ Right $ (theory, gstar, mspace, mcoor)
 
 -----------------------
 -- Command Functions --

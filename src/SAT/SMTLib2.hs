@@ -719,11 +719,17 @@ instance SATSolver SMTObservation SMTContainer where
                   in  unsafePerformIO $ State.execStateT (perform context) cntr
     satSolve cont = let (res, cont')  = minimumResult cont
                     in  (translateSolution res, cont')
+    satAugment cont  = let (res', cont') = minimumResult (addResultToContext cont)
+                       in (translateSolution res', cont')          
     satClose cont = unsafePerformIO $
                       State.execStateT closeConnection cont >> return ()
     satPush       = pushToSolver
     satPop        = popFromSolver
 
+--
+--
+addResultToContext :: SMTContainer -> SMTContainer
+addResultToContext cont = cont
 {- Given a query of type SMTM, executes the query and returns the result. It 
    also returns a new 'SMTM' computation where the homomorphism cone of the 
    minimum result is eliminated. -}

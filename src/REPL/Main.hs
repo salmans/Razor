@@ -24,6 +24,7 @@ import Common.Model
 import Common.Provenance
 import Data.Maybe
 import Data.List
+import qualified Data.Map as Map
 import Syntax.GeometricUtils 
 import SAT.Impl
 import System.Console.Haskeline
@@ -68,7 +69,7 @@ main = do
   displayExit
 
 loop :: (LoopMode m i o) => RazorState -> m -> i -> InputT IO(RazorState)
-loop state@(RazorState config theory _ _ model) mode stin = do
+loop state@(RazorState config theory _ mspace mcoor) mode stin = do
   -- get input
   minput <- getInputLine $ modeTag mode
   -- parse input into a command and act depending on the case
@@ -81,13 +82,13 @@ loop state@(RazorState config theory _ _ model) mode stin = do
             Display substate -> case substate of
               TheConfig -> lift (prettyPrint 0 foutput ((show config)++"\n")) >> stay
               TheTheory -> lift (prettyTheory theory) >> stay
-              TheModel -> lift (prettyModel model) >> stay
+              TheModel -> lift (prettyModel (modelLookup mspace mcoor)) >> stay
             Change m -> case m of
               ModeTheory -> trans T.TheoryM state 
-              ModeExplore -> case model of
+              ModeExplore -> case mcoor of
                 Nothing -> eTrans I.ModelCheckM M.ExploreM 
                 _ -> trans M.ExploreM state 
-              ModeExplain -> case model of
+              ModeExplain -> case mcoor of
                 Nothing -> eTrans I.ModelCheckM Q.ExplainM
                 _ -> trans Q.ExplainM state
             ModeHelp -> lift (showHelp mode) >> stay
