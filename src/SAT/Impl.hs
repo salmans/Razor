@@ -45,7 +45,8 @@ import Tools.Config (Config)
 
 -- import SAT.Picosat -- Experimental implementation (Not working)
 import SAT.SMTLib2
--- import SAT.SBV
+-- import SAT.SBV -- This implementation is outdated. The file will be deleted
+                  -- soon.
 -- <><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
 
 type SATIteratorState = State.State SATIteratorType

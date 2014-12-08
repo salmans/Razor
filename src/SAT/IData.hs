@@ -100,6 +100,25 @@ data family SATTheory a
 instance Show (SATTheory a) where
     show _ = "SATTheory"
 
+{-| SATIterator is the class of types that can act as an iterator for SAT/SMT
+  solving.
+
+  [@satSolve@] given an iterator of type @b@, returns a 'Model' (if exists) and
+  a new iterator for fetching the next model.
+  [@satAugment@] 
+  [@satClose@] closes the connection to the SMT solver.
+  [@satPush@] makes a call to the @push@ function of the underlying SMT solver
+  or fakes a push action if the connection to the solver is not incremental.
+  [@satPop@] makes a call to the @pop@ function of the underlying SMT solver
+  or fakes a pop action if the connection to the solver is not incremental.
+-}
+class SATIterator i where
+    satSolve      :: i -> (Maybe Model, i)
+    satAugment    :: i -> (Maybe Model, i)
+    satClose      :: i -> ()
+    satPush       :: i -> i
+    satPop        :: i -> i
+
 {-| SATSolver defines an interface for interacting with a SAT/SMT 
   implementation. Here, @a@ is a 'SATAtom' type, determining the underlying 
   SAT/SMT solution and @b@ is the type of an iterator for maintaining the state
@@ -107,18 +126,6 @@ instance Show (SATTheory a) where
   
   [@satInitialize@] constructs an iterator for fetching models from the current
   state of a 'SATTheory' instance.
-  [@satSolve@] given an iterator of type @b@, returns a 'Model' (if exists) and
-  a new iterator for fetching the next model.
-  [@satClose@] closes the connection to the SMT solver.
-  [@satPush@] makes a call to the @push@ function of the underlying SMT solver
-  or fakes a push action if the connection to the solver is not incremental.
-  [@satPop@] makes a call to the @pop@ function of the underlying SMT solver
-  or fakes a pop action if the connection to the solver is not incremental.
 -}
-class (SATAtom a) => SATSolver a b | b -> a where
-    satInitialize :: Config -> SATTheory a -> b
-    satSolve      :: b -> (Maybe Model, b)
-    satAugment    :: b -> (Maybe Model, b)
-    satClose      :: b -> ()
-    satPush       :: b -> b
-    satPop        :: b -> b
+class (SATAtom a) => SATSolver a i | i -> a where
+    satInitialize :: Config -> SATTheory a -> i

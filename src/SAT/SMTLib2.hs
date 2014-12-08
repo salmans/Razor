@@ -709,14 +709,8 @@ termValue fn term unintFunc sParams = do
 --------------------------------------------------------------------------------
 -- SMT Solving and Model Generation
 --------------------------------------------------------------------------------
-{- Defining a SATSolver instance that does SMT solving. The 'SMTAtom' type of 
-   this implementation is SMTObservation and the type of SMT solving iterator is 
-   SMTContainer. -}
-instance SATSolver SMTObservation SMTContainer where
-    satInitialize cfg (SMTTheory context blamemap) =
-                  let cntr = emptySMTContainer {containerRelaxMin =
-                                                          configRelaxMin cfg}
-                  in  unsafePerformIO $ State.execStateT (perform context) cntr
+{- SMTContainer acts as a SATIterator instance. -}
+instance SATIterator SMTContainer where
     satSolve cont = let (res, cont')  = minimumResult cont
                     in  (translateSolution res, cont')
     satAugment cont  = let (res', cont') = minimumResult (addResultToContext cont)
@@ -726,6 +720,13 @@ instance SATSolver SMTObservation SMTContainer where
     satPush       = pushToSolver
     satPop        = popFromSolver
 
+{- Defining a SATSolver instance that does SMT solving. The 'SMTAtom' type of 
+   this implementation is SMTObservation and the type of SMT solving iterator is 
+   SMTContainer. -}
+instance SATSolver SMTObservation SMTContainer where
+    satInitialize cfg (SMTTheory context blamemap) =
+      let cntr = emptySMTContainer {containerRelaxMin = configRelaxMin cfg}
+      in  unsafePerformIO $ State.execStateT (perform context) cntr
 --
 --
 addResultToContext :: SMTContainer -> SMTContainer

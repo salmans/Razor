@@ -20,7 +20,7 @@
 -}
 
 module SAT.Data ( SATAtom (..), SATSequent(..), SATTheory (..)
-                , SATSolver (..)-- , SATSolverM
+                , SATIterator (..), SATSolver (..)
                 ) where
 
 
