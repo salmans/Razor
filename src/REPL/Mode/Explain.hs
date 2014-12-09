@@ -115,11 +115,11 @@ enterExplain mode state@(RazorState config theory gstar mspace mcoor) = case (th
 -- Command Functions --
 -----------------------
 queryTag :: ExplainMode -> String
-queryTag mode = "%query% "
+queryTag mode = "%explain% "
 
 queryHelp :: ExplainMode -> IO()
 queryHelp cmd = prettyPrint 0 foutput $ ""++
-  "<expr>:= | name<all_flag><rec_flag> <element>    Display the rule that caused this element to exist\n"++
+  "<expr>:= | origin<all_flag><rec_flag> <element>    Display the rule that caused this element to exist\n"++
   "  <all_flag>:=   |                                   Only display the origin of the given element\n"++
   "                 | s                                 Also display the origins of the representatives in this element's equivalence class\n"++
   "  <rec_flag>:=   |                                   Only display the origin of the given element\n"++
@@ -140,7 +140,7 @@ pName :: Parser ExplainCommand
 pName = pNameOne +++ pNameAll
 pNameOne :: Parser ExplainCommand
 pNameOne = do
-  symbol "name"
+  symbol "origin"
   pNameOneHead +++ pNameOneRec
 pNameOneHead :: Parser ExplainCommand
 pNameOneHead = do
@@ -152,7 +152,7 @@ pNameOneRec = do
   Name False True <$> pElement
 pNameAll :: Parser ExplainCommand
 pNameAll = do
-  symbol "names"
+  symbol "origins"
   pNameAllHead +++ pNameAllRec
 pNameAllHead :: Parser ExplainCommand
 pNameAllHead = do
