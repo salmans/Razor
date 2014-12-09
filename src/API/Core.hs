@@ -125,8 +125,8 @@ parseConfig args = do
   return config'
 -- In: configuration options, user input theory
 -- Out: an input if parsing success
-parseInputFile :: Config -> String -> IO (Maybe Input)
-parseInputFile config input = return $ Just $ parseInput input
+parseInputFile :: Config -> String -> Either String Input
+parseInputFile config input = parseInput input
 
 ---------------------
 -- Chase Data / G* --

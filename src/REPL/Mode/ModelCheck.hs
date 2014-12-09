@@ -21,17 +21,20 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 module REPL.Mode.ModelCheck where
+import Control.Applicative hiding ((<|>), many)
+import Text.ParserCombinators.Parsec
+import Text.Parsec.Prim
+import Syntax.GeometricParser
 import API.Surface
 import Common.Model
 import SAT.Impl
 import Data.Map
 import REPL.Mode
 import REPL.Display
-import Tools.Config
-import Control.Applicative hiding ((<|>), many)
-import Text.ParserCombinators.Parsec
-import Text.Parsec.Prim
+import Common.Model
 import Syntax.GeometricParser
+import Syntax.GeometricUtils
+import Tools.Config
 
 instance LoopMode ModelCheckMode ModelCheckIn ModelCheckOut where
   runOnce	  = modelRun
@@ -44,7 +47,7 @@ instance Mode ModelCheckMode where
 
 data ModelCheckMode = ModelCheckM
 type ModelCheckIn = ()
-type ModelCheckOut = (ModelSpace, ModelCoordinate)
+type ModelCheckOut = (Theory, ChaseState, ModelSpace, ModelCoordinate)
 
 --------------------
 -- Mode Functions --
@@ -56,15 +59,20 @@ modelRun mode _ command = return $ Left "no commands"
 -- RazorState Related --
 ------------------------
 updateModelCheck :: ModelCheckMode -> ModelCheckOut -> RazorState -> (RazorState, ModelCheckIn)
-updateModelCheck mode (mspace', mcoor') state@(RazorState config theory gstar mspace mcoor) = (RazorState config theory gstar mspace' (Just mcoor'), ())
+updateModelCheck mode (theory', gstar', mspace', mcoor') state@(RazorState config theory gstar mspace mcoor) = (RazorState config (Just theory') (Just gstar') mspace' (Just mcoor'), ())
 
 enterModelCheck :: ModelCheckMode -> RazorState -> IO(Either Error ModelCheckOut)
-enterModelCheck mode state@(RazorState config theory gstar mspace mcoor) = do
-  case gstar of
-    Nothing -> return $ Left $ "No theory loaded!"
-    Just (b,p,t,c) -> case modelNext $ Left (config, t) of
-      Nothing -> return $ Left "No models available!"
-      Just (mspace', mcoor') -> return $ Right $ (mspace', mcoor')
+enterModelCheck mode state@(RazorState config theory gstar mspace mcoor) = case (theory, gstar) of
+  (Just thy, Just chasestate) -> firstModel thy chasestate
+  _ -> do
+    load <- loadTheory config
+    case load of
+      Left err -> return $ Left err
+      Right (thy, chasestate) -> firstModel thy chasestate
+  where
+    firstModel theory chasestate@(b,p,t,c) = case modelNext $ Left (config, t) of
+      Nothing -> return $ Left $ "No models available!"
+      Just (mspace', mcoor') -> return $ Right $ (theory, chasestate, mspace', mcoor')
 
 -----------------------
 -- Command Functions --

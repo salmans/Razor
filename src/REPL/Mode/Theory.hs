@@ -57,7 +57,7 @@ theoryRun mode config command = case parseTheoryCommand command of
   Left err -> return $ Left err
   Right cmd -> case cmd of
     Load file -> do
-      load <- loadTheory config file
+      load <- loadTheory config {configInput = Just file}
       case load of
         Right (thy', gs') -> do
           prettyTheory (Just thy')

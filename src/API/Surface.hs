@@ -63,20 +63,19 @@ teardownState state@(RazorState config theory gstar mspace mcoor) = case mcoor o
 ----------------------------
 -- Surface API Operations --
 ----------------------------
-loadTheory :: Config -> String -> IO(Either Error (Theory, ChaseState))
-loadTheory config file = do
-  res1 <- try (readFile file) :: IO (Either SomeException String)
-  case res1 of
-    Left ex -> return $ Left $ "Unable to read file! "++(show ex)
-    Right raw -> do
-      res2 <- try (parseInputFile config raw) :: IO (Either SomeException (Maybe Input)) 
-      case res2 of
-        Left ex -> return $ Left $ "Unable to parse file! "++(show ex)
-        Right input -> case input of
-          Just (Input thy dps) -> do
+loadTheory :: Config -> IO(Either Error (Theory, ChaseState))
+loadTheory config = case configInput config of
+  Nothing -> return $ Left $ "No theory file specified!"
+  Just file -> do
+    res1 <- try (readFile file) :: IO (Either SomeException String)
+    case res1 of
+      Left ex -> return $ Left $ "Unable to read file! "++(show ex)
+      Right raw -> do
+        case parseInputFile config raw of
+          Left err -> return $ Left $ "Unable to parse file! "++err
+          Right (Input thy dps) -> do
             let gs = generateChase config {configSkolemDepth = dps} thy
             return $ Right (thy, gs)
-          Nothing -> return $ Left $ "Unable to parse input theory!"
 
 modelspaceLookup :: ModelSpace -> ModelCoordinate -> Maybe (Maybe ChaseState, SATIteratorType, Model)
 modelspaceLookup mspace mcoor = case Map.lookup mcoor mspace of

@@ -37,12 +37,12 @@ import Common.Data ( SkolemDepthMap, pSkolemDepthMap )
 data Input = Input { inputTheory         :: Theory
                    , inputSkolemDepthMap :: SkolemDepthMap }
 
-parseInput :: String -> Input
+parseInput :: String -> Either String Input
 parseInput input =
   let pResult = P.parse pInput "parsing input" input
   in  case pResult of
-        Left err  -> error (show err)
-        Right val -> val
+        Left err  -> Left (show err)
+        Right val -> Right val
 
 pInput :: P.Parser Input
 pInput  = do
