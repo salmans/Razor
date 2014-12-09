@@ -65,7 +65,6 @@ exploreRun mode state@(config, theory, gstar, mspace, mcoor) command = case pars
     Next -> case modelspaceLookup mspace (Stream mcoor) of
       Just (_, _, model) -> do
         prettyModel $ Just model
-        prettyModelCoordinate (Stream mcoor)
         return $ Right $ (theory, gstar, mspace, (Stream mcoor))
       Nothing -> case modelspaceLookup mspace mcoor of 
         Nothing -> return $ Left "Current modelspace coordinate does not exist?!"
@@ -73,13 +72,11 @@ exploreRun mode state@(config, theory, gstar, mspace, mcoor) command = case pars
           Nothing -> return $ Left "No more minimal models in the stream!"
           Just (mspace', mcoor') -> do
             prettyModel $ modelLookup mspace' (Just mcoor')
-            prettyModelCoordinate mcoor'
             return $ Right $ (theory, gstar, mspace', mcoor')
     Prev -> case mcoor of
       Stream mcoor' -> case modelspaceLookup mspace mcoor' of
         Just (_, _, model) -> do
           prettyModel $ Just model
-          prettyModelCoordinate mcoor'
           return $ Right $ (theory, gstar, mspace, mcoor')
         Nothing -> return $ Left "No exploration to undo!"
       _ -> return $ Left "Last exploration in history was not 'next'!"
@@ -90,13 +87,11 @@ exploreRun mode state@(config, theory, gstar, mspace, mcoor) command = case pars
         Just (obs,newelms) -> case modelspaceLookup mspace (Stack obs mcoor) of
           Just (_, _, model) -> do
             prettyModel $ Just model
-            prettyModelCoordinate (Stack obs mcoor)
             return $ Right $ (theory, gstar, mspace, (Stack obs mcoor))
           Nothing -> case modelUp config theory gstar (obs,newelms) (mspace, mcoor) of
             Nothing -> return $ Left "No models exist from adding the given augmentation!"
             Just (gstar', mspace', mcoor') -> do
                 prettyModel $ modelLookup mspace' (Just mcoor')
-                prettyModelCoordinate mcoor'
                 return $ Right $ (theory, gstar', mspace', mcoor')
     Pop -> case mcoor of
       Stack obs mcoor' -> case modelspaceLookup mspace mcoor of
@@ -107,7 +102,6 @@ exploreRun mode state@(config, theory, gstar, mspace, mcoor) command = case pars
             Nothing -> return $ Left "No exploration to undo!"
             Just (_,_,model) -> do
               prettyModel $ Just model
-              prettyModelCoordinate mcoor'
               return $ Right $ (theory, gstar', mspace, mcoor')
       _ -> return $ Left "Last exploration in history was not 'aug'!"
             
