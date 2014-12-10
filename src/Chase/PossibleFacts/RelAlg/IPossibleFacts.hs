@@ -218,7 +218,7 @@ evaluateRelSequent seq@(RelSequent bdy hds bdyDlt _ _ _ _) db dlt = do
    to the database.
 -}
 insertRelSequent :: (SATAtom t) => RelSequent -> RelResultSet -> Database 
-                 -> PushM Database t Database
+                 -> PushM Database t it Database
 insertRelSequent seq resSet db = do
   let hds   = relSequentHead seq
   let tbls  = newResultTuples resSet
@@ -241,7 +241,7 @@ insertRelSequent seq resSet db = do
                -- eventually remove references to empty tables
   (seqid, _, provs) <- liftPushMProvs State.get
   uni           <- liftPushMBase  State.get
-  propThy       <- liftPushMSATTheory State.get
+  (propThy, iter) <- liftPushMSATTheory State.get
 
 
   -- MONITOR
@@ -251,7 +251,7 @@ insertRelSequent seq resSet db = do
 
   let propThy' = foldr (\(sub, oseq)-> (flip storeSequent) ((TheoryBlame seqid sub), oseq)) propThy propSeqs
 
-  liftPushMSATTheory (State.put propThy')
+  liftPushMSATTheory (State.put (propThy', iter))
   return result
 
 filterTable :: Table -> Table

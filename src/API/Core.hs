@@ -133,12 +133,13 @@ parseInputFile config input = parseInput input
 ---------------------
 -- In: configuration, theory
 -- Out: G*, which consists of ground facts, provenance info, and a propositional theory
-generateChase :: Config -> Theory -> (ChasePossibleFactsType, ProvInfo, SATTheoryType, Int)
+generateChase :: Config -> Theory -> (ChasePossibleFactsType, ProvInfo, SATTheoryType, SATIteratorType, Int)
 generateChase config theory = chase config theory
 -- In: G*, new observation
 -- Out: an augmented G* with the new observation
-augmentChase :: Config -> Theory -> (ChasePossibleFactsType, ProvInfo, SATTheoryType, Int) -> (Observation,[Element]) -> (ChasePossibleFactsType, ProvInfo, SATTheoryType, Int)
-augmentChase cfg thy (b, p, t, c) (obs@(Obs (Rel rsym terms)),newelms) = do
+augmentChase :: Config -> Theory -> (ChasePossibleFactsType, ProvInfo, SATTheoryType, SATIteratorType, Int)
+             -> (Observation,[Element]) -> (ChasePossibleFactsType, ProvInfo, SATTheoryType, SATIteratorType, Int)
+augmentChase cfg thy (b, p, t, it, c) (obs@(Obs (Rel rsym terms)),newelms) = do
   let thy' = preprocess thy
   let seqMap = (buildSequentMap $ fromJust <$> fromSequent <$> thy') :: SequentMap ChaseSequentType
   -- update provenance
@@ -149,13 +150,15 @@ augmentChase cfg thy (b, p, t, c) (obs@(Obs (Rel rsym terms)),newelms) = do
   let newSeq = ObservationSequent [] [[obs]]
   let t' = storeSequent t (UserBlame obs, newSeq)
   -- return new GS
-  augmentBase cfg seqMap (b, p', t', c) obs
+  augmentBase cfg seqMap (b, p', t', it, c) obs
   
 --
 --
-augmentBase :: Config -> SequentMap ChaseSequentType -> (ChasePossibleFactsType, ProvInfo, SATTheoryType, Int) -> Observation -> (ChasePossibleFactsType, ProvInfo, SATTheoryType, Int)
+augmentBase :: Config -> SequentMap ChaseSequentType ->
+            (ChasePossibleFactsType, ProvInfo, SATTheoryType, SATIteratorType, Int) -> Observation ->
+            (ChasePossibleFactsType, ProvInfo, SATTheoryType, SATIteratorType, Int)
 augmentBase _ _ gs eqobs@(Obs (Rel "=" terms)) = gs
-augmentBase cfg seqMap (b, p, t, c) obs@(Obs (Rel rsym terms)) = do
+augmentBase cfg seqMap (b, p, t, it, c) obs@(Obs (Rel rsym terms)) = do
   let d = addToBase obs emptyBase
   let seqMap' = Map.filter (not.startSequent) seqMap
       -- The current implementation of the Chase instantiate existential

@@ -58,9 +58,9 @@ import Tools.Config (Config)
   solving. 
  -}
 class (Show a) => SATAtom a where
-    emptySATTheory    :: SATTheory a    
-    storeSequent      :: SATTheory a -> (Blame, ObservationSequent) -> SATTheory a
-    blameSequent      :: SATTheory a -> Blame -> Maybe ObservationSequent
+    emptySATTheory :: SATTheory a    
+    storeSequent   :: SATTheory a -> (Blame, ObservationSequent) -> SATTheory a
+    blameSequent   :: SATTheory a -> Blame -> Maybe ObservationSequent
 
 {-| SATSequent is a datatype that represents a sequent in SAT/SMT solving. A 
   type @a@ is the type of atomic formulas in the sequent, e.g., a proposition 
@@ -113,6 +113,8 @@ instance Show (SATTheory a) where
   or fakes a pop action if the connection to the solver is not incremental.
 -}
 class SATIterator i where
+    satInitialize' :: Config -> i
+    satStore'     :: ObservationSequent -> i -> i
     satSolve      :: i -> (Maybe Model, i)
     satAugment    :: i -> (Maybe Model, i)
     satClose      :: i -> ()

@@ -62,12 +62,12 @@ import Tools.FolToGeo (parseFolToSequents)
   Output:
   A triple of a base of type @h@, its corresponding provenance information of
   type 'ProvInfo', and a set of ground sequents of type 'SATTheory t' -}
-chase :: (ChaseImpl h s r, SATAtom t) => Config -> SequentMap s 
-      -> (h, ProvInfo, SATTheory t, Int)
+chase :: (ChaseImpl h s r, SATAtom t, SATIterator it) => Config -> SequentMap s 
+      -> (h, ProvInfo, SATTheory t, it, Int)
 chase cfg seqs = 
-    let prob            = Problem seqs emptyBase emptyBase emptyProvInfo emptySATTheory
-        (b, p, t, _, c) = runChase cfg 0 prob $ initM >> stepsM
-    in  (b, p, t, c)
+    let prob            = Problem seqs emptyBase emptyBase emptyProvInfo (emptySATTheory, satInitialize' cfg)
+        (b, p, t, it, _, c) = runChase cfg 0 prob $ initM >> stepsM
+    in  (b, p, t, it, c)
 
 
 {-| Resumes the Chase algorithm on a partially computed set of structures and
@@ -87,24 +87,24 @@ chase cfg seqs =
   A triple of the new base of type @h@, its corresponding provenance information
   of type 'ProvInfo', and the new set of ground sequents of type 'SATTheory t'. 
  -}
-resumeChase :: (ChaseImpl h s r, SATAtom t) => Config -> Int -> SequentMap s
-            -> h -> h -> ProvInfo -> SATTheory t -> (h, ProvInfo, SATTheory t, Int)
+resumeChase :: (ChaseImpl h s r, SATAtom t, SATIterator it) => Config -> Int -> SequentMap s
+            -> h -> h -> ProvInfo -> SATTheory t -> (h, ProvInfo, SATTheory t, it, Int)
 resumeChase cfg cnt seqs base delt provs propThy = 
-    let prob             = Problem seqs base delt provs propThy
-        (b, p, pt, _, c) = runChase cfg cnt prob $ initM >> stepsM
-    in  (b, p, pt, c)
+    let prob             = Problem seqs base delt provs (propThy, satInitialize' cfg)
+        (b, p, pt, it, _, c) = runChase cfg cnt prob $ initM >> stepsM
+    in  (b, p, pt, it, c)
 
 {-| Runs the Chase algorithm, ensuring that the initial set of constants will
   denote elements in the output instnace of 'PossibleFacts'. -}
-chaseWithInitialConstants :: (ChaseImpl h s r, SATAtom t) => Config -> Int
+chaseWithInitialConstants :: (ChaseImpl h s r, SATAtom t, SATIterator it) => Config -> Int
                           -> SequentMap s -> [Constant] 
-                          -> (h, ProvInfo, SATTheory t, Int)
+                          -> (h, ProvInfo, SATTheory t, it, Int)
 chaseWithInitialConstants cfg cnt seqs consts = 
     let base             = emptyBaseWithConstants consts
         provs            = emptyProvInfoWithConstants consts
-        prob             = Problem seqs base emptyBase provs emptySATTheory
-        (b, p, pt, _, c) = runChase cfg cnt prob $ initM >> stepsM
-    in  (b, p, pt, c)
+        prob             = Problem seqs base emptyBase provs (emptySATTheory, satInitialize' cfg)
+        (b, p, pt, it, _, c) = runChase cfg cnt prob $ initM >> stepsM
+    in  (b, p, pt, it, c)
 
 {- Runs a monadic function of type 'ChaseM h s ()' based on instances of type 
    @h@ and @s@ and @r@ that implement a 'ChaseImpl'.
@@ -122,13 +122,14 @@ chaseWithInitialConstants cfg cnt seqs consts =
   - An instance of 'SATTheory t' as the new instance of ground sequents.
   - Log information.
 -}
-runChase :: (ChaseImpl h s r, SATAtom t) => Config -> Int -> Problem h s t
-          -> ChaseM h s () -> (h, ProvInfo, SATTheory t, [String], Int)
+runChase :: (ChaseImpl h s r, SATAtom t, SATIterator it) => Config -> Int -> Problem h s t it
+          -> ChaseM h s () -> (h, ProvInfo, SATTheory t, it, [String], Int)
 runChase cfg counter prob context = 
     let runCM       = RWS.execRWST context [] prob
         runCt       = State.runStateT runCM counter
         ((p, l), c) = State.evalState runCt cfg
-    in (problemBase p, problemProvs p, problemSATTheory p, l, c)
+    in ( problemBase p, problemProvs p
+       , problemSATTheory p, problemSATIterator p, l, c)
 
 
 {- Initializes a run of the Chase inside a 'ChaseM' context for some 
@@ -139,18 +140,18 @@ runChase cfg counter prob context =
 initM :: ChaseImpl h s r => ChaseM h s ()
 initM = do
   cfg <- liftChaseMConfig State.get
-  Problem seqs base dlt provs propThy <- liftChaseMState RWS.get
+  Problem seqs base dlt provs (propThy, iter) <- liftChaseMState RWS.get
   let (startSeqs, restSeqs) = Map.partition startSequent seqs
                               -- Separate sequents with empty body
   counter <- (liftChaseMCounter State.get)
-  let (newDlt, newProvs, counter', propThy') = 
-          iterateBalance startSeqs base dlt provs counter propThy cfg
+  let (newDlt, newProvs, counter', propThy', iter') = 
+          iterateBalance startSeqs base dlt provs counter (propThy, iter) cfg
                            -- Balance the sequents with empty body right here
                            -- before iterating through the remaining sequents
 
   liftChaseMCounter (State.put counter') -- Update the new counter
   liftChaseMState $ RWS.put 
-        $ Problem restSeqs base (unionBases dlt newDlt) newProvs propThy'
+        $ Problem restSeqs base (unionBases dlt newDlt) newProvs (propThy', iter')
      -- Update the computation state with new base and delta base. 
      -- Also, throw away the starting sequents
 
@@ -161,7 +162,7 @@ initM = do
 stepsM :: ChaseImpl h s r => ChaseM h s ()
 stepsM = do
   cfg <- liftChaseMConfig State.get
-  Problem seqs base dlt provs propThy <- liftChaseMState (RWS.get)
+  Problem seqs base dlt provs (propThy, iter) <- liftChaseMState (RWS.get)
                                          
   if nullBase dlt -- If the current delta contains nothing new
   then return ()
@@ -169,12 +170,12 @@ stepsM = do
     let seqs' = Map.filter ((flip relevant) dlt) seqs
                 -- Select sequents that are relevant to the last set of changes
     counter <- (liftChaseMCounter State.get)
-    let (newDlt, newProvs, counter', propThy') = 
-            iterateBalance seqs' base dlt provs counter propThy cfg
+    let (newDlt, newProvs, counter', propThy', iter') = 
+            iterateBalance seqs' base dlt provs counter (propThy, iter) cfg
         -- Process the relevant sequents
     liftChaseMCounter (State.put counter')
     liftChaseMState $ RWS.put $ Problem seqs (unionBases base dlt) 
-                                newDlt newProvs propThy'
+                                newDlt newProvs (propThy', iter')
        -- Update the state and prepare for a next step
     stepsM
             
@@ -196,10 +197,10 @@ stepsM = do
    - New provenance information that includes provenance information for the
    new set of facts as well. 
    - A new state for the 'Counter' associated to the current run of the Chase.-}
-iterateBalance :: (ChaseImpl h s r, SATAtom t) => SequentMap s -> h 
-               -> h -> ProvInfo -> Int -> SATTheory t 
-               -> Config -> (h, ProvInfo, Int, SATTheory t)
-iterateBalance seqs base dlt provs cnt propThy cfg = 
+iterateBalance :: (ChaseImpl h s r, SATAtom t, SATIterator it) => SequentMap s -> h 
+               -> h -> ProvInfo -> Int -> (SATTheory t, it)
+               -> Config -> (h, ProvInfo, Int, SATTheory t, it)
+iterateBalance seqs base dlt provs cnt (propThy, iter) cfg = 
     -- trace "*********************************"
     -- trace "Base:"              
     -- traceShow (baseSize base)
@@ -208,8 +209,8 @@ iterateBalance seqs base dlt provs cnt propThy cfg =
     -- $
     let uni = unionBases base dlt
     in  Map.foldlWithKey' 
-            (\(n, p, c, pt) k s -> balance k s base dlt uni n p c pt cfg) 
-            (emptyBase, provs, cnt, propThy) seqs
+            (\(n, p, c, pt, it) k s -> balance k s base dlt uni n p c (pt, it) cfg) 
+            (emptyBase, provs, cnt, propThy, iter) seqs
 
 {- As a helper for iterateBalance, returns all the new information that may be
    deduced by balancing a single sequent in the current state of base and delta.
@@ -237,10 +238,10 @@ iterateBalance seqs base dlt provs cnt propThy cfg =
    - New state for the Chase's 'Counter'.
    - New ground theory after pushing new information
  -}
-balance :: (ChaseImpl h s r, SATAtom t) => 
+balance :: (ChaseImpl h s r, SATAtom t, SATIterator it) => 
            Id -> s -> h -> h -> h -> h -> ProvInfo -> Int
-           -> SATTheory t -> Config -> (h, ProvInfo, Int, SATTheory t)
-balance id seq base dlt uni new provs cnt propThy cfg = 
+           -> (SATTheory t, it) -> Config -> (h, ProvInfo, Int, SATTheory t, it)
+balance id seq base dlt uni new provs cnt (propThy, iter) cfg = 
     let res = -- traceShow "----------"
               -- traceShow (toSequent seq)
               -- traceShow base
@@ -250,4 +251,4 @@ balance id seq base dlt uni new provs cnt propThy cfg =
               -- traceEval
               -- $
               evalPullM (pull seq base dlt) uni provs
-    in  runPushM (push seq res new) uni (id, provs) cnt propThy cfg
+    in  runPushM (push seq res new) uni (id, provs) cnt (propThy, iter) cfg

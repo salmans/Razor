@@ -159,7 +159,8 @@ type SMTSequent = SATSequent SMTObservation
 {-| A theory of sequents in SMT solving is a an instance of 'SATTheory' family:
   this type is essentially a wrapper around a computation context of type SMT.  
  -}
-data instance SATTheory SMTObservation = SMTTheory (SMTM ()) (Map.Map Blame ObservationSequent) 
+data instance SATTheory SMTObservation =
+     SMTTheory (SMTM ()) (Map.Map Blame ObservationSequent) 
 
 {- A convenient type for working with SMT theories -}
 type SMTTheory = SATTheory SMTObservation
@@ -176,6 +177,10 @@ addToSMTTheory :: SMTTheory -> (Blame, ObservationSequent) -> SMTTheory
 addToSMTTheory (SMTTheory context blamemap) (blame, seq) = 
     SMTTheory (do context
                   addObservationSequent seq) (Map.insert blame seq blamemap)
+
+addToSMTTheory' :: ObservationSequent -> SMTContainer -> SMTContainer
+addToSMTTheory' seq = unsafePerformIO .
+                      State.execStateT (perform (addObservationSequent seq))
 
 getFromSMTTheory :: SMTTheory -> Blame -> Maybe ObservationSequent
 getFromSMTTheory (SMTTheory context blamemap) blame = Map.lookup blame blamemap
@@ -711,6 +716,10 @@ termValue fn term unintFunc sParams = do
 --------------------------------------------------------------------------------
 {- SMTContainer acts as a SATIterator instance. -}
 instance SATIterator SMTContainer where
+    satInitialize' = \cfg -> emptySMTContainer {
+                              containerRelaxMin = configRelaxMin cfg
+                              }
+    satStore'     = addToSMTTheory'
     satSolve cont = let (res, cont')  = minimumResult cont
                     in  (translateSolution res, cont')
     satAugment cont  = let (res', cont') = minimumResult (addResultToContext cont)

@@ -41,7 +41,7 @@ import System.Environment
 -- Razor State --
 -----------------
 data RazorState = RazorState Config (Maybe Theory) (Maybe ChaseState) ModelSpace (Maybe ModelCoordinate)
-type ChaseState = (ChasePossibleFactsType, ProvInfo, SATTheoryType, Int)
+type ChaseState = (ChasePossibleFactsType, ProvInfo, SATTheoryType, SATIteratorType, Int)
 type ModelSpace = Map.Map ModelCoordinate (Maybe ChaseState, SATIteratorType, Model)
 data ModelCoordinate = Stream ModelCoordinate | Stack Observation ModelCoordinate | Origin
   deriving (Eq, Ord)
@@ -108,7 +108,7 @@ modelNext seed = case seed of
 
 modelUp :: Config -> Theory -> ChaseState -> (Observation, [Element]) -> (ModelSpace, ModelCoordinate) -> Maybe (ChaseState, ModelSpace, ModelCoordinate)
 modelUp config theory gstar (obs, newelms) (mspace, mcoor) = do
-  let gstar'@(b',p',t',c') = augmentChase config theory gstar (obs, newelms)
+  let gstar'@(b',p',t',_, c') = augmentChase config theory gstar (obs, newelms)
   let stack = openSAT config t'
   case upModel stack of
     (Nothing, _) -> Nothing
@@ -121,7 +121,7 @@ type QBlame = Either Error (Blame, Sequent)
 --
 --    
 getJustification :: ChaseState -> Model -> Formula -> QBlame
-getJustification gstar@(b,p,t,c) mdl fml = case getObservation mdl fml of
+getJustification gstar@(b,p,t,_,c) mdl fml = case getObservation mdl fml of
   Nothing -> Left "blame formula is not an observation"
   Just obv -> case getObservationBlame (observationProvs p) mdl obv of
     Nothing -> Left "no provenance info for blame observation"
@@ -133,7 +133,7 @@ data QOrigin = QOriginLeaf Term QBlame | QOriginNode Term QBlame [QOrigin]
 --
 --
 getOrigin :: Theory -> ChaseState -> Model -> Bool -> Term -> [QOrigin]
-getOrigin thy gstar@(b,p,t,c) mdl isrec term = do
+getOrigin thy gstar@(b,p,t,_,c) mdl isrec term = do
   case name of
     Left err -> [QOriginLeaf term (Left err)]
     Right origins -> do

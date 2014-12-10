@@ -60,6 +60,7 @@ import Tools.Trace
 chase :: Config -> Theory -> ( ChasePossibleFactsType
                              , ProvInfo
                              , SATTheoryType
+                             , SATIteratorType
                              , Int )
 chase cfg thy = let thy'   = preprocess thy
                     seqMap = buildSequentMap $ fromJust <$> fromSequent <$> thy' 
