@@ -21,8 +21,9 @@
 module Common.Provenance ( Blame (..), ObservationProvs, ProvInfo (..)
                          , ElementProvs
                          , addElementProv, getElementProv, testElementProv
-                         , findElementWithProv, modifyElementProvs
-                         , findObservationWithProv
+                         , findElementWithProv, findObservationWithProv
+                         , findBlameSequent
+                         , modifyElementProvs, modifyBlameSequentMap
                          , emptyProvInfo, emptyProvInfoWithConstants ) where
 
 import Common.IProvenance
