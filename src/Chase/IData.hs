@@ -52,7 +52,7 @@ import Common.Observation (Observation, ObservationSequent)
 import Data.Maybe(fromJust)
 
 -- SAT
-import SAT.Data (SATAtom, SATTheory, SATIterator)
+import SAT.Data (SATIterator)
 
 -- Tools
 import Tools.Counter (Counter, CounterT)
@@ -112,15 +112,18 @@ evalPullM = runPullM
 
 
 {-| PushM is the context of computation for building a PossibleFacts. It is a
-  Counter monad for keeping track of indices of the new elements wrapped in
-  a State transformer to carry the Id of sequent being pushed, variables in the 
-  body of the sequent, and provenance infromation,. The combination is then 
-  wrapped inside another State transformer that contains the old database of
-  type 'PossibleFacts', which was computed in the previous iteration. -}
-type PushM h t it a = (PossibleFacts h, SATAtom t, SATIterator it) => 
+  Config monad for passing configuration information inside a State monad for
+  passing a SAT/SMT iterator, which is used for pushing ground sequents. The 
+  combination of the two monads is then wrapped in a Counter monad for keeping
+  track of indices of the new elements wrapped in a State transformer to carry
+  the Id of sequent being pushed, variables in the body of the sequent, and 
+  provenance infromation,. The combination is then wrapped inside another State
+  transformer that contains the old database of type 'PossibleFacts', which was
+  computed in the previous iteration. -}
+type PushM h it a = (PossibleFacts h, SATIterator it) => 
     State.StateT h 
              (State.StateT (Id, [Variable], ProvInfo)
-                       (CounterT (State.StateT (SATTheory t, it) ConfigMonad))) a
+                       (CounterT (State.StateT it ConfigMonad))) a
 
 {-| Lifting the monads in the 'PushM' stack -}
 liftPushMBase = id
@@ -132,29 +135,30 @@ liftPushMCounter :: ( Monad (t1 m), Monad m
                     , RWS.MonadTrans t, RWS.MonadTrans t1) => m a -> t (t1 m) a
 liftPushMCounter = liftPushMProvs.State.lift
 
-liftPushMSATTheory :: ( Monad (t1 (t2 m)), Monad (t2 m)
-                      , Monad m, RWS.MonadTrans t
-                      , RWS.MonadTrans t1, RWS.MonadTrans t2) 
-                      => m a -> t (t1 (t2 m)) a
-liftPushMSATTheory =  liftPushMCounter.State.lift
+liftPushMSATIterator :: ( Monad (t1 (t2 m)), Monad (t2 m)
+                        , Monad m, RWS.MonadTrans t
+                        , RWS.MonadTrans t1, RWS.MonadTrans t2) 
+                        => m a -> t (t1 (t2 m)) a
+liftPushMSATIterator =  liftPushMCounter.State.lift
 
 liftPushMConfig :: ( Monad (t1 (t2 (t3 m))), Monad (t2 (t3 m))
                    , Monad (t3 m), Monad m
                    , RWS.MonadTrans t, RWS.MonadTrans t1
                    , RWS.MonadTrans t2, RWS.MonadTrans t3) 
                   => m a -> t (t1 (t2 (t3 m))) a
-liftPushMConfig =  liftPushMSATTheory.State.lift
+liftPushMConfig =  liftPushMSATIterator.State.lift
 
 {-| Runs a 'PushM' stack of monads. -}
-runPushM :: (PossibleFacts h, SATAtom t, SATIterator it) => PushM h t it a -> h -> (Id, ProvInfo)
-         -> Int -> (SATTheory t, it) -> Config -> (a, ProvInfo, Int, SATTheory t, it)
-runPushM pFn base (id, provs) cnt (propThy, iter) cfg = 
+runPushM :: (PossibleFacts h, SATIterator it)
+         => PushM h it a -> h -> (Id, ProvInfo) -> Int -> it -> Config
+         -> (a, ProvInfo, Int, it)
+runPushM pFn base (id, provs) cnt iter cfg = 
     let runBase = State.evalStateT pFn base
         runProv = State.runStateT runBase (id, [], provs)
         runCntr = State.runStateT runProv cnt
-        runThy  = State.runStateT runCntr (propThy, iter)
+        runThy  = State.runStateT runCntr iter
     in  flatTup $ State.runState runThy cfg
-    where flatTup = \((((v, (_, _, w)), x), (y, y')), z) -> (v, w, x, y, y')
+    where flatTup = \((((v, (_, _, w)), x), y), z) -> (v, w, x, y)
 
 {-| ChaseImpl specifies the interface between types that implement a 
   PossibleFacts and its related functions in some implementation of the Chase. 
@@ -190,7 +194,7 @@ class (PossibleFacts h, SequentLike s, Show r) =>
     ChaseImpl h s r | s h -> r where
     relevant               :: s -> h -> Bool
     pull                   :: s -> h -> h -> PullM h r
-    push                   :: (SATAtom t, SATIterator it) => s -> r -> h -> PushM h t it h
+    push                   :: (SATIterator it) => s -> r -> h -> PushM h it h
     observationalInstances :: s -> h -> h -> r -> ProvInfo
                            -> [(Sub, ObservationSequent)] 
 
@@ -203,31 +207,28 @@ class (PossibleFacts h, SequentLike s, Show r) =>
   the previous iteration as a delta set.
   - an instance of 'ProvInfo' to maintain provenance information for facts and
   elements constructed so far.
-  - an instance of 'PropTheory', containing proposit`ional instances of the 
-  first-order theory, which is computed in parallel with the run of the Chase.
+  - an instance of 'SATIterator' as a handle for sending propositional sequents
+  to the underlying SAT/SMT solver. The propositional sequents are computed in
+  parrallel with a run of the Chase that constructs the set of possible facts.
  -}
-data Problem h s t it where
-    Problem :: (PossibleFacts h, SequentLike s, SATAtom t, SATIterator it)
-               => SequentMap s -> h -> h -> ProvInfo 
-                               -> (SATTheory t, it) -> Problem h s t it
+data Problem h s it where
+    Problem :: (PossibleFacts h, SequentLike s, SATIterator it)
+               => SequentMap s -> h -> h -> ProvInfo -> it -> Problem h s it
 
-problemSequentMap :: Problem h s t it -> SequentMap s
+problemSequentMap :: Problem h s it -> SequentMap s
 problemSequentMap (Problem m _ _ _ _) = m
 
-problemBase :: Problem h s t it -> h
+problemBase :: Problem h s it -> h
 problemBase (Problem _ b _ _ _) = b
 
-problemDelta :: Problem h s t it -> h
+problemDelta :: Problem h s it -> h
 problemDelta (Problem _ _ d _ _) = d
 
-problemProvs :: Problem h s t it -> ProvInfo
+problemProvs :: Problem h s it -> ProvInfo
 problemProvs (Problem _ _ _ p _) = p
 
-problemSATTheory :: Problem h s t it -> SATTheory t
-problemSATTheory (Problem _ _ _ _ (p, _)) = p
-
-problemSATIterator :: Problem h s t it -> it
-problemSATIterator (Problem _ _ _ _ (_, iter)) = iter
+problemSATIterator :: Problem h s it -> it
+problemSATIterator (Problem _ _ _ _ iter) = iter
 
 {-| Creates an instance of 'Problem'.
   Input:
@@ -237,15 +238,14 @@ problemSATIterator (Problem _ _ _ _ (_, iter)) = iter
   - another instance of type @h@, as the delta set of facts.
   - an instance of 'ProvInfo' containing the provenance information for 
   elements.
-  - an instance of 'PropTheory' containing propositional instances of the input
-  theory in the input 'PossibleFacts' set.
+  - an instance of 'SATIterator' for sending propositional sequents to the
+  SAT/SMT solver.
  -}
-buildProblem :: (ChaseImpl h s r, SATAtom t, SATIterator it)
-                => [(Id, Sequent)] -> h -> h -> ProvInfo 
-                                   -> (SATTheory t, it) -> Problem h s t it
-buildProblem seqs db dlt provs (propTheory, iter) = 
+buildProblem :: (ChaseImpl h s r, SATIterator it)
+                => [(Id, Sequent)] -> h -> h -> ProvInfo -> it -> Problem h s it
+buildProblem seqs db dlt provs iter = 
     let seqMap = Map.fromList $ ((fromJust <$> fromSequent <$>) <$> seqs)
-    in  Problem seqMap db dlt provs (propTheory, iter)
+    in  Problem seqMap db dlt provs iter
 
 
 {-| 'ChaseM' is the computation context for running the Chase. Given a 
@@ -256,7 +256,7 @@ buildProblem seqs db dlt provs (propTheory, iter) =
   makes user preferences available to the Chase.
  -}
 type ChaseM h s a = forall r t it . (ChaseImpl h s r)  => 
-    RWS.RWST [String] [String] (Problem h s t it)
+    RWS.RWST [String] [String] (Problem h s it)
     (CounterT ConfigMonad) a
 
 liftChaseMState  = id

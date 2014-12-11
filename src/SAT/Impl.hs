@@ -19,9 +19,9 @@
   Maintainer  : Salman Saghafi <salmans@wpi.edu>, Ryan Danas <ryandanas@wpi.edu>
 -}
 
-module SAT.Impl ( SATTheoryType, SATIteratorType
-                , satInitialize, satSolve, satClose, satNext, satAugment
-                , storeSequent, blameSequent) where
+module SAT.Impl ( SATIteratorType
+                , satInitialize, satStore, satSolve, satClose, satNext
+                , satAugment ) where
 
 
 -- Common
@@ -34,8 +34,7 @@ import Common.Provenance (Blame)
 import qualified Control.Monad.State.Lazy as State
 
 -- SAT
-import qualified SAT.Data (satInitialize, satSolve, satClose, satAugment
-                          , storeSequent, blameSequent)
+import qualified SAT.Data (satInitialize, satStore, satSolve, satClose, satAugment)
 
 -- Tools
 import Tools.Config (Config)
@@ -53,8 +52,13 @@ type SATIteratorState = State.State SATIteratorType
 
 {-| Initializes the solver with the selected theory type and returns an iterator
   of the selected iterator type. -}
-satInitialize :: Config -> SATTheoryType -> SATIteratorType
+satInitialize :: Config -> SATIteratorType
 satInitialize = SAT.Data.satInitialize
+
+{-| Stores an 'ObservationSequent' as an extra constraint in the given 
+    iterator -}
+satStore :: ObservationSequent -> SATIteratorType -> SATIteratorType
+satStore  = SAT.Data.satStore
 
 {-| Closes the connection to the SMT solver if applicable. -}
 satClose :: SATIteratorType -> ()
@@ -70,13 +74,3 @@ satNext = satSolve
 
 satAugment :: SATIteratorType -> (Maybe Model, SATIteratorType)
 satAugment = SAT.Data.satAugment
-
-{-| Adds an instance of 'ObservationSequent' to an instance of 'SATTheoryType'.
-  This function is primarily used to implement augmentation. -}
-storeSequent :: SATTheoryType -> (Blame, ObservationSequent) -> SATTheoryType
-storeSequent =  SAT.Data.storeSequent
-
-{-| Returns the observational sequent associated with the given blame
-  This function is primarily used to implement provenance queries -}
-blameSequent :: SATTheoryType -> Blame -> Maybe ObservationSequent
-blameSequent = SAT.Data.blameSequent

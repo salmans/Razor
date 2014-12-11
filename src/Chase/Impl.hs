@@ -21,6 +21,7 @@
 
 {-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE ImpredicativeTypes #-}
 
 module Chase.Impl ( ChaseSequentType, ChasePossibleFactsType 
                   , chase ) where
@@ -43,7 +44,7 @@ import Chase.Data
 
 import Chase.PossibleFacts.RelAlg.PossibleFacts
 -- <><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
-import qualified Chase.Chase (chase)
+import qualified Chase.Chase (chase, resumeChase)
 
 -- Data
 import Data.Maybe(fromJust)
@@ -59,34 +60,16 @@ import Tools.Trace
   selected PossibleFacts implementation. -}
 chase :: Config -> Theory -> ( ChasePossibleFactsType
                              , ProvInfo
-                             , SATTheoryType
                              , SATIteratorType
+                             , SequentMap ChaseSequentType
                              , Int )
 chase cfg thy = let thy'   = preprocess thy
                     seqMap = buildSequentMap $ fromJust <$> fromSequent <$> thy' 
                            :: SequentMap ChaseSequentType
-                in  Chase.Chase.chase cfg seqMap
+                    (b, p, it, c) = Chase.Chase.chase cfg seqMap
+                in  (b, p, it, seqMap, c)
 
-
--- TEMPORARY: THIS IS HOW AUGMENTATION WORKS!
--- {-| Gives access to a particular implementation of the chase based on the 
---   selected PossibleFacts implementation. -}
--- chase :: Config -> Theory -> ( ChasePossibleFactsType
---                              , ProvInfo
---                              , SATTheoryType )
--- chase cfg thy = 
---     let thy'   = preprocess thy
---         seqMap = buildSequentMap $ fromSequent <$> thy' 
---                :: SequentMap ChaseSequentType
---         (b, p, t) = Chase.Chase.chase cfg seqMap
---         obs       = Obs $ Rel "R" [Elem $ Element 1]
---         -- obs       = Obs $ FnRel "f" [Elem $ Element 0, Elem $ Element 1]
---         -- obs       = Obs $ Rel "=" [Elem $ Element 0, Elem $ Element 1]
-
---         -- THESE STEPS SHOULDN'T BE DONE FOR EQUATIONAL FACTS:
---         d        = addToBase obs emptyBase
---         (b', p', t') = Chase.Chase.resumeChase cfg seqMap b d p t
---         ---------------------------------------------------------
---         testSeq   = ObservationSequent [] [[obs]]
---         t''       = storeSequent t' testSeq
---     in  (b', p' ,t'')
+resume :: Config -> Int -> SequentMap ChaseSequentType -> ChasePossibleFactsType
+       -> ChasePossibleFactsType -> ProvInfo -> SATIteratorType
+       -> (ChasePossibleFactsType, ProvInfo, SATIteratorType, Int)
+resume  = Chase.Chase.resumeChase

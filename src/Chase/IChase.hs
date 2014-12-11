@@ -60,14 +60,15 @@ import Tools.FolToGeo (parseFolToSequents)
   - An instance of 'SequentMap' for a 'SequentLike' type @s@. 
 
   Output:
-  A triple of a base of type @h@, its corresponding provenance information of
-  type 'ProvInfo', and a set of ground sequents of type 'SATTheory t' -}
-chase :: (ChaseImpl h s r, SATAtom t, SATIterator it) => Config -> SequentMap s 
-      -> (h, ProvInfo, SATTheory t, it, Int)
+  A tuple of a base of type @h@, its corresponding provenance information of
+  type 'ProvInfo', an instance of 'SATIterator' as a handle to communicate with
+  the SAT/SMT solver, and a counter for the index of the last element created. -}
+chase :: (ChaseImpl h s r, SATIterator it) => Config -> SequentMap s 
+      -> (h, ProvInfo, it, Int)
 chase cfg seqs = 
-    let prob            = Problem seqs emptyBase emptyBase emptyProvInfo (emptySATTheory, satInitialize' cfg)
-        (b, p, t, it, _, c) = runChase cfg 0 prob $ initM >> stepsM
-    in  (b, p, t, it, c)
+    let prob   = Problem seqs emptyBase emptyBase emptyProvInfo (satInitialize cfg)
+        (b, p, it, _, c) = runChase cfg 0 prob $ initM >> stepsM
+    in  (b, p, it, c)
 
 
 {-| Resumes the Chase algorithm on a partially computed set of structures and
@@ -81,30 +82,30 @@ chase cfg seqs =
   of the input 'SequentMap'.
   - Another instance of the same PossibleFacts type @h@ as the delta set.
   - Initial provenance information.
-  - Initial ground theory of type @SATTheory t@
+  - Initial 'SATIterator' instance
 
   Output:
-  A triple of the new base of type @h@, its corresponding provenance information
-  of type 'ProvInfo', and the new set of ground sequents of type 'SATTheory t'. 
- -}
-resumeChase :: (ChaseImpl h s r, SATAtom t, SATIterator it) => Config -> Int -> SequentMap s
-            -> h -> h -> ProvInfo -> SATTheory t -> (h, ProvInfo, SATTheory t, it, Int)
-resumeChase cfg cnt seqs base delt provs propThy = 
-    let prob             = Problem seqs base delt provs (propThy, satInitialize' cfg)
-        (b, p, pt, it, _, c) = runChase cfg cnt prob $ initM >> stepsM
-    in  (b, p, pt, it, c)
+  A tuple of a new base of type @h@, its corresponding provenance information of
+  type 'ProvInfo', an instance of 'SATIterator' as a handle to communicate with
+  the SAT/SMT solver, and a counter for the index of the last element created. -}
+resumeChase :: (ChaseImpl h s r, SATIterator it) => Config -> Int -> SequentMap s
+            -> h -> h -> ProvInfo -> it -> (h, ProvInfo, it, Int)
+resumeChase cfg cnt seqs base delt provs iter = 
+    let prob             = Problem seqs base delt provs iter
+        (b, p, it, _, c) = runChase cfg cnt prob $ initM >> stepsM
+    in  (b, p, it, c)
 
 {-| Runs the Chase algorithm, ensuring that the initial set of constants will
   denote elements in the output instnace of 'PossibleFacts'. -}
-chaseWithInitialConstants :: (ChaseImpl h s r, SATAtom t, SATIterator it) => Config -> Int
+chaseWithInitialConstants :: (ChaseImpl h s r, SATIterator it) => Config -> Int
                           -> SequentMap s -> [Constant] 
-                          -> (h, ProvInfo, SATTheory t, it, Int)
+                          -> (h, ProvInfo, it, Int)
 chaseWithInitialConstants cfg cnt seqs consts = 
     let base             = emptyBaseWithConstants consts
         provs            = emptyProvInfoWithConstants consts
-        prob             = Problem seqs base emptyBase provs (emptySATTheory, satInitialize' cfg)
-        (b, p, pt, it, _, c) = runChase cfg cnt prob $ initM >> stepsM
-    in  (b, p, pt, it, c)
+        prob             = Problem seqs base emptyBase provs (satInitialize cfg)
+        (b, p, it, _, c) = runChase cfg cnt prob $ initM >> stepsM
+    in  (b, p, it, c)
 
 {- Runs a monadic function of type 'ChaseM h s ()' based on instances of type 
    @h@ and @s@ and @r@ that implement a 'ChaseImpl'.
@@ -119,17 +120,16 @@ chaseWithInitialConstants cfg cnt seqs consts =
   initial instances and the initial configuration.
   - An instance of 'ProvInfo' that contains the provenance information for the
   facts and the elements of the output base.
-  - An instance of 'SATTheory t' as the new instance of ground sequents.
+  - An instance of 'SATIterator' to communicate with the SAT/SMT solver.
   - Log information.
 -}
-runChase :: (ChaseImpl h s r, SATAtom t, SATIterator it) => Config -> Int -> Problem h s t it
-          -> ChaseM h s () -> (h, ProvInfo, SATTheory t, it, [String], Int)
+runChase :: (ChaseImpl h s r, SATIterator it) => Config -> Int -> Problem h s it
+          -> ChaseM h s () -> (h, ProvInfo, it, [String], Int)
 runChase cfg counter prob context = 
     let runCM       = RWS.execRWST context [] prob
         runCt       = State.runStateT runCM counter
         ((p, l), c) = State.evalState runCt cfg
-    in ( problemBase p, problemProvs p
-       , problemSATTheory p, problemSATIterator p, l, c)
+    in ( problemBase p, problemProvs p, problemSATIterator p, l, c)
 
 
 {- Initializes a run of the Chase inside a 'ChaseM' context for some 
@@ -140,18 +140,18 @@ runChase cfg counter prob context =
 initM :: ChaseImpl h s r => ChaseM h s ()
 initM = do
   cfg <- liftChaseMConfig State.get
-  Problem seqs base dlt provs (propThy, iter) <- liftChaseMState RWS.get
+  Problem seqs base dlt provs iter <- liftChaseMState RWS.get
   let (startSeqs, restSeqs) = Map.partition startSequent seqs
                               -- Separate sequents with empty body
   counter <- (liftChaseMCounter State.get)
-  let (newDlt, newProvs, counter', propThy', iter') = 
-          iterateBalance startSeqs base dlt provs counter (propThy, iter) cfg
+  let (newDlt, newProvs, counter', iter') = 
+          iterateBalance startSeqs base dlt provs counter iter cfg
                            -- Balance the sequents with empty body right here
                            -- before iterating through the remaining sequents
 
   liftChaseMCounter (State.put counter') -- Update the new counter
   liftChaseMState $ RWS.put 
-        $ Problem restSeqs base (unionBases dlt newDlt) newProvs (propThy', iter')
+        $ Problem restSeqs base (unionBases dlt newDlt) newProvs iter'
      -- Update the computation state with new base and delta base. 
      -- Also, throw away the starting sequents
 
@@ -162,7 +162,7 @@ initM = do
 stepsM :: ChaseImpl h s r => ChaseM h s ()
 stepsM = do
   cfg <- liftChaseMConfig State.get
-  Problem seqs base dlt provs (propThy, iter) <- liftChaseMState (RWS.get)
+  Problem seqs base dlt provs iter <- liftChaseMState (RWS.get)
                                          
   if nullBase dlt -- If the current delta contains nothing new
   then return ()
@@ -170,12 +170,12 @@ stepsM = do
     let seqs' = Map.filter ((flip relevant) dlt) seqs
                 -- Select sequents that are relevant to the last set of changes
     counter <- (liftChaseMCounter State.get)
-    let (newDlt, newProvs, counter', propThy', iter') = 
-            iterateBalance seqs' base dlt provs counter (propThy, iter) cfg
+    let (newDlt, newProvs, counter', iter') = 
+            iterateBalance seqs' base dlt provs counter iter cfg
         -- Process the relevant sequents
     liftChaseMCounter (State.put counter')
     liftChaseMState $ RWS.put $ Problem seqs (unionBases base dlt) 
-                                newDlt newProvs (propThy', iter')
+                                newDlt newProvs iter'
        -- Update the state and prepare for a next step
     stepsM
             
@@ -190,17 +190,20 @@ stepsM = do
    - An instance of @h@, containing the last set of changes, i.e. delta base. 
    - Provenance information for the existing base and delta.
    - The state of the 'Counter' associated to the current run of the Chase. 
-   - The ground theory in the current run of the Chase.
+   - An instance of 'SATIterator' to interact with the underlying SAT/SMT solver
+   - A 'Config' instance
    
    Output: 
    - A new base, containing the set of facts that may be deduced.
    - New provenance information that includes provenance information for the
    new set of facts as well. 
-   - A new state for the 'Counter' associated to the current run of the Chase.-}
-iterateBalance :: (ChaseImpl h s r, SATAtom t, SATIterator it) => SequentMap s -> h 
-               -> h -> ProvInfo -> Int -> (SATTheory t, it)
-               -> Config -> (h, ProvInfo, Int, SATTheory t, it)
-iterateBalance seqs base dlt provs cnt (propThy, iter) cfg = 
+   - A new state for the 'Counter' associated to the current run of the Chase.
+   - The updated iterator to interact with the SAT/SMT solver
+-}
+iterateBalance :: (ChaseImpl h s r, SATIterator it)
+               => SequentMap s -> h -> h -> ProvInfo -> Int -> it
+               -> Config -> (h, ProvInfo, Int, it)
+iterateBalance seqs base dlt provs cnt iter cfg = 
     -- trace "*********************************"
     -- trace "Base:"              
     -- traceShow (baseSize base)
@@ -209,8 +212,8 @@ iterateBalance seqs base dlt provs cnt (propThy, iter) cfg =
     -- $
     let uni = unionBases base dlt
     in  Map.foldlWithKey' 
-            (\(n, p, c, pt, it) k s -> balance k s base dlt uni n p c (pt, it) cfg) 
-            (emptyBase, provs, cnt, propThy, iter) seqs
+            (\(n, p, c, it) k s -> balance k s base dlt uni n p c it cfg) 
+            (emptyBase, provs, cnt, iter) seqs
 
 {- As a helper for iterateBalance, returns all the new information that may be
    deduced by balancing a single sequent in the current state of base and delta.
@@ -229,19 +232,20 @@ iterateBalance seqs base dlt provs cnt (propThy, iter) cfg =
    - Provenance information of type 'ProvInfo' for the facts and elements that
    have been deduced so far.
    - The state of 'Counter' for the current run of the Chase.
-   - The current ground theory in this run of the Chase.
+   - The 'SATIterator' instance
+   - A 'Config' instance
 
    Output:
    - A base of type @h@, containing the facts deduced for the input sequent and
    the facts in the base "new", which was passed as input.
    - Updated provenance information of type 'ProvInfo'.
    - New state for the Chase's 'Counter'.
-   - New ground theory after pushing new information
+   - New 'SATIterator' instance
  -}
-balance :: (ChaseImpl h s r, SATAtom t, SATIterator it) => 
-           Id -> s -> h -> h -> h -> h -> ProvInfo -> Int
-           -> (SATTheory t, it) -> Config -> (h, ProvInfo, Int, SATTheory t, it)
-balance id seq base dlt uni new provs cnt (propThy, iter) cfg = 
+balance :: (ChaseImpl h s r, SATIterator it)
+           => Id -> s -> h -> h -> h -> h -> ProvInfo -> Int
+           -> it -> Config -> (h, ProvInfo, Int, it)
+balance id seq base dlt uni new provs cnt iter cfg = 
     let res = -- traceShow "----------"
               -- traceShow (toSequent seq)
               -- traceShow base
@@ -251,4 +255,4 @@ balance id seq base dlt uni new provs cnt (propThy, iter) cfg =
               -- traceEval
               -- $
               evalPullM (pull seq base dlt) uni provs
-    in  runPushM (push seq res new) uni (id, provs) cnt (propThy, iter) cfg
+    in  runPushM (push seq res new) uni (id, provs) cnt iter cfg

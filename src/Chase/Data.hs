@@ -23,10 +23,10 @@ module Chase.Data ( PossibleFacts (..) , ChaseImpl (..)
                   , SequentMap, buildSequentMap
                   , Problem (..), buildProblem
                   , problemSequentMap, problemBase, problemDelta, problemProvs
-                  , problemSATTheory, problemSATIterator
+                  , problemSATIterator
                   , PushM, runPushM
                   , liftPushMBase, liftPushMProvs, liftPushMCounter
-                  , liftPushMSATTheory, liftPushMConfig
+                  , liftPushMSATIterator, liftPushMConfig
                   , PullM, runPullM, evalPullM, liftPullMBase, liftPullMProvs
                   , ChaseM (..), liftChaseMState, liftChaseMCounter
                   , liftChaseMConfig

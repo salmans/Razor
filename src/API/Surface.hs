@@ -19,13 +19,18 @@
   Maintainer  : Salman Saghafi <salmans@wpi.edu>, Ryan Danas <ryandanas@wpi.edu>
 -}
 
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE ImpredicativeTypes #-}
+
 module API.Surface where
+import Chase.Data (SequentMap)
 import Chase.Impl
 import API.Core
 import Common.Input (Input (..))
 import Common.Model
 import Common.Provenance
 import Common.Observation
+import Common.Data (toSequent)
 import SAT.IData
 import Syntax.GeometricUtils
 import SAT.Impl
@@ -41,7 +46,8 @@ import System.Environment
 -- Razor State --
 -----------------
 data RazorState = RazorState Config (Maybe Theory) (Maybe ChaseState) ModelSpace (Maybe ModelCoordinate)
-type ChaseState = (ChasePossibleFactsType, ProvInfo, SATTheoryType, SATIteratorType, Int)
+type ChaseState = ( ChasePossibleFactsType, ProvInfo, SATIteratorType
+                  , SequentMap ChaseSequentType, Int)
 type ModelSpace = Map.Map ModelCoordinate (Maybe ChaseState, SATIteratorType, Model)
 data ModelCoordinate = Stream ModelCoordinate | Stack Observation ModelCoordinate | Origin
   deriving (Eq, Ord)
@@ -89,9 +95,9 @@ modelLookup mspace mcoor = case mcoor of
     Nothing -> Nothing
     Just (_, sat, model) -> Just model
 
-modelNext :: Either (Config, SATTheoryType) (ModelSpace, ModelCoordinate) -> Maybe (ModelSpace, ModelCoordinate)
+modelNext :: Either SATIteratorType (ModelSpace, ModelCoordinate) -> Maybe (ModelSpace, ModelCoordinate)
 modelNext seed = case seed of
-  Left (config, t) -> case nextModel (openSAT config t) of
+  Left it -> case nextModel it of
     (Nothing, _) -> Nothing
     (Just mdl', stream') -> do
       let mcoor' = Stream Origin
@@ -107,33 +113,34 @@ modelNext seed = case seed of
         Just (mspace', mcoor')
 
 modelUp :: Config -> Theory -> ChaseState -> (Observation, [Element]) -> (ModelSpace, ModelCoordinate) -> Maybe (ChaseState, ModelSpace, ModelCoordinate)
-modelUp config theory gstar (obs, newelms) (mspace, mcoor) = do
-  let gstar'@(b',p',t',_, c') = augmentChase config theory gstar (obs, newelms)
-  let stack = openSAT config t'
-  case upModel stack of
-    (Nothing, _) -> Nothing
-    (Just mdl', stack') -> do
-      let mcoor' = Stack obs mcoor
-      let mspace' = Map.insert mcoor' (Just gstar', stack', mdl') mspace
-      Just (gstar', mspace', mcoor')
+modelUp = undefined
+-- modelUp config theory gstar (obs, newelms) (mspace, mcoor) = do
+--   let gstar'@(b',p',it',c') = augmentChase config theory gstar (obs, newelms)
+--   let stack = openSAT config it'
+--   case upModel stack of
+--     (Nothing, _) -> Nothing
+--     (Just mdl', stack') -> do
+--       let mcoor' = Stack obs mcoor
+--       let mspace' = Map.insert mcoor' (Just gstar', stack', mdl') mspace
+--       Just (gstar', mspace', mcoor')
     
 type QBlame = Either Error (Blame, Sequent)
 --
 --    
 getJustification :: ChaseState -> Model -> Formula -> QBlame
-getJustification gstar@(b,p,t,_,c) mdl fml = case getObservation mdl fml of
+getJustification gstar@(b,p,it,_,c) mdl fml = case getObservation mdl fml of
   Nothing -> Left "blame formula is not an observation"
   Just obv -> case getObservationBlame (observationProvs p) mdl obv of
     Nothing -> Left "no provenance info for blame observation"
-    Just blame -> case getBlamedSequent t blame of
+    Just blame -> case findBlameSequent blame p of
       Nothing -> Left "unable to find blamed theory sequent from provenance info"
-      Just bseq -> Right (blame, bseq)
+      Just bseq -> Right (blame, toSequent bseq)
 
 data QOrigin = QOriginLeaf Term QBlame | QOriginNode Term QBlame [QOrigin]
 --
 --
 getOrigin :: Theory -> ChaseState -> Model -> Bool -> Term -> [QOrigin]
-getOrigin thy gstar@(b,p,t,_,c) mdl isrec term = do
+getOrigin thy gstar@(b,p,it,_,c) mdl isrec term = do
   case name of
     Left err -> [QOriginLeaf term (Left err)]
     Right origins -> do
@@ -148,9 +155,9 @@ getOrigin thy gstar@(b,p,t,_,c) mdl isrec term = do
         case getElementBlames thy (elementProvs p) mdl eqelms of
           [] -> Left $ "no provenance information for element "++(show term)
           origins -> Right origins
-    blamed origin = case getBlamedSequent t origin of
+    blamed origin = case findBlameSequent origin p of
       Nothing -> Left $ "unable to find blamed theory sequent from provenance info\n"++(show origin)
-      Just bseq -> Right (origin, bseq)
+      Just bseq -> Right (origin, toSequent bseq)
 --
 -- an observation (for now) is just an atom consisting of only elements currently in the model
 getObservation :: Model -> Formula -> Maybe Observation

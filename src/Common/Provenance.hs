@@ -22,7 +22,7 @@ module Common.Provenance ( Blame (..), ObservationProvs, ProvInfo (..)
                          , ElementProvs
                          , addElementProv, getElementProv, testElementProv
                          , findElementWithProv, findObservationWithProv
-                         , findBlameSequent
+                         , addBlameSequent, findBlameSequent
                          , modifyElementProvs, modifyBlameSequentMap
                          , emptyProvInfo, emptyProvInfoWithConstants ) where
 

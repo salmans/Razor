@@ -21,6 +21,7 @@
 
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE Rank2Types #-}
+{-# LANGUAGE ImpredicativeTypes #-}
 
 module API.Core where
 
@@ -62,7 +63,6 @@ import SAT.Impl
 
 -- Tools
 import Tools.Config
-import Tools.Utils (isRealLine)
 
 ------------
 -- Config --
@@ -133,47 +133,51 @@ parseInputFile config input = parseInput input
 ---------------------
 -- In: configuration, theory
 -- Out: G*, which consists of ground facts, provenance info, and a propositional theory
-generateChase :: Config -> Theory -> (ChasePossibleFactsType, ProvInfo, SATTheoryType, SATIteratorType, Int)
+generateChase :: Config -> Theory -> ( ChasePossibleFactsType, ProvInfo
+                                     , SATIteratorType, SequentMap ChaseSequentType
+                                     , Int)
 generateChase config theory = chase config theory
 -- In: G*, new observation
 -- Out: an augmented G* with the new observation
-augmentChase :: Config -> Theory -> (ChasePossibleFactsType, ProvInfo, SATTheoryType, SATIteratorType, Int)
-             -> (Observation,[Element]) -> (ChasePossibleFactsType, ProvInfo, SATTheoryType, SATIteratorType, Int)
-augmentChase cfg thy (b, p, t, it, c) (obs@(Obs (Rel rsym terms)),newelms) = do
-  let thy' = preprocess thy
-  let seqMap = (buildSequentMap $ fromJust <$> fromSequent <$> thy') :: SequentMap ChaseSequentType
-  -- update provenance
-  let ep' = foldr (\e->insertProv e (Fn "user" [Fn rsym terms])) (elementProvs p) newelms
-  let op' = Map.insert obs (UserBlame obs) (observationProvs p)
-  let p' = ProvInfo ep' op' 
-  -- update prop theory
-  let newSeq = ObservationSequent [] [[obs]]
-  let t' = storeSequent t (UserBlame obs, newSeq)
-  -- return new GS
-  augmentBase cfg seqMap (b, p', t', it, c) obs
+augmentChase :: Config -> Theory -> (ChasePossibleFactsType, ProvInfo,  SATIteratorType, Int)
+             -> (Observation,[Element]) -> (ChasePossibleFactsType, ProvInfo, SATIteratorType, Int)
+augmentChase = undefined
+-- augmentChase cfg thy (b, p, it, c) (obs@(Obs (Rel rsym terms)),newelms) = do
+--   let thy' = preprocess thy
+--   let seqMap = (buildSequentMap $ fromJust <$> fromSequent <$> thy') :: SequentMap ChaseSequentType
+--   -- update provenance
+--   let ep' = foldr (\e->insertProv e (Fn "user" [Fn rsym terms])) (elementProvs p) newelms
+--   let op' = Map.insert obs (UserBlame obs) (observationProvs p)
+--   let p' = ProvInfo ep' op' 
+--   -- update prop theory
+--   let newSeq = ObservationSequent [] [[obs]]
+--   let it'    = satStore (UserBlame obs, newSeq) it
+--   -- return new GS
+--   augmentBase cfg seqMap (b, p', it', c) obs
   
 --
 --
 augmentBase :: Config -> SequentMap ChaseSequentType ->
-            (ChasePossibleFactsType, ProvInfo, SATTheoryType, SATIteratorType, Int) -> Observation ->
-            (ChasePossibleFactsType, ProvInfo, SATTheoryType, SATIteratorType, Int)
-augmentBase _ _ gs eqobs@(Obs (Rel "=" terms)) = gs
-augmentBase cfg seqMap (b, p, t, it, c) obs@(Obs (Rel rsym terms)) = do
-  let d = addToBase obs emptyBase
-  let seqMap' = Map.filter (not.startSequent) seqMap
-      -- The current implementation of the Chase instantiate existential
-      -- quantifiers even if they are already witnessed by an element in the
-      -- model. We don't want to regenerate new elements by processing sequents
-      -- with empty body for a second time.
-      -- FIX: How should we systematically address this issue?
-  Chase.Chase.resumeChase cfg c seqMap' b d p t
+            (ChasePossibleFactsType, ProvInfo, SATIteratorType, Int) -> Observation ->
+            (ChasePossibleFactsType, ProvInfo, SATIteratorType, Int)
+augmentBase = undefined
+-- augmentBase _ _ gs eqobs@(Obs (Rel "=" terms)) = gs
+-- augmentBase cfg seqMap (b, p, t, it, c) obs@(Obs (Rel rsym terms)) = do
+--   let d = addToBase obs emptyBase
+--   let seqMap' = Map.filter (not.startSequent) seqMap
+--       -- The current implementation of the Chase instantiate existential
+--       -- quantifiers even if they are already witnessed by an element in the
+--       -- model. We don't want to regenerate new elements by processing sequents
+--       -- with empty body for a second time.
+--       -- FIX: How should we systematically address this issue?
+--   Chase.Chase.resumeChase cfg c seqMap' b d p t
 
 --------------
 -- SAT Data --
 --------------
 -- In: a propositional theory
 -- Out: an iterator that can be used to sequentially generate models (model stream)
-openSAT :: Config -> SATTheoryType -> SATIteratorType
+openSAT :: Config -> SATIteratorType
 openSAT = satInitialize
 --
 --
@@ -193,8 +197,8 @@ upModel = satAugment
 ----------------
 --
 --
-getBlamedSequent :: SATTheoryType -> Blame -> Maybe Sequent
-getBlamedSequent satthy blame = case blameSequent satthy blame of
+getBlamedSequent :: ProvInfo -> Blame -> Maybe Sequent
+getBlamedSequent prov blame = case findBlameSequent blame prov of
   Nothing -> Nothing
   Just oseq -> Just $ toSequent oseq
 --

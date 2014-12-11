@@ -93,6 +93,11 @@ modifyBlameSequentMap f provs =
 findBlameSequent :: Blame -> ProvInfo -> Maybe ObservationSequent
 findBlameSequent blm provs = Map.lookup blm $ blameSequentMap provs
 
+{-| Adds a new entry in 'BlameSequentMap' -}
+addBlameSequent :: Blame -> ObservationSequent -> BlameSequentMap
+                -> BlameSequentMap
+addBlameSequent = Map.insert
+
 {-| Empty provenance information -}
 emptyProvInfo :: ProvInfo
 emptyProvInfo =  ProvInfo (Map.empty, Map.empty) Map.empty Map.empty

@@ -409,7 +409,7 @@ evaluateRelExp db delts exp@(Union lExp lDlt rExp rDlt heads tran) =
    NOTE: the function assumes that the expression does not contain any delta
    subexpressions (unlike 'evaluateRelExp'). -}
 insertTuples :: TablePair -> RelExp -> Database -> Int -> SkolemDepthMap
-             -> PushM Database t it Database
+             -> PushM Database it Database
 insertTuples _ TblEmpty db _ _ = return db
 insertTuples _ TblFull db  _ _ = return db
 insertTuples tblPair (Tbl ref vars heads) db _ _
@@ -545,7 +545,7 @@ insertTuples tbl (Union _ _ _ _ _ _ ) _  _ _ =
    context
 -}
 insertProjInject :: Int -> Maybe Element -> Tuple
-                 -> (Int -> PushM Database t it Element)
+                 -> (Int -> PushM Database it Element)
 insertProjInject col reuse (Tuple vs _) = 
     \i -> if   i == col
           then if   isJust reuse
@@ -575,7 +575,7 @@ insertProjInject col reuse (Tuple vs _) =
 -}
 insertProjUniqueInject :: Table -> Table -> Header -> Header
                        -> Int -> Maybe Element -> Tuple
-                       -> (Int -> PushM Database t it Element)
+                       -> (Int -> PushM Database it Element)
 insertProjUniqueInject unqInNew unqInUni unqHdr hdr col reuse tup@(Tuple vs _) =     
     let fetch       = \ftbl -> fetchUnique tup hdr unqHdr col ftbl
     in \i -> if   i == col

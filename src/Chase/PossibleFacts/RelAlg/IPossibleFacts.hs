@@ -52,6 +52,9 @@ import Common.Observation ( Observation(..), ObservationSequent
                           , buildObservationSequent)
 import Common.Provenance
 
+-- SAT
+import SAT.Data ( SATIterator, satStore )
+
 -- Chase
 import Chase.Data
 
@@ -61,9 +64,6 @@ import Chase.PossibleFacts.RelAlg.Lang
 import Chase.PossibleFacts.RelAlg.Translate 
     ( bodyRelExp, headRelExp, delta, evaluateRelExp, tupleTransformer
     , insertTuples )
-
--- SAT
-import SAT.Data (SATAtom (..))
 
 -- Tools
 import Tools.Config (Config (..))
@@ -217,8 +217,8 @@ evaluateRelSequent seq@(RelSequent bdy hds bdyDlt _ _ _ _) db dlt = do
    input 'RelSequent' in the database, inserts the data in the resulting tables
    to the database.
 -}
-insertRelSequent :: (SATAtom t) => RelSequent -> RelResultSet -> Database 
-                 -> PushM Database t it Database
+insertRelSequent :: (SATIterator it) => RelSequent -> RelResultSet -> Database 
+                 -> PushM Database it Database
 insertRelSequent seq resSet db = do
   let hds   = relSequentHead seq
   let tbls  = newResultTuples resSet
@@ -240,8 +240,8 @@ insertRelSequent seq resSet db = do
                -- Fold the deduce facts for all heads- 
                -- eventually remove references to empty tables
   (seqid, _, provs) <- liftPushMProvs State.get
-  uni           <- liftPushMBase  State.get
-  (propThy, iter) <- liftPushMSATTheory State.get
+  uni       <- liftPushMBase  State.get
+  iter      <- liftPushMSATIterator State.get
 
 
   -- MONITOR
@@ -249,9 +249,18 @@ insertRelSequent seq resSet db = do
   let propSeqs = observationalInstances seq uni result resSet provs
   -- MONITOR
 
-  let propThy' = foldr (\(sub, oseq)-> (flip storeSequent) ((TheoryBlame seqid sub), oseq)) propThy propSeqs
+  -- Compute the next iterator and the next blame info for prov in the one fold:
+  let (iter', provs') = foldr (\(sub, oseq) (it, pr) ->
+                                  let blm = TheoryBlame seqid sub
+                                      it' = satStore oseq it
+                                      pr' = modifyBlameSequentMap
+                                                (addBlameSequent blm oseq) provs
+                                  in  (it', pr'))
+                        (iter, provs) propSeqs
 
-  liftPushMSATTheory (State.put (propThy', iter))
+  liftPushMSATIterator (State.put iter')
+  liftPushMProvs $ State.modify
+                 $ \(id, vars, _) -> (id, vars, provs')
   return result
 
 filterTable :: Table -> Table

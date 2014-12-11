@@ -64,6 +64,7 @@ import SAT.Data
 
 -- Tools
 import Tools.Config ( Config (configRelaxMin) )
+import Tools.Trace
 
 -- Error Messages
 unitName = "SAT.SMT"
@@ -72,8 +73,7 @@ error_InvalidRelArity        = "invalid relation arity!"
 error_FunctionalAtomExpected = "functional atom expected!"
 error_RelationalAtomExpected = "relational atom expected!"
 
-{-|Solver Interface Types -}
-type SATTheoryType   = SMTTheory
+{-| Solver Interface Types -}
 type SATIteratorType = SMTContainer
 
 {- A name for an 'Element' in SMT solving -}
@@ -134,12 +134,6 @@ data SMTObservation = SMTFactObs SMTAtom
                     | SMTEqObs   SMTElement SMTElement
                       deriving Show
 
-{- 'SMTObservation' is an instance of 'SATAtom' -}
-instance SATAtom SMTObservation where
-    emptySATTheory = emptySMTTheory
-    storeSequent   = addToSMTTheory
-    blameSequent   = getFromSMTTheory
-
 {- Creates an 'SMTObservation' for an input 'Observation'. -}
 smtObservation :: Observation -> SMTObservation
 smtObservation (Obs (Rel "=" ts@[t1, t2])) = 
@@ -152,38 +146,12 @@ smtObservation (Obs atm@(FnRel f ts))      =
     let e = fromJust $ termToElement (last ts)
     in  SMTFnObs (smtTerm atm) (smtElement e)
 
-
-{- SMTObsSequent is a 'SATSequent' of SMTObservation. -}
-type SMTSequent = SATSequent SMTObservation
-
-{-| A theory of sequents in SMT solving is a an instance of 'SATTheory' family:
-  this type is essentially a wrapper around a computation context of type SMT.  
- -}
-data instance SATTheory SMTObservation =
-     SMTTheory (SMTM ()) (Map.Map Blame ObservationSequent) 
-
-{- A convenient type for working with SMT theories -}
-type SMTTheory = SATTheory SMTObservation
-
-{- Empty 'SMTTheory' -}
-emptySMTTheory :: SMTTheory
-emptySMTTheory =  SMTTheory (return ()) Map.empty
-                 -- The computation context is initialized with an empty 
-                 -- instance of SMTContainer.
-
 {- Converts an 'ObservationSequent' to 'SMTObsSequent' and adds it to an 
-   existing SMTTheory -}
-addToSMTTheory :: SMTTheory -> (Blame, ObservationSequent) -> SMTTheory
-addToSMTTheory (SMTTheory context blamemap) (blame, seq) = 
-    SMTTheory (do context
-                  addObservationSequent seq) (Map.insert blame seq blamemap)
-
-addToSMTTheory' :: ObservationSequent -> SMTContainer -> SMTContainer
-addToSMTTheory' seq = unsafePerformIO .
-                      State.execStateT (perform (addObservationSequent seq))
-
-getFromSMTTheory :: SMTTheory -> Blame -> Maybe ObservationSequent
-getFromSMTTheory (SMTTheory context blamemap) blame = Map.lookup blame blamemap
+   existing iterator as an extra constraint. -}
+addToSMTContainer :: ObservationSequent -> SMTContainer -> SMTContainer
+addToSMTContainer seq =
+                  unsafePerformIO .
+                  State.execStateT (perform (addObservationSequent seq))
 
 {- ResKind determines the type of a value in a SatResult structure. -}
 data ResKind  = RKBool | RKInteger
@@ -716,10 +684,10 @@ termValue fn term unintFunc sParams = do
 --------------------------------------------------------------------------------
 {- SMTContainer acts as a SATIterator instance. -}
 instance SATIterator SMTContainer where
-    satInitialize' = \cfg -> emptySMTContainer {
+    satInitialize = \cfg -> emptySMTContainer {
                               containerRelaxMin = configRelaxMin cfg
                               }
-    satStore'     = addToSMTTheory'
+    satStore      = addToSMTContainer
     satSolve cont = let (res, cont')  = minimumResult cont
                     in  (translateSolution res, cont')
     satAugment cont  = let (res', cont') = minimumResult (addResultToContext cont)
@@ -729,13 +697,6 @@ instance SATIterator SMTContainer where
     satPush       = pushToSolver
     satPop        = popFromSolver
 
-{- Defining a SATSolver instance that does SMT solving. The 'SMTAtom' type of 
-   this implementation is SMTObservation and the type of SMT solving iterator is 
-   SMTContainer. -}
-instance SATSolver SMTObservation SMTContainer where
-    satInitialize cfg (SMTTheory context blamemap) =
-      let cntr = emptySMTContainer {containerRelaxMin = configRelaxMin cfg}
-      in  unsafePerformIO $ State.execStateT (perform context) cntr
 --
 --
 addResultToContext :: SMTContainer -> SMTContainer

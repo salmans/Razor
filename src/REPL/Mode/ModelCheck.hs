@@ -70,7 +70,7 @@ enterModelCheck mode state@(RazorState config theory gstar mspace mcoor) = case 
       Left err -> return $ Left err
       Right (thy, chasestate) -> firstModel thy chasestate
   where
-    firstModel theory chasestate@(b,p,t,it,c) = case modelNext $ Left (config, t) of
+    firstModel theory chasestate@(b,p,it,_,c) = case modelNext $ Left it of
       Nothing -> return $ Left $ "No models available!"
       Just (mspace', mcoor') -> return $ Right $ (theory, chasestate, mspace', mcoor')
 

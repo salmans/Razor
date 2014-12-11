@@ -19,9 +19,7 @@
   Maintainer  : Salman Saghafi <salmans@wpi.edu>, Ryan Danas <ryandanas@wpi.edu>
 -}
 
-module SAT.Data ( SATAtom (..), SATSequent(..), SATTheory (..)
-                , SATIterator (..), SATSolver (..)
-                ) where
+module SAT.Data ( SATIterator (..) ) where
 
 
 import SAT.IData
