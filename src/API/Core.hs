@@ -206,16 +206,15 @@ getBlamedSequent prov blame = case findBlameSequent blame prov of
 getElementBlames :: Theory -> ElementProvs -> Model -> [Element] -> [(Blame, [Element])]
 getElementBlames thy prov mdl eqelms = do
   let elm = head eqelms
-  case catMaybes $ map (getSkolemTree prov mdl) eqelms of
-    [] -> []
-    trees -> do
-      tree <- trees
-      case tree of
-        Right blame -> return (blame, [])
-        Left skolemtree@(e, f, r) -> do
-          let irules = map (\(r', r)->((fromMaybe 0 (elemIndex r' (preprocess thy)))+1, r', r)) $ zip (preprocess thy) thy
-          let blames = catMaybes $ map (\rule->getElementBlame rule mdl skolemtree) irules
-          return ((head blames), r)
+  eqelm <- eqelms
+  case getSkolemTree prov mdl eqelm of
+    Nothing -> fail "no skolemtree"
+    Just tree -> case tree of
+      Right blame -> return (blame, [])
+      Left skolemtree@(e, f, r) -> do
+        let irules = map (\(r', r)->((fromMaybe 0 (elemIndex r' (preprocess thy)))+1, r', r)) $ zip (preprocess thy) thy
+        let blames = catMaybes $ map (\rule->getElementBlame rule mdl skolemtree) irules
+        return ((head blames), r)
 --
 --
 getElementBlame :: (Id, Sequent, Sequent) -> Model -> (Element, FnSym, [Element]) -> Maybe Blame
@@ -306,3 +305,28 @@ formulaElements (Exists _ x f) = (formulaElements f)
 atomElements :: Atom -> [Element]
 atomElements (Rel   _ args)   = catMaybes $ termToElement <$> args
 atomElements (FnRel _ args)   = catMaybes $ termToElement <$> args
+--
+--
+sequentRename :: [Element] -> Sequent -> Sequent
+sequentRename eqelms (Sequent bd hd) = Sequent (formulaRename bd eqelms) (formulaRename hd eqelms)
+--
+--
+formulaRename :: Formula -> [Element] -> Formula
+formulaRename (And f1 f2) eqelms    = And (formulaRename f1 eqelms) (formulaRename f2 eqelms)
+formulaRename (Or  f1 f2) eqelms   = Or (formulaRename f1 eqelms) (formulaRename f2 eqelms)
+formulaRename (Atm a) eqelms       = Atm $ atomRename a eqelms
+formulaRename (Exists c x f) eqelms = Exists c x (formulaRename f eqelms) 
+formulaRename fml _ = fml
+--
+--
+atomRename :: Atom -> [Element] -> Atom
+atomRename (Rel   sym args) eqelms  = Rel sym $ termRename eqelms <$> args 
+atomRename (FnRel sym args) eqelms  = FnRel sym $ termRename eqelms <$> args
+--
+--
+termRename :: [Element] -> Term -> Term
+termRename eqelms term@(Elem e) = do
+  if elem e eqelms
+    then (Elem (head eqelms))
+    else term
+termRename _ term = term

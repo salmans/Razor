@@ -31,6 +31,7 @@ import Common.Model
 import Common.Provenance
 import Common.Observation
 import Common.Data (toSequent)
+import Control.Applicative hiding ((<|>), many)
 import SAT.IData
 import Syntax.GeometricUtils
 import SAT.Impl
@@ -134,7 +135,10 @@ getJustification gstar@(b,p,it,_,c) mdl fml = case getObservation mdl fml of
     Nothing -> Left "no provenance info for blame observation"
     Just blame -> case findBlameSequent blame p of
       Nothing -> Left "unable to find blamed theory sequent from provenance info"
-      Just bseq -> Right (blame, toSequent bseq)
+      Just bseq -> do
+        let originalelms = formulaElements fml
+        let eqelmss = map (getEqualElements mdl) (map Elem originalelms)
+        Right (blame, foldr sequentRename (toSequent bseq) eqelmss)
 
 data QOrigin = QOriginLeaf Term QBlame | QOriginNode Term QBlame [QOrigin]
 --
@@ -143,11 +147,11 @@ getOrigin :: Theory -> ChaseState -> Model -> Bool -> Term -> [QOrigin]
 getOrigin thy gstar@(b,p,it,_,c) mdl isrec term = do
   case name of
     Left err -> [QOriginLeaf term (Left err)]
-    Right origins -> do
+    Right (eqelms, origins) -> do
       (origin, nextelms) <- origins
       case isrec of
-        False -> return $ QOriginLeaf term (blamed origin)
-        True -> case blamed origin of
+        False -> return $ QOriginLeaf term (blamed origin eqelms)
+        True -> case blamed origin eqelms of
           blame@(Right (_, (Sequent bd hd))) -> do
             let freeelms = formulaElements bd
             let childelms = nub (nextelms++freeelms)
@@ -159,10 +163,10 @@ getOrigin thy gstar@(b,p,it,_,c) mdl isrec term = do
       eqelms -> do
         case getElementBlames thy (elementProvs p) mdl eqelms of
           [] -> Left $ "no provenance information for element "++(show term)
-          origins -> Right origins
-    blamed origin = case findBlameSequent origin p of
+          origins -> Right (eqelms, origins)
+    blamed origin eqelms = case findBlameSequent origin p of
       Nothing -> Left $ "unable to find blamed theory sequent from provenance info\n"++(show origin)
-      Just bseq -> Right (origin, toSequent bseq)
+      Just bseq -> Right (origin, sequentRename eqelms (toSequent bseq))
 --
 -- an observation (for now) is just an atom consisting of only elements currently in the model
 getObservation :: Model -> Formula -> Maybe Observation
