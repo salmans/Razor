@@ -52,18 +52,20 @@ import Tools.Config (Config)
   given iterator.
   [@satSolve@] returns a next 'Model' (if exists) for a given iterator and
   a new iterator for fetching the next model.
-  [@satAugment@] 
-  [@satClose@] closes the connection to the SMT solver.
+  [@satAugment@]
+  [@satBacktrack@]
   [@satPush@] makes a call to the @push@ function of the underlying SMT solver
   or fakes a push action if the connection to the solver is not incremental.
   [@satPop@] makes a call to the @pop@ function of the underlying SMT solver
   or fakes a pop action if the connection to the solver is not incremental.
+  [@satClose@] closes the connection to the SMT solver.
 -}
 class SATIterator i where
     satInitialize :: Config -> i
     satStore      :: ObservationSequent -> i -> i
     satSolve      :: i -> (Maybe Model, i)
     satAugment    :: i -> (Maybe Model, i)
-    satClose      :: i -> ()
+    satBacktrack  :: i -> (Maybe Model, i)
     satPush       :: i -> i
     satPop        :: i -> i
+    satClose      :: i -> ()
