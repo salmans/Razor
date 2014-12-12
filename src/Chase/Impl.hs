@@ -24,7 +24,7 @@
 {-# LANGUAGE ImpredicativeTypes #-}
 
 module Chase.Impl ( ChaseSequentType, ChasePossibleFactsType 
-                  , chase ) where
+                  , chase, resume) where
 
 
 -- Control
@@ -68,10 +68,7 @@ chase cfg thy = let thy'   = preprocess thy
                     (b, p, it, c) = Chase.Chase.chase cfg seqMap
                 in  (b, p, it, c)
 
-resume :: Config -> Int -> Theory -> ChasePossibleFactsType
+resume :: Config -> Int -> SequentMap ChaseSequentType -> ChasePossibleFactsType
        -> ChasePossibleFactsType -> ProvInfo -> SATIteratorType
        -> (ChasePossibleFactsType, ProvInfo, SATIteratorType, Int)
-resume cfg cnt thy b b' p it = let  thy' = preprocess thy
-                                    seqMap = buildSequentMap $ fromJust <$> fromSequent <$> thy' 
-                                            :: SequentMap ChaseSequentType
-          in Chase.Chase.resumeChase cfg cnt seqMap b b' p it
+resume = Chase.Chase.resumeChase

@@ -107,16 +107,18 @@ modelNext seed mspace = case seed of
         Just (mspace', mcoor')
 
 modelUp :: Config -> Theory -> (Observation, [Element]) -> ModelSpace -> ModelCoordinate -> Maybe (ModelSpace, ModelCoordinate)
-modelUp = undefined
--- modelUp config theory gstar (obs, newelms) (mspace, mcoor) = do
---   let gstar'@(b',p',it',c') = augmentChase config theory gstar (obs, newelms)
---   let stack = openSAT config it'
---   case upModel stack of
---     (Nothing, _) -> Nothing
---     (Just mdl', stack') -> do
---       let mcoor' = Stack obs mcoor
---       let mspace' = Map.insert mcoor' (Just gstar', stack', mdl') mspace
---       Just (gstar', mspace', mcoor')
+modelUp config theory (obs, newelms) mspace mcoor = case modelspaceLookup mspace mcoor of
+  Nothing -> Nothing
+  Just (chasestate, _) -> do
+    -- !!! issue #45: augmentChase may be inproperly updating the iterator
+    let chasestate'@(b,p,stack,c) = augmentChase config theory chasestate (obs, newelms)
+    case upModel stack of
+      -- !!! issue #45: upModel, which is satAugment, is not returning a model
+      (Nothing, _) -> Nothing -- !!! issue #45: aug R(e^100); always gets here not matter what the augment is
+      (Just mdl', stack') -> do
+        let mcoor' = Stream mcoor
+        let mspace' = Map.insert mcoor' ((b, p, stack', c), mdl') mspace
+        Just (mspace', mcoor')
     
 type QBlame = Either Error (Blame, Sequent)
 --
