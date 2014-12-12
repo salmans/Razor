@@ -292,3 +292,17 @@ getSkolemTree prov mdl elm = case (getElementProv elm prov) of
     Just tree -> case tree of
       Left (skolemhead, skolemrest) -> Just $ Left (elm, skolemhead, (concatMap (\t->(maybeToList (getSkolemElement prov t))) skolemrest))
       Right obs -> Just $ Right (UserBlame obs)
+--
+--
+formulaElements :: Formula -> [Element]
+formulaElements Tru            = []
+formulaElements Fls            = []
+formulaElements (And f1 f2)    = (formulaElements f1) `union` (formulaElements f2)
+formulaElements (Or  f1 f2)    = (formulaElements f1) `union` (formulaElements f2)
+formulaElements (Atm a)        = atomElements a
+formulaElements (Exists _ x f) = (formulaElements f) 
+--
+--
+atomElements :: Atom -> [Element]
+atomElements (Rel   _ args)   = catMaybes $ termToElement <$> args
+atomElements (FnRel _ args)   = catMaybes $ termToElement <$> args
