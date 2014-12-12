@@ -46,79 +46,52 @@ instance Mode ExploreMode where
   modeTag   = exploreTag
 
 data ExploreMode = ExploreM
-type ExploreIn = (Config, Theory, ChaseState, ModelSpace, ModelCoordinate)
-type ExploreOut = (Theory, ChaseState, ModelSpace, ModelCoordinate)
+type ExploreIn = (Config, Theory, ModelSpace, ModelCoordinate)
+type ExploreOut = (Theory, ModelSpace, ModelCoordinate)
 
-data ExploreCommand = Current | Next | Prev | Push Formula | Pop
+data ExploreCommand = Current | Next | Push Formula | Pop
 
 --------------------
 -- Mode Functions --
 --------------------
 exploreRun :: ExploreMode -> ExploreIn -> String -> IO(Either Error ExploreOut)
-exploreRun mode state@(config, theory, gstar, mspace, mcoor) command = case parseExploreCommand command of
+exploreRun mode state@(config, theory, mspace, mcoor) command = case parseExploreCommand command of
   Left err -> return $ Left err
   Right cmd -> case cmd of
     Current -> do
       prettyModel $ modelLookup mspace (Just mcoor)
       prettyModelCoordinate mcoor
-      return $ Right $ (theory, gstar, mspace, mcoor)
-    Next -> case modelspaceLookup mspace (Stream mcoor) of
-      Just (_, _, model) -> do
-        prettyModel $ Just model
-        return $ Right $ (theory, gstar, mspace, (Stream mcoor))
-      Nothing -> case modelspaceLookup mspace mcoor of 
-        Nothing -> return $ Left "Current modelspace coordinate does not exist?!"
-        Just _ -> case modelNext (Right (mspace, mcoor)) of
-          Nothing -> return $ Left "No more minimal models in the stream!"
-          Just (mspace', mcoor') -> do
-            prettyModel $ modelLookup mspace' (Just mcoor')
-            return $ Right $ (theory, gstar, mspace', mcoor')
-    Prev -> case mcoor of
-      Stream mcoor' -> case modelspaceLookup mspace mcoor' of
-        Just (_, _, model) -> do
-          prettyModel $ Just model
-          return $ Right $ (theory, gstar, mspace, mcoor')
-        Nothing -> return $ Left "No exploration to undo!"
-      _ -> return $ Left "Last exploration in history was not 'next'!"
+      return $ Right $ (theory, mspace, mcoor)
+    Next -> case modelNext (Right mcoor) mspace of
+      Nothing -> return $ Left "No more minimal models in the stream!"
+      Just (mspace', mcoor') -> do
+        prettyModel $ modelLookup mspace' (Just mcoor')
+        return $ Right $ (theory, mspace', mcoor')
     Push fml -> case modelspaceLookup mspace mcoor of
       Nothing -> return $ Left "current model coordinate does not exist"
-      Just (_, _, model) -> case getAugmentation model fml of
+      Just (_, model) -> case getAugmentation model fml of
         Nothing -> return $ Left $ "Given formula is not in the form of an augmentation!"
-        Just (obs,newelms) -> case modelspaceLookup mspace (Stack obs mcoor) of
-          Just (_, _, model) -> do
-            prettyModel $ Just model
-            return $ Right $ (theory, gstar, mspace, (Stack obs mcoor))
-          Nothing -> case modelUp config theory gstar (obs,newelms) (mspace, mcoor) of
-            Nothing -> return $ Left "No models exist from adding the given augmentation!"
-            Just (gstar', mspace', mcoor') -> do
-                prettyModel $ modelLookup mspace' (Just mcoor')
-                return $ Right $ (theory, gstar', mspace', mcoor')
-    Pop -> case mcoor of
-      Stack obs mcoor' -> case modelspaceLookup mspace mcoor of
-        Nothing -> return $ Left "current model coordinate does not exist"
-        Just (gs', _, _) -> case gs' of
-          Nothing -> return $ Left "unable to undo augmentation; missing chasestate before augmentation was applied"
-          Just gstar' -> case modelspaceLookup mspace mcoor' of
-            Nothing -> return $ Left "No exploration to undo!"
-            Just (_,_,model) -> do
-              prettyModel $ Just model
-              return $ Right $ (theory, gstar', mspace, mcoor')
-      _ -> return $ Left "Last exploration in history was not 'aug'!"
+        Just (obs,newelms) -> case modelUp config theory (obs,newelms) mspace mcoor of
+          Nothing -> return $ Left "No models exist from adding the given augmentation!"
+          Just (mspace', mcoor') -> do
+            prettyModel $ modelLookup mspace' (Just mcoor')
+            return $ Right $ (theory, mspace', mcoor')
+    Pop -> undefined
             
 ------------------------
 -- RazorState Related --
 ------------------------
 updateExplore :: ExploreMode -> ExploreOut -> RazorState -> (RazorState, ExploreIn)
-updateExplore mode (theory', gstar', mspace', mcoor') state@(RazorState config theory gstar mspace mcoor) = (RazorState config theory (Just gstar') mspace' (Just mcoor'), (config, theory', gstar', mspace', mcoor'))
+updateExplore mode (theory', mspace', mcoor') state@(RazorState config theory mspace mcoor) = (RazorState config theory mspace' (Just mcoor'), (config, theory', mspace', mcoor'))
 
 enterExplore :: ExploreMode -> RazorState -> IO(Either Error ExploreOut)
-enterExplore mode state@(RazorState config theory gstar mspace mcoor) = case (theory, gstar, mcoor) of
-  (Just theory', Just gstar', Just mcoor') -> case Map.lookup mcoor' mspace of
+enterExplore mode state@(RazorState config theory mspace mcoor) = case (theory, mcoor) of
+  (Just theory', Just mcoor') -> case Map.lookup mcoor' mspace of
     Nothing -> return $ Left "Modelspace not initialized by another mode!"
-    Just (_, _, model') -> do
+    Just (chasestate, model') -> do
       prettyModel $ Just model'
       prettyModelCoordinate mcoor'
-      return $ Right $ (theory', gstar', mspace, mcoor')
+      return $ Right (theory', mspace, mcoor')
   _ -> return $ Left "Modelspace not initialized by another mode!"
 
 -------------
@@ -160,16 +133,13 @@ parseExploreCommand cmd =
 		Right val -> Right $ val
 
 pCommand :: Parser ExploreCommand
-pCommand = pCurrent <|> pNext <|> pPrev <|> pPush <|> pPop
+pCommand = pCurrent <|> pNext <|> pPush <|> pPop
 
 pCurrent :: Parser ExploreCommand
 pCurrent = symbol "current" >> return Current
 
 pNext :: Parser ExploreCommand
 pNext = symbol "next" >> return Next
-
-pPrev :: Parser ExploreCommand
-pPrev = symbol "prev" >> return Prev
 
 pPush :: Parser ExploreCommand
 pPush = symbol "aug" >> Push <$> xpFactor

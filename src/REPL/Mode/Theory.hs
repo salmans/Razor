@@ -44,8 +44,8 @@ instance Mode TheoryMode where
   modeTag   = theoryTag
 
 data TheoryMode = TheoryM
-type TheoryIn = (Config, Maybe Theory, Maybe ChaseState, ModelSpace, Maybe ModelCoordinate)
-type TheoryOut = (Config, Maybe Theory, Maybe ChaseState, ModelSpace, Maybe ModelCoordinate)
+type TheoryIn = (Config, Maybe Theory, ModelSpace, Maybe ModelCoordinate)
+type TheoryOut = (Config, Maybe Theory, ModelSpace, Maybe ModelCoordinate)
 
 data TheoryCommand = Debug | Relax | DefaultDepth Int | Load TheoryFile 
 type TheoryFile = String
@@ -54,37 +54,38 @@ type TheoryFile = String
 -- Mode Functions --
 --------------------
 theoryRun :: TheoryMode -> TheoryIn -> String -> IO(Either Error TheoryOut)
-theoryRun mode (config, thy, gstar, mspace, mcoor) command = case parseTheoryCommand command of
+theoryRun mode (config, thy, mspace, mcoor) command = case parseTheoryCommand command of
   Left err -> return $ Left err
   Right cmd -> case cmd of
     Debug -> do
       let debug' = not (configDebug config)
       prettyPrint 0 foutput $ "Debug mode is now "++(show debug')++"\n"
-      return $ Right $ (config {configDebug = debug'}, thy, gstar, mspace, mcoor)
+      return $ Right $ (config {configDebug = debug'}, thy, mspace, mcoor)
     Relax -> do
       let relax' = not (configRelaxMin config)
       prettyPrint 0 foutput $ "Relaxation of minimality constraint is now "++(show relax')++"\n"
-      return $ Right $ (config {configRelaxMin = relax'}, thy, gstar, mspace, mcoor)
+      return $ Right $ (config {configRelaxMin = relax'}, thy, mspace, mcoor)
     DefaultDepth i -> do
       prettyPrint 0 foutput $ "Default skolem depth is now "++(show i)++"\n"
-      return $ Right $ (config {configDefaultSkolemDepth = i}, thy, gstar, mspace, mcoor)
+      return $ Right $ (config {configDefaultSkolemDepth = i}, thy, mspace, mcoor)
     Load file -> do
+      prettyPrint 0 foutput $ "Loading Theory...\n"
       load <- loadTheory config {configInput = Just file}
       case load of
-        Right (thy', gs') -> do
+        Right (cfg', thy') -> do
           prettyTheory (Just thy')
           prettyPrint 0 foutput $ "Geometric theory loaded; ready to find models\n"
-          return $ Right $ (config, Just thy', Just gs', Map.empty, Nothing)
+          return $ Right $ (cfg', Just thy', Map.empty, Nothing)
         Left err -> return $ Left err
 
 ------------------------
 -- RazorState Related --
 ------------------------
 updateTheory :: TheoryMode -> TheoryOut -> RazorState -> (RazorState, TheoryIn)
-updateTheory mode (config', theory', gstar', mspace', mcoor') state@(RazorState config theory gstar mspace mcoor) = (RazorState config' theory' gstar' mspace' mcoor', (config', theory', gstar', mspace', mcoor'))
+updateTheory mode (config', theory', mspace', mcoor') state@(RazorState config theory mspace mcoor) = (RazorState config' theory' mspace' mcoor', (config', theory', mspace', mcoor'))
 
 enterTheory :: TheoryMode -> RazorState -> IO(Either Error (TheoryOut))
-enterTheory mode state@(RazorState config theory gstar mspace mcoor) = return $ Right $ (config, theory, gstar, mspace, mcoor)
+enterTheory mode state@(RazorState config theory mspace mcoor) = return $ Right $ (config, theory, mspace, mcoor)
 
 -----------------------
 -- Command Functions --

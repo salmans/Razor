@@ -69,7 +69,7 @@ main = do
   displayExit
 
 loop :: (LoopMode m i o) => RazorState -> m -> i -> InputT IO(RazorState)
-loop state@(RazorState config theory _ mspace mcoor) mode stin = do
+loop state@(RazorState config theory mspace mcoor) mode stin = do
   -- get input
   minput <- getInputLine $ modeTag mode
   -- parse input into a command and act depending on the case

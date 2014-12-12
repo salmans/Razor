@@ -61,15 +61,17 @@ import Tools.Trace
 chase :: Config -> Theory -> ( ChasePossibleFactsType
                              , ProvInfo
                              , SATIteratorType
-                             , SequentMap ChaseSequentType
                              , Int )
 chase cfg thy = let thy'   = preprocess thy
                     seqMap = buildSequentMap $ fromJust <$> fromSequent <$> thy' 
                            :: SequentMap ChaseSequentType
                     (b, p, it, c) = Chase.Chase.chase cfg seqMap
-                in  (b, p, it, seqMap, c)
+                in  (b, p, it, c)
 
-resume :: Config -> Int -> SequentMap ChaseSequentType -> ChasePossibleFactsType
+resume :: Config -> Int -> Theory -> ChasePossibleFactsType
        -> ChasePossibleFactsType -> ProvInfo -> SATIteratorType
        -> (ChasePossibleFactsType, ProvInfo, SATIteratorType, Int)
-resume  = Chase.Chase.resumeChase
+resume cfg cnt thy b b' p it = let  thy' = preprocess thy
+                                    seqMap = buildSequentMap $ fromJust <$> fromSequent <$> thy' 
+                                            :: SequentMap ChaseSequentType
+          in Chase.Chase.resumeChase cfg cnt seqMap b b' p it

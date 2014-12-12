@@ -134,8 +134,7 @@ parseInputFile config input = parseInput input
 -- In: configuration, theory
 -- Out: G*, which consists of ground facts, provenance info, and a propositional theory
 generateChase :: Config -> Theory -> ( ChasePossibleFactsType, ProvInfo
-                                     , SATIteratorType, SequentMap ChaseSequentType
-                                     , Int)
+                                     , SATIteratorType, Int)
 generateChase config theory = chase config theory
 -- In: G*, new observation
 -- Out: an augmented G* with the new observation

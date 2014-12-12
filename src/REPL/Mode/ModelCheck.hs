@@ -47,7 +47,7 @@ instance Mode ModelCheckMode where
 
 data ModelCheckMode = ModelCheckM
 type ModelCheckIn = ()
-type ModelCheckOut = (Theory, ChaseState, ModelSpace, ModelCoordinate)
+type ModelCheckOut = (Config, Theory, ModelSpace, ModelCoordinate)
 
 --------------------
 -- Mode Functions --
@@ -59,20 +59,22 @@ modelRun mode _ command = return $ Left "no commands"
 -- RazorState Related --
 ------------------------
 updateModelCheck :: ModelCheckMode -> ModelCheckOut -> RazorState -> (RazorState, ModelCheckIn)
-updateModelCheck mode (theory', gstar', mspace', mcoor') state@(RazorState config theory gstar mspace mcoor) = (RazorState config (Just theory') (Just gstar') mspace' (Just mcoor'), ())
+updateModelCheck mode (config', theory', mspace', mcoor') state@(RazorState config theory mspace mcoor) = (RazorState config' (Just theory') mspace' (Just mcoor'), ())
 
 enterModelCheck :: ModelCheckMode -> RazorState -> IO(Either Error ModelCheckOut)
-enterModelCheck mode state@(RazorState config theory gstar mspace mcoor) = case (theory, gstar) of
-  (Just thy, Just chasestate) -> firstModel thy chasestate
+enterModelCheck mode state@(RazorState config theory mspace mcoor) = case theory of
+  Just thy -> firstModel config thy
   _ -> do
     load <- loadTheory config
     case load of
       Left err -> return $ Left err
-      Right (thy, chasestate) -> firstModel thy chasestate
+      Right (cfg, thy) -> firstModel cfg thy
   where
-    firstModel theory chasestate@(b,p,it,_,c) = case modelNext $ Left it of
-      Nothing -> return $ Left $ "No models available!"
-      Just (mspace', mcoor') -> return $ Right $ (theory, chasestate, mspace', mcoor')
+    firstModel config theory = do
+      let chasestate = chaseTheory config theory
+      case modelNext (Left chasestate) mspace of
+        Nothing -> return $ Left $ "No models available!"
+        Just (mspace', mcoor') -> return $ Right $ (config, theory, mspace', mcoor')
 
 -----------------------
 -- Command Functions --

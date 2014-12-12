@@ -18,10 +18,6 @@
   interacting with the core API
   Maintainer  : Salman Saghafi <salmans@wpi.edu>, Ryan Danas <ryandanas@wpi.edu>
 -}
-
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE ImpredicativeTypes #-}
-
 module API.Surface where
 import Chase.Data (SequentMap)
 import Chase.Impl
@@ -46,10 +42,9 @@ import System.Environment
 -----------------
 -- Razor State --
 -----------------
-data RazorState = RazorState Config (Maybe Theory) (Maybe ChaseState) ModelSpace (Maybe ModelCoordinate)
-type ChaseState = ( ChasePossibleFactsType, ProvInfo, SATIteratorType
-                  , SequentMap ChaseSequentType, Int)
-type ModelSpace = Map.Map ModelCoordinate (Maybe ChaseState, SATIteratorType, Model)
+data RazorState = RazorState Config (Maybe Theory) ModelSpace (Maybe ModelCoordinate)
+type ChaseState = (ChasePossibleFactsType, ProvInfo, SATIteratorType, Int)
+type ModelSpace = Map.Map ModelCoordinate (ChaseState, Model)
 data ModelCoordinate = Stream ModelCoordinate | Stack Observation ModelCoordinate | Origin
   deriving (Eq, Ord)
 type Error = String
@@ -58,19 +53,19 @@ setupState :: IO RazorState
 setupState = do 
   args <- getArgs
   config <- parseConfig args
-  return $ RazorState config Nothing Nothing Map.empty Nothing
+  return $ RazorState config Nothing Map.empty Nothing
 
 teardownState :: RazorState -> ()
-teardownState state@(RazorState config theory gstar mspace mcoor) = case mcoor of
+teardownState state@(RazorState config theory mspace mcoor) = case mcoor of
   Nothing -> ()
   Just index -> case Map.lookup index mspace of
     Nothing -> ()
-    Just (_, opensat, _) -> closeSAT opensat
+    Just ((b, p, opensat, c), _) -> closeSAT opensat
 
 ----------------------------
 -- Surface API Operations --
 ----------------------------
-loadTheory :: Config -> IO(Either Error (Theory, ChaseState))
+loadTheory :: Config -> IO(Either Error (Config, Theory))
 loadTheory config = case configInput config of
   Nothing -> return $ Left $ "No theory file specified!"
   Just file -> do
@@ -81,39 +76,37 @@ loadTheory config = case configInput config of
         case parseInputFile config raw of
           Left err -> return $ Left $ "Unable to parse file! "++err
           Right (Input thy dps) -> do
-            let gs = generateChase config {configSkolemDepth = dps} thy
-            return $ Right (thy, gs)
+            let config' = config {configSkolemDepth = dps}
+            return $ Right (config', thy)
 
-modelspaceLookup :: ModelSpace -> ModelCoordinate -> Maybe (Maybe ChaseState, SATIteratorType, Model)
-modelspaceLookup mspace mcoor = case Map.lookup mcoor mspace of
-  Nothing -> Nothing
-  Just (gstar, sat, model) -> Just (gstar, sat, model)
+chaseTheory :: Config -> Theory -> ChaseState
+chaseTheory config theory = generateChase config theory
+
+modelspaceLookup :: ModelSpace -> ModelCoordinate -> Maybe (ChaseState, Model)
+modelspaceLookup mspace mcoor = Map.lookup mcoor mspace
 
 modelLookup :: ModelSpace -> Maybe ModelCoordinate -> Maybe Model
 modelLookup mspace mcoor = case mcoor of
   Nothing -> Nothing
   Just mcoor' -> case Map.lookup mcoor' mspace of
     Nothing -> Nothing
-    Just (_, sat, model) -> Just model
+    Just (_, model) -> Just model
 
-modelNext :: Either SATIteratorType (ModelSpace, ModelCoordinate) -> Maybe (ModelSpace, ModelCoordinate)
-modelNext seed = case seed of
-  Left it -> case nextModel it of
-    (Nothing, _) -> Nothing
-    (Just mdl', stream') -> do
-      let mcoor' = Stream Origin
-      let mspace' = Map.insert mcoor' (Nothing, stream', mdl') Map.empty
-      Just (mspace', mcoor')
-  Right (mspace, mcoor) -> case Map.lookup mcoor mspace of
+modelNext :: Either ChaseState ModelCoordinate -> ModelSpace -> Maybe (ModelSpace, ModelCoordinate)
+modelNext seed mspace = case seed of
+  Left chasestate -> nextModelspace chasestate Origin mspace
+  Right mcoor -> case modelspaceLookup mspace mcoor of
     Nothing -> Nothing
-    Just (_, stream, mdl) -> case nextModel stream of
+    Just (chasestate, _) -> nextModelspace chasestate mcoor mspace
+  where
+    nextModelspace (b, p, stream, c) mcoor mspace = case nextModel stream of
       (Nothing, _) -> Nothing
       (Just mdl', stream') -> do
         let mcoor' = Stream mcoor
-        let mspace' = Map.insert mcoor' (Nothing, stream', mdl') mspace
+        let mspace' = Map.insert mcoor' ((b, p, stream', c), mdl') mspace
         Just (mspace', mcoor')
 
-modelUp :: Config -> Theory -> ChaseState -> (Observation, [Element]) -> (ModelSpace, ModelCoordinate) -> Maybe (ChaseState, ModelSpace, ModelCoordinate)
+modelUp :: Config -> Theory -> (Observation, [Element]) -> ModelSpace -> ModelCoordinate -> Maybe (ModelSpace, ModelCoordinate)
 modelUp = undefined
 -- modelUp config theory gstar (obs, newelms) (mspace, mcoor) = do
 --   let gstar'@(b',p',it',c') = augmentChase config theory gstar (obs, newelms)
@@ -129,7 +122,7 @@ type QBlame = Either Error (Blame, Sequent)
 --
 --    
 getJustification :: ChaseState -> Model -> Formula -> QBlame
-getJustification gstar@(b,p,it,_,c) mdl fml = case getObservation mdl fml of
+getJustification gstar@(b,p,it,c) mdl fml = case getObservation mdl fml of
   Nothing -> Left "blame formula is not an observation"
   Just obv -> case getObservationBlame (observationProvs p) mdl obv of
     Nothing -> Left "no provenance info for blame observation"
@@ -144,7 +137,7 @@ data QOrigin = QOriginLeaf Term QBlame | QOriginNode Term QBlame [QOrigin]
 --
 --
 getOrigin :: Theory -> ChaseState -> Model -> Bool -> Term -> [QOrigin]
-getOrigin thy gstar@(b,p,it,_,c) mdl isrec term = do
+getOrigin thy gstar@(b,p,it,c) mdl isrec term = do
   case name of
     Left err -> [QOriginLeaf term (Left err)]
     Right (eqelms, origins) -> do
