@@ -147,7 +147,12 @@ getOrigin thy gstar@(b,p,it,_,c) mdl isrec term = do
       (origin, nextelms) <- origins
       case isrec of
         False -> return $ QOriginLeaf term (blamed origin)
-        True -> return $ QOriginNode term (blamed origin) (concatMap (\e->(getOrigin thy gstar mdl isrec (Elem e))) nextelms)
+        True -> case blamed origin of
+          blame@(Right (_, (Sequent bd hd))) -> do
+            let freeelms = formulaElements bd
+            let childelms = nub (nextelms++freeelms)
+            return $ QOriginNode term blame (concatMap (\e->(getOrigin thy gstar mdl isrec (Elem e))) childelms)
+          blame -> return $ QOriginNode term blame (concatMap (\e->(getOrigin thy gstar mdl isrec (Elem e))) nextelms)
   where 
     name = case getEqualElements mdl term of
       [] -> Left $ "element "++(show term)++" not in the current model"
