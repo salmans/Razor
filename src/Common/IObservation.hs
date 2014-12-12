@@ -108,8 +108,10 @@ destroyObservationSequent (ObservationSequent bdy hds) =
   Sequent (processConjuncts bdy) (processDisjuncts hds)
 {-| Creates an 'ObservationSequent' form an input 'Sequent'. -}
 buildObservationSequent :: Sequent -> Maybe ObservationSequent
-buildObservationSequent seq@(Sequent bdy hds) = 
-  ObservationSequent <$> processBody bdy <*> processHead hds
+buildObservationSequent seq@(Sequent bdy hds) =
+  let hds' = (filter (not.trivialObservation) <$>) <$> processHead hds
+      bdy' = (filter (not.trivialObservation)) <$> processBody bdy
+  in  ObservationSequent <$> bdy' <*> hds'
 
 -- Converts a single observational atom into it's user provided form, or nothing
 processAtom :: Atom -> Maybe Formula
@@ -177,3 +179,10 @@ processBody (Lone _ _ p _) = processBody p
 processBody _              = error $ unitName 
                              ++ ".processBody: " 
                              ++ error_invalidSequent
+
+{- trivialObservation returns True if an input observation is trivial and may
+   be ignored. This function may be extended to perform a better test but for 
+   now, it only returns true if the obervation is a trivial equation. -}
+trivialObservation :: Observation -> Bool
+trivialObservation (Obs (Rel "=" [t, s])) = t == s
+trivialObservation _                      = False
