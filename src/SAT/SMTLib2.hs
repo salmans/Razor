@@ -730,7 +730,7 @@ forceResultHelper classes sClasses rels posAtoms termStrs = do
   let eqPosAx  = equalityPositiveAxioms sClasses
   pos         <- mapM (\(r, unintRel) -> 
                      case lookup r posAtoms of
-                       Nothing -> return false
+                       Nothing -> return true
                        Just as -> posAxioms unintRel as) rels
   fnPosAx    <- functionPositiveAxioms termStrs classes
   let posAx   = foldr (.&&.) true pos -- TODO
@@ -933,10 +933,10 @@ posAxioms :: UninterpretRel -> [SMTAtom] -> SMTM SBool
 posAxioms unintRel atoms = do
   container   <- lift State.get
   let domain    = containerDomain container
-  let argNames  = map atomArgs atoms      
+  let argNames  = map atomArgs atoms
   let allArgs   = map (\elm -> fromJust $ Map.lookup elm domain) <$> argNames
-  let negApps   = (applyUnintRel unintRel) <$> allArgs
-  return $ foldr (.&&.) true negApps -- TODO
+  let posApps   = (applyUnintRel unintRel) <$> allArgs
+  return $ foldr (.&&.) true posApps -- TODO
 
 functionNegativeAxioms :: [(SMTTerm, Result)] -> Map.Map Result [SMTElement]
                        -> SMTM SBool
