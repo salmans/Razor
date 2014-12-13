@@ -32,6 +32,7 @@ import Control.Applicative
 import Syntax.GeometricUtils ( Sequent (..), Formula (..), Atom (..), Term (..)
                              , RelationBased (..), Constant (..)
                              , isVariable, isConstant)
+import Syntax.Term
 
 -- Common
 import Common.Data (SequentLike (..))
@@ -112,11 +113,14 @@ buildObservationSequent seq@(Sequent bdy hds) =
   let hds' = (filter (not.trivialObservation) <$>) <$> processHead hds
       bdy' = (filter (not.trivialObservation)) <$> processBody bdy
   in  ObservationSequent <$> bdy' <*> hds'
-
+--
+processFunction :: FnSym -> [Term] -> Term
+processFunction fsym [] = Cons $ Constant $ fsym
+processFunction fsym terms = (Fn fsym terms)
 -- Converts a single observational atom into it's user provided form, or nothing
 processAtom :: Atom -> Maybe Formula
 processAtom (Rel ('@':rsym) terms) = Nothing
-processAtom (FnRel fsym terms) = Just $ Atm (Rel "=" [(Fn fsym (init terms)), (last terms)])
+processAtom (FnRel fsym terms) = Just $ Atm (Rel "=" [processFunction fsym (init terms), (last terms)])
 processAtom atm = Just $ Atm atm
 -- Converts observational atoms into the form the user originally provided them in
 -- If they are extra additions, they are removed
