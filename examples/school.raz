@@ -1,0 +1,25 @@
+{- Razor's Sample Specification
+
+   File       : school.raz
+
+   Description: A simple specification to demonstrate Razor's input syntax.
+   Razor returns one model for this specification, where Math and English
+   are classes assingned to the same teacher.
+-}
+
+
+-- A teacher @t@ is a person:
+Teacher(t) => Person(t);
+
+-- Every class @c@ has an instructor:
+Class(c) => exists t . t = instructorOf(c);
+
+-- If a person @t@ is the instructor of a class @c@, she must be a teacher:
+instructorOf(c) = t => Teacher(t);
+
+
+-- 'Math and 'Literature are classes
+Class('Math);
+Class('English);
+
+instructorOf('Math) = instructorOf('English);

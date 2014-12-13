@@ -1,0 +1,33 @@
+{- Razor's Sample Specification
+
+   File       : files.raz
+   
+   Description: This is a simple specification to demonstrate Razor's behavior
+   when the theory is not weakly acyclic: e.g., it is possible to have an
+   infinite chain of link files.
+   When the theory is not weakly acyclic, the depth of
+   search for models must be restricted. This can be done either by specifying
+   a global depth when running Razor (using --depth argument), or by assigning
+   custom search depth for Skolem functions of the input specification, as
+   demonstrated in this example.
+
+   Razor finds four models for this specification up to the given depth (i.e.,
+   depth 2 for <targetExists>): three minimal models for the theory, and one
+   "incomplete" model.
+-}
+
+
+-- A file @f@ is either a link or a regular file:
+File(f) => Link(f)
+	|  Regular(f);
+
+-- For every link file @l@, a target file @f@ exists:
+Link(l) => exists <targetExists> f . f = targetOf(l) & File(f);
+
+
+-- There exists some file:
+exists f . File(f);
+
+
+-- Specifying the depth of search:
+@DEPTH <targetExists> = 2

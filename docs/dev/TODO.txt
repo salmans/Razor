@@ -1,8 +1,0 @@
-# IDEAS
-* We can use the work in DB for relevant and irrelevant updates to identify sequents that are changed after a database update.
-* Query optimization techniques can be very helpful. The current RelAlg expressions that we are creating are very inefficient.
-
-# TODO
-* Remove header from RelExp
-* Refine the definition of failSequent for relational sequents (failRelSequent)
-* Revisit the implementation of joinTupleTransformer in ITranslate.hs
