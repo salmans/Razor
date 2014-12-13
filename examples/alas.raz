@@ -16,12 +16,6 @@
 --------------------------------------------------
 -- Facts:
 --------------------------------------------------
-
-{- ALAS and PEDS are research groups
--}
-ResearchGroup('ALAS);
-ResearchGroup('PEDS);
-
 {- ALAS and PEDS share lab B17
 -}
 LabOf('ALAS, 'B17);
