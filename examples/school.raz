@@ -3,8 +3,8 @@
    File       : school.raz
 
    Description: A simple specification to demonstrate Razor's input syntax.
-   Razor returns one model for this specification, where Math and English
-   are classes assingned to the same teacher.
+   Razor returns one minimal model for this specification, where Math and
+   English are classes assingned to the same teacher.
 -}
 
 
