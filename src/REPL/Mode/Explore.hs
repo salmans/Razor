@@ -68,7 +68,7 @@ exploreRun mode state@(config, theory, mspace, mcoor) command = case parseExplor
         prettyModel $ modelLookup mspace' (Just mcoor')
         return $ Right $ (theory, mspace', mcoor')
     Push fml -> case modelspaceLookup mspace mcoor of
-      Nothing -> return $ Left "current model coordinate does not exist"
+      Nothing -> return $ Left "Current model coordinate does not exist!"
       Just (_, model) -> case getAugmentation model fml of
         Nothing -> return $ Left $ "Given formula is not in the form of an augmentation!"
         Just (obs,newelms) -> case modelUp config theory (obs,newelms) mspace mcoor of
@@ -76,7 +76,16 @@ exploreRun mode state@(config, theory, mspace, mcoor) command = case parseExplor
           Just (mspace', mcoor') -> do
             prettyModel $ modelLookup mspace' (Just mcoor')
             return $ Right $ (theory, mspace', mcoor')
-    Pop -> undefined
+    Pop -> case mcoor of
+      Stack obs mcoor' -> do
+        prettyPrint 0 foutput $ "Undoing last augmentation "++(show obs)++"...\n"
+        case modelDown mspace mcoor mcoor' of
+          Nothing -> return $ Left "Could not undo previous augmentation!"
+          Just mspace' -> do
+            prettyModel $ modelLookup mspace' (Just mcoor')
+            return $ Right $ (theory, mspace', mcoor')
+      _ -> return $ Left $ "Last explore command was not an augmentation!"
+
             
 ------------------------
 -- RazorState Related --
@@ -90,7 +99,6 @@ enterExplore mode state@(RazorState config theory mspace mcoor) = case (theory, 
     Nothing -> return $ Left "Modelspace not initialized by another mode!"
     Just (chasestate, model') -> do
       prettyModel $ Just model'
-      prettyModelCoordinate mcoor'
       return $ Right (theory', mspace, mcoor')
   _ -> return $ Left "Modelspace not initialized by another mode!"
 
@@ -120,8 +128,8 @@ exploreTag mode = "%explore% "
 
 exploreHelp :: ExploreMode -> IO()
 exploreHelp cmd = prettyPrint 0 foutput $ ""++ 
-  "<expr>:= | current            Display the current position in the modelspace\n"++
-  "         | next               Display the next minimal model in the stream\n"++
+  "<expr>:= | current            Display the explore history and current position in the modelspace\n"++
+  "         | next               Get the next minimal model in the stream\n"++
   "         | aug <formula>      Augment the current model with the given formula\n"++
   "         | undo               Undo the most recent augmentation\n"
 

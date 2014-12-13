@@ -178,6 +178,10 @@ upModel :: SATIteratorType -> (Maybe Model, SATIteratorType)
 upModel = satAugment
 --
 --
+downModel :: SATIteratorType -> (Maybe Model, SATIteratorType)
+downModel = satBacktrack
+--
+--
 closeSAT :: SATIteratorType -> ()
 closeSAT = satClose
 

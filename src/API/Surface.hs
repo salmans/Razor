@@ -110,15 +110,22 @@ modelUp :: Config -> Theory -> (Observation, [Element]) -> ModelSpace -> ModelCo
 modelUp config theory (obs, newelms) mspace mcoor = case modelspaceLookup mspace mcoor of
   Nothing -> Nothing
   Just (chasestate, _) -> do
-    -- !!! issue #45: augmentChase may be inproperly updating the iterator
     let chasestate'@(b,p,stack,c) = augmentChase config theory chasestate (obs, newelms)
     case upModel stack of
-      -- !!! issue #45: upModel, which is satAugment, is not returning a model
-      (Nothing, _) -> Nothing -- !!! issue #45: aug R(e^100); always gets here not matter what the augment is
+      (Nothing, _) -> Nothing
       (Just mdl', stack') -> do
-        let mcoor' = Stream mcoor
+        let mcoor' = Stack obs mcoor
         let mspace' = Map.insert mcoor' ((b, p, stack', c), mdl') mspace
         Just (mspace', mcoor')
+
+modelDown :: ModelSpace -> ModelCoordinate -> ModelCoordinate -> Maybe ModelSpace
+modelDown mspace mcoor mcoor' = case (modelspaceLookup mspace mcoor, modelspaceLookup mspace mcoor') of
+  (Just ((b,p,stack,c), _), Just ((b',p',_,c'), _)) -> do
+    case downModel stack of
+      (Nothing, _) -> Nothing
+      (Just mdl', stack') -> do
+        let mspace' = Map.insert mcoor' ((b', p', stack', c'), mdl') mspace
+        Just mspace'
     
 type QBlame = Either Error (Blame, Sequent)
 --

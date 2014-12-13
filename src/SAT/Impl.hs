@@ -21,7 +21,7 @@
 
 module SAT.Impl ( SATIteratorType
                 , satInitialize, satStore, satSolve, satClose
-                , satAugment, satPush, satPop) where
+                , satAugment, satPush, satPop, satBacktrack) where
 
 
 -- Common
@@ -34,7 +34,7 @@ import Common.Provenance (Blame)
 import qualified Control.Monad.State.Lazy as State
 
 -- SAT
-import qualified SAT.Data (satInitialize, satStore, satSolve, satClose, satPush, satPop, satAugment)
+import qualified SAT.Data (satInitialize, satStore, satSolve, satClose, satPush, satPop, satAugment, satBacktrack)
 
 -- Tools
 import Tools.Config (Config)
@@ -77,3 +77,6 @@ satPop = SAT.Data.satPop
 
 satAugment :: SATIteratorType -> (Maybe Model, SATIteratorType)
 satAugment = SAT.Data.satAugment
+
+satBacktrack :: SATIteratorType -> (Maybe Model, SATIteratorType)
+satBacktrack = SAT.Data.satBacktrack
