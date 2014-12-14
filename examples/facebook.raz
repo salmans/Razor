@@ -1,0 +1,209 @@
+{- Razor's Sample Specification
+
+   File       : facebook.raz
+   
+   Description: This specification exercises some of the basic access
+   permissions policies on Facebook posts. 
+
+   ** Please uncomment one query at a time before running Razor on this
+   specification.
+   
+-}
+
+--------------------------------------------------
+-- Type Definition:
+--------------------------------------------------
+Friend(u1, u2)      => User(u1)   & User(u2);
+Post(u, c)          => User(u)    & Content(c);
+Read(u, c)          => User(u)    & Content(c);
+permissionOf(c) = p => Content(c) & Permission(p);
+
+-- User, Content and Permission are disjoint sorts:
+User(x) & Content(x)       => Falsehood;
+User(x) & Permission(x)    => Falsehood;
+Content(x) & Permission(x) => Falsehood;
+
+--------------------------------------------------
+-- Facts:
+--------------------------------------------------
+{- There are 4 built-in permissions:
+-}
+Permission('Friends);
+Permission('OnlyMe);
+Permission('FriendsOfFriends);
+Permission('Public);
+
+
+{- No other permission other than the 4 built-in permissions is allowed:
+-}
+Permission(p) => p = 'OnlyMe
+	      |  p = 'Friends
+	      |  p = 'FriendsOfFriends
+	      |  p = 'Public;
+
+{- The 4 built-in permissions are different from each other:
+-}
+'OnlyMe  = 'Friends          => Falsehood;
+'OnlyMe  = 'FriendsOfFriends => Falsehood;
+'OnlyMe  = 'Public           => Falsehood;
+'Friends = 'FriendsOfFriends => Falsehood;
+'Friends = 'Public           => Falsehood;
+'FriendsOfFriends = 'Public  => Falsehood;
+
+--------------------------------------------------
+-- Some Axioms:
+--------------------------------------------------
+{- Friend relation is symmetric:
+-}
+Friend(u1, u2) => Friend(u2, u1);
+
+{- All contents must be assigned to some permission:
+-}
+Content(c) => exists p . permissionOf(c) = p & Permission(p);
+
+{- Users always can read their own posts:
+-}
+Post(u, c) => Read(u, c);
+
+{- When the permission of a content is OnlyMe, the user who posts the content
+   is the only user who can read the content:
+-}
+Post(u, c) & (permissionOf(c) = 'OnlyMe) & Read(u1, c) => u = u1;
+
+{- When the permission of a content is Friends, the friends of the user who
+   posts the content can read the content:
+-}
+Post(u, c) & (permissionOf(c) = 'Friends) & Friend(u, f) => Read(f, c);
+
+{- When the permission of a content is FriendsOfFriends, the friends of the
+   user who posts the content, as well as their friends, can read the content:
+-}
+Post(u, c) & (permissionOf(c) = 'FriendsOfFriends) & Friend(u, f)
+	   => Read(f, c);
+Post(u, c) & (permissionOf(c) = 'FriendsOfFriends) & Friend(u, f1)
+	   & Friend(f1, f2) => Read(f2, c);
+
+{- When the permission of a content is Public, every user can read the content:
+-}
+Post(u, c) & (permissionOf(c) = 'Public) & User(u1) => Read(u1, c);
+
+
+{- The other direction of the four previous policies:
+-}
+Read(u1, c) & Post(u2, c) => u1 = u2
+	      	       	  |  Friend(u1, u2) & permissionOf(c) = 'Friends
+			  |  Friend(u1, u2) & permissionOf(c) = 'FriendsOfFriends
+			  |  exists f . Friend(u1, f)
+			    	      & Friend(u2, f)
+			    	      & permissionOf(c) = 'FriendsOfFriends
+			  |  permissionOf(c) = 'Public;
+
+
+--------------------------------------------------
+-- Queries:
+--------------------------------------------------
+{- Query 1: Show models where a user is reading a content:
+   Because Razor returns only minimal models, this query always returns models
+   where a user can read the contents posted by herself; that is, the person
+   who posts the content can read the post.
+-}
+
+-- exists u . exists c . Read(u, c)
+
+--------------------------------------------------
+{- Query 2-1: Show models where the permission of a content is OnlyMe, the
+   content is posted by Salman, and it is read by Ryan.
+   The search for models of this query must be bounded. Razor returns one
+   minimal model for depth >= 1, where Salman and Ryan must be the same person.
+-}
+
+-- Post('Salman, 'Link);
+-- permissionOf('Link) = 'OnlyMe;
+-- Read('Ryan, 'Link);
+
+{- Query 2-2: just like Query 2-1 but does not allow Salman and Ryan to be the
+   same person.
+   Again, the search for models must be bounded. However, Razor reports that
+   there are no models for this query given depth >= 0: notice that when Razor
+   reports no models for a theory up to a given depth, the theory is guaranteed
+   to be inconsistent.
+-}
+
+-- Post('Salman, 'Link);
+-- permissionOf('Link) = 'OnlyMe;
+-- Read('Ryan, 'Link);
+-- 'Salman = 'Ryan => Falsehood;
+
+--------------------------------------------------
+{- Query 3: How can Salman post a content such that his friend Ryan cannot
+   read the content?
+   There is only one model at depth >= 1, where the permission of the post
+   is OnlyMe.
+-}
+
+-- Post('Salman, 'Link);
+-- Friend('Ryan, 'Salman);
+-- Read('Ryan, 'Link) => Falsehood;
+
+--------------------------------------------------
+{- Query 4: Do the basic set of permissions allow Salman to share a content
+   with a friend but not with another friend?
+   Razor reports that the theory has no models for depth >= 1.
+-}
+
+-- Post('Salman, 'Link);
+-- Friend('Ryan, 'Salman);
+-- Friend('Tim, 'Salman);
+-- Read('Ryan, 'Link);
+-- Read('Tim, 'Link) => Falsehood;
+-- ~ 'Ryan = 'Salman;
+-- ~ 'Ryan = 'Tim;
+
+--------------------------------------------------
+
+{- Query 5: Can we have lost contents, which cannot be read by anybody?
+   Razor reports no models for depth >= 0.
+-}
+
+-- Post('Someone, 'Lost);
+-- Read(u, 'Lost) => Falsehood;
+
+--------------------------------------------------
+{- Query 6-1: Is it possible to post a content that can be read by everybody
+   on Facebook?
+   This query is tricky: we expect a model where the permission of the post
+   is Public; however, Razor returns 4 models (depth >= 1) where the only user
+   on Facebook is the person who is posting the content!
+-}
+
+-- Post('Salman, 'Link);
+-- User(x) => Read(x, 'Link);
+
+
+{- Query 6-2: Repeat the previous query but this time, assume Anybody (which
+   is merely a name for an arbitrary user) is a user other than the person
+   who is posting the content:
+   Razor returns a model at depth >= 1 and another model at depth >= 2. Similar
+   to Query 6-1, these models restrict the number of users on Facebook to 2,
+   where the permission of the content is 'Friends' and 3, where the permission
+   of the content is 'FriendOfFriends'.
+-}
+
+-- Post('Salman, 'Link);
+-- User('Anybody);
+-- 'Anybody = 'Salman => Falsehood;
+-- Read('Anybody, 'Link);
+-- Friend('Anybody, 'Salman) => Falsehood;
+
+{- Query 6-3: As extra restrictions on Query 6-2, assume that Anybody cannot be
+   Salman's friend or a friend of his friend:
+   Razor now returns one model (depth >= 1) where the permission of the content
+   is Public, as expected!
+-}
+
+-- Post('Salman, 'Link);
+-- User('Anybody);
+-- 'Anybody = 'Salman => Falsehood;
+-- Read('Anybody, 'Link);
+-- Friend('Anybody, 'Salman) => Falsehood;
+-- Friend('Anybody, x) & Friend(x, 'Salman) => Falsehood;
