@@ -108,7 +108,7 @@ Read(u1, c) & Post(u2, c) => u1 = u2
    who posts the content can read the post.
 -}
 
--- exists u . exists c . Read(u, c)
+-- exists u . exists c . Read(u, c);
 
 --------------------------------------------------
 {- Query 2-1: Show models where the permission of a content is OnlyMe, the
