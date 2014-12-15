@@ -72,6 +72,7 @@ error_InvalidFnArity         = "invalid function arity!"
 error_InvalidRelArity        = "invalid relation arity!"
 error_FunctionalAtomExpected = "functional atom expected!"
 error_RelationalAtomExpected = "relational atom expected!"
+error_InvalidBacktrack       = "invalid backtracking!"
 
 {-| Solver Interface Types -}
 type SATIteratorType = SMTContainer
@@ -790,16 +791,20 @@ augment cont =
 {- Backtracks from augmentation. This doesn't do anything other than generating
    the next model. -}
 backtrack :: SMTContainer -> (SatResult, SMTContainer)
-backtrack cont =
-  let context = do
-            push
-            next <- getSatResult
-            min  <- reduce next
-            lift $ State.modify (\c -> c {containerResult = Just min})
-            pop
-            return min
-      run     = perform context
-  in unsafePerformIO $ State.runStateT run cont
+backtrack cont = case containerResult cont of
+                   Nothing -> error $ unitName ++
+                                      ".backtrack: " ++
+                                      error_InvalidBacktrack
+                   Just r  -> (r, cont)
+  -- let context = do
+  --           push
+  --           next <- getSatResult
+  --           min  <- reduce next
+  --           lift $ State.modify (\c -> c {containerResult = Just min})
+  --           pop
+  --           return min
+  --     run     = perform context
+  -- in unsafePerformIO $ State.runStateT run cont
 
 {- This recursively reduces the initial result of the SMT solver to construct a 
    minimal model based on an Aluminum-like algorithm. The result of the function
