@@ -138,7 +138,9 @@ generateChase config theory = chase config theory
 -- Out: an augmented G* with the new observation
 augmentChase :: Config -> Theory -> (ChasePossibleFactsType, ProvInfo,  SATIteratorType, Int) -> (Observation,[Element]) -> (ChasePossibleFactsType, ProvInfo, SATIteratorType, Int)
 augmentChase cfg thy (b, p, it, c) (obs@(Obs (Rel rsym terms)),newelms) = do
-  let newSeq = ObservationSequent [] [[obs]]
+  let newElmPreds = map (\e->Obs (elementPred (Elem e))) newelms
+  let obss = (obs:newElmPreds)
+  let newSeq = ObservationSequent [] [obss]
   -- update provenance
   let ep' = foldr (\e->insertProv e (Fn "user" [Fn rsym terms])) (elementProvs p) newelms
   let op' = Map.insert obs (UserBlame obs) (observationProvs p)
@@ -149,14 +151,14 @@ augmentChase cfg thy (b, p, it, c) (obs@(Obs (Rel rsym terms)),newelms) = do
   -- rerun chase
   let thy' = preprocess thy
   let seqMap = (buildSequentMap $ fromJust <$> fromSequent <$> thy') :: SequentMap ChaseSequentType
-  augmentBase cfg seqMap (b, p', it', c) obs 
+  augmentBase cfg seqMap (b, p', it', c) obss
 
 --
 --
-augmentBase :: Config -> SequentMap ChaseSequentType -> (ChasePossibleFactsType, ProvInfo, SATIteratorType, Int) -> Observation -> (ChasePossibleFactsType, ProvInfo, SATIteratorType, Int)
-augmentBase _ _ gs eqobs@(Obs (Rel "=" terms)) = gs
-augmentBase cfg seqMap (b, p, it, c) obs@(Obs (Rel rsym terms)) = do
-  let d = addToBase obs emptyBase
+augmentBase :: Config -> SequentMap ChaseSequentType -> (ChasePossibleFactsType, ProvInfo, SATIteratorType, Int) -> [Observation] -> (ChasePossibleFactsType, ProvInfo, SATIteratorType, Int)
+augmentBase _ _ gs ((Obs (Rel "=" terms)):rest) = gs
+augmentBase cfg seqMap (b, p, it, c) obss@((Obs (Rel rsym terms)):rest) = do
+  let d = foldr (\o->addToBase o) emptyBase (obss)
   let seqMap' = Map.filter (not.startSequent) seqMap
      -- The current implementation of the Chase instantiate existential
      -- quantifiers even if they are already witnessed by an element in the

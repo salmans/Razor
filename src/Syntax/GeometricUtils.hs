@@ -22,7 +22,8 @@ module Syntax.GeometricUtils
     ( module Term, module Geometric -- export these two
     , RelationBased (..)
     , simplify, preprocess, formulaExistentials, sequentExistentials
-    , sequentExistsSubstitute, formulaExistsSubstitute
+    , sequentExistsSubstitute, formulaExistsSubstitute,
+    elementPred
     ) where
 
 import Syntax.IGeometricUtils
