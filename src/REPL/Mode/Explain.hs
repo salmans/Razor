@@ -32,8 +32,8 @@ import Tools.Config
 import Control.Applicative hiding ((<|>), many)
 import Text.ParserCombinators.Parsec
 import Text.Parsec.Prim
+import Text.Parsec.Token
 import Syntax.GeometricParser
-import Syntax.GeometricUtils
 import Syntax.ITerm
 import Data.List
 import Syntax.IGeometric
@@ -140,30 +140,30 @@ pName :: Parser ExplainCommand
 pName = pNameOne +++ pNameAll
 pNameOne :: Parser ExplainCommand
 pNameOne = do
-  symbol "origin"
+  string "origin"
   pNameOneHead +++ pNameOneRec
 pNameOneHead :: Parser ExplainCommand
 pNameOneHead = do
-  symbol ""
+  string ""
   Name False False <$> pElement
 pNameOneRec :: Parser ExplainCommand
 pNameOneRec = do
-  symbol "*"
+  string "*"
   Name False True <$> pElement
 pNameAll :: Parser ExplainCommand
 pNameAll = do
-  symbol "origins"
+  string "origins"
   pNameAllHead +++ pNameAllRec
 pNameAllHead :: Parser ExplainCommand
 pNameAllHead = do
-  symbol ""
+  string ""
   Name True False <$> pElement
 pNameAllRec :: Parser ExplainCommand
 pNameAllRec = do
-  symbol "*"
+  string "*"
   Name True True <$> pElement
 
 pBlame :: Parser ExplainCommand
 pBlame = do
-  symbol "blame"
+  string "blame"
   Blame <$> xpFactor

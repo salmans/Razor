@@ -31,7 +31,6 @@ import Tools.Config
 import Control.Applicative hiding ((<|>), many)
 import Text.ParserCombinators.Parsec
 import Text.Parsec.Prim
-import Syntax.GeometricParser
 import Syntax.GeometricUtils
 import Data.List
 import Syntax.IGeometric
@@ -144,13 +143,13 @@ pCommand :: Parser ExploreCommand
 pCommand = pCurrent <|> pNext <|> pPush <|> pPop
 
 pCurrent :: Parser ExploreCommand
-pCurrent = symbol "current" >> return Current
+pCurrent = string "current" >> return Current
 
 pNext :: Parser ExploreCommand
-pNext = symbol "next" >> return Next
+pNext = string "next" >> return Next
 
 pPush :: Parser ExploreCommand
-pPush = symbol "aug" >> Push <$> xpFactor
+pPush = string "aug" >> spaces >> Push <$> xpFactor
 
 pPop :: Parser ExploreCommand
-pPop = symbol "undo" >> return Pop
+pPop = string "undo" >> return Pop

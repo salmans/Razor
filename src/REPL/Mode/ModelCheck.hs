@@ -32,7 +32,6 @@ import Data.Map
 import REPL.Mode
 import REPL.Display
 import Common.Model
-import Syntax.GeometricParser
 import Syntax.GeometricUtils
 import Tools.Config
 

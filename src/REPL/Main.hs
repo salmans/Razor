@@ -35,7 +35,7 @@ import Control.Monad.Trans
 import Control.Applicative hiding ((<|>), many)
 import Text.ParserCombinators.Parsec
 import Text.Parsec.Prim
-import Syntax.GeometricParser
+import Text.Parsec.Token
 import REPL.Mode
 import qualified REPL.Mode.Theory as T
 import qualified REPL.Mode.ModelCheck as I
@@ -172,25 +172,25 @@ pCommand = pChange <|> pDisplay <|> pModeHelp <|> pHelp <|> pExit
 -- Change
 pChange :: Parser REPLCommand
 pChange = do
-  symbol "@"
+  string "@"
   Change <$> pMode
 
 pMode :: Parser REPLMode
 pMode = pTheoryM <|> pExplore <|> pExplain
 
 pTheoryM :: Parser REPLMode
-pTheoryM = symbol "t" >> return ModeTheory
+pTheoryM = string "t" >> return ModeTheory
 
 pExplore :: Parser REPLMode
-pExplore = symbol "m" >> return ModeExplore
+pExplore = string "m" >> return ModeExplore
 
 pExplain :: Parser REPLMode
-pExplain = symbol "q" >> return ModeExplain
+pExplain = string "q" >> return ModeExplain
 
 -- Display
 pDisplay :: Parser REPLCommand
 pDisplay = do
-  symbol "!"
+  string "!"
   Display <$> pSubstate
 
 pSubstate :: Parser Substate
@@ -198,21 +198,21 @@ pSubstate = pTheConfig <|> pTheTheory <|> pTheModel
 
 pTheConfig :: Parser Substate
 pTheConfig = do
-  symbol "c"
+  string "c"
   return TheConfig
 
 pTheTheory :: Parser Substate
-pTheTheory = symbol "t" >> return TheTheory
+pTheTheory = string "t" >> return TheTheory
 
 pTheModel :: Parser Substate
-pTheModel = symbol "m" >> return TheModel
+pTheModel = string "m" >> return TheModel
 
 -- REPLMode Help / Help / Exit
 pModeHelp :: Parser REPLCommand
-pModeHelp = symbol "?" >> return ModeHelp
+pModeHelp = string "?" >> return ModeHelp
 
 pHelp :: Parser REPLCommand
-pHelp = symbol "help" >> return Help
+pHelp = string "help" >> return Help
 
 pExit :: Parser REPLCommand
-pExit = (symbol "q" <|> symbol "quit" <|> symbol "exit") >> return Exit
+pExit = (string "q" <|> string "quit" <|> string "exit") >> return Exit

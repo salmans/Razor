@@ -28,9 +28,10 @@ import Tools.Config
 import Common.Model
 import qualified Data.Map as Map
 import Control.Applicative hiding ((<|>), many)
+import Control.Monad (liftM)
 import Text.ParserCombinators.Parsec
 import Text.Parsec.Prim
-import Syntax.GeometricParser
+import Text.Parsec.Token
 import Syntax.GeometricUtils
 import Syntax.IGeometric
 
@@ -112,25 +113,30 @@ pCommand = pDebug +++ pRelax +++ pDefaultDepth +++ pLoad
 
 pDebug :: Parser TheoryCommand
 pDebug = do
-  symbol "debug"
+  string "debug"
   return Debug
 
 pRelax :: Parser TheoryCommand
 pRelax = do
-  symbol "relax"
+  string "relax"
   return Relax
 
 pDefaultDepth :: Parser TheoryCommand
 pDefaultDepth = do
-  symbol "depth"
+  string "depth"
   spaces
-  DefaultDepth <$> pInt
+  DefaultDepth <$> (pInt <|> pNone)
 
 pInt :: Parser Int
 pInt = read <$> many1 digit
 
+pNone :: Parser Int
+pNone = do
+  string "-1"
+  return (-1)
+
 pLoad :: Parser TheoryCommand
 pLoad = do
-  symbol "load"
+  string "load"
   spaces
   Load <$> many (noneOf "\n\t ")
