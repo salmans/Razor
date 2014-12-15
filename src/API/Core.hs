@@ -175,11 +175,11 @@ nextModel = satSolve
 --
 --
 upModel :: SATIteratorType -> (Maybe Model, SATIteratorType)
-upModel = satAugment
+upModel it = satAugment it
 --
 --
 downModel :: SATIteratorType -> (Maybe Model, SATIteratorType)
-downModel = satBacktrack
+downModel it = satBacktrack $ satPop it
 --
 --
 closeSAT :: SATIteratorType -> ()

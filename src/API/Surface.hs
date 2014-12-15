@@ -120,11 +120,11 @@ modelUp config theory (obs, newelms) mspace mcoor = case modelspaceLookup mspace
 
 modelDown :: ModelSpace -> ModelCoordinate -> ModelCoordinate -> Maybe ModelSpace
 modelDown mspace mcoor mcoor' = case (modelspaceLookup mspace mcoor, modelspaceLookup mspace mcoor') of
-  (Just ((b,p,stack,c), _), Just ((b',p',_,c'), _)) -> do
-    case downModel stack of
+  (Just ((b,p,stack,c), mdl), Just ((b',p',stack',c'), mdl')) -> do
+    case downModel stack' of
       (Nothing, _) -> Nothing
-      (Just mdl', stack') -> do
-        let mspace' = Map.insert mcoor' ((b', p', stack', c'), mdl') mspace
+      (Just mdl'', stack'') -> do
+        let mspace' = Map.insert mcoor' ((b', p', stack'', c'), mdl'') mspace
         Just mspace'
     
 type QBlame = Either Error (Blame, Sequent)
