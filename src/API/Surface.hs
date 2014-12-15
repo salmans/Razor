@@ -136,7 +136,7 @@ getJustification gstar@(b,p,it,c) mdl fml = case getObservation mdl fml of
   Just obv -> case getObservationBlame (observationProvs p) mdl obv of
     Nothing -> Left "no provenance info for blame observation"
     Just blame -> case findBlameSequent blame p of
-      Nothing -> Left "unable to find blamed theory sequent from provenance info"
+      Nothing -> Left "unable to find blamed theory rule from provenance info"
       Just bseq -> do
         let originalelms = formulaElements fml
         let eqelmss = map (getEqualElements mdl) (map Elem originalelms)
@@ -167,7 +167,7 @@ getOrigin thy gstar@(b,p,it,c) mdl isrec term = do
           [] -> Left $ "no provenance information for element "++(show term)
           origins -> Right (eqelms, origins)
     blamed origin eqelms = case findBlameSequent origin p of
-      Nothing -> Left $ "unable to find blamed theory sequent from provenance info\n"++(show origin)
+      Nothing -> Left $ "unable to find origin from provenance info"
       Just bseq -> Right (origin, sequentRename eqelms (toSequent bseq))
 --
 -- an observation (for now) is just an atom consisting of only elements currently in the model

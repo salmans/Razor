@@ -141,29 +141,36 @@ pName = pNameOne +++ pNameAll
 pNameOne :: Parser ExplainCommand
 pNameOne = do
   string "origin"
+  spaces
   pNameOneHead +++ pNameOneRec
 pNameOneHead :: Parser ExplainCommand
 pNameOneHead = do
   string ""
+  spaces
   Name False False <$> pElement
 pNameOneRec :: Parser ExplainCommand
 pNameOneRec = do
   string "*"
+  spaces
   Name False True <$> pElement
 pNameAll :: Parser ExplainCommand
 pNameAll = do
   string "origins"
+  spaces
   pNameAllHead +++ pNameAllRec
 pNameAllHead :: Parser ExplainCommand
 pNameAllHead = do
   string ""
+  spaces
   Name True False <$> pElement
 pNameAllRec :: Parser ExplainCommand
 pNameAllRec = do
   string "*"
+  spaces
   Name True True <$> pElement
 
 pBlame :: Parser ExplainCommand
 pBlame = do
   string "blame"
+  spaces
   Blame <$> xpFactor
