@@ -79,9 +79,10 @@ simplify_helper f                  = f   -- otherwise
 --------------------------------------------------------------------------------
 -- Converting sequents with function symbols to purely relational sequents
 preprocess :: Theory -> Theory
-preprocess = (simplifySequent <$>).(addElementPreds <$>).linearize.relationalize
+preprocess = (simplifySequent <$>).(addElementPreds <$>).
+             existentializeBodyVars.linearize.relationalize
 
-{-| Eliminates all function symbols in the sequents of a theory and replaces 
+{- Eliminates all function symbols in the sequents of a theory and replaces 
   them with relational symbols. It also adds a set of additional sequents to 
   enforce functional integrity and a set of axioms to enforce correctness on
   equality relation. -}
@@ -96,7 +97,6 @@ relationalize thy  =
           eqAxs  = equivalenceAxioms ++
                    concatMap (uncurry relationCongruenceAxioms) rels ++ 
                    concatMap (uncurry functionCongruenceAxioms) funcs'
-
 
 linearize :: Theory -> Theory
 linearize thy = (\(Sequent bdy hd) -> Sequent (linearizeFormula bdy) hd) <$> thy
@@ -198,11 +198,11 @@ relationalizeSequent :: Sequent -> Counter Sequent
 relationalizeSequent (Sequent bdy hd) = do
   (bdy', bdyData) <- relationalizeBody bdy
   (hd' , hdData ) <- relationalizeHead hd
-  let vars         = freeVars bdy' \\ freeVars hd'  
-  bdy''           <- foldM (\f v -> do
-                               skFn   <- freshSymbol "exists"
-                               return (Exists (Just skFn) v f )) bdy' vars
-  return $ Sequent (makeExists (bdy'', bdyData)) (makeExists (hd', hdData))
+  -- let vars         = freeVars bdy' \\ freeVars hd'  
+  -- bdy''           <- foldM (\f v -> do
+  --                              skFn   <- freshSymbol "exists"
+  --                              return (Exists (Just skFn) v f )) bdy' vars
+  return $ Sequent (makeExists (bdy', bdyData)) (makeExists (hd', hdData))
     where makeExists (fmla, skvs) = 
               let (vs', fmla') = takeExistsOut fmla
               in putExistsBack vs'
@@ -210,6 +210,23 @@ relationalizeSequent (Sequent bdy hd) = do
                               case lfmla of
                                 Nothing -> Exists sk v f
                                 Just lf -> Lone sk v f lf) fmla' skvs
+
+{- Puts the free variables in the bodies of sequents that do not show up in their
+   heads inside an existential quantifier. -}
+existentializeBodyVars :: Theory -> Theory
+existentializeBodyVars  thy  =
+  fst $ State.runState (existentializeTheoryBodyVars thy) 0
+
+existentializeTheoryBodyVars :: Theory -> Counter Theory
+existentializeTheoryBodyVars  thy = mapM existentializeSequentBodyVars thy
+
+existentializeSequentBodyVars :: Sequent -> Counter Sequent
+existentializeSequentBodyVars (Sequent bdy hd) = do
+  let vars = freeVars bdy \\ freeVars hd
+  bdy'    <- foldM (\f v -> do
+                          skFn   <- freshSymbol "exists"
+                          return (Exists (Just skFn) v f )) bdy vars
+  return $ Sequent bdy' hd
 
 -------TAKE EXISTS OUT ----------
 -- THIS IS A TEMPORARY SOLUTION
