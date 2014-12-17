@@ -231,7 +231,7 @@ insertRelSequent seq resSet db = do
                                 l' = sortBy (\(_, i1) (_, i2)->compare i1 i2) l
                             in fst <$> l'
   liftPushMProvs $ State.modify 
-                 $ \(id, _, ps) -> (id, vars, ps) 
+                 $ \(seqid, _, provs) -> (seqid, vars, provs) --change ps to provs
   let depth = configDefaultSkolemDepth cfg
   let dpths = configSkolemDepth cfg
   result    <- (liftM removeEmptyTables)              
@@ -239,7 +239,7 @@ insertRelSequent seq resSet db = do
                $ zip (fst <$> hds) tbls
                -- Fold the deduce facts for all heads- 
                -- eventually remove references to empty tables
-  (seqid, _, provs) <- liftPushMProvs State.get
+  (seqid, _, provs) <- liftPushMProvs State.get 
   uni       <- liftPushMBase  State.get
   iter      <- liftPushMSATIterator State.get
 
@@ -254,13 +254,13 @@ insertRelSequent seq resSet db = do
                                   let blm = TheoryBlame seqid sub
                                       it' = satStore oseq it
                                       pr' = modifyBlameSequentMap
-                                                (addBlameSequent blm oseq) provs
+                                                (addBlameSequent blm oseq) pr
                                   in  (it', pr'))
                         (iter, provs) propSeqs
 
   liftPushMSATIterator (State.put iter')
   liftPushMProvs $ State.modify
-                 $ \(id, vars, _) -> (id, vars, provs')
+                 $ \(seqid, vars, _) -> (seqid, vars, provs')
   return result
 
 filterTable :: Table -> Table
