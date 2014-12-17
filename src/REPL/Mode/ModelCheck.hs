@@ -79,7 +79,7 @@ enterModelCheck mode state@(RazorState config theory mspace mcoor) = case theory
 -- Command Functions --
 -----------------------
 modelTag :: ModelCheckMode -> String
-modelTag mode = "%incomplete% "
+modelTag mode = "incomplete"
 
 modelHelp :: ModelCheckMode -> IO()
 modelHelp cmd = prettyPrint 0 foutput $ "no commands"

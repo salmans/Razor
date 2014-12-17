@@ -92,7 +92,7 @@ enterTheory mode state@(RazorState config theory mspace mcoor) = return $ Right 
 -- Command Functions --
 -----------------------
 theoryTag :: TheoryMode -> String
-theoryTag mode = "%theory% "
+theoryTag mode = "theory"
 
 theoryHelp :: TheoryMode -> IO()
 theoryHelp cmd = prettyPrint 0 foutput $ ""++ 

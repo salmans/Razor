@@ -123,7 +123,7 @@ prettyModelCoordinatePlus mcoor = case mcoor of
 -- Command Functions --
 -----------------------
 exploreTag :: ExploreMode -> String
-exploreTag mode = "%explore% "
+exploreTag mode = "explore"
 
 exploreHelp :: ExploreMode -> IO()
 exploreHelp cmd = prettyPrint 0 foutput $ ""++ 

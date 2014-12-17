@@ -25,7 +25,8 @@ import Common.Provenance
 import Data.Maybe
 import Data.List
 import qualified Data.Map as Map
-import Syntax.GeometricUtils 
+import Syntax.GeometricUtils
+import Syntax.IGeometric
 import SAT.Impl
 import System.Console.Haskeline
 import Chase.Impl
@@ -71,7 +72,7 @@ main = do
 loop :: (LoopMode m i o) => RazorState -> m -> i -> InputT IO(RazorState)
 loop state@(RazorState config theory mspace mcoor) mode stin = do
   -- get input
-  minput <- getInputLine $ modeTag mode
+  minput <- getInputLine $ "Razor/"++(modeTag mode)++"> "
   -- parse input into a command and act depending on the case
   case minput of
       Nothing -> finish
@@ -153,9 +154,9 @@ replHelp = prettyPrint 0 foutput $ ""++
   "                 | t           Loaded Theory\n"++
   "                 | m           Current Model\n"++
   "         | @<mode>           Transition to a different REPL Mode\n"++
-  "  <mode>:=     | t             Edit Theory and Configuration\n"++
-  "               | m             Explore the Modelspace of the Current Theory\n"++
-  "               | q             Query Current Model\n"++
+  "  <mode>:=     | theory             Edit Theory and Configuration\n"++
+  "               | explore            Explore the Modelspace of the Current Theory\n"++
+  "               | explain            Query Current Model\n"++
   "         | ?                 Show REPLMode Specific Help\n"++
   "         | help              Print This Message\n"++
   "         | q|quit|exit       Exit Razor\n"
@@ -176,16 +177,16 @@ pChange = do
   Change <$> pMode
 
 pMode :: Parser REPLMode
-pMode = pTheoryM <|> pExplore <|> pExplain
+pMode = pTheoryM <|> pExplore +++ pExplain
 
 pTheoryM :: Parser REPLMode
-pTheoryM = string "t" >> return ModeTheory
+pTheoryM = string "theory" >> return ModeTheory
 
 pExplore :: Parser REPLMode
-pExplore = string "m" >> return ModeExplore
+pExplore = string "explore" >> return ModeExplore
 
 pExplain :: Parser REPLMode
-pExplain = string "q" >> return ModeExplain
+pExplain = string "explain" >> return ModeExplain
 
 -- Display
 pDisplay :: Parser REPLCommand
@@ -197,9 +198,7 @@ pSubstate :: Parser Substate
 pSubstate = pTheConfig <|> pTheTheory <|> pTheModel
 
 pTheConfig :: Parser Substate
-pTheConfig = do
-  string "c"
-  return TheConfig
+pTheConfig = string "c" >> return TheConfig
 
 pTheTheory :: Parser Substate
 pTheTheory = string "t" >> return TheTheory

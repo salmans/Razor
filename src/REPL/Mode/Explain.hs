@@ -115,7 +115,7 @@ enterExplain mode state@(RazorState config theory mspace mcoor) = case (theory, 
 -- Command Functions --
 -----------------------
 queryTag :: ExplainMode -> String
-queryTag mode = "%explain% "
+queryTag mode = "explain"
 
 queryHelp :: ExplainMode -> IO()
 queryHelp cmd = prettyPrint 0 foutput $ ""++
