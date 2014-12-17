@@ -69,7 +69,7 @@ queryRun mode state@(theory, gstar, model) command = case parseExplainCommand co
     Name isall isrec term -> do
       let origins = getOrigin theory gstar model isrec term
       if isall
-        then mapM_ (printOrigin theory 0) origins
+        then mapM_ (printOrigin theory 0) (nub origins)
         else printOrigin theory 0 (head origins)
       return $ Right state
 

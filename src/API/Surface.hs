@@ -140,6 +140,7 @@ getJustification gstar@(b,p,it,c) mdl fml = case getObservation mdl fml of
       Just bseq -> Right (blame, trueElementSequent mdl bseq)
 
 data QOrigin = QOriginLeaf Term QBlame | QOriginNode Term QBlame [QOrigin]
+  deriving (Eq)
 --
 --
 getOrigin :: Theory -> ChaseState -> Model -> Bool -> Term -> [QOrigin]
