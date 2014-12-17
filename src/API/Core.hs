@@ -302,26 +302,33 @@ atomElements (Rel   _ args)   = catMaybes $ termToElement <$> args
 atomElements (FnRel _ args)   = catMaybes $ termToElement <$> args
 --
 --
-sequentRename :: [Element] -> Sequent -> Sequent
-sequentRename eqelms (Sequent bd hd) = Sequent (formulaRename bd eqelms) (formulaRename hd eqelms)
+formulaRename ::  [Element] -> Element -> Formula -> Formula
+formulaRename eqnames actualelm (And f1 f2)     = And (formulaRename eqnames actualelm f1) (formulaRename eqnames actualelm f2)
+formulaRename eqnames actualelm (Or  f1 f2)     = Or (formulaRename eqnames actualelm f1) (formulaRename eqnames actualelm f2)
+formulaRename eqnames actualelm (Atm a)         = Atm $ atomRename a eqnames actualelm
+formulaRename eqnames actualelm (Exists c x f)  = Exists c x (formulaRename eqnames actualelm f) 
+formulaRename _ _ fml = fml
 --
 --
-formulaRename :: Formula -> [Element] -> Formula
-formulaRename (And f1 f2) eqelms    = And (formulaRename f1 eqelms) (formulaRename f2 eqelms)
-formulaRename (Or  f1 f2) eqelms   = Or (formulaRename f1 eqelms) (formulaRename f2 eqelms)
-formulaRename (Atm a) eqelms       = Atm $ atomRename a eqelms
-formulaRename (Exists c x f) eqelms = Exists c x (formulaRename f eqelms) 
-formulaRename fml _ = fml
+atomRename :: Atom -> [Element] -> Element -> Atom
+atomRename (Rel   sym args) eqnames actualelm = Rel sym $ termRename eqnames actualelm <$> args 
+atomRename (FnRel sym args) eqnames actualelm = FnRel sym $ termRename eqnames actualelm <$> args
 --
 --
-atomRename :: Atom -> [Element] -> Atom
-atomRename (Rel   sym args) eqelms  = Rel sym $ termRename eqelms <$> args 
-atomRename (FnRel sym args) eqelms  = FnRel sym $ termRename eqelms <$> args
---
---
-termRename :: [Element] -> Term -> Term
-termRename eqelms term@(Elem e) = do
-  if elem e eqelms
-    then (Elem (head eqelms))
+termRename :: [Element] -> Element -> Term -> Term
+termRename eqnames actualelm term@(Elem e) = do
+  if elem e eqnames
+    then Elem actualelm
     else term
-termRename _ term = term
+termRename eqnames actualelm term@(Fn sym terms) = Fn sym $ termRename eqnames actualelm <$> terms
+termRename _ _ term = term
+--
+--
+trueElementSequent :: Model -> Sequent -> Sequent
+trueElementSequent mdl (Sequent bd hd) = Sequent (trueElementFormula mdl bd) (trueElementFormula mdl hd)
+--
+--
+trueElementFormula :: Model -> Formula -> Formula
+trueElementFormula mdl fml = do
+  let eqnamess = Map.elems (modelElements mdl)
+  foldr (\eqnames->formulaRename eqnames (head eqnames)) fml eqnamess

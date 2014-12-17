@@ -137,10 +137,7 @@ getJustification gstar@(b,p,it,c) mdl fml = case getObservation mdl fml of
     Nothing -> Left "no provenance info for blame observation"
     Just blame -> case findBlameSequent blame p of
       Nothing -> Left "unable to find blamed theory rule from provenance info"
-      Just bseq -> do
-        let originalelms = formulaElements fml
-        let eqelmss = map (getEqualElements mdl) (map Elem originalelms)
-        Right (blame, foldr sequentRename (toSequent bseq) eqelmss)
+      Just bseq -> Right (blame, trueElementSequent mdl (toSequent bseq))
 
 data QOrigin = QOriginLeaf Term QBlame | QOriginNode Term QBlame [QOrigin]
 --
@@ -157,7 +154,8 @@ getOrigin thy gstar@(b,p,it,c) mdl isrec term = do
           blame@(Right (_, (Sequent bd hd))) -> do
             let freeelms = formulaElements bd
             let childelms = nub (nextelms++freeelms)
-            return $ QOriginNode term blame (concatMap (\e->(getOrigin thy gstar mdl isrec (Elem e))) childelms)
+            let modelchildelms = filter (\e->Map.member e (modelElements mdl)) childelms
+            return $ QOriginNode term blame (concatMap (\e->(getOrigin thy gstar mdl isrec (Elem e))) modelchildelms)
           blame -> return $ QOriginNode term blame (concatMap (\e->(getOrigin thy gstar mdl isrec (Elem e))) nextelms)
   where 
     name = case getEqualElements mdl term of
@@ -168,7 +166,7 @@ getOrigin thy gstar@(b,p,it,c) mdl isrec term = do
           origins -> Right (eqelms, origins)
     blamed origin eqelms = case findBlameSequent origin p of
       Nothing -> Left $ "unable to find origin from provenance info"
-      Just bseq -> Right (origin, sequentRename eqelms (toSequent bseq))
+      Just bseq -> Right (origin, trueElementSequent mdl (toSequent bseq))
 --
 -- an observation (for now) is just an atom consisting of only elements currently in the model
 getObservation :: Model -> Formula -> Maybe Observation
