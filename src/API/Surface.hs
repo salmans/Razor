@@ -137,7 +137,7 @@ getJustification gstar@(b,p,it,c) mdl fml = case getObservation mdl fml of
     Nothing -> Left "no provenance info for blame observation"
     Just blame -> case findBlameSequent blame p of
       Nothing -> Left "unable to find blamed theory rule from provenance info"
-      Just bseq -> Right (blame, trueElementSequent mdl (toSequent bseq))
+      Just bseq -> Right (blame, trueElementSequent mdl bseq)
 
 data QOrigin = QOriginLeaf Term QBlame | QOriginNode Term QBlame [QOrigin]
 --
@@ -166,7 +166,7 @@ getOrigin thy gstar@(b,p,it,c) mdl isrec term = do
           origins -> Right (eqelms, origins)
     blamed origin eqelms = case findBlameSequent origin p of
       Nothing -> Left $ "unable to find origin from provenance info"
-      Just bseq -> Right (origin, trueElementSequent mdl (toSequent bseq))
+      Just bseq -> Right (origin, trueElementSequent mdl bseq)
 --
 -- an observation (for now) is just an atom consisting of only elements currently in the model
 getObservation :: Model -> Formula -> Maybe Observation

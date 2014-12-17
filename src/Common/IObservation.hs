@@ -188,5 +188,6 @@ processBody _              = error $ unitName
    be ignored. This function may be extended to perform a better test but for 
    now, it only returns true if the obervation is a trivial equation. -}
 trivialObservation :: Observation -> Bool
+--trivialObservation (Obs (Rel "=" [(Elem e), (Elem f)])) = True
 trivialObservation (Obs (Rel "=" [t, s])) = t == s
 trivialObservation _                      = False

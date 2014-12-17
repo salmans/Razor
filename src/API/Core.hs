@@ -296,24 +296,16 @@ formulaElements (Or  f1 f2)    = (formulaElements f1) `union` (formulaElements f
 formulaElements (Atm a)        = atomElements a
 formulaElements (Exists _ x f) = (formulaElements f) 
 --
---
 atomElements :: Atom -> [Element]
 atomElements (Rel   _ args)   = catMaybes $ termToElement <$> args
 atomElements (FnRel _ args)   = catMaybes $ termToElement <$> args
 --
 --
-formulaRename ::  [Element] -> Element -> Formula -> Formula
-formulaRename eqnames actualelm (And f1 f2)     = And (formulaRename eqnames actualelm f1) (formulaRename eqnames actualelm f2)
-formulaRename eqnames actualelm (Or  f1 f2)     = Or (formulaRename eqnames actualelm f1) (formulaRename eqnames actualelm f2)
-formulaRename eqnames actualelm (Atm a)         = Atm $ atomRename a eqnames actualelm
-formulaRename eqnames actualelm (Exists c x f)  = Exists c x (formulaRename eqnames actualelm f) 
-formulaRename _ _ fml = fml
---
---
-atomRename :: Atom -> [Element] -> Element -> Atom
-atomRename (Rel   sym args) eqnames actualelm = Rel sym $ termRename eqnames actualelm <$> args 
-atomRename (FnRel sym args) eqnames actualelm = FnRel sym $ termRename eqnames actualelm <$> args
---
+trueElementSequent :: Model -> ObservationSequent -> Sequent
+trueElementSequent mdl oseq = do
+  let eqnamess = Map.elems (modelElements mdl)
+  let renamed = foldr (\eqnames->renameObservationSequent eqnames (head eqnames)) oseq eqnamess
+  toSequent renamed
 --
 termRename :: [Element] -> Element -> Term -> Term
 termRename eqnames actualelm term@(Elem e) = do
@@ -322,13 +314,19 @@ termRename eqnames actualelm term@(Elem e) = do
     else term
 termRename eqnames actualelm term@(Fn sym terms) = Fn sym $ termRename eqnames actualelm <$> terms
 termRename _ _ term = term
+-- 
+renameAtom :: [Element] -> Element -> Atom -> Atom
+renameAtom eqnames actualelm (Rel rsym terms) = Rel rsym $ termRename eqnames actualelm <$> terms
+renameAtom eqnames actualelm (FnRel fsym terms) = FnRel fsym $ termRename eqnames actualelm <$> terms
 --
+renameObservation :: [Element] -> Element -> Observation -> Observation
+renameObservation eqnames actualelm (Obs atm) = Obs $ renameAtom eqnames actualelm atm
 --
-trueElementSequent :: Model -> Sequent -> Sequent
-trueElementSequent mdl (Sequent bd hd) = Sequent (trueElementFormula mdl bd) (trueElementFormula mdl hd)
+renameConjuncts :: [Element] -> Element -> [Observation] -> [Observation]
+renameConjuncts eqnames actualelm cs = filter (not.trivialObservation) $ renameObservation eqnames actualelm <$> cs
 --
+renameDisjuncts :: [Element] -> Element -> [[Observation]] -> [[Observation]]
+renameDisjuncts eqnames actualelm ds = filter (not.trivialObservation) <$> renameConjuncts eqnames actualelm <$> ds
 --
-trueElementFormula :: Model -> Formula -> Formula
-trueElementFormula mdl fml = do
-  let eqnamess = Map.elems (modelElements mdl)
-  foldr (\eqnames->formulaRename eqnames (head eqnames)) fml eqnamess
+renameObservationSequent :: [Element] -> Element -> ObservationSequent -> ObservationSequent
+renameObservationSequent eqnames actualelm (ObservationSequent bdy hds) = ObservationSequent (renameConjuncts eqnames actualelm bdy) (renameDisjuncts eqnames actualelm hds)

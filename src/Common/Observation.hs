@@ -20,6 +20,6 @@
 -}
 
 module Common.Observation ( Observation (..), ObservationSequent (..) 
-                          , buildObservationSequent, toObservation ) where
+                          , buildObservationSequent, toObservation, trivialObservation) where
 
 import Common.IObservation
