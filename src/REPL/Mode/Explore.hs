@@ -75,15 +75,19 @@ exploreRun mode state@(config, theory, mspace, mcoor) command = case parseExplor
           Just (mspace', mcoor') -> do
             prettyModel $ modelLookup mspace' (Just mcoor')
             return $ Right $ (theory, mspace', mcoor')
-    Pop -> case mcoor of
-      Stack obs mcoor' -> do
+    Pop -> case lastAug mcoor of
+      Nothing -> return $ Left "No augmentation in explore history to undo!"
+      Just (obs, mcoor') -> do
         prettyPrint 0 foutput $ "Undoing last augmentation "++(show obs)++"...\n"
         case modelDown mspace mcoor mcoor' of
           Nothing -> return $ Left "Could not undo previous augmentation!"
           Just mspace' -> do
             prettyModel $ modelLookup mspace' (Just mcoor')
             return $ Right $ (theory, mspace', mcoor')
-      _ -> return $ Left $ "Last explore command was not an augmentation!"
+      where
+        lastAug (Stack obs mcoor') = Just (obs, mcoor')
+        lastAug (Stream mcoor') = lastAug mcoor'
+        lastAug (Origin) = Nothing
 
             
 ------------------------
