@@ -88,15 +88,15 @@ preprocess = (simplifySequent <$>).(addElementPreds <$>).
   equality relation. -}
 relationalize :: Theory -> Theory
 relationalize thy  = 
-    (fst $ State.runState (relationalizeTheory thy) 0) -- ++ integ ++ eqAxs
+    (fst $ State.runState (relationalizeTheory thy) 0) ++ eqAxs -- ++ integ ++ eqAxs
     where funcs  = filter (\fa -> snd fa /= 0) $ functionSyms thy
           funcs' = (\(f, a) -> (f, a + 1)) <$> funcs
                    -- arity of functions as relations increases by one
           rels   = relationSyms thy
           integ  = integritySequents <$> funcs
-          eqAxs  = equivalenceAxioms ++
-                   concatMap (uncurry relationCongruenceAxioms) rels ++ 
-                   concatMap (uncurry functionCongruenceAxioms) funcs'
+          eqAxs  = equivalenceAxioms -- ++
+                   -- concatMap (uncurry relationCongruenceAxioms) rels ++ 
+                   -- concatMap (uncurry functionCongruenceAxioms) funcs'
 
 linearize :: Theory -> Theory
 linearize thy = (\(Sequent bdy hd) -> Sequent (linearizeFormula bdy) hd) <$> thy
@@ -404,9 +404,9 @@ integritySequents fs = Sequent (lft fs) (parseFormula "y = y'")
      2. @x = y => y = x@ 
      3. @x = y & y = z => x = z@ -}
 equivalenceAxioms :: Theory
-equivalenceAxioms =  parseSequent <$> [ "x = x"
-                                      , "x = y => y = x"
-                                      , "x = y & y = z => x = z"]
+equivalenceAxioms =  parseSequent <$> [ "x = x;"
+                                      , "x = y => y = x;"
+                                      , "x = y & y = z => x = z;"]
 
 {- For every relation @R@ of arity @n@ in the theory, adds axioms in the form 
    @R(x1, x2, ..., xn) & x1 = x1' => R(x1', x2, ..., xn)@ -}

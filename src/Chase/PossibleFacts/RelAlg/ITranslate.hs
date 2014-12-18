@@ -99,16 +99,17 @@ bodyRelExp = (formulaRelExp . removeEquations)
 {- Replaces the equations in the a 'Formula' with Truth. This is necessary for 
    constructing the correct set of observational instances that are passed to 
    the SMT solver. -}
-removeEquations :: Formula -> Formula
-removeEquations fmla =
-    let fmla' = removeEquationsHelper fmla
-        diff  = (freeVars fmla) \\ (freeVars fmla')
-    in  case (fmla', diff) of
-          (f  , []) -> f
-          (Tru, vs) -> let rels = (\v -> Atm $ Rel "@Element" [Var v]) <$> vs
-                       in foldr1 And rels
-          (f  , vs) -> let rels = (\v -> Atm $ Rel "@Element" [Var v]) <$> vs
-                       in foldr And f rels
+removeEquations = id
+-- removeEquations :: Formula -> Formula
+-- removeEquations fmla =
+--     let fmla' = removeEquationsHelper fmla
+--         diff  = (freeVars fmla) \\ (freeVars fmla')
+--     in  case (fmla', diff) of
+--           (f  , []) -> f
+--           (Tru, vs) -> let rels = (\v -> Atm $ Rel "@Element" [Var v]) <$> vs
+--                        in foldr1 And rels
+--           (f  , vs) -> let rels = (\v -> Atm $ Rel "@Element" [Var v]) <$> vs
+--                        in foldr And f rels
 
 --  A helper for removeEquations:
 removeEquationsHelper :: Formula -> Formula
