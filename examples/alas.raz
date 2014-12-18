@@ -85,18 +85,18 @@ Grant(e, p, k) => HasKey(p, k);
 -- exists m. MemberOf(m, 'PEDS);
 
 --------------------------------------------------
-{- Query 3: Can ALAS members always enter B17?
+{- Query 3: Can ALAS members always enter B17? Show a counterexample.
 -}
 
 -- MemberOf('Salman, 'ALAS);
 -- CanEnter('Salman, 'B17) => Falsehood;
 
 --------------------------------------------------
-{- Query 4: Do cards of ALAS members open B17?
+{- Query 4: Do cards of ALAS members open B17? Show a counterexample.
 -}
 
--- MemberOf('Ryan, 'ALAS)
--- CardOpens(cardOf('Ryan), 'B17) => Falsehood
+-- MemberOf('Ryan, 'ALAS);
+-- CardOpens(cardOf('Ryan), 'B17) => Falsehood;
 
 --------------------------------------------------
 {- Query 5: Can a thief who is not either a member of ALAS nor PEDS enter B17?
