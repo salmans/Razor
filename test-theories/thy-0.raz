@@ -1,0 +1,2 @@
+-- instantiate functions with multiple values:
+P('a) & f('a) = 'b;

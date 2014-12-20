@@ -1,0 +1,8 @@
+-- one step equational reasoning:
+exists x . P(x);
+exists y . Q(y);
+exists z . R(z);
+
+P(x) & R(x) => S(x);
+P(x) & Q(y) => x = y;
+Q(y) & R(z) => y = z;

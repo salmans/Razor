@@ -1,0 +1,2 @@
+-- Razor may return isomorphic models, induced by the structure of the theory:
+exists x . P(x) | exists x . P(x);
