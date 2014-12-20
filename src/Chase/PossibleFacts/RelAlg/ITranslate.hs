@@ -85,54 +85,15 @@ error_deltaForDelta    = "the formula is already in differential form"
 headRelExp :: Formula -> [RelExp]
 headRelExp (Or fmla1 fmla2) = 
     if   fmla1 == Tru || fmla2 == Tru
-    then headRelExp Tru  -- shortcut Truth
-    else fmla1' `union` fmla2'
+      then headRelExp Tru  -- shortcut Truth
+      else fmla1' `union` fmla2'
     where fmla1' = headRelExp fmla1
           fmla2' = headRelExp fmla2
-headRelExp fmla             = [formulaRelExp fmla']
-    where fmla'  = removeEquations fmla
+headRelExp fmla             = [formulaRelExp fmla]
 
 {- Creates a 'RelExp' for a 'Formula' in the body of a sequent. -}
 bodyRelExp :: Formula -> RelExp
-bodyRelExp = (formulaRelExp . removeEquations)
-
-{- Replaces the equations in the a 'Formula' with Truth. This is necessary for 
-   constructing the correct set of observational instances that are passed to 
-   the SMT solver. -}
-removeEquations = id
--- removeEquations :: Formula -> Formula
--- removeEquations fmla =
---     let fmla' = removeEquationsHelper fmla
---         diff  = (freeVars fmla) \\ (freeVars fmla')
---     in  case (fmla', diff) of
---           (f  , []) -> f
---           (Tru, vs) -> let rels = (\v -> Atm $ Rel "@Element" [Var v]) <$> vs
---                        in foldr1 And rels
---           (f  , vs) -> let rels = (\v -> Atm $ Rel "@Element" [Var v]) <$> vs
---                        in foldr And f rels
-
---  A helper for removeEquations:
-removeEquationsHelper :: Formula -> Formula
-removeEquationsHelper Tru = Tru
-removeEquationsHelper Fls = Fls
-removeEquationsHelper (Atm (Rel "=" _))  = Tru
-removeEquationsHelper a@(Atm _)          = a
-removeEquationsHelper (And fmla1 fmla2)  =
-    case (removeEquationsHelper fmla1, removeEquationsHelper fmla2) of
-      (Fls, _  ) -> Fls
-      (_  , Fls) -> Fls
-      (Tru, f  ) -> f
-      (f  , Tru) -> f
-      (f  , f' ) -> And f f'
-removeEquationsHelper (Or fmla1 fmla2)    =
-    case (removeEquationsHelper fmla1, removeEquationsHelper fmla2) of
-      (Fls, f  ) -> f
-      (f  , Fls) -> f
-      (f  , f' ) -> Or f f'
-removeEquationsHelper (Exists fn x fmla)  = 
-    Exists fn x (removeEquationsHelper fmla)
-removeEquationsHelper (Lone sk x fmla unq) = 
-    Lone sk x (removeEquationsHelper fmla) unq
+bodyRelExp =  formulaRelExp
 
 {- Translates a disjunct-free goemetric 'Formula' to a 'RelExp'. -}
 formulaRelExp :: Formula -> RelExp

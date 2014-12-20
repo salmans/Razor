@@ -88,15 +88,11 @@ preprocess = (simplifySequent <$>).(addElementPreds <$>).
   equality relation. -}
 relationalize :: Theory -> Theory
 relationalize thy  = 
-    (fst $ State.runState (relationalizeTheory thy) 0) ++ eqAxs -- ++ integ ++ eqAxs
+    (fst $ State.runState (relationalizeTheory thy) 0) ++ eqAxs
     where funcs  = filter (\fa -> snd fa /= 0) $ functionSyms thy
           funcs' = (\(f, a) -> (f, a + 1)) <$> funcs
                    -- arity of functions as relations increases by one
-          rels   = relationSyms thy
-          integ  = integritySequents <$> funcs
-          eqAxs  = equivalenceAxioms -- ++
-                   -- concatMap (uncurry relationCongruenceAxioms) rels ++ 
-                   -- concatMap (uncurry functionCongruenceAxioms) funcs'
+          eqAxs  = equivalenceAxioms
 
 linearize :: Theory -> Theory
 linearize thy = (\(Sequent bdy hd) -> Sequent (linearizeFormula bdy) hd) <$> thy
@@ -391,13 +387,6 @@ relationalizeTerm (Fn f ts) = do
                          -- (returned by flattening the subterm); conjoin the
                          -- corresponding formula.
 
-{- Create additional sequents to enforce function integrity constraints. -}
-integritySequents :: (FnSym, Int) -> Sequent
-integritySequents fs = Sequent (lft fs) (parseFormula "y = y'")
-    where lft (f, a) = And (Atm (FnRel f (vars a ++ [Var (Variable "y") ])))
-                           (Atm (FnRel f (vars a ++ [Var (Variable "y'")])))
-          vars a     = (\i -> Var (Variable ("x" ++ show i))) <$> [1.. a]
-
 {- Adds three axioms to enforce symmetric, reflexive and transitive properties 
    of equality:
      1. @x = x@ 
@@ -407,34 +396,6 @@ equivalenceAxioms :: Theory
 equivalenceAxioms =  parseSequent <$> [ "x = x;"
                                       , "x = y => y = x;"
                                       , "x = y & y = z => x = z;"]
-
-{- For every relation @R@ of arity @n@ in the theory, adds axioms in the form 
-   @R(x1, x2, ..., xn) & x1 = x1' => R(x1', x2, ..., xn)@ -}
-relationCongruenceAxioms :: RelSym -> Int -> Theory
-relationCongruenceAxioms "=" _     = [] -- don't do anything for equality
-relationCongruenceAxioms sym arity = 
-    let var      = Var . Variable
-        vars i j = (\i -> var ("x" ++ (show i))) <$> [i..j]
-        seq i    = Sequent (And (Atm $ Rel sym $ vars 1 arity)
-                                (Atm $ Rel "=" [ var $ "x" ++ (show i)
-                                               , var "y"]))
-                           (Atm $ Rel sym $ (vars 1 (i - 1) ++ 
-                                            (var "y"):(vars (i + 1) arity)))
-    in  seq <$> [1 .. arity]
-
-{- For every functional relation @F@ of arity @n@ in the theory, adds axioms in 
-   the form @F(x1, x2, ..., xn) & x1 = x1' => F(x1', x2, ..., xn)@ -}
-functionCongruenceAxioms :: FnSym -> Int -> Theory
-functionCongruenceAxioms "=" _     = [] -- don't do anything for equality
-functionCongruenceAxioms sym arity = 
-    let var      = Var . Variable
-        vars i j = (\i -> var ("x" ++ (show i))) <$> [i..j]
-        seq i    = Sequent (And (Atm $ FnRel sym $ vars 1 arity)
-                                (Atm $ Rel "=" [ var $ "x" ++ (show i)
-                                                 , var "y"]))
-                           (Atm $ FnRel sym $ (vars 1 (i - 1) ++ 
-                                              (var "y"):(vars (i + 1) arity)))
-    in  seq <$> [1 .. arity]
 --------------------------------------------------------------------------------
 -- Adding @Element predicates to deal with free variables in the head of 
 -- sequents
