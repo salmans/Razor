@@ -107,7 +107,7 @@ Read(u1, c) & Post(u2, c) => u1 = u2
 -- Queries:
 --------------------------------------------------
 {- Query 1: Show models where a user is reading a content:
-   Razor returns seven models at depth >= 2.
+   Razor returns seven (complete) models at depth >= 3.
 -}
 
 -- exists u . exists c . Read(u, c);
@@ -174,7 +174,7 @@ Read(u1, c) & Post(u2, c) => u1 = u2
 {- Query 6-1: Is it possible to post a content that can be read by everybody
    on Facebook?
    This query is tricky: we expect a model where the permission of the post
-   is Public; however, Razor returns 7 models (depth >= 2) where the only user
+   is Public; however, Razor returns 7 models (depth >= 3) where the only user
    on Facebook is the person who is posting the content!
 -}
 
@@ -185,8 +185,8 @@ Read(u1, c) & Post(u2, c) => u1 = u2
 {- Query 6-2: Repeat the previous query but this time, assume Anybody (which
    is merely a name for an arbitrary user) is a user other than the person
    who is posting the content:
-   Razor returns a model at depth >= 2. Similar to Query 6-1, these models
-   restrict everybody on facebook to be friends of the user who posts the
+   Razor returns a (complete) model at depth >= 2. Similar to Query 6-1, these
+   models restrict everybody on facebook to be friends of the user who posts the
    content or her friends of friends.
 -}
 
