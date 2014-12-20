@@ -18,8 +18,8 @@
   Maintainer  : Salman Saghafi <salmans@wpi.edu>, Ryan Danas <ryandanas@wpi.edu>
 -}
 
-{-# Language TypeSynonymInstances #-}
-{-# Language FlexibleInstances #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE Rank2Types #-}
@@ -297,9 +297,11 @@ instantiateSequent uni new sub bodySub exSub seq =
                            loneSkFuns = rights $ skolemFunctions seq''
                            skMap      = Map.fromListWith (++) 
                                       $ (pure <$>) <$> loneSkFuns
-                       in  case runListT $ applyLoneSubs uni new skMap seq'' of
-                             Left skFn -> [incompleteSequent (sequentBody seq') skFn]
-                             Right sqs -> sqs
+                           (ls, rs)   = partitionEithers
+                                        $ applyLoneSubs uni new skMap seq''
+                       in  if null rs
+                             then [incompleteSequent (sequentBody seq') $ head ls]
+                             else rs
 
 createSubs :: RelSequent -> Database -> Database -> TableSub
            -> ProvInfo -> [(Sub, ExistsSub, Either FnSym ExistsSub)]
@@ -336,28 +338,32 @@ createExistsSub tup elmProvs skFuns =
         else Left  $ fst . head . filter (isNothing.snd) $ skElems
              -- Any of the skFuns that have reached the maximum limit works!
 
+
 applyLoneSubs :: Database -> Database -> Map.Map FnSym [Atom] -> Sequent
-              -> ListT (Either FnSym) Sequent
+              -> [Either FnSym Sequent]
 applyLoneSubs uni new skMap seq =
     if   Map.null skMap
-    then return seq -- done!
+    then return (Right seq) -- done!
     else if   Map.null completeAtoms -- no more complete atoms, thus no progress!
-         then lift . Left . head . Map.keys $ rest
+         then return . Left . head . Map.keys $ rest
               -- Any of the unassigned function values can be used for
               -- constructing an "incomplete sequent".
          else do
            let atomSubs skFun a@(FnRel f ts) = do
                  let  Var v = last ts
                  case lookupElement a of
-                   Nothing   -> lift $ Left f
-                   Just elms -> return $
-                                  (\e -> ((v, Elem e), (skFun, Elem e))) <$>
-                                  DB.toList elms
-           temp            <- mapM (uncurry atomSubs) completeAtomsList
-           let res          = transformTuples $ concat temp
-           let (sub, exSub) = (\(x, y) -> (Map.fromList x, Map.fromList y)) res
-           let rest'        = Map.map (substitute sub) rest
-           applyLoneSubs uni new rest' $ sequentExistsSubstitute exSub seq
+                   Nothing   -> [Left f]
+                   Just elms -> (\e -> Right ((v, Elem e), (skFun, Elem e))) <$>
+                                    DB.toList elms
+           temp        <- mapM (uncurry atomSubs) completeAtomsList
+           let (ls, rs) = partitionEithers temp
+           if null rs
+             then return (Left $ head ls)
+             else do
+                 let res          = transformTuples rs
+                 let (sub, exSub) = (\(x, y) -> (Map.fromList x, Map.fromList y)) res
+                 let rest'        = Map.map (substitute sub) rest
+                 applyLoneSubs uni new rest' $ sequentExistsSubstitute exSub seq
     where (completeAtoms, rest) = Map.partition (all completeAtom) skMap
           func (a, ls)          = (\l -> (a, l)) <$> ls
           completeAtomsList     = concatMap func $ Map.toList completeAtoms
