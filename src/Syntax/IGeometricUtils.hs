@@ -125,7 +125,7 @@ linearizeFormulaHelper varMap (Atm (FnRel sym terms)) =
     in (Map.foldrWithKey (\key inds fmla ->
                               case makeAnd key inds of
                                 Nothing -> fmla
-                                Just fm -> And fmla fm) atm diffMap, varMap')
+                                Just fm -> And fm fmla) atm diffMap, varMap')
     where getVarVal v@(Variable name) vm = 
               let val = Map.findWithDefault 0 v vm
               in  (val, Map.insert v (val + 1) vm)
@@ -155,7 +155,7 @@ linearizeFormulaHelper varMap (Atm (Rel sym terms)) =
     in (Map.foldrWithKey (\key inds fmla ->
                               case makeAnd key inds of
                                 Nothing -> fmla
-                                Just fm -> And fmla fm) atm diffMap, varMap')
+                                Just fm -> And fm fmla) atm diffMap, varMap')
     where getVarVal v@(Variable name) vm = 
               let val = Map.findWithDefault 0 v vm
               in  (val, Map.insert v (val + 1) vm)
@@ -194,10 +194,6 @@ relationalizeSequent :: Sequent -> Counter Sequent
 relationalizeSequent (Sequent bdy hd) = do
   (bdy', bdyData) <- relationalizeBody bdy
   (hd' , hdData ) <- relationalizeHead hd
-  -- let vars         = freeVars bdy' \\ freeVars hd'  
-  -- bdy''           <- foldM (\f v -> do
-  --                              skFn   <- freshSymbol "exists"
-  --                              return (Exists (Just skFn) v f )) bdy' vars
   return $ Sequent (makeExists (bdy', bdyData)) (makeExists (hd', hdData))
     where makeExists (fmla, skvs) = 
               let (vs', fmla') = takeExistsOut fmla
