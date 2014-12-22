@@ -5,3 +5,6 @@ P(x) & S(x) => T(x);
 P(x) & Q(y) => x = y;
 R(x) & S(y) => x = y;
 Q(x) & R(y) => x = y;
+
+-- Similar to @thy-1.raz@, this example demonstrates that Razor successfully
+-- delegates equational reasoning to the SMT solver.

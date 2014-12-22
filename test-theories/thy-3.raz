@@ -1,2 +1,4 @@
--- Razor may return isomorphic models, induced by the structure of the theory:
+-- Isomorphic models in Razor:
 exists x . P(x) | exists x . P(x);
+
+-- Razor may return isomorphic models, induced by the structure of the theory.
