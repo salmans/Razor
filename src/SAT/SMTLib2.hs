@@ -116,7 +116,7 @@ smtAtom _          = error $ unitName ++ ".smtAtom: "
                      ++ error_RelationalAtomExpected
 
 smtIncomplete :: Atom -> SMTIncomplete
-smtIncomplete (Inc skFn) = "@Incomplete_" ++ skFn
+smtIncomplete (Inc skFn) = "@Incomplete#" ++ skFn
 
 {- Translates special relation symbols to symbols that are accepted by the SMT 
    solver. -}
@@ -262,11 +262,12 @@ tranObservation obs@(Obs atm@(FnRel f ts))  = do
   sOut      <- elementValue elm
   val       <- termValue f term unintFunc sIns
   return (val .==. sOut)
-tranObservation obs@(Obs atm@(Inc f))  = do
+tranObservation obs@(Obs atm@(Inc iden))  = do
   let (SMTIncObs iden) = smtObservation obs
-                         -- smtObservation drops the last parameter for 
-                         -- functions
-  val       <- incompleteValue iden
+  let r                = smtRelSym iden
+  unintRel            <- unintRelValue r 0
+                      -- treat incomplete flags as propositions
+  val       <- atomValue r iden unintRel []
   return (val .==. true)
 
 {- Converts a solution created by the SMT solver to a set of 'Observation's. -}
@@ -281,7 +282,7 @@ translateDictionary dic =
     let (_, obss)    = Map.partitionWithKey (\k _ -> isElementString k) dic
         (facs, funs) = Map.partition (\cw -> resKind cw == RKBool) obss
         (incs, rels) = Map.partitionWithKey
-                       (\k _ -> "@Incomplete_" `isPrefixOf` k) facs
+                       (\k _ -> "@Incomplete#" `isPrefixOf` k) facs
         eqClasses    = equivalenceClasses dic
         revDic       = Map.map head eqClasses
         relObss      = Map.elems $ Map.mapWithKey (\k _ -> obsFromSMTAtom k) 
@@ -322,7 +323,7 @@ obsFromSMTTerm str e =
    term.  -}
 obsFromSMTIncomplete :: SMTIncomplete -> Observation
 obsFromSMTIncomplete str = 
-    let strs = Text.unpack <$> Text.splitOn (Text.pack "_") (Text.pack str)
+    let strs = Text.unpack <$> Text.splitOn (Text.pack "#") (Text.pack str)
         pref = head strs
         skFn = last strs
     in  if   pref == "@Incomplete"
@@ -712,21 +713,6 @@ termValue fn term unintFunc sParams = do
   lift $ State.modify (\c -> c { containerTerms = termMap' })
   return sym
 
-{- Similar to atomValue and termValue but returns values for incomplete atoms. -}
-incompleteValue :: SMTIncomplete -> SMTM SBool
-incompleteValue inc = do
-  container  <- lift State.get
-  let atoms   = containerAtoms container
-  sym        <- case Map.lookup inc atoms of
-                  Nothing -> do
-                    s <- var
-                    return s
-                  Just s  -> return s
-  -- update container:
-  let atoms' = Map.insertWith (flip const) inc sym atoms
-                 -- do not insert if exists
-  lift $ State.modify (\c -> c { containerAtoms = atoms' })
-  return sym
 --------------------------------------------------------------------------------
 -- SMT Solving and Model Generation
 --------------------------------------------------------------------------------
@@ -849,15 +835,6 @@ backtrack cont = case containerResult cont of
                                       ".backtrack: " ++
                                       error_InvalidBacktrack
                    Just r  -> (r, cont)
-  -- let context = do
-  --           push
-  --           next <- getSatResult
-  --           min  <- reduce next
-  --           lift $ State.modify (\c -> c {containerResult = Just min})
-  --           pop
-  --           return min
-  --     run     = perform context
-  -- in unsafePerformIO $ State.runStateT run cont
 
 {- This recursively reduces the initial result of the SMT solver to construct a 
    minimal model based on an Aluminum-like algorithm. The result of the function
@@ -1164,6 +1141,6 @@ disableIncomplete :: SMTM SBool
 disableIncomplete = do
     container <- lift State.get
     let atoms =  containerAtoms container
-    let incs  =  Map.filterWithKey (\k _ -> "@Incomplete_" `isPrefixOf` k) atoms
+    let incs  =  Map.filterWithKey (\k _ -> "@Incomplete#" `isPrefixOf` k) atoms
     let axm   =  (false .==.) <$> (Map.elems incs)
     return $ foldr (.&&.) true axm
