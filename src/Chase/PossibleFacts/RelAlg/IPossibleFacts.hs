@@ -67,7 +67,6 @@ import Chase.PossibleFacts.RelAlg.Translate
 
 -- Tools
 import Tools.Config (Config (..))
-import Tools.Trace
 
 unitName                 = "Chase.PossibleFacts.RelAlg.PossibleFacts"
 
@@ -283,12 +282,13 @@ relSequentInstances relSeq uni new resSet provs =
     where seq = toSequent relSeq
 
 instantiateSequent :: Database -> Database -> Sub -> ExistsSub
-                   -> Either FnSym ExistsSub -> Sequent -> [Sequent]
-instantiateSequent uni new sub bodySub exSub seq = 
+                   -> Either [FnSym] ExistsSub -> Sequent -> [Sequent]
+instantiateSequent uni new sub bodySub exSub seq =
     let bdy  = formulaExistsSubstitute bodySub (sequentBody seq)
         seq' = substitute sub seq { sequentBody = bdy }
     in  case exSub of
-          Left skFn -> [incompleteSequent (sequentBody seq') skFn]
+          Left fns  -> return $ foldr replaceIncompleteEx seq' fns
+          -- [incompleteSequent (sequentBody seq') (head skFn)]
           Right s   -> let seq''      = sequentExistsSubstitute s seq'
                            loneSkFuns = rights $ skolemFunctions seq''
                            skMap      = Map.fromListWith (++) 
@@ -302,7 +302,7 @@ instantiateSequent uni new sub bodySub exSub seq =
                              else return $ head rs
 
 createSubs :: RelSequent -> Database -> Database -> TableSub
-           -> ProvInfo -> [(Sub, ExistsSub, Either FnSym ExistsSub)]
+           -> ProvInfo -> [(Sub, ExistsSub, Either [FnSym] ExistsSub)]
 createSubs seq uni new tbl provs =
     let subsOf t = if   bodyExp == TblFull
                    then emptySub
@@ -320,7 +320,7 @@ createSubs seq uni new tbl provs =
 createSub :: Tup -> Header -> Sub
 createSub tup heads = Map.map (\i -> Elem (tup ! i)) heads
 
-createExistsSub :: Tup -> ElementProvs -> [FnSym] -> Either FnSym ExistsSub
+createExistsSub :: Tup -> ElementProvs -> [FnSym] -> Either [FnSym] ExistsSub
 createExistsSub tup elmProvs skFuns =     
     let paramProvs = fromJust <$>  -- any of the existing provenance terms works
                      (\e -> getElementProv e elmProvs) <$> 
@@ -333,7 +333,7 @@ createExistsSub tup elmProvs skFuns =
                      <$> provsToBe
     in  if   all (isJust.snd) skElems
         then Right $ Map.fromList $ (Elem . fromJust <$>) <$> skElems
-        else Left  $ fst . head . filter (isNothing.snd) $ skElems
+        else Left  $ fst <$> (filter (isNothing.snd) skElems)
              -- Any of the skFuns that have reached the maximum limit works!
 
 applyLoneSubs :: Database -> Database -> Map.Map FnSym [Atom]
@@ -357,7 +357,7 @@ applyLoneSubs uni new skMap ethSeq =
            let (ls, rs) = partitionEithers temp           
            if null rs
              then do
-               let incSeq = foldr replaceIncomplete seq $ snd <$> completeAtomsList
+               let incSeq = foldr replaceIncompleteFn seq $ snd <$> completeAtomsList
                return $ Left incSeq
              else do
                  let res          = transformTuples rs

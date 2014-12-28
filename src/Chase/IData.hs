@@ -279,44 +279,74 @@ incompleteSequent :: Formula -> FnSym -> Sequent
 incompleteSequent body skFn = Sequent body $ Atm (Inc skFn)
 
 
-replaceIncomplete :: Atom -> Sequent -> Sequent
-replaceIncomplete atm@(FnRel _ _) (Sequent bdy hd) =
-  Sequent (incompleteFormula atm bdy) (incompleteFormula atm hd)
-replaceIncomplete (Rel _ _) _ = error $ unitName ++ ".replaceIncomplete: " ++
+replaceIncompleteFn :: Atom -> Sequent -> Sequent
+replaceIncompleteFn atm@(FnRel _ _) (Sequent bdy hd) =
+  Sequent (incompleteFormulaFn atm bdy) (incompleteFormulaFn atm hd)
+replaceIncompleteFn (Rel _ _) _ = error $ unitName ++ ".replaceIncompleteFn: " ++
                                         error_expectFunAtom
 
-incompleteFormula :: Atom -> Formula -> Formula
-incompleteFormula atom Tru = Tru
-incompleteFormula atom Fls = Fls
-incompleteFormula atom (Atm atm@(FnRel f _)) =
+incompleteFormulaFn :: Atom -> Formula -> Formula
+incompleteFormulaFn atom Tru = Tru
+incompleteFormulaFn atom Fls = Fls
+incompleteFormulaFn atom (Atm atm@(FnRel f _)) =
   if atom == atm then Atm (Inc f) else (Atm atm)
-incompleteFormula atom atm@(Atm (Rel _ _)) = atm
-incompleteFormula (Rel _ _) _ = error $ unitName ++
-                                              ".incompleteFormula: " ++
+incompleteFormulaFn (FnRel _ _) atm@(Atm _) = atm
+incompleteFormulaFn (Rel _ _) _ = error $ unitName ++
+                                              ".incompleteFormulaFn: " ++
                                               error_expectFunAtom
-incompleteFormula atom (And fmla1 fmla2) =
-  let fmla1' = incompleteFormula atom fmla1
-      fmla2' = incompleteFormula atom fmla2
+incompleteFormulaFn atom (And fmla1 fmla2) =
+  let fmla1' = incompleteFormulaFn atom fmla1
+      fmla2' = incompleteFormulaFn atom fmla2
   in  case fmla1' of -- shortcut incomplete conjuncts
         Atm (Inc _) -> fmla1'
         otherwise   -> case fmla2' of
                          Atm (Inc _) -> fmla2'
                          otherwise   -> And fmla1' fmla2'
-incompleteFormula atom (Or fmla1 fmla2) =
-  let fmla1' = incompleteFormula atom fmla1
-      fmla2' = incompleteFormula atom fmla2
-  in  case fmla1' of
-        Atm (Inc _) -> fmla2'
-        otherwise   -> case fmla2' of
-                         Atm (Inc _) -> fmla1'
-                         otherwise   -> Or fmla1' fmla2'
-incompleteFormula atom (Exists f x fmla) =
-  let fmla' = incompleteFormula atom fmla
+incompleteFormulaFn atom (Or fmla1 fmla2) =
+  let fmla1' = incompleteFormulaFn atom fmla1
+      fmla2' = incompleteFormulaFn atom fmla2
+  in  Or fmla1' fmla2'
+incompleteFormulaFn atom (Exists f x fmla) =
+  let fmla' = incompleteFormulaFn atom fmla
   in  case fmla' of
         Atm (Inc _) -> fmla'
         otherwise   -> Exists f x fmla'
-incompleteFormula atom (Lone f x fmla unq) =
-  let fmla' = incompleteFormula atom fmla
+incompleteFormulaFn atom (Lone f x fmla unq) =
+  let fmla' = incompleteFormulaFn atom fmla
   in  case fmla' of
         Atm (Inc _) -> fmla'
         otherwise   -> Lone f x fmla' unq
+incompleteFormulaFn _ fmla = error $ show fmla
+
+replaceIncompleteEx :: FnSym -> Sequent -> Sequent
+replaceIncompleteEx skFn (Sequent bdy hd) =
+  Sequent (incompleteFormulaEx skFn bdy) (incompleteFormulaEx skFn hd)
+
+incompleteFormulaEx :: FnSym -> Formula -> Formula
+incompleteFormulaEx skFn Tru = Tru
+incompleteFormulaEx skFn Fls = Fls
+incompleteFormulaEx skFn atm@(Atm _) = atm
+incompleteFormulaEx skFn (And fmla1 fmla2) =
+  let fmla1' = incompleteFormulaEx skFn fmla1
+      fmla2' = incompleteFormulaEx skFn fmla2
+  in  case fmla1' of -- shortcut incomplete conjuncts
+        Atm (Inc _) -> fmla1'
+        otherwise   -> case fmla2' of
+                         Atm (Inc _) -> fmla2'
+                         otherwise   -> And fmla1' fmla2'
+incompleteFormulaEx skFn (Or fmla1 fmla2) =
+  let fmla1' = incompleteFormulaEx skFn fmla1
+      fmla2' = incompleteFormulaEx skFn fmla2
+  in  Or fmla1' fmla2'
+incompleteFormulaEx skFn (Exists f x fmla)
+  | f == Just skFn = Atm (Inc skFn)
+  | otherwise = let fmla' = incompleteFormulaEx skFn fmla
+                in  case fmla' of
+                      Atm (Inc _) -> fmla'
+                      otherwise   -> Exists f x fmla'
+incompleteFormulaEx skFn (Lone f x fmla unq)
+  | f == Just skFn = Atm (Inc skFn)
+  | otherwise = let fmla' = incompleteFormulaEx skFn fmla
+                in  case fmla' of
+                      Atm (Inc _) -> fmla'
+                      otherwise   -> Lone f x fmla' unq
