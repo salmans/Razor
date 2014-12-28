@@ -58,6 +58,8 @@ import SAT.Data (SATIterator)
 import Tools.Counter (Counter, CounterT)
 import Tools.Config (Config, ConfigMonad)
 
+unitName            = "Chase.Data"
+error_expectFunAtom = "Expecting a functional Atom!"
 
 {-| PossibleFacts is the class of types that can act as a container for facts
   in some implementation of the Chase, e.g. a database or a term rewrite system.
@@ -274,4 +276,47 @@ liftChaseMConfig  = liftChaseMCounter.State.lift
 -- FIXME: After developing the idea of "incomplete sequents", the function may
 -- be moved to another module.
 incompleteSequent :: Formula -> FnSym -> Sequent
-incompleteSequent body skFn = Sequent body (Atm $ Rel ("Incomplete_" ++ skFn) [])
+incompleteSequent body skFn = Sequent body $ Atm (Inc skFn)
+
+
+replaceIncomplete :: Atom -> Sequent -> Sequent
+replaceIncomplete atm@(FnRel _ _) (Sequent bdy hd) =
+  Sequent (incompleteFormula atm bdy) (incompleteFormula atm hd)
+replaceIncomplete (Rel _ _) _ = error $ unitName ++ ".replaceIncomplete: " ++
+                                        error_expectFunAtom
+
+incompleteFormula :: Atom -> Formula -> Formula
+incompleteFormula atom Tru = Tru
+incompleteFormula atom Fls = Fls
+incompleteFormula atom (Atm atm@(FnRel f _)) =
+  if atom == atm then Atm (Inc f) else (Atm atm)
+incompleteFormula atom atm@(Atm (Rel _ _)) = atm
+incompleteFormula (Rel _ _) _ = error $ unitName ++
+                                              ".incompleteFormula: " ++
+                                              error_expectFunAtom
+incompleteFormula atom (And fmla1 fmla2) =
+  let fmla1' = incompleteFormula atom fmla1
+      fmla2' = incompleteFormula atom fmla2
+  in  case fmla1' of -- shortcut incomplete conjuncts
+        Atm (Inc _) -> fmla1'
+        otherwise   -> case fmla2' of
+                         Atm (Inc _) -> fmla2'
+                         otherwise   -> And fmla1' fmla2'
+incompleteFormula atom (Or fmla1 fmla2) =
+  let fmla1' = incompleteFormula atom fmla1
+      fmla2' = incompleteFormula atom fmla2
+  in  case fmla1' of
+        Atm (Inc _) -> fmla2'
+        otherwise   -> case fmla2' of
+                         Atm (Inc _) -> fmla1'
+                         otherwise   -> Or fmla1' fmla2'
+incompleteFormula atom (Exists f x fmla) =
+  let fmla' = incompleteFormula atom fmla
+  in  case fmla' of
+        Atm (Inc _) -> fmla'
+        otherwise   -> Exists f x fmla'
+incompleteFormula atom (Lone f x fmla unq) =
+  let fmla' = incompleteFormula atom fmla
+  in  case fmla' of
+        Atm (Inc _) -> fmla'
+        otherwise   -> Lone f x fmla' unq

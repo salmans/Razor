@@ -30,7 +30,7 @@ module SAT.SMTLib2 where
 import Common.Provenance (Blame)
 
 -- Standard
-import Data.List (intercalate, sortBy, groupBy, union, partition)
+import Data.List (intercalate, sortBy, groupBy, union, partition, isPrefixOf)
 import qualified Data.Map as Map
 import Data.Maybe
 import qualified Data.Text as Text
@@ -73,6 +73,7 @@ error_InvalidRelArity        = "invalid relation arity!"
 error_FunctionalAtomExpected = "functional atom expected!"
 error_RelationalAtomExpected = "relational atom expected!"
 error_InvalidBacktrack       = "invalid backtracking!"
+error_InvalidSMTIncomplete   = "invalid SMTIncomplete term!"
 
 {-| Solver Interface Types -}
 type SATIteratorType = SMTContainer
@@ -100,6 +101,9 @@ smtTerm _            = error $ unitName ++ ".smtTerm: "
 {- A name for an 'Atom' in SMT solving -}
 type SMTAtom    = String
 
+{- A name for an incomplete 'Atom' in SMT solving -}
+type SMTIncomplete = String
+
 {- Creates a name of type 'SMTAtom' from a relational 'Atom'. -}
 smtAtom :: Atom -> SMTAtom
 smtAtom (Rel r []) = smtRelSym r
@@ -110,6 +114,9 @@ smtAtom (Rel r ts) =
     in  r' ++ "-" ++ (intercalate "-" $ smtElement <$> elms)
 smtAtom _          = error $ unitName ++ ".smtAtom: " 
                      ++ error_RelationalAtomExpected
+
+smtIncomplete :: Atom -> SMTIncomplete
+smtIncomplete (Inc skFn) = "@Incomplete_" ++ skFn
 
 {- Translates special relation symbols to symbols that are accepted by the SMT 
    solver. -}
@@ -129,10 +136,12 @@ relSymFromSMT r          = r
    [@SMTFunc@] a functional fact, holding information about a functional term 
    and its value, e.g. @f(ts) = e@
    [@SMTEq@]   equality between two elements, e.g. @e1 = e2@
+   [@SMTIncObs@] incomplete observations used in incomplete sequents
 -} 
 data SMTObservation = SMTFactObs SMTAtom
                     | SMTFnObs   SMTTerm SMTElement
                     | SMTEqObs   SMTElement SMTElement
+                    | SMTIncObs  SMTIncomplete
                       deriving Show
 
 {- Creates an 'SMTObservation' for an input 'Observation'. -}
@@ -146,6 +155,8 @@ smtObservation (Obs atm@(Rel r ts))        =
 smtObservation (Obs atm@(FnRel f ts))      =
     let e = fromJust $ termToElement (last ts)
     in  SMTFnObs (smtTerm atm) (smtElement e)
+smtObservation (Obs atm@(Inc iden))        = 
+    SMTIncObs (smtIncomplete atm)
 
 {- Converts an 'ObservationSequent' to 'SMTObsSequent' and adds it to an 
    existing iterator as an extra constraint. -}
@@ -200,6 +211,8 @@ addObservationSequent seq@(ObservationSequent bodies heads) = do
    term names and atom names. -}
 getSatResult :: SMTM SatResult
 getSatResult = do
+  -- incAx <- disableIncomplete
+  -- assert incAx
   res       <- checkSat
   if res
      then do
@@ -249,6 +262,12 @@ tranObservation obs@(Obs atm@(FnRel f ts))  = do
   sOut      <- elementValue elm
   val       <- termValue f term unintFunc sIns
   return (val .==. sOut)
+tranObservation obs@(Obs atm@(Inc f))  = do
+  let (SMTIncObs iden) = smtObservation obs
+                         -- smtObservation drops the last parameter for 
+                         -- functions
+  val       <- incompleteValue iden
+  return (val .==. true)
 
 {- Converts a solution created by the SMT solver to a set of 'Observation's. -}
 translateSolution :: SatResult -> Maybe Model
@@ -260,7 +279,9 @@ translateSolution  res = case res of
 translateDictionary :: SatDictionary -> Model
 translateDictionary dic =
     let (_, obss)    = Map.partitionWithKey (\k _ -> isElementString k) dic
-        (rels, funs) = Map.partition (\cw -> resKind cw == RKBool) obss
+        (facs, funs) = Map.partition (\cw -> resKind cw == RKBool) obss
+        (incs, rels) = Map.partitionWithKey
+                       (\k _ -> "@Incomplete_" `isPrefixOf` k) facs
         eqClasses    = equivalenceClasses dic
         revDic       = Map.map head eqClasses
         relObss      = Map.elems $ Map.mapWithKey (\k _ -> obsFromSMTAtom k) 
@@ -269,11 +290,13 @@ translateDictionary dic =
                        (\k cw -> (obsFromSMTTerm k) <$> (Map.lookup cw revDic))
                        funs
         funObss'     = fromJust <$> filter isJust funObss
+        incObss      = Map.elems $ Map.mapWithKey (\k _ -> obsFromSMTIncomplete k) 
+                       (Map.filter (\cw -> resValue cw == RVBool True) incs)
         domain       = let lists = Map.elems eqClasses
                            pairs = (\l -> (head l, l)) 
                                    <$> ((readElement <$>) <$> lists)
                        in  Map.fromList pairs
-    in  createModel domain $ relObss `union` funObss'
+    in  createModel domain $ relObss `union` funObss' `union` incObss
 
 
 {- Given an 'SMTAtom' for a relational fact, creates an observation. In some
@@ -294,6 +317,18 @@ obsFromSMTTerm str e =
         sym  = head strs
         es   = tail strs
     in  Obs $ FnRel sym $ (Elem . readElement) <$> (es ++ [e])
+
+{- Similar to 'obsFromSMTAtom', but constructs an 'Observatin' for a functional 
+   term.  -}
+obsFromSMTIncomplete :: SMTIncomplete -> Observation
+obsFromSMTIncomplete str = 
+    let strs = Text.unpack <$> Text.splitOn (Text.pack "_") (Text.pack str)
+        pref = head strs
+        skFn = last strs
+    in  if   pref == "@Incomplete"
+        then Obs $ Inc skFn
+        else error $ unitName ++ ".obsFromSMTIncomplete: " ++
+                     error_InvalidSMTIncomplete
 
 {- This function constructs equivalence classes on elements of the domain, 
    (represented by 'SMTElement' instances) based on the the result of 
@@ -339,6 +374,9 @@ type STerms  = Map.Map SMTTerm SElement
 
 {- SAtoms is a map from 'SMTAtom' to values of type 'SBool' -}
 type SAtoms  = Map.Map SMTAtom SBool
+
+{- SIncomplete is a map from 'SMTIncomplete' to values of type 'SBool' -}
+type SIncomplete = Map.Map SMTIncomplete SBool
 
 {- Some constant values 
    REMARK: Again, the constant values @true@ and @false@ are compatible with the 
@@ -674,6 +712,21 @@ termValue fn term unintFunc sParams = do
   lift $ State.modify (\c -> c { containerTerms = termMap' })
   return sym
 
+{- Similar to atomValue and termValue but returns values for incomplete atoms. -}
+incompleteValue :: SMTIncomplete -> SMTM SBool
+incompleteValue inc = do
+  container  <- lift State.get
+  let atoms   = containerAtoms container
+  sym        <- case Map.lookup inc atoms of
+                  Nothing -> do
+                    s <- var
+                    return s
+                  Just s  -> return s
+  -- update container:
+  let atoms' = Map.insertWith (flip const) inc sym atoms
+                 -- do not insert if exists
+  lift $ State.modify (\c -> c { containerAtoms = atoms' })
+  return sym
 --------------------------------------------------------------------------------
 -- SMT Solving and Model Generation
 --------------------------------------------------------------------------------
@@ -1105,3 +1158,12 @@ atomArgs  smtAtom =
 isElementString :: String -> Bool
 isElementString ('e':'^':_) = True
 isElementString _           = False
+
+
+disableIncomplete :: SMTM SBool
+disableIncomplete = do
+    container <- lift State.get
+    let atoms =  containerAtoms container
+    let incs  =  Map.filterWithKey (\k _ -> "@Incomplete_" `isPrefixOf` k) atoms
+    let axm   =  (false .==.) <$> (Map.elems incs)
+    return $ foldr (.&&.) true axm

@@ -74,6 +74,7 @@ toObservation a@(FnRel sym ts) =
     else Just $ Obs a
     where hasVarOrConst (Fn _ ts) = any hasVarOrConst ts
           hasVarOrConst t         = isVariable t || isConstant t -- otherwise
+toObservation a@(Inc _)        = Just $ Obs a
 
 {-| An observational sequent is a closed (no free variables) instance of a 
   'Sequent'. 

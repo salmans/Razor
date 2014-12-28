@@ -67,6 +67,7 @@ normalizeObservation elemMap (Obs atm) = Obs $ normalizeAtom elemMap atm
 normalizeAtom :: Map.Map Element Element -> Atom -> Atom
 normalizeAtom elemMap (Rel s ts)   = Rel s (normalizeTerm elemMap <$> ts)
 normalizeAtom elemMap (FnRel s ts) = FnRel s (normalizeTerm elemMap <$> ts)
+normalizeAtom _       atm@(Inc _)  = atm
 
 normalizeTerm :: Map.Map Element Element -> Term -> Term
 normalizeTerm elemMap (Elem e) = Elem $ Map.findWithDefault e e elemMap
@@ -92,6 +93,7 @@ prettyModel mdl@(Model eqs obs) =
 sameRelation :: Observation -> Observation -> Bool
 sameRelation (Obs (Rel r1 _) ) (Obs (Rel r2 _))     = r1 == r2
 sameRelation (Obs (FnRel r1 _) ) (Obs (FnRel r2 _)) = r1 == r2
+sameRelation (Obs (Inc _)) (Obs (Inc _))            = True
 sameRelation _ _                                    = False -- otherwise
 
 {- Given a list of @Element observations, returns a string for displaying the 
@@ -107,6 +109,7 @@ showObservationGroup []  = ""
 showObservationGroup obs = case head obs of
                              (Obs (Rel sym _))   -> showRelationObs sym obs
                              (Obs (FnRel sym _)) -> showFunctionObs sym obs
+                             (Obs (Inc _))       -> showIncompleteObs   obs
 
 {- Displays a list of relational tuples. -}
 showRelationObs :: RelSym -> [Observation] -> String
@@ -122,10 +125,17 @@ showRelationObs sym obs =
 
 {- Displays a list of functional tuples. -}
 showFunctionObs :: FnSym -> [Observation] -> String
--- showFunctionObs sym [obs] = (show sym) ++ " = " ++ (show obs)
 showFunctionObs sym obss  = 
     let elems  = (\(Obs (FnRel _ ts)) -> showFunctionTuple ts) <$> obss
     in  (show sym) ++ " = {" ++ intercalate ", " elems ++ "}"
+
+{- Display an incomplete flag, assuming that all incomplete flags are grouped 
+   together. -}
+showIncompleteObs :: [Observation] -> String
+showIncompleteObs obss =
+    let obss' = (\(Obs atm) -> show atm) <$> obss
+    in  "{" ++ intercalate "," obss' ++ "}"
+
 
 {- A helper for 'showRelationObs' for displaying tuples. 
    ** Notice that the funciton displays elements independent of Show instance 

@@ -48,6 +48,7 @@ type RelSym = Sym
 -}
 data Atom = Rel   RelSym [Term]
           | FnRel FnSym  [Term]
+          | Inc FnSym -- incomplete Atom for incomplete sequents          
           deriving (Eq, Ord)
 
 {-| Geometric formulas are in positive existential form, having conjunctions,
@@ -100,6 +101,7 @@ prettyAtom (Rel sym ts)        = sym ++ "(" ++
                                  (intercalate "," (show <$> ts)) ++ ")"
 prettyAtom (FnRel sym ts)      = sym ++ "(" ++ 
                                  (intercalate "," (show <$> ts)) ++ ")"
+prettyAtom (Inc skFn)          = "@Incomplete_" ++ skFn
 
 prettyFormula :: Formula -> String
 prettyFormula Tru          = "Truth"

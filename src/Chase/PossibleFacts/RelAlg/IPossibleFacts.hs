@@ -67,13 +67,9 @@ import Chase.PossibleFacts.RelAlg.Translate
 
 -- Tools
 import Tools.Config (Config (..))
+import Tools.Trace
 
 unitName                 = "Chase.PossibleFacts.RelAlg.PossibleFacts"
-error_TblEmptyInBody     = "TblEmpty cannot appear in the body of a sequent"
-error_TblFullInHead      = "cannot compare to TblFull"
-error_TblEmptyInHead     = "cannot compare to TblEmpty"
-error_freeVarInHead      = "the expression in head has extra attributes"
-error_noValueForConstant = "the constant has no value in the database"
 
 {- TransFunc is the type of a map function that transforms a tuple in the body
    regular expression to a tuple in a head regular expression.
@@ -298,10 +294,12 @@ instantiateSequent uni new sub bodySub exSub seq =
                            skMap      = Map.fromListWith (++) 
                                       $ (pure <$>) <$> loneSkFuns
                            (ls, rs)   = partitionEithers
-                                        $ applyLoneSubs uni new skMap seq''
+                                        $ applyLoneSubs uni new skMap $ Right seq''
                        in  if null rs
-                             then [incompleteSequent (sequentBody seq') $ head ls]
-                             else rs
+                             then return $ head $ filter (\s -> case sequentBody s of
+                                                                  Atm (Inc _) -> False
+                                                                  otherwise   -> True) ls
+                             else return $ head rs
 
 createSubs :: RelSequent -> Database -> Database -> TableSub
            -> ProvInfo -> [(Sub, ExistsSub, Either FnSym ExistsSub)]
@@ -338,14 +336,14 @@ createExistsSub tup elmProvs skFuns =
         else Left  $ fst . head . filter (isNothing.snd) $ skElems
              -- Any of the skFuns that have reached the maximum limit works!
 
-
-applyLoneSubs :: Database -> Database -> Map.Map FnSym [Atom] -> Sequent
-              -> [Either FnSym Sequent]
-applyLoneSubs uni new skMap seq =
+applyLoneSubs :: Database -> Database -> Map.Map FnSym [Atom]
+              -> Either Sequent Sequent
+              -> [Either Sequent Sequent]
+applyLoneSubs uni new skMap ethSeq =
     if   Map.null skMap
-    then return (Right seq) -- done!
+    then return ethSeq -- done!
     else if   Map.null completeAtoms -- no more complete atoms, thus no progress!
-         then return . Left . head . Map.keys $ rest
+         then return . Left $ incompleteSequent (sequentBody seq) $ head . Map.keys $ rest
               -- Any of the unassigned function values can be used for
               -- constructing an "incomplete sequent".
          else do
@@ -356,20 +354,28 @@ applyLoneSubs uni new skMap seq =
                    Just elms -> (\e -> Right ((v, Elem e), (skFun, Elem e))) <$>
                                     DB.toList elms
            temp        <- mapM (uncurry atomSubs) completeAtomsList
-           let (ls, rs) = partitionEithers temp
+           let (ls, rs) = partitionEithers temp           
            if null rs
-             then return (Left $ head ls)
+             then do
+               let incSeq = foldr replaceIncomplete seq $ snd <$> completeAtomsList
+               return $ Left incSeq
              else do
                  let res          = transformTuples rs
                  let (sub, exSub) = (\(x, y) -> (Map.fromList x, Map.fromList y)) res
                  let rest'        = Map.map (substitute sub) rest
-                 applyLoneSubs uni new rest' $ sequentExistsSubstitute exSub seq
-    where (completeAtoms, rest) = Map.partition (all completeAtom) skMap
+                 let subSeq       = sequentExistsSubstitute exSub seq
+                 applyLoneSubs uni new rest' $ if isLeft
+                                               then Left  $ subSeq
+                                               else Right $ subSeq
+    where seq                   = either id id ethSeq
+          isLeft                = case ethSeq of
+                                    Left _    -> True
+                                    otherwise -> False
+          (completeAtoms, rest) = Map.partition (all completeAtom) skMap
           func (a, ls)          = (\l -> (a, l)) <$> ls
           completeAtomsList     = concatMap func $ Map.toList completeAtoms
           completeAtom (FnRel _ ts) = not $ any isVariable (init ts)
-          lookupElement atm = lookupElementInDB atm uni 
-                              <|> lookupElementInDB atm new
+          lookupElement atm = lookupElementInDB atm uni <|> lookupElementInDB atm new
 
 {- As a helper for 'applyLoneSubs', returns the value corresponding to the 
    input atomic functional atom from a given database. -}
