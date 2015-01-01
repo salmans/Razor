@@ -1,6 +1,6 @@
 {- Razor's Sample Specification
 
-   File       : files.raz
+   File       : filetypes.raz
    
    Description: This is a simple specification to demonstrate Razor's behavior
    when the theory is not weakly acyclic: e.g., it is possible to have an
