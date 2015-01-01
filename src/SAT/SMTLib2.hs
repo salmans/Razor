@@ -197,9 +197,9 @@ addObservationSequent seq@(ObservationSequent bodies heads) = do
   let heads'      =  heads
   bodiesVals      <- mapM tranObservation bodies'
   headsVals       <- mapM (mapM tranObservation) heads'
-  let bodiesValue =  foldr (.&&.) true bodiesVals -- TODO
-  let headsValue' =  map (foldr (.&&.) true) headsVals -- TODO
-  let headsValue  =  foldr (.||.) false headsValue' -- TODO
+  let bodiesValue =  foldr (.&&.) true bodiesVals
+  let headsValue' =  map (foldr (.&&.) true) headsVals
+  let headsValue  =  foldr (.||.) false headsValue'
   assert $ bodiesValue .=>. headsValue
   where filterFunc b = case b of
                          Obs (FnRel _ [_]) -> False
@@ -211,8 +211,6 @@ addObservationSequent seq@(ObservationSequent bodies heads) = do
    term names and atom names. -}
 getSatResult :: SMTM SatResult
 getSatResult = do
-  -- incAx <- disableIncomplete
-  -- assert incAx
   res       <- checkSat
   if res
      then do
@@ -419,7 +417,7 @@ instance Show UninterpretFn where
 {- Creating 'UninterpretFn' for a given arity -}
 -- TODO: do we need the first parameter here?
 uninterpretFn :: FnSym -> Int -> SMTM UninterpretFn
-uninterpretFn fn 0 = (liftM UnintFn0) var -- TODO: is this correct?
+uninterpretFn fn 0 = (liftM UnintFn0) var
 uninterpretFn fn 1 = (liftM UnintFn1) fun
 uninterpretFn fn 2 = (liftM UnintFn2) fun
 uninterpretFn fn 3 = (liftM UnintFn3) fun
@@ -773,7 +771,7 @@ forceResultHelper classes sClasses rels posAtoms termStrs = do
                        Nothing -> return true
                        Just as -> posAxioms unintRel as) rels
   fnPosAx    <- functionPositiveAxioms termStrs classes
-  let posAx   = foldr (.&&.) true pos -- TODO
+  let posAx   = foldr (.&&.) true pos
   return $ eqPosAx .&&. fnPosAx .&&. posAx
 
 
@@ -900,11 +898,9 @@ minimizeResult res = do
                  $ Map.filterWithKey (\k _ -> not (isElementString k)) othDic
       -- The keys in the map that correspond to terms have type other than
       -- KBool (coming from othDic) and they are not element names.
-
-  axiom <- if   relax
-           then relaxMinimize classes rels posAtoms negAtoms termStrs
-           else pureMinimize classes sClasses rels posAtoms negAtoms termStrs
-  return axiom
+  if   relax
+    then relaxMinimize classes rels posAtoms negAtoms termStrs
+    else pureMinimize classes sClasses rels posAtoms negAtoms termStrs
 
 -- a helper for minimizeResult for cases where the resulting model has to be
 -- homomorphically minimal
@@ -913,7 +909,7 @@ pureMinimize :: Map.Map Result [SMTElement] -> [[SElement]]
      -> [(String, [SMTAtom])] -> [(SMTTerm, Result)] -> SMTM (SMTExpr Bool)
 pureMinimize classes sClasses rels posAtoms negAtoms termStrs = do
   let eqNegAx  = equalityNegativeAxioms sClasses
-  let eqFlipAx = foldr (.||.) false $ equalityFlipAxioms <$> sClasses -- TODO
+  let eqFlipAx = foldr (.||.) false $ equalityFlipAxioms <$> sClasses
   negs  <- mapM (\(r, unintRel) -> 
                      case lookup r negAtoms of
                        Nothing -> return true
@@ -924,8 +920,8 @@ pureMinimize classes sClasses rels posAtoms negAtoms termStrs = do
                      case lookup r posAtoms of
                        Nothing -> return false
                        Just as -> flipAxioms unintRel as) rels
-  let negAx    = foldr (.&&.) true negs -- TODO
-  let flipAx   = foldr (.||.) false flips -- TODO
+  let negAx    = foldr (.&&.) true negs
+  let flipAx   = foldr (.||.) false flips
   return $ negAx .&&. fnNeg .&&. eqNegAx .&&. (flipAx .||. fnFlips .||. eqFlipAx)
 
 -- a helper for minimizeResult for cases where the resulting model does not
@@ -944,8 +940,8 @@ relaxMinimize classes rels posAtoms negAtoms termStrs = do
                      case lookup r posAtoms of
                        Nothing -> return false
                        Just as -> flipAxioms unintRel as) rels
-  let negAx    = foldr (.&&.) true negs -- TODO
-  let flipAx   = foldr (.||.) false flips -- TODO
+  let negAx    = foldr (.&&.) true negs
+  let flipAx   = foldr (.||.) false flips
   return $ negAx .&&. fnNeg .&&. ( flipAx .||. fnFlips )
 
 
@@ -959,7 +955,7 @@ negativeAxioms unintRel atoms = do
   let arity    = unintRelArity unintRel
   let argNames = atomArgs <$> atoms
   let args     = ((\a -> fromJust $ Map.lookup a domain) <$>) <$> argNames
-  return $ foldr (.&&.) true $ (\t -> not' $ applyUnintRel unintRel t) <$> args -- TODO
+  return $ foldr (.&&.) true $ (\t -> not' $ applyUnintRel unintRel t) <$> args
 
 {- This function creates Positive Axioms for a set of facts that are named by
    a list of SMTAtom instances: every SMTAtom names a *positive* fact in a 
@@ -971,7 +967,7 @@ posAxioms unintRel atoms = do
   let argNames  = map atomArgs atoms
   let allArgs   = map (\elm -> fromJust $ Map.lookup elm domain) <$> argNames
   let posApps   = (applyUnintRel unintRel) <$> allArgs
-  return $ foldr (.&&.) true posApps -- TODO
+  return $ foldr (.&&.) true posApps
 
 functionNegativeAxioms :: [(SMTTerm, Result)] -> Map.Map Result [SMTElement]
                        -> SMTM SBool
@@ -983,13 +979,13 @@ functionNegativeAxioms terms classes = do
   let content   = (\(t, cw) -> ( fromJust $ Map.lookup t contTerms
                                , otherClasses cw classes')) <$> terms
   let results   = (uncurry functionNegativeAxiomsHelper) <$> content
-  return $ foldr (.&&.) true results -- TODO
+  return $ foldr (.&&.) true results
     where otherClasses c cs = Map.elems $ Map.delete c cs
 
 functionNegativeAxiomsHelper :: SElement -> [[SElement]] -> SBool
 functionNegativeAxiomsHelper term classes = do
-  let eqs   = concatMap ((\e -> not' $ e .==. term) <$>) classes -- TODO
-  foldr (.&&.) true eqs -- TODO
+  let eqs   = concatMap ((\e -> not' $ e .==. term) <$>) classes
+  foldr (.&&.) true eqs
 
 
 functionPositiveAxioms :: [(SMTTerm, Result)] -> Map.Map Result [SMTElement]
@@ -1005,13 +1001,13 @@ functionPositiveAxioms terms classes = do
                                  Map.lookup t contTerms
                                , thisClass cw classes')) <$> terms
   let results   = (uncurry functionPositiveAxiomsHelper) <$> content
-  return $ foldr (.&&.) true results -- TODO
+  return $ foldr (.&&.) true results
     where thisClass c cs = Map.findWithDefault [] c cs
   
 functionPositiveAxiomsHelper :: SElement -> [SElement] -> SBool
 functionPositiveAxiomsHelper term cls = do
-  let eqs   = (\e -> e .==. term) <$> cls -- TODO
-  foldr (.&&.) true eqs -- TODO
+  let eqs   = (\e -> e .==. term) <$> cls
+  foldr (.&&.) true eqs
 
 
 functionFlipAxioms :: [(SMTTerm, Result)] -> Map.Map Result [SMTElement]
@@ -1027,13 +1023,13 @@ functionFlipAxioms terms classes = do
                                  Map.lookup t contTerms
                                , thisClass cw classes')) <$> terms
   let results   = (uncurry functionFlipAxiomsHelper) <$> content
-  return $ foldr (.||.) false results -- TODO
+  return $ foldr (.||.) false results
     where thisClass c cs = Map.findWithDefault [] c cs
   
 functionFlipAxiomsHelper :: SElement -> [SElement] -> SBool
 functionFlipAxiomsHelper term cls = do
-  let eqs   = (\e -> not' $ e .==. term) <$> cls -- TODO
-  foldr (.||.) false eqs -- TODO
+  let eqs   = (\e -> not' $ e .==. term) <$> cls
+  foldr (.||.) false eqs
 
 {- This function creates Flip Axioms for a set of facts that are named by a list
    of SMTAtom instances. Just like 'negativeAxioms', the function assumes that
@@ -1046,7 +1042,7 @@ flipAxioms unintRel atoms = do
   let argNames  = map atomArgs atoms      
   let allArgs   = map (\elm -> fromJust $ Map.lookup elm domain) <$> argNames
   let negApps   = not'.(applyUnintRel unintRel) <$> allArgs
-  return $ foldr (.||.) false negApps -- TODO
+  return $ foldr (.||.) false negApps
 
 {- Given a set of equivalence classes on all elements, creates the set of 
    Equality Negative Axioms. The function recursively makes sure that the 
@@ -1055,14 +1051,14 @@ flipAxioms unintRel atoms = do
 equalityNegativeAxioms :: [[SElement]] -> SBool
 equalityNegativeAxioms []            = true
 equalityNegativeAxioms (cls:classes) =
-    let this = foldr (.&&.) true [differentClasses cls cls' | cls' <- classes] -- TODO
+    let this = foldr (.&&.) true [differentClasses cls cls' | cls' <- classes]
     in  this .&&. equalityNegativeAxioms classes
 
 {- Given a set of equivalence classes on all elements, creates the set of 
    Equality Negative Axioms. The function recursively makes sure that the 
    elements of an equivalence class will be equal. -}
 equalityPositiveAxioms :: [[SElement]] -> SBool   
-equalityPositiveAxioms classes = foldr (.&&.) true $ sameClass <$> classes -- TODO
+equalityPositiveAxioms classes = foldr (.&&.) true $ sameClass <$> classes
     where sameClass []     = true
           sameClass [_]    = true
           sameClass (e:es) = foldr (.&&.) true [e .==. e'| e' <- es]
@@ -1072,16 +1068,22 @@ equalityPositiveAxioms classes = foldr (.&&.) true $ sameClass <$> classes -- TO
    equal after minimization. -}
 differentClasses :: [SElement] -> [SElement] -> SBool
 differentClasses cls1 cls2 =
-    foldr (.&&.) true [not' $ e1 .==. e2 | e1 <- cls1, e2 <- cls2] -- TODO
+    foldr (.&&.) true [not' $ e1 .==. e2 | e1 <- cls1, e2 <- cls2]
 
 {- Given an equivalence class of elements, creates an axiom to test whether any 
    of the two elements in the class may be unequal after minimization or not. -}
 equalityFlipAxioms :: [SElement] -> SBool
 equalityFlipAxioms []     = false
 equalityFlipAxioms (e:es) = 
-    let this = foldr (.||.) false [not' $ e .==. e' | e' <- es] -- TODO
+    let this = foldr (.||.) false [not' $ e .==. e' | e' <- es]
     in  this .||. equalityFlipAxioms es
 
+equalityInducingAxioms :: [[SElement]] -> SBool
+equalityInducingAxioms [] = false
+equalityInducingAxioms es =
+    let reps = head <$> es
+        eqs  = [ e .==. e' | e <- reps, e' <- reps, e /= e']
+    in  foldr (.||.) false eqs
 
 {- Given a list of atom names of type 'SMTAtom', returns a map from the relation
    symbols to their corresponding atom names.  -}
@@ -1113,14 +1115,16 @@ nextResult res = do
                  <$> (Map.elems classes)
   let factStrs = Map.keys $ Map.filter (\s -> resValue s == RVBool True ) dic
   let symAtoms = Map.toList $ smtSymAtomMap factStrs
-  let eqFlipAx = foldr (.||.) false $ equalityFlipAxioms <$> sClasses -- TODO
+  let eqFlipAx = foldr (.||.) false $ equalityFlipAxioms <$> sClasses
   flips <- mapM (\(r, unintRel) -> 
                      let as = fromMaybe [] (lookup r symAtoms)
                      in  flipAxioms unintRel as) rels
-  let flipAx   = foldr (.||.) false flips -- TODO
+  let flipAx   = foldr (.||.) false flips
   funFlipAx   <- functionFlipAxioms termStrs classes
   if relax
-     then return $ flipAx .||. funFlipAx
+     then do
+       let newEqs = equalityInducingAxioms sClasses
+       return $ flipAx .||. eqFlipAx .||. funFlipAx .||. newEqs
      else return $ flipAx .||. eqFlipAx .||. funFlipAx
 
 {- Given the name of an atomic fact as an instance of type 'SMTAtom', returns 
@@ -1144,3 +1148,4 @@ disableIncomplete = do
     let incs  =  Map.filterWithKey (\k _ -> "@Incomplete#" `isPrefixOf` k) atoms
     let axm   =  (false .==.) <$> (Map.elems incs)
     return $ foldr (.&&.) true axm
+
