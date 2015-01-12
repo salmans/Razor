@@ -64,7 +64,6 @@ import SAT.Data
 
 -- Tools
 import Tools.Config ( Config (configRelaxMin) )
-import Tools.Trace
 
 -- Error Messages
 unitName = "SAT.SMT"
