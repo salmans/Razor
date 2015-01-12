@@ -32,6 +32,7 @@ import Data.List (intercalate)
 
 -- Control
 import Control.Applicative
+import Control.DeepSeq
 import qualified Control.Monad.State.Lazy as State
 
 -- Common
@@ -60,7 +61,7 @@ import Tools.Config (Config)
   or fakes a pop action if the connection to the solver is not incremental.
   [@satClose@] closes the connection to the SMT solver.
 -}
-class SATIterator i where
+class NFData i => SATIterator i where
     satInitialize :: Config -> i
     satStore      :: ObservationSequent -> i -> i
     satSolve      :: i -> (Maybe Model, i)

@@ -41,7 +41,7 @@ import Control.Applicative
 import Control.Monad
 import qualified Control.Monad.State.Lazy as State
 import Control.Monad.Trans
-
+import Control.DeepSeq
 
 -- SMTLib2
 import Language.SMTLib2
@@ -538,6 +538,10 @@ type ContainerMonad = State.StateT SMTContainer IO
    queries, a context for sending 'Observation's to SMT values and running the
    SMT solver. -}
 type SMTM = SMT' ContainerMonad
+
+
+instance NFData SMTContainer -- where
+
 
 {- Runs the given input context and returns the result inside a ContainerMonad.
 -}

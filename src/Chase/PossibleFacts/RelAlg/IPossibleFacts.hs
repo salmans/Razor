@@ -41,6 +41,7 @@ import Control.Monad
 import Control.Monad.Trans
 import Control.Monad.List
 import qualified Control.Monad.State as State
+import Control.DeepSeq
 
 -- Syntax
 import Syntax.GeometricUtils
@@ -253,7 +254,7 @@ insertRelSequent seq resSet db = do
                                   in  (it', pr'))
                         (iter, provs) propSeqs
 
-  liftPushMSATIterator (State.put iter')
+  iter' `deepseq` liftPushMSATIterator (State.put iter')
   liftPushMProvs $ State.modify
                  $ \(seqid, vars, _) -> (seqid, vars, provs')
   return result
