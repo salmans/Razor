@@ -1,0 +1,15 @@
+state(nextto(on('small,on('medium,on('large,pin('n1)))),nextto(pin('n2),pin('n3))));
+~ state(nextto(pin('n1),nextto(pin('n2),on('small,on('medium,on('large,pin('n3)))))));
+
+nextto(X,Y) = nextto(Y,X);
+nextto(X,nextto(Y,Z)) = nextto(nextto(X,Y),Z);
+
+fits(X,B) & fits(X,A) => nextto(on(X,A),B) = nextto(A,on(X,B));
+
+
+fits('small,pin(N));
+fits('medium,pin(N));
+fits('large,pin(N));
+fits('small,on('medium,A));
+fits('medium,on('large,A));
+fits('small,on('large,A));

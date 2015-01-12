@@ -1,0 +1,37 @@
+borders(Y,X) => borders(X,Y);
+
+ocean('atlantic);
+ocean('indian);
+ocean('pacific);
+ocean('southern);
+
+state('western_australia);
+state('northern_territory);
+state('queensland);
+state('south_australia);
+state('new_south_wales);
+state('victoria);
+state('tasmania);
+
+borders('western_australia,'northern_territory);
+borders('western_australia,'south_australia);
+borders('south_australia,'northern_territory);
+borders('south_australia,'queensland);
+borders('south_australia,'new_south_wales);
+borders('south_australia,'victoria);
+borders('northern_territory,'queensland);
+borders('queensland,'new_south_wales);
+borders('new_south_wales,'victoria);
+borders('indian,'western_australia);
+borders('indian,'northern_territory);
+borders('indian,'queensland);
+borders('southern,'western_australia);
+borders('southern,'south_australia);
+borders('southern,'victoria);
+borders('southern,'tasmania);
+borders('pacific,'queensland);
+borders('pacific,'new_south_wales);
+borders('pacific,'victoria);
+borders('pacific,'tasmania);
+
+state(State1) & state(State2) & borders(State1,State2) & borders(State1,Ocean) & borders(State2,Ocean) & ocean(Ocean) => Falsehood;

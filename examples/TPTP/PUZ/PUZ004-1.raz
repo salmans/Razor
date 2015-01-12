@@ -1,0 +1,12 @@
+dated => on_blue_paper;
+in_third_person => in_black_ink;
+in_black_ink => in_third_person;
+can_be_read & filed => Falsehood;
+on_one_sheet => dated;
+crossed | in_black_ink;
+by_brown => begins_with_dear_sir;
+on_blue_paper => filed;
+crossed => on_one_sheet;
+begins_with_dear_sir & in_third_person => Falsehood;
+by_brown;
+can_be_read;

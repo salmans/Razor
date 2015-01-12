@@ -1,0 +1,22 @@
+a_truth(knight(X),Y) & a_truth(knave(X),Y) => Falsehood;
+a_truth(knight(X),Y) | a_truth(knave(X),Y);
+
+a_truth(rich(X),Y) & a_truth(poor(X),Y) => Falsehood;
+a_truth(rich(X),Y) | a_truth(poor(X),Y);
+
+a_truth(knight(X),Z) & says(X,Y) => a_truth(Y,Z);
+
+a_truth(knight(X),Z) & a_truth(Y,Z) => says(X,Y);
+
+a_truth(knave(X),Z) & says(X,Y) & a_truth(Y,Z) => Falsehood;
+
+a_truth(knave(X),Z) => says(X,Y) | a_truth(Y,Z);
+
+a_truth(and(X,Y),Z) => a_truth(X,Z);
+a_truth(and(X,Y),Z) => a_truth(Y,Z);
+a_truth(X,Z) & a_truth(Y,Z) => a_truth(and(X,Y),Z);
+
+says('me,X) & a_truth(and(knave('me),rich('me)),X) => Falsehood;
+says('me,X) | a_truth(and(knave('me),rich('me)),X);
+
+Person('me);

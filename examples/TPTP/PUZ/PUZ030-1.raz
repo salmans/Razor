@@ -1,0 +1,58 @@
+both(X) => salt(X);
+both(X) => mustard(X);
+
+salt(X) & mustard(X) => both(X);
+oneof(X) => salt(X) | mustard(X);
+
+oneof(X) & both(X) => Falsehood;
+
+oneof(X) & neither(X) => Falsehood;
+
+
+both(X) | neither(X) | oneof(X);
+
+oneof(X) & salt(X) & mustard(X) => Falsehood;
+
+both(X) & neither(X) => Falsehood;
+
+neither(X) & salt(X) => Falsehood;
+neither(X) & mustard(X) => Falsehood;
+
+salt(X) | mustard(X) | neither(X);
+
+salt('barry) => oneof('cole) | oneof('lang);
+oneof('cole) => salt('barry);
+oneof('lang) => salt('barry);
+mustard(barry) => neither('dix) | both('mill);
+neither('dix) => mustard('barry);
+both('mill) => mustard('barry);
+salt('cole) => oneof('barry) | neither('mill);
+oneof('barry) => salt('cole);
+neither('mill) => salt('cole);
+mustard('cole) => both('dix) | both('lang);
+both('dix) => mustard('cole);
+both('lang) => mustard('cole);
+salt('dix) => neither('barry) | both('cole);
+neither('barry) => salt('dix);
+both('cole) => salt('dix);
+mustard('dix) => neither('lang) | neither('mill);
+neither('lang) => mustard('dix);
+neither('mill) => mustard('dix);
+salt('lang) => oneof('barry) | oneof('dix);
+oneof('barry) => salt('lang);
+oneof('dix) => salt('lang);
+mustard('lang) => neither('cole) | neither('mill);
+neither('cole) => mustard('lang);
+neither('mill) => mustard('lang);
+salt('mill) => both('barry) | both('lang);
+both('barry) => salt('mill);
+both('lang) => mustard('mill);
+mustard('mill) => oneof('cole) | oneof('dix);
+oneof('cole) => mustard('mill);
+oneof('dix) => mustard('mill);
+
+
+neither('cole) & neither('dix) & both('barry) & oneof('lang) & salt('mill) & mustard('lang) & oneof('mill) => Falsehood;
+
+-- We need the following to force the constants to denote in the model:
+Item('cole) & Item('dix) & Item('barry) & Item('lang) & Item('mill) & Item('lang) & Item('mill);

@@ -1,0 +1,28 @@
+ocean('atlantic);
+ocean('indian);
+borders('atlantic, 'brazil);
+borders('atlantic, 'uruguay);
+borders('atlantic, 'venesuela);
+borders('atlantic, 'zaire);
+borders('atlantic, 'nigeria);
+borders('atlantic, 'angola);
+borders('indian, 'india);
+borders('indian, 'pakistan);
+borders('indian, 'iran);
+borders('indian, 'somalia);
+borders('indian, 'kenya);
+borders('indian, 'tanzania);
+south_american('brazil);
+south_american('uruguay);
+south_american('venesuela);
+african('zaire);
+african('nigeria);
+african('angola);
+african('somalia);
+african('kenya);
+african('tanzania);
+asian('india);
+asian('pakistan);
+asian('iran);
+
+ocean(o) & borders(o, af) & african(af) & borders(o, as) & asian(as) => Falsehood;

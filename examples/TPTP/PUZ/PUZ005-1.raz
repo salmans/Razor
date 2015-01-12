@@ -1,0 +1,60 @@
+monday(x) | tuesday(x) | wednesday(x) | thursday(x) | friday(x) | saturday(x) | sunday(x);
+
+monday(x) & tuesday(x) => Falsehood;
+monday(x) & wednesday(x) => Falsehood;
+monday(x) & thursday(x) => Falsehood;
+monday(x) & friday(x) => Falsehood;
+monday(x) & saturday(x) => Falsehood;
+monday(x) & sunday(x) => Falsehood;
+tuesday(x) & wednesday(x) => Falsehood;
+tuesday(x) & thursday(x) => Falsehood;
+tuesday(x) & friday(x) => Falsehood;
+tuesday(x) & saturday(x) => Falsehood;
+tuesday(x) & sunday(x) => Falsehood;
+wednesday(x) & thursday(x) => Falsehood;
+wednesday(x) & friday(x) => Falsehood;
+wednesday(x) & saturday(x) => Falsehood;
+wednesday(x) & sunday(x) => Falsehood;
+thursday(x) & friday(x) => Falsehood;
+thursday(x) & saturday(x) => Falsehood;
+thursday(x) & sunday(x) => Falsehood;
+friday(x) & saturday(x) => Falsehood;
+friday(x) & sunday(x) => Falsehood;
+saturday(x) & sunday(x) => Falsehood;
+
+monday(yesterday(x)) => tuesday(x);
+tuesday(yesterday(x)) => wednesday(x);
+wednesday(yesterday(x)) => thursday(x);
+thursday(yesterday(x)) => friday(x);
+friday(yesterday(x)) => saturday(x);
+saturday(yesterday(x)) => sunday(x);
+sunday(yesterday(x)) => monday(x);
+
+tuesday(x) => monday(yesterday(x));
+wednesday(x) => tuesday(yesterday(x));
+thursday(x) => wednesday(yesterday(x));
+friday(x) => thursday(yesterday(x));
+saturday(x) => friday(yesterday(x));
+sunday(x) => saturday(yesterday(x));
+monday(x) => sunday(yesterday(x));
+
+member(x, lying_day('lion)) => monday(x) | tuesday(x) | wednesday(x);
+member(x, lying_day('unicorn)) => thursday(x) | friday(x) | saturday(x);
+
+monday(x) => member(x, lying_day('lion));
+tuesday(x) => member(x, lying_day('lion));
+wednesday(x) => member(x, lying_day('lion));
+thursday(x) => member(x, lying_day('unicorn));
+friday(x) => member(x, lying_day('unicorn));
+saturday(x) => member(x, lying_day('unicorn));
+
+admits(t, x, y) => member(x, lying_day(t)) | member(y, lying_day(t));
+member(y, lying_day(t)) => admits(t, x, y) |  member(x, lying_day(t));
+admits(t, x, y) & member(y, lying_day(t)) & member(x, lying_day(t)) => Falsehood;
+member(x, lying_day(t)) => admits(t, x, y) |  member(y, lying_day(t));
+
+admits('lion, 'today, yesterday('today));
+admits('unicorn, 'today, yesterday('today));
+thursday('today) => Falsehood;
+
+-- Returns no models at depth 1

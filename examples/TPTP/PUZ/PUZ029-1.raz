@@ -1,0 +1,25 @@
+dances_on_tightropes(X) | eats_pennybuns(X) | old(X);
+
+pig(X) & liable_to_giddiness(X) => treated_with_respect(X);
+wise(X) & balloonist(X) => has_umbrella(X);
+
+looks_ridiculous(X) & eats_pennybuns(X) & eats_lunch_in_public(X) => Falsehood;
+
+balloonist(X) & young(X) => liable_to_giddiness(X);
+
+fat(X) & looks_ridiculous(X) => dances_on_tightropes(X) | eats_lunch_in_public(X);
+
+liable_to_giddiness(X) & wise(X) & dances_on_tightropes(X) => Falsehood;
+
+pig(X) & has_umbrella(X) => looks_ridiculous(X);
+
+treated_with_respect(X) => dances_on_tightropes(X) | fat(X);
+
+young(X) | old(X);
+
+young(X) & old(X) => Falsehood;
+
+wise('piggy);
+young('piggy);
+pig('piggy);
+balloonist('piggy);
