@@ -111,9 +111,14 @@ destroyObservationSequent (ObservationSequent bdy hds) =
 {-| Creates an 'ObservationSequent' form an input 'Sequent'. -}
 buildObservationSequent :: Sequent -> Maybe ObservationSequent
 buildObservationSequent seq@(Sequent bdy hds) =
-  let hds' = (filter (not.trivialObservation) <$>) <$> processHead hds
-      bdy' = (filter (not.trivialObservation)) <$> processBody bdy
-  in  ObservationSequent <$> bdy' <*> hds'
+  let hds'  = (filter (not.trivialObservation) <$>) <$> processHead hds
+      bdy'  = (filter (not.trivialObservation)) <$> processBody bdy
+      hds'' = case hds' of
+                Nothing -> Nothing
+                Just hs -> if   (not.null) hs && all null hs
+                           then Nothing
+                           else Just $ filter (not.null) hs
+  in  ObservationSequent <$> bdy' <*> hds''
 --
 processFunction :: FnSym -> [Term] -> Term
 processFunction fsym [] = Cons $ Constant $ fsym
