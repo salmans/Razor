@@ -1,0 +1,56 @@
+-- ! We do not need this
+-- Person(p) => Man(p) | Woman(p)
+
+Man(p) => Person(p);
+Woman(p) => Person(p);
+
+-- ? Does Alloy by default assumes that subsorts are disjoint?
+Man(p) & Woman(p) => Falsehood;
+
+mother(p) = w => Person(p) & Woman(w);
+father(p) = m => Person(p) & Man(m);
+
+wife(m) = w => Man(m) & Woman(w);
+husband(w) = m => Man(m) & Woman(w);
+
+mother(p) = m => Ancestor(p, m);
+father(p) = f => Ancestor(p, f);
+
+-- Biology
+Ancestor(p, a) & father(a) = f => Ancestor(p, f);
+Ancestor(p, a) & mother(a) = m => Ancestor(p, m);
+
+-- ! We don't need this:
+-- Ancestor(p, a) => father(p) = a | mother(p) = a | (exists a_ . Ancestor(p, a_) & father(a_) = a) | (exists a_ . Ancestor(p, a_) & mother(a_) = a);
+
+Ancestor(p, p) => Falsehood;
+
+
+-- Terminology
+wife(m) = w => husband(w) = m;
+husband(w) = m => wife(m) = w;
+
+-- Social Convention
+wife(p) = w & Ancestor(p, w) => Falsehood;
+husband(p) = h & Ancestor(p, h) => Falsehood;
+
+father(p) = f => Parent(p, f);
+mother(p) = m => Parent(p, m);
+father(p) = f & wife(f) = w => Parent(p, w);
+mother(p) = m & husband(m) = h => Parent(p, h);
+
+-- ? Do we need the following?
+Grandpas(p, g) => exists <grandpa> p_ . Parent(p_, g) & Parent(p, p_) & Man(g);
+-- Parent(p, p_) & Parent(p_, g) & Man(g) => Grandpas(p, g);
+
+-- ? They don't have them in Alloy's specification
+-- mother(w) = m & wife(p) = w => Parent(p, m);
+-- father(h) = f & husband(p) = h => Parent(p, f);
+
+-- ! Also, let's ignore this one
+-- Parent(p, p_) => father(p) = p_ | mother(p) = p_ | (exists f . father(p) = f & wife(f) = p_) | (exists m . mother(p) = m & husband(m) = p_);
+Parent(p, p_) => father(p) = p_ | mother(p) = p_ | (wife(father(p)) = p_) | (husband(mother(p)) = p_);
+
+-- Own Grandpa
+-- Query 1: We get two scenarios as we expect (according to Aluminum paper). But why does Aluminum constructs more models? What are the correct parameters for Aluminum?
+exists <hasGrandPa> p. Grandpas(p, p);

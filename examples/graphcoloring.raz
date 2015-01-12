@@ -1,0 +1,54 @@
+{- Razor's Sample Specification
+
+   File       : graphcoloring.raz
+
+   Description:
+-}
+
+
+Edge(n1, n2) => Node(n1) & Node(n2);
+Edge(n1, n2) => Edge(n2, n1);
+
+colorOf(n) = c => Node(n) & Color(c);
+
+Node(n) => exists c . colorOf(n) = c;
+
+Edge(n1, n2) & colorOf(n1) = colorOf(n2) => Falsehood;
+
+-- Peterson
+-- Edge('o1, 'o2);
+-- Edge('o2, 'o3);
+-- Edge('o3, 'o4);
+-- Edge('o4, 'o5);
+-- Edge('o5, 'o1);
+
+-- Edge('o1, 'i1);
+-- Edge('o2, 'i2);
+-- Edge('o3, 'i3);
+-- Edge('o4, 'i4);
+-- Edge('o5, 'i5);
+
+-- Edge('i1, 'i3);
+-- Edge('i3, 'i5);
+-- Edge('i5, 'i2);
+-- Edge('i2, 'i4);
+-- Edge('i4, 'i1);
+
+-- Color('Red) & Color('Green) & Color('Blue);
+-- Color(x) => x = 'Red | x = 'Green | x = 'Blue;
+
+-- complete 3, 3
+Edge('o1, 'o2);
+Edge('o2, 'o3);
+Edge('o3, 'o1);
+
+Edge('o1, 'i1);
+Edge('o2, 'i2);
+Edge('o3, 'i3);
+
+Edge('i1, 'i2);
+Edge('i2, 'i3);
+Edge('i3, 'i1);
+
+Color('Red) & Color('Green) & Color('Blue);
+Color(x) => x = 'Red | x = 'Green | x = 'Blue;
