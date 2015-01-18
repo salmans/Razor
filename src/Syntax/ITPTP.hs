@@ -52,7 +52,7 @@ inputsToGeo inps = do
       foldM (\(fs, ts, c) i -> do 
                let cnjr = (TP.unrole.TP.role) i == "conjecture"
                let (f, t) = inputToFol i
-               f' <- F2G.formulaToSequents cnjr f
+               f' <- F2G.formulaToTheory cnjr f
                let (f'', t'', c'') = 
                        if cnjr
                        then let (cjrF, cjrT, cjrC) = conjecturize 0 f'

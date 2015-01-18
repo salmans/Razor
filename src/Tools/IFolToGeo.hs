@@ -34,17 +34,17 @@ import qualified Syntax.FirstOrderUtils as Fol
 
 {-| Parses an input string to construct an FOL formula, then users 
   parseFolToSequent to return a set of geometric sequents. -}
-parseFolToSequents :: Bool -> String -> Maybe [Geo.Sequent]
-parseFolToSequents iscjr = (formulaToSequents iscjr).Fol.parseFormula
+parseFolToTheory :: Bool -> String -> Maybe Geo.Theory
+parseFolToTheory iscjr = (formulaToTheory iscjr).Fol.parseFormula
 
-{-| formulaToSequent is the main function of the module, which may return 
+{-| formulaToTheory is the main function of the module, which may return 
   Just [Sequent] if the input formula is equivalent to a set of geometric 
   sequents, or Nothing otherwise. 
   If the input formula is a conjecrue (specified by the boolean flag) the 
   formula is guaranteed to be returned as a single sequent (disjunctions on 
   left won't be splitted). -}
-formulaToSequents :: Bool -> Fol.Formula -> Maybe [Geo.Sequent]
-formulaToSequents iscjr fmla = 
+formulaToTheory :: Bool -> Fol.Formula -> Maybe Geo.Theory
+formulaToTheory iscjr fmla = 
     (\(l, r) -> let l' = normalizeAnd' l                          
                     ls = if iscjr 
                          then [l']
@@ -119,17 +119,6 @@ convertFormula _                   = Nothing -- otherwise
 convertAtom :: Fol.Atom -> Maybe Geo.Atom
 convertAtom (Fol.Rel s ts)   = return $ Geo.Rel s ts
 convertAtom (Fol.FnRel s ts) = return $ Geo.FnRel s ts
-
--- convertTerm :: Fol.Term -> Maybe Geo.Term
--- convertTerm (Fol.Variable v)   = Just $ Geo.Variable v
--- convertTerm (Fol.Fn s ts)      = do { ts' <- mapM convertTerm ts
---                                     ; return $ Geo.Fn s ts' }
--- convertTerm (Fol.Element e)    = Geo.Element <$> convertElem e
--- convertTerm _                  = Nothing -- We currently do not support
---                                          -- DistinctTerm and NumberTerm.
-
--- convertElem :: Fol.Elem -> Maybe Geo.Elem
--- convertElem (Fol.Elem e)  = Just $ Geo.Elem e
 
 normalize :: Fol.Formula -> Fol.Formula
 normalize = normalize'.pnfAll.elimImp

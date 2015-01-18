@@ -19,6 +19,6 @@
   Maintainer  : Salman Saghafi <salmans@wpi.edu>, Ryan Danas <ryandanas@wpi.edu>
 -}
 
-module Tools.FolToGeo ( formulaToSequents, parseFolToSequents) where
+module Tools.FolToGeo ( formulaToTheory, parseFolToTheory) where
 
 import Tools.IFolToGeo
