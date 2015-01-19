@@ -51,7 +51,7 @@ import SAT.Data
 
 -- Tools
 import Tools.Config (Config (..), defaultConfig)
-import Tools.FolToGeo (parseFolToSequents)
+import Tools.FolToGeo (parseFolToTheory)
 
 {-| Runs the Chase algorithm and returns the resulting base, the resulting 
   provenance information and the resulting set of ground sequents.
