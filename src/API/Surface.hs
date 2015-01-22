@@ -65,19 +65,23 @@ teardownState state@(RazorState config theory mspace mcoor) = case mcoor of
 ----------------------------
 -- Surface API Operations --
 ----------------------------
-loadTheory :: Config -> IO(Either Error (Config, Theory))
-loadTheory config = case configInput config of
+loadTheory :: Config -> Bool -> IO(Either Error (Config, Theory))
+loadTheory config isTPTP = case configInput config of
   Nothing -> return $ Left $ "No theory file specified!"
   Just file -> do
     res1 <- try (readFile file) :: IO (Either SomeException String)
     case res1 of
       Left ex -> return $ Left $ "Unable to read file! "++(show ex)
       Right raw -> do
-        case parseInputFile config raw of
-          Left err -> return $ Left $ "Unable to parse file! "++err
-          Right (Input thy dps) -> do
-            let config' = config {configSkolemDepth = dps}
-            return $ Right (config', thy)
+        if isTPTP 
+          then case parseTPTPFile raw of
+            Nothing -> return $ Left $ "Unable to TPTP theory!"
+            Just thy -> return $ Right (config, thy)
+          else case parseInputFile config raw of
+            Left err -> return $ Left $ "Unable to parse Razor theory! "++err
+            Right (Input thy dps) -> do
+              let config' = config {configSkolemDepth = dps}
+              return $ Right (config', thy)
 
 chaseTheory :: Config -> Theory -> ChaseState
 chaseTheory config theory = generateChase config theory

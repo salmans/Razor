@@ -44,6 +44,7 @@ import Control.Monad.Trans
 -- Syntax
 import Syntax.GeometricUtils
 import Syntax.Term
+import qualified Syntax.TPTP as TPTP
 
 -- Common
 import Common.Data
@@ -51,7 +52,7 @@ import Common.Basic
 import Common.IProvenance
 import Common.Observation
 import Common.Model (Model (..))
-import Common.Input
+import qualified Common.Input as CORE
 
 -- Chase
 import Chase.Data
@@ -124,8 +125,14 @@ parseConfig args = do
   return config'
 -- In: configuration options, user input theory
 -- Out: an input if parsing success
-parseInputFile :: Config -> String -> Either String Input
-parseInputFile config input = parseInput input
+parseInputFile :: Config -> String -> Either String CORE.Input
+parseInputFile config input = CORE.parseInput input
+--
+--
+parseTPTPFile :: String -> Maybe Theory
+parseTPTPFile input = case TPTP.parse input of
+  Nothing -> Nothing
+  Just (thy, constants) -> Just thy
 
 ---------------------
 -- Chase Data / G* --

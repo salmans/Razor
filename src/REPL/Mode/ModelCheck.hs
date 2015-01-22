@@ -64,7 +64,7 @@ enterModelCheck :: ModelCheckMode -> RazorState -> IO(Either Error ModelCheckOut
 enterModelCheck mode state@(RazorState config theory mspace mcoor) = case theory of
   Just thy -> firstModel config thy
   _ -> do
-    load <- loadTheory config
+    load <- loadTheory config False
     case load of
       Left err -> return $ Left err
       Right (cfg, thy) -> firstModel cfg thy

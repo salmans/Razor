@@ -48,7 +48,7 @@ data TheoryMode = TheoryM
 type TheoryIn = (Config, Maybe Theory, ModelSpace, Maybe ModelCoordinate)
 type TheoryOut = (Config, Maybe Theory, ModelSpace, Maybe ModelCoordinate)
 
-data TheoryCommand = Debug | Relax | DefaultDepth Int | Load TheoryFile 
+data TheoryCommand = Debug | Relax | DefaultDepth Int | Load TheoryFile Bool
 type TheoryFile = String
 
 --------------------
@@ -69,9 +69,9 @@ theoryRun mode (config, thy, mspace, mcoor) command = case parseTheoryCommand co
     DefaultDepth i -> do
       prettyPrint 0 foutput $ "Default skolem depth is now "++(show i)++"\n"
       return $ Right $ (config {configDefaultSkolemDepth = i}, thy, mspace, mcoor)
-    Load file -> do
+    Load file isTPTP -> do
       prettyPrint 0 foutput $ "Loading Theory...\n"
-      load <- loadTheory config {configInput = Just file}
+      load <- loadTheory (config {configInput = Just file}) isTPTP
       case load of
         Right (cfg', thy') -> do
           prettyTheory (Just thy')
@@ -99,7 +99,8 @@ theoryHelp cmd = prettyPrint 0 foutput $ ""++
   "<expr>:= | debug             Toggle debug mode on/off\n"++
   "         | relax             Toggle relaxation of producing only minimal models\n"++
   "         | depth <int>       Set the default skolem depth to the given integer value\n"++
-  "         | load <string>     Load the given filename as an input theory\n"
+  "         | load <string>     Load the given filename as a Razor input theory\n"++
+  "         | tptp <string>     (Beta) Load the given filename as a TPTP input theory\n"
 
 parseTheoryCommand :: String -> Either Error TheoryCommand
 parseTheoryCommand cmd = 
@@ -109,7 +110,7 @@ parseTheoryCommand cmd =
 		Right val -> Right $ val
 
 pCommand :: Parser TheoryCommand
-pCommand = pDebug +++ pRelax +++ pDefaultDepth +++ pLoad 
+pCommand = pDebug +++ pRelax +++ pDefaultDepth +++ pLoad +++ pTPTP 
 
 pDebug :: Parser TheoryCommand
 pDebug = do
@@ -139,4 +140,12 @@ pLoad :: Parser TheoryCommand
 pLoad = do
   string "load"
   spaces
-  Load <$> many (noneOf "\n\t ")
+  filename <- many (noneOf "\n\t ")
+  return $ Load filename False
+
+pTPTP :: Parser TheoryCommand
+pTPTP = do
+  string "tptp"
+  spaces
+  filename <- many (noneOf "\n\t ")
+  return $ Load filename True
