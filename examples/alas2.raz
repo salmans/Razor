@@ -125,9 +125,9 @@ Grant(e, p, k) => HasKey(p, k);
 {- Query 5: Can a thief who is not either a member of ALAS nor PEDS enter B17?
 -}
 
-CanEnter('Thief, 'B17);
-MemberOf('Thief, 'ALAS) => Falsehood;
-MemberOf('Thief, 'PEDS) => Falsehood;
+-- CanEnter('Thief, 'B17);
+-- MemberOf('Thief, 'ALAS) => Falsehood;
+-- MemberOf('Thief, 'PEDS) => Falsehood;
 
 --------------------------------------------------
 {- Query 6: Can the thief enter B17 if we restrict B17 to ALAS and PEDS only?
