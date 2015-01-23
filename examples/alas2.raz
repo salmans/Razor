@@ -1,17 +1,40 @@
 {- Razor's Sample Specification
 
-   File       : alas.raz
+   File       : alas2.raz
    
-   Description: ALAS and PEDS are two research groups in the CS department,
-   which share lab B17. A person can enter a lab either using a key or a
-   matching ID card.
-   This example contains 7 queries that exercies the policies implemented to
-   control access to B17.
+   Description: This specification is similar to alas1.raz but it is
+   decorated with type information, which is suitable for model-building
+   in the relaxed mode.
 
    ** Please uncomment one query at a time before running Razor on this
    specification.
    
 -}
+
+--------------------------------------------------
+-- Types
+--------------------------------------------------
+LabOf(r, l) => ResearchGroup(r) & Lab(l);
+MemberOf(p, r) => Person(p) & ResearchGroup(r);
+HasKey(p, k) => Person(p) & Key(k);
+cardOf(p) = c => Person(p) & Card(c);
+KeyOpens(k, l) => Key(k) & Lab(l);
+CardOpens(c, l) => Card(c) & Lab(l);
+CanEnter(p, l) => Person(p) & Lab(l);
+Grant(e, p, k) => Person(e) & Person(p) & Key(k);
+Employee(p) => Person(p);
+
+-- Types are disjoint
+ResearchGroup(x) & Lab(x) => Falsehood;
+ResearchGroup(x) & Person(x) => Falsehood;
+ResearchGroup(x) & Key(x) => Falsehood;
+ResearchGroup(x) & Card(x) => Falsehood;
+Lab(x) & Person(x) => Falsehood;
+Lab(x) & Key(x) => Falsehood;
+Lab(x) & Card(x) => Falsehood;
+Person(x) & Key(x) => Falsehood;
+Person(x) & Card(x) => Falsehood;
+Key(x) & Card(x) => Falsehood;
 
 --------------------------------------------------
 -- Facts:
@@ -102,9 +125,9 @@ Grant(e, p, k) => HasKey(p, k);
 {- Query 5: Can a thief who is not either a member of ALAS nor PEDS enter B17?
 -}
 
--- CanEnter('Thief, 'B17);
--- MemberOf('Thief, 'ALAS) => Falsehood;
--- MemberOf('Thief, 'PEDS) => Falsehood;
+CanEnter('Thief, 'B17);
+MemberOf('Thief, 'ALAS) => Falsehood;
+MemberOf('Thief, 'PEDS) => Falsehood;
 
 --------------------------------------------------
 {- Query 6: Can the thief enter B17 if we restrict B17 to ALAS and PEDS only?
