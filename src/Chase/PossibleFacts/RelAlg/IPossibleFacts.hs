@@ -297,7 +297,7 @@ instantiateSequent relaxed uni new sub bodySub exSub seq =
                            skMap      = Map.fromListWith (++) 
                                       $ (pure <$>) <$> loneSkFuns
                            (ls, rs)   = partitionEithers
-                                        $ applyLoneSubs uni new skMap $ Right seq''
+                                        $ applyLoneSubs relaxed uni new skMap $ Right seq''
                        in  if null rs
                              then return $ head $ filter (\s -> case sequentBody s of
                                                                   Atm (Inc _) -> False
@@ -341,10 +341,10 @@ createExistsSub tup elmProvs skFuns =
         else Left  $ fst <$> (filter (isNothing.snd) skElems)
              -- Any of the skFuns that have reached the maximum limit works!
 
-applyLoneSubs :: Database -> Database -> Map.Map FnSym [Atom]
+applyLoneSubs :: Bool -> Database -> Database -> Map.Map FnSym [Atom]
               -> Either Sequent Sequent
               -> [Either Sequent Sequent]
-applyLoneSubs uni new skMap ethSeq =
+applyLoneSubs relaxed uni new skMap ethSeq =
     if   Map.null skMap
     then return ethSeq -- done!
     else if   Map.null completeAtoms -- no more complete atoms, thus no progress!
@@ -362,16 +362,19 @@ applyLoneSubs uni new skMap ethSeq =
            let (ls, rs) = partitionEithers temp           
            if null rs
              then do
-               let incSeq = foldr replaceIncompleteFn seq $ snd <$> completeAtomsList
+               let incSeq = if relaxed
+                            then foldr (replaceRelaxIncompleteEx domain) seq $ fst
+                                 <$> completeAtomsList
+                            else foldr replaceIncompleteEx seq $ fst <$> completeAtomsList
                return $ Left incSeq
              else do
                  let res          = transformTuples rs
                  let (sub, exSub) = (\(x, y) -> (Map.fromList x, Map.fromList y)) res
                  let rest'        = Map.map (substitute sub) rest
                  let subSeq       = sequentExistsSubstitute exSub seq
-                 applyLoneSubs uni new rest' $ if isLeft
-                                               then Left  $ subSeq
-                                               else Right $ subSeq
+                 applyLoneSubs relaxed uni new rest' $ if isLeft
+                                                       then Left  $ subSeq
+                                                       else Right $ subSeq
     where seq                   = either id id ethSeq
           isLeft                = case ethSeq of
                                     Left _    -> True
@@ -381,6 +384,8 @@ applyLoneSubs uni new skMap ethSeq =
           completeAtomsList     = concatMap func $ Map.toList completeAtoms
           completeAtom (FnRel _ ts) = not $ any isVariable (init ts)
           lookupElement atm = lookupElementInDB atm uni <|> lookupElementInDB atm new
+          domain = let domTbl = Map.findWithDefault emptyTable (RelTable "@Element") uni
+                   in  (head . Vect.toList . tupleElems) <$> (DB.toList domTbl)
 
 {- As a helper for 'applyLoneSubs', returns the value corresponding to the 
    input atomic functional atom from a given database. -}
