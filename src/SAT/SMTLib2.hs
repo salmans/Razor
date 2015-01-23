@@ -901,9 +901,12 @@ minimizeResult res = do
                  $ Map.filterWithKey (\k _ -> not (isElementString k)) othDic
       -- The keys in the map that correspond to terms have type other than
       -- KBool (coming from othDic) and they are not element names.
-  if   relax
-    then relaxMinimize classes rels posAtoms negAtoms termStrs
-    else pureMinimize classes sClasses rels posAtoms negAtoms termStrs
+  -- if   relax
+  --   then relaxMinimize classes rels posAtoms negAtoms termStrs
+  --   else pureMinimize classes sClasses rels posAtoms negAtoms termStrs
+  pureMinimize classes sClasses rels posAtoms negAtoms termStrs
+    -- For now, we don't allow the solver to introduce accidental collapses
+  
 
 -- a helper for minimizeResult for cases where the resulting model has to be
 -- homomorphically minimal
@@ -1124,11 +1127,13 @@ nextResult res = do
                      in  flipAxioms unintRel as) rels
   let flipAx   = foldr (.||.) false flips
   funFlipAx   <- functionFlipAxioms termStrs classes
-  if relax
-     then do
-       let newEqs = equalityInducingAxioms sClasses
-       return $ flipAx .||. eqFlipAx .||. funFlipAx .||. newEqs
-     else return $ flipAx .||. eqFlipAx .||. funFlipAx
+  -- if relax
+  --    then do
+  --      let newEqs = equalityInducingAxioms sClasses
+  --      return $ flipAx .||. eqFlipAx .||. funFlipAx .||. newEqs
+  --    else return $ flipAx .||. eqFlipAx .||. funFlipAx
+  return $ flipAx .||. eqFlipAx .||. funFlipAx
+    -- For now, we don't allow the solver to introduce accidental collapses
 
 {- Given the name of an atomic fact as an instance of type 'SMTAtom', returns 
    the names of the symbolic values of the arguments. -}
