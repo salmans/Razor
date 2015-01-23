@@ -163,7 +163,6 @@ augmentChase cfg thy (b, p, it, c) (obs@(Obs (Rel rsym terms)),newelms) = do
 --
 --
 augmentBase :: Config -> SequentMap ChaseSequentType -> (ChasePossibleFactsType, ProvInfo, SATIteratorType, Int) -> [Observation] -> (ChasePossibleFactsType, ProvInfo, SATIteratorType, Int)
-augmentBase _ _ gs ((Obs (Rel "=" terms)):rest) = gs
 augmentBase cfg seqMap (b, p, it, c) obss@((Obs (Rel rsym terms)):rest) = do
   let d = foldr (\o->addToBase o) emptyBase (obss)
   let seqMap' = Map.filter (not.startSequent) seqMap
