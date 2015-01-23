@@ -242,7 +242,7 @@ insertRelSequent seq resSet db = do
 
   -- MONITOR
   -- Is @db@ enough or we should use @uni@ or even @unionDatabases uni result@?
-  let propSeqs = observationalInstances seq uni result resSet provs
+  let propSeqs = observationalInstances cfg seq uni result resSet provs
   -- MONITOR
 
   -- Compute the next iterator and the next blame info for prov in the one fold:
@@ -271,25 +271,27 @@ filterTable t = if t == tableFromList [[]]
    Outputs:
    -
 -}
-relSequentInstances :: RelSequent -> Database -> Database -> RelResultSet 
-                    -> ProvInfo -> [(Sub, ObservationSequent)]
-relSequentInstances relSeq uni new resSet provs = 
-    let subs = createSubs relSeq uni new (allResultTuples resSet) provs
+relSequentInstances :: Config -> RelSequent -> Database -> Database
+                    -> RelResultSet -> ProvInfo -> [(Sub, ObservationSequent)]
+relSequentInstances cfg relSeq uni new resSet provs = 
+    let subs    = createSubs relSeq uni new (allResultTuples resSet) provs
+        relaxed = configRelaxMin cfg
     in nub [ (s, fromJust inst) | 
               (s, bs, es) <- subs
             , inst        <-  buildObservationSequent <$>
-                              (instantiateSequent uni new s bs es seq)
+                              (instantiateSequent relaxed uni new s bs es seq)
             , isJust inst ]
     where seq = toSequent relSeq
 
-instantiateSequent :: Database -> Database -> Sub -> ExistsSub
+instantiateSequent :: Bool -> Database -> Database -> Sub -> ExistsSub
                    -> Either [FnSym] ExistsSub -> Sequent -> [Sequent]
-instantiateSequent uni new sub bodySub exSub seq =
+instantiateSequent relaxed uni new sub bodySub exSub seq =
     let bdy  = formulaExistsSubstitute bodySub (sequentBody seq)
         seq' = substitute sub seq { sequentBody = bdy }
     in  case exSub of
-          Left fns  -> return $ foldr replaceIncompleteEx seq' fns
-          -- [incompleteSequent (sequentBody seq') (head skFn)]
+          Left fns  -> if relaxed
+                       then return $ foldr (replaceRelaxIncompleteEx domain) seq' fns
+                       else return $ foldr replaceIncompleteEx seq' fns
           Right s   -> let seq''      = sequentExistsSubstitute s seq'
                            loneSkFuns = rights $ skolemFunctions seq''
                            skMap      = Map.fromListWith (++) 
@@ -301,6 +303,8 @@ instantiateSequent uni new sub bodySub exSub seq =
                                                                   Atm (Inc _) -> False
                                                                   otherwise   -> True) ls
                              else return $ head rs
+    where domain = let domTbl = Map.findWithDefault emptyTable (RelTable "@Element") uni
+                   in  (head . Vect.toList . tupleElems) <$> (DB.toList domTbl)
 
 createSubs :: RelSequent -> Database -> Database -> TableSub
            -> ProvInfo -> [(Sub, ExistsSub, Either [FnSym] ExistsSub)]

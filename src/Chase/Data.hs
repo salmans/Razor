@@ -31,6 +31,7 @@ module Chase.Data ( PossibleFacts (..) , ChaseImpl (..)
                   , ChaseM (..), liftChaseMState, liftChaseMCounter
                   , liftChaseMConfig
                   , incompleteSequent
-                  , replaceIncompleteFn, replaceIncompleteEx ) where
+                  , replaceIncompleteFn, replaceIncompleteEx
+                  , replaceRelaxIncompleteEx ) where
 
 import Chase.IData

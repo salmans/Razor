@@ -20,7 +20,7 @@
 
 module Chase.PossibleFacts.RelAlg.DB ( Set(..)
                                     , Select(..), Project(..)
-                                    , select, project, join
+                                    , select, project, join'
                                     , fromList, toList
                                     , empty, singleton, oneMember, insert
                                     , IDB.null, IDB.elem, nub, size

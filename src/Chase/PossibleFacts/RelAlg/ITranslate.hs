@@ -340,7 +340,7 @@ evaluateRelExp db delts exp@(Join lExp rExp heads trans) =
                 -- records that have equal values in columns with the same 
                 -- headers.
         tran  = \t1 t2 -> joinTupleTransformer lHds rHds heads t1 t2
-    in  DB.map (uncurry tran) $ DB.join cond lSet rSet
+    in  DB.map (uncurry tran) $ DB.join' cond lSet rSet
         -- Construct the join table, apply the transforming function and return
         -- the result.
 evaluateRelExp db delts exp@(Union lExp lDlt rExp rDlt heads tran) =
@@ -355,9 +355,9 @@ evaluateRelExp db delts exp@(Union lExp lDlt rExp rDlt heads tran) =
         cond = DB.Select $ \(Tuple x _, Tuple y _) -> 
                and $ (\(p1, p2) -> x ! p1 == y ! p2) <$> ps
 
-        set1 = DB.map (uncurry tran) $ DB.join cond lExpTbl rDltTbl
-        set2 = DB.map (uncurry tran) $ DB.join cond lDltTbl rExpTbl
-        set3 = DB.map (uncurry tran) $ DB.join cond lDltTbl rDltTbl
+        set1 = DB.map (uncurry tran) $ DB.join' cond lExpTbl rDltTbl
+        set2 = DB.map (uncurry tran) $ DB.join' cond lDltTbl rExpTbl
+        set3 = DB.map (uncurry tran) $ DB.join' cond lDltTbl rDltTbl
     in  unionsTables [set1, set2, set3]
     where lExpTbl = evaluateRelExp db delts lExp
           rExpTbl = evaluateRelExp db delts rExp

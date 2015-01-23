@@ -21,7 +21,7 @@
 module Chase.PossibleFacts.RelAlg.ISetDB where
 
 -- Standard
-import Prelude hiding (map, filter)
+import Prelude hiding (map, filter, join)
 import qualified Data.List as List (map)
 import qualified Data.Set as S
 
@@ -100,8 +100,8 @@ select (Select f) set = filter f set
 
 {-| Joins two sets of types @t1@ and @t2@ according ot a join condition 
   provided by a 'Select' instance. -}
-join :: (Ord t1, Ord t2) => Select (t1, t2) -> Set t1 -> Set t2 -> Set (t1, t2)
-join sel (Set set1) (Set set2) = 
+join' :: (Ord t1, Ord t2) => Select (t1, t2) -> Set t1 -> Set t2 -> Set (t1, t2)
+join' sel (Set set1) (Set set2) = 
     let list1 = S.toList set1
         list2 = S.toList set2
     in  select sel $ Set $ S.fromList (prod list1 list2)

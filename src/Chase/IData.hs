@@ -33,7 +33,8 @@ import qualified Data.Map as Map
 -- Syntax
 import Syntax.Term ( Term (Cons), Constant (..), Variable, Sub, FnSym)
 import Syntax.Term ( Term (Elem), Element (..), Variable, Sub, FnSym)
-import Syntax.Geometric (Theory, Sequent(..), Formula (..), Atom (..))
+import Syntax.GeometricUtils ( Theory, Sequent(..), Formula (..), Atom (..)
+                             , substitute )
 
 -- Control
 import Control.Applicative
@@ -197,7 +198,7 @@ class (PossibleFacts h, SequentLike s, Show r) =>
     relevant               :: s -> h -> Bool
     pull                   :: s -> h -> h -> PullM h r
     push                   :: (SATIterator it) => s -> r -> h -> PushM h it h
-    observationalInstances :: s -> h -> h -> r -> ProvInfo
+    observationalInstances :: Config -> s -> h -> h -> r -> ProvInfo
                            -> [(Sub, ObservationSequent)] 
 
 {-| 'Problem' is a type that passes information from an iteration of the Chase
@@ -278,7 +279,7 @@ liftChaseMConfig  = liftChaseMCounter.State.lift
 incompleteSequent :: Formula -> FnSym -> Sequent
 incompleteSequent body skFn = Sequent body $ Atm (Inc skFn)
 
-
+-- Construct incomplete models for functions in pure mode
 replaceIncompleteFn :: Atom -> Sequent -> Sequent
 replaceIncompleteFn atm@(FnRel _ _) (Sequent bdy hd) =
   Sequent (incompleteFormulaFn atm bdy) (incompleteFormulaFn atm hd)
@@ -318,14 +319,57 @@ incompleteFormulaFn atom (Lone f x fmla unq) =
         otherwise   -> Lone f x fmla' unq
 incompleteFormulaFn _ fmla = error $ show fmla
 
+-- Construct incomplete models for functions in relaxed mode
+replaceRelaxIncompleteFn :: [Element] -> Atom -> Sequent -> Sequent
+replaceRelaxIncompleteFn dom atm@(FnRel _ _) (Sequent bdy hd) =
+  Sequent (incompleteRelaxFormulaFn dom atm bdy)
+          (incompleteRelaxFormulaFn dom atm hd)
+replaceRelaxIncompleteFn _ (Rel _ _) _ = error $ unitName ++
+                                         ".replaceRelaxIncompleteFn: " ++
+                                         error_expectFunAtom
+
+incompleteRelaxFormulaFn :: [Element] -> Atom -> Formula -> Formula
+incompleteRelaxFormulaFn _ _ Tru = Tru
+incompleteRelaxFormulaFn _ _ Fls = Fls
+incompleteRelaxFormulaFn _ atom (Atm atm@(FnRel f _)) =
+  if atom == atm then Atm (Inc f) else (Atm atm)
+incompleteRelaxFormulaFn _ (FnRel _ _) atm@(Atm _) = atm
+incompleteRelaxFormulaFn _ (Rel _ _) _ = error $ unitName ++
+                                         ".incompleteRelaxFormulaFn: " ++
+                                         error_expectFunAtom
+incompleteRelaxFormulaFn dom atom (And fmla1 fmla2) =
+  let fmla1' = incompleteRelaxFormulaFn dom atom fmla1
+      fmla2' = incompleteRelaxFormulaFn dom atom fmla2
+  in  case fmla1' of -- shortcut incomplete conjuncts
+        Atm (Inc _) -> fmla1'
+        otherwise   -> case fmla2' of
+                         Atm (Inc _) -> fmla2'
+                         otherwise   -> And fmla1' fmla2'
+incompleteRelaxFormulaFn dom atom (Or fmla1 fmla2) =
+  let fmla1' = incompleteRelaxFormulaFn dom atom fmla1
+      fmla2' = incompleteRelaxFormulaFn dom atom fmla2
+  in  Or fmla1' fmla2'
+incompleteRelaxFormulaFn dom atom (Exists f x fmla) =
+  let fmla' = incompleteRelaxFormulaFn dom atom fmla
+  in  case fmla' of
+        Atm (Inc _) -> fmla'
+        otherwise   -> Exists f x fmla'
+incompleteRelaxFormulaFn dom atom (Lone f x fmla unq) =
+  let fmla' = incompleteRelaxFormulaFn dom atom fmla
+  in  case fmla' of
+        Atm (Inc _) -> fmla'
+        otherwise   -> Lone f x fmla' unq
+incompleteRelaxFormulaFn _ _ fmla = error $ show fmla
+
+-- Constructing incomplete sequents in pure mode:
 replaceIncompleteEx :: FnSym -> Sequent -> Sequent
 replaceIncompleteEx skFn (Sequent bdy hd) =
   Sequent (incompleteFormulaEx skFn bdy) (incompleteFormulaEx skFn hd)
 
 incompleteFormulaEx :: FnSym -> Formula -> Formula
-incompleteFormulaEx skFn Tru = Tru
-incompleteFormulaEx skFn Fls = Fls
-incompleteFormulaEx skFn atm@(Atm _) = atm
+incompleteFormulaEx _ Tru = Tru
+incompleteFormulaEx _ Fls = Fls
+incompleteFormulaEx _ atm@(Atm _) = atm
 incompleteFormulaEx skFn (And fmla1 fmla2) =
   let fmla1' = incompleteFormulaEx skFn fmla1
       fmla2' = incompleteFormulaEx skFn fmla2
@@ -350,3 +394,48 @@ incompleteFormulaEx skFn (Lone f x fmla unq)
                 in  case fmla' of
                       Atm (Inc _) -> fmla'
                       otherwise   -> Lone f x fmla' unq
+
+
+-- Constructing incomplete sequents in the relaxed mode:
+replaceRelaxIncompleteEx :: [Element] -> FnSym -> Sequent -> Sequent
+replaceRelaxIncompleteEx dom skFn (Sequent bdy hd) =
+  Sequent (incompleteRelaxFormulaEx dom skFn bdy)
+          (incompleteRelaxFormulaEx dom skFn hd)
+
+incompleteRelaxFormulaEx :: [Element] -> FnSym -> Formula -> Formula
+incompleteRelaxFormulaEx _ _ Tru = Tru
+incompleteRelaxFormulaEx _ _ Fls = Fls
+incompleteRelaxFormulaEx _ _ atm@(Atm _) = atm
+incompleteRelaxFormulaEx dom skFn (And fmla1 fmla2) =
+  let fmla1' = incompleteRelaxFormulaEx dom skFn fmla1
+      fmla2' = incompleteRelaxFormulaEx dom skFn fmla2
+  in  case fmla1' of -- shortcut incomplete conjuncts
+        Atm (Inc _) -> fmla1'
+        otherwise   -> case fmla2' of
+                         Atm (Inc _) -> fmla2'
+                         otherwise   -> And fmla1' fmla2'
+incompleteRelaxFormulaEx dom skFn (Or fmla1 fmla2) =
+  let fmla1' = incompleteRelaxFormulaEx dom skFn fmla1
+      fmla2' = incompleteRelaxFormulaEx dom skFn fmla2
+  in  Or fmla1' fmla2'
+incompleteRelaxFormulaEx dom skFn (Exists f x fmla)
+  | f == Just skFn = let fmla' = incompleteRelaxFormulaEx dom skFn fmla
+                     in  Or (existingInstances dom x fmla') (Atm (Inc skFn))
+  | otherwise = let fmla' = incompleteRelaxFormulaEx dom skFn fmla
+                in  case fmla' of
+                      Atm (Inc _) -> fmla'
+                      otherwise   -> Exists f x fmla'
+incompleteRelaxFormulaEx dom skFn (Lone f x fmla unq)
+  | f == Just skFn = let fmla' = incompleteRelaxFormulaEx dom skFn fmla
+                     in  Or (existingInstances dom x fmla') (Atm (Inc skFn))
+  | otherwise = let fmla' = incompleteRelaxFormulaEx dom skFn fmla
+                in  case fmla' of
+                      Atm (Inc _) -> fmla'
+                      otherwise   -> Lone f x fmla' unq
+
+existingInstances :: [Element] -> Variable -> Formula -> Formula
+existingInstances dom var fmla
+  | null dom  = Fls
+  | otherwise = let subs  = (\e -> Map.singleton var (Elem e)) <$> dom
+                    disjs = (\s -> substitute s fmla) <$> subs
+                in  foldr1 (\d1 d2 -> Or d1 d2) disjs
