@@ -31,7 +31,7 @@ import Control.Applicative
 
 -- Syntax
 import Syntax.Term ( Term (..), SkolemTerm, Element (..), Constant (..)
-                   , Sub, FnSym)
+                   , Sub, FnSym, parseTerm)
 
 -- Common
 import Common.Basic (Id)
@@ -154,3 +154,34 @@ testElementProv skFn elms provs = do
                 terms <- mapM ((flip getElementProv) provs) elms
                 return $ Fn skFn terms
   findElementWithProv skTerm provs
+
+
+testElementProvWithDepth :: Int -> FnSym -> [Element] -> ElementProvs
+                         -> Maybe Element
+testElementProvWithDepth depth skFn elms provs = do
+  skTerm <- if null elms
+              then return $ Cons $ Constant skFn
+              else do
+                terms <- mapM ((flip getElementProv) provs) elms
+                return $ Fn skFn terms
+  findElementWithProvWithDepth depth skTerm provs
+
+findElementWithProvWithDepth :: Int -> SkolemTerm -> ElementProvs
+                             -> Maybe Element
+findElementWithProvWithDepth  depth term (_, provs) = 
+  listToMaybe $ Map.elems
+              $ Map.filterWithKey (\k _ -> equalTerms depth term k) provs
+
+{- Given a depth and two input terms, returns True if the two terms are equal 
+   up to the given depth. Otherwise, returns False. -}
+equalTerms :: Int -> Term -> Term -> Bool
+equalTerms 0 _ _ = True
+equalTerms _ (Var v1) (Var v2)   = v1 == v2
+equalTerms _ (Cons c1) (Cons c2) = c1 == c2
+equalTerms _ (Elem e1) (Elem e2) = e1 == e2
+equalTerms _ (NumberTerm n1) (NumberTerm n2) = n1 == n2
+equalTerms _ (DistinctTerm d1) (DistinctTerm d2) = d1 == d2
+equalTerms depth (Fn f1 ts1) (Fn f2 ts2)
+  | f1 == f2 = and $ zipWith (equalTerms (depth - 1)) ts1 ts2
+  | otherwise = False
+equalTerms _ _ _ = False

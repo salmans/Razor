@@ -289,9 +289,11 @@ instantiateSequent relaxed uni new sub bodySub exSub seq =
     let bdy  = formulaExistsSubstitute bodySub (sequentBody seq)
         seq' = substitute sub seq { sequentBody = bdy }
     in  case exSub of
-          Left fns  -> if relaxed
-                       then return $ foldr (replaceRelaxIncompleteEx domain) seq' fns
-                       else return $ foldr replaceIncompleteEx seq' fns
+          Left fns  -> -- if relaxed
+                       -- then return $ foldr (replaceRelaxIncompleteEx domain) seq' fns
+                       -- else return $ foldr replaceIncompleteEx seq' fns
+                       return $ foldr replaceIncompleteEx seq' fns
+                         -- For now, do not reuse in the relax mode
           Right s   -> let seq''      = sequentExistsSubstitute s seq'
                            loneSkFuns = rights $ skolemFunctions seq''
                            skMap      = Map.fromListWith (++) 
@@ -362,10 +364,12 @@ applyLoneSubs relaxed uni new skMap ethSeq =
            let (ls, rs) = partitionEithers temp           
            if null rs
              then do
-               let incSeq = if relaxed
-                            then foldr (replaceRelaxIncompleteEx domain) seq $ fst
-                                 <$> completeAtomsList
-                            else foldr replaceIncompleteEx seq $ fst <$> completeAtomsList
+               let incSeq = -- if relaxed
+                            -- then foldr (replaceRelaxIncompleteEx domain) seq $ fst
+                            --      <$> completeAtomsList
+                            -- else foldr replaceIncompleteEx seq $ fst <$> completeAtomsList
+                            foldr replaceIncompleteEx seq $ fst <$> completeAtomsList
+                            -- For now, do not reuse in the relax mode
                return $ Left incSeq
              else do
                  let res          = transformTuples rs

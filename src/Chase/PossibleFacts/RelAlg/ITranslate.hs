@@ -54,13 +54,17 @@ import Common.Data (SkolemDepthMap, findSkolemDepthWithDefault)
 import Common.Observation (Observation (..))
 import Common.Provenance ( ProvInfo (..), Blame (..)
                          , addElementProv, modifyElementProvs
-                         , getElementProv, testElementProv )
+                         , getElementProv, testElementProv
+                         , testElementProvWithDepth )
 
 -- Chase
 import Chase.Data ( PushM, PullM, liftPushMBase, liftPushMProvs
-                  , liftPushMCounter, liftPullMProvs )
+                  , liftPushMCounter, liftPushMConfig, liftPullMProvs )
 import Chase.PossibleFacts.RelAlg.Lang -- import everything
 import qualified Chase.PossibleFacts.RelAlg.DB as DB
+
+-- Tools
+import Tools.Config (Config (..))
 
 -- Error Messages:
 unitName               = "Chase.PossibleFacts.RelAlg.Translate"
@@ -454,9 +458,22 @@ insertTuples tblPair (Proj innerExp col heading skFn unqExp) db depth dpths
                                         tup1                          
                               d  = findSkolemDepthWithDefault depth skFn dpths
                           if (d > -1 && ds >= d)
-                          then return set
+                          then do
+                          cfg <- liftPushMConfig (State.get)
+                          let relax = configRelaxMin cfg
+                          if relax
+                            then do
+                               let reuse = testElementProvWithDepth d skFn
+                                               (Vect.toList tup1) provs
+                               if isJust reuse
+                                 then do
+                                   tup2' <- (Vect.mapM (inject reuse (tuple tup2))
+                                            (Vect.fromList [0..(totalColumns - 1)]))
+                                   return ((Tuple tup1 tup2'):set)
+                                 else return set
+                            else return set
                           else do
-                            let reuse = testElementProv skFn (Vect.toList tup1)  provs
+                            let reuse = testElementProv skFn (Vect.toList tup1) provs
                             tup2' <- (Vect.mapM (inject reuse (tuple tup2))
                                      (Vect.fromList [0..(totalColumns - 1)]))
                             return ((Tuple tup1 tup2'):set))   

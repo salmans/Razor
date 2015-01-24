@@ -21,6 +21,7 @@
 module Common.Provenance ( Blame (..), ObservationProvs, ProvInfo (..)
                          , ElementProvs
                          , addElementProv, getElementProv, testElementProv
+                         , testElementProvWithDepth
                          , findElementWithProv, findObservationWithProv
                          , addBlameSequent, findBlameSequent
                          , modifyElementProvs, modifyBlameSequentMap
