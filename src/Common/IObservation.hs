@@ -117,7 +117,7 @@ buildObservationSequent seq@(Sequent bdy hds) =
                 Nothing -> Nothing
                 Just hs -> if   (not.null) hs && all null hs
                            then Nothing
-                           else Just $ filter (not.null) hs
+                           else Just hs -- Just $ filter (not.null) hs
   in  ObservationSequent <$> bdy' <*> hds''
 --
 processFunction :: FnSym -> [Term] -> Term

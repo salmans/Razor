@@ -273,7 +273,7 @@ filterTable t = if t == tableFromList [[]]
 -}
 relSequentInstances :: Config -> RelSequent -> Database -> Database
                     -> RelResultSet -> ProvInfo -> [(Sub, ObservationSequent)]
-relSequentInstances cfg relSeq uni new resSet provs = 
+relSequentInstances cfg relSeq uni new resSet provs =
     let subs    = createSubs relSeq uni new (allResultTuples resSet) provs
         relaxed = configRelaxMin cfg
     in nub [ (s, fromJust inst) | 
