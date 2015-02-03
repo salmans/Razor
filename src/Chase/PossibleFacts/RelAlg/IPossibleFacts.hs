@@ -301,10 +301,10 @@ instantiateSequent relaxed uni new sub bodySub exSub seq =
                            (ls, rs)   = partitionEithers
                                         $ applyLoneSubs relaxed uni new skMap $ Right seq''
                        in  if null rs
-                             then return $ head $ filter (\s -> case sequentBody s of
-                                                                  Atm (Inc _) -> False
-                                                                  otherwise   -> True) ls
-                             else return $ head rs
+                             then filter (\s -> case sequentBody s of
+                                                   Atm (Inc _) -> False
+                                                   otherwise   -> True) ls
+                             else rs
     where domain = let domTbl = Map.findWithDefault emptyTable (RelTable "@Element") uni
                    in  (head . Vect.toList . tupleElems) <$> (DB.toList domTbl)
 
