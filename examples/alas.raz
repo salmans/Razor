@@ -1,6 +1,6 @@
 {- Razor's Sample Specification
 
-   File       : alas2.raz
+   File       : alas.raz
    
    Description: This specification is similar to alas1.raz but it is
    decorated with type information, which is suitable for model-building
