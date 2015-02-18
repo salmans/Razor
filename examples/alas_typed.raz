@@ -1,6 +1,6 @@
 {- Razor's Sample Specification
 
-   File       : alas1.raz
+   File       : alas_typed.raz
    
    Description: ALAS and PEDS are two research groups in the CS department,
    which share lab B17. A person can enter a lab either using a key or a
