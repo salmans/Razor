@@ -132,7 +132,12 @@ parseInputFile config input = CORE.parseInput input
 parseTPTPFile :: String -> Maybe (Theory, [String])
 parseTPTPFile input = case TPTP.parse input of
   Nothing -> Nothing
-  Just (thy, constants) -> Just (thy,[])
+  Just (thy, constants) -> let extra = existsSeq <$> constants
+                           in Just (thy ++ extra,[])
+  where existsSeq c = let varX = Variable "x"
+                      in  Sequent Tru
+                                  $ Exists Nothing varX
+                                           (Atm $ Rel "=" [Var varX, Cons c])
 
 ---------------------
 -- Chase Data / G* --
