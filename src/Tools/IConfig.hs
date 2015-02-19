@@ -66,7 +66,7 @@ data Config = Config { configInput              :: Maybe String
                        -- return all models
                      -- , configBound           :: Maybe Int
                        -- maximum size of models
-                     -- , configTPTPPath        :: String
+                      , configTPTPPath        :: String
                        -- the path to TPTP folder
                      -- , configInputType       :: InputType
                        -- type of the input formulas to process
@@ -94,13 +94,13 @@ instance Show Config where
                --                (case configBound cfg of
                --                   Nothing -> "unbounded"
                --                   Just b  -> show b) ++ "\n" ++
-               -- "--tptp-path=" ++ (configTPTPPath cfg) ++ "\n" ++
+               "--tptp-path=" ++ (configTPTPPath cfg) ++ "\n" ++
                -- "--input-type=" ++ show (configInputType cfg) ++ "\n" ++
                -- "--iso-elim=" ++ show (configIsoElim cfg) ++ "\n" ++
                "--depth=" ++ show (configDefaultSkolemDepth cfg) ++ "\n" ++
                "--relax=" ++ show (configRelaxMin cfg) ++ "\n" ++ 
                "--command=" ++ showOptional (configCommand cfg) ++ "\n" ++
-               "--state=" ++ showOptional (configState cfg)
+               "--state=" ++ showOptional (configState cfg) 
 
 -- Helper for the show
 showOptional :: Show a => Maybe a -> String
@@ -114,14 +114,14 @@ defaultConfig = Config { configInput              = Nothing
                        -- , configIncremental     = True
                        -- , configAllModels       = True
                        -- , configBound           = Nothing
-                       -- , configTPTPPath        = "./"
+                      , configTPTPPath        = "./"
                        -- , configInputType       = GeoLog
                        -- , configIsoElim         = False
                        , configDefaultSkolemDepth = -1
                        , configSkolemDepth        = emptySkolemDepthMap
                        , configRelaxMin           = False
                        , configCommand            = Nothing 
-                       , configState              = Nothing }
+                       , configState              = Nothing}
 
 {-| ConfigMonad is  a state monad with a 'Config' instance as state. -}
 type ConfigMonad  = State Config

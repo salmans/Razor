@@ -38,7 +38,7 @@ import qualified Codec.TPTP as TP
     list to a geometric theory if possible. The function also returns a list of
     constants in the theory, which may be used for constructing an initial 
     partial model for CNF formulas. -}
-parse :: String -> Maybe (Theory, [Constant])
+parse :: String -> Maybe (Theory, [Constant], [String])
 parse  = inputsToGeo . TP.parse
 
 {- inputsToGeo converts a list of TPTP inputs (obtained by parsing a TPTP 
@@ -46,7 +46,7 @@ parse  = inputsToGeo . TP.parse
   theory. Otherwise, returns Nothing. It also returns a list of constants in 
   the theory, which can be used for constructing an initial partial model for
   TPTP CNF formulas. -}
-inputsToGeo :: [TP.TPTP_Input] -> Maybe (Theory, [Constant])
+inputsToGeo :: [TP.TPTP_Input] -> Maybe (Theory, [Constant], [String])
 inputsToGeo inps = do
   (thy, ts, c) <- 
       foldM (\(fs, ts, c) i -> do 
@@ -59,11 +59,20 @@ inputsToGeo inps = do
                             in  (cjrF, t ++ cjrT, cjrC)
                        else (f', t, c)
                return  (fs ++ f'', ts `union` t'', c'')) ([], [], 0) formulas
-  return (thy, ts)
-    where formulas = filter filterFunc inps
-          filterFunc (TP.AFormula _ _ _ _) = True
-          filterFunc (TP.Comment _)        = False
-          filterFunc (TP.Include _ _) = False
+  return (thy, ts, includes)
+    where 
+      formulas = filter filterFormula inps
+      filterFormula (TP.AFormula _ _ _ _) = True
+      filterFormula (TP.Comment _)        = False
+      filterFormula (TP.Include _ _) = False
+      includes = do
+        let is = filter filterInclude inps
+        let paths = map (\(TP.Include path _)->path) is
+        paths
+      filterInclude (TP.AFormula _ _ _ _) = False
+      filterInclude (TP.Comment _)        = False
+      filterInclude (TP.Include _ _) = True
+
 
 conjecturize c seqs = 
     let (result, c') = State.runState (mapM conjecture seqs) c

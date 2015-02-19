@@ -87,12 +87,12 @@ loadTheory config isTPTP = case configInput config of
     loadTPTP file = do
       res1 <- try (readFile file) :: IO (Either SomeException String)
       case res1 of 
-        Left ex -> return $ error "bad tptp file"
+        Left ex -> return $ error ("could not read tptp file:"++file)
         Right raw -> case parseTPTPFile raw of
-          Nothing -> return $ error "bad tptp file"
+          Nothing -> return $ error ("could not pasrse tptp file:"++file)
           Just (thy,includes) -> recTPTP thy includes
     recTPTP thy includes = foldM (\t i -> do
-      t' <- loadTPTP i
+      t' <- loadTPTP ((configTPTPPath config)++i)
       return $ t `union` t') thy includes
 
 chaseTheory :: Config -> Theory -> ChaseState

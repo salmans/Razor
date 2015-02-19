@@ -91,7 +91,12 @@ options =
     , Option "r" ["relax"]
         (NoArg
             (\cfg -> return cfg { configRelaxMin = True }))
-        "Allow models that are not purely minimal"        
+        "Allow models that are not purely minimal"   
+    , Option "t" ["tptp", "tptp-path"]
+        (ReqArg
+            (\arg cfg -> return cfg {configTPTPPath = arg})
+            "String")
+        "TPTP Root Directory"     
     , Option "c" ["command", "cmd"]
         (ReqArg
             (\arg cfg -> return cfg { configCommand = Just arg })
@@ -132,7 +137,7 @@ parseInputFile config input = CORE.parseInput input
 parseTPTPFile :: String -> Maybe (Theory, [String])
 parseTPTPFile input = case TPTP.parse input of
   Nothing -> Nothing
-  Just (thy, constants) -> Just (thy,[])
+  Just (thy, constants, includes) -> Just (thy,includes)
 
 ---------------------
 -- Chase Data / G* --
