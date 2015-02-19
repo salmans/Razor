@@ -22,6 +22,7 @@ module API.Surface where
 import Chase.Data (SequentMap)
 import Chase.Impl
 import API.Core
+import Control.Monad
 import Common.Input (Input (..))
 import Common.Model
 import Common.Provenance
@@ -69,19 +70,30 @@ loadTheory :: Config -> Bool -> IO(Either Error (Config, Theory))
 loadTheory config isTPTP = case configInput config of
   Nothing -> return $ Left $ "No theory file specified!"
   Just file -> do
-    res1 <- try (readFile file) :: IO (Either SomeException String)
-    case res1 of
-      Left ex -> return $ Left $ "Unable to read file! "++(show ex)
-      Right raw -> do
-        if isTPTP 
-          then case parseTPTPFile raw of
-            Nothing -> return $ Left $ "Unable to TPTP theory!"
-            Just thy -> return $ Right (config, thy)
-          else case parseInputFile config raw of
+    if isTPTP 
+      then do
+        thy <- loadTPTP file
+        return $ Right (config, thy)
+      else do
+        res1 <- try (readFile file) :: IO (Either SomeException String)
+        case res1 of
+          Left ex -> return $ Left $ "Unable to read file! "++(show ex)
+          Right raw -> case parseInputFile config raw of
             Left err -> return $ Left $ "Unable to parse Razor theory! "++err
             Right (Input thy dps) -> do
               let config' = config {configSkolemDepth = dps}
               return $ Right (config', thy)
+  where
+    loadTPTP file = do
+      res1 <- try (readFile file) :: IO (Either SomeException String)
+      case res1 of 
+        Left ex -> return $ error "bad tptp file"
+        Right raw -> case parseTPTPFile raw of
+          Nothing -> return $ error "bad tptp file"
+          Just (thy,includes) -> recTPTP thy includes
+    recTPTP thy includes = foldM (\t i -> do
+      t' <- loadTPTP i
+      return $ t `union` t') thy includes
 
 chaseTheory :: Config -> Theory -> ChaseState
 chaseTheory config theory = generateChase config theory

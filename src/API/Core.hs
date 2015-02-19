@@ -129,10 +129,10 @@ parseInputFile :: Config -> String -> Either String CORE.Input
 parseInputFile config input = CORE.parseInput input
 --
 --
-parseTPTPFile :: String -> Maybe Theory
+parseTPTPFile :: String -> Maybe (Theory, [String])
 parseTPTPFile input = case TPTP.parse input of
   Nothing -> Nothing
-  Just (thy, constants) -> Just thy
+  Just (thy, constants) -> Just (thy,[])
 
 ---------------------
 -- Chase Data / G* --

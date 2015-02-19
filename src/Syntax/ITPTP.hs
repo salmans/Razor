@@ -58,11 +58,12 @@ inputsToGeo inps = do
                        then let (cjrF, cjrT, cjrC) = conjecturize 0 f'
                             in  (cjrF, t ++ cjrT, cjrC)
                        else (f', t, c)
-               return  (fs ++ f'', ts `union` t'', c'')) ([], [], 0) inps'
+               return  (fs ++ f'', ts `union` t'', c'')) ([], [], 0) formulas
   return (thy, ts)
-    where inps' = filter filterFunc inps
+    where formulas = filter filterFunc inps
           filterFunc (TP.AFormula _ _ _ _) = True
           filterFunc (TP.Comment _)        = False
+          filterFunc (TP.Include _ _) = False
 
 conjecturize c seqs = 
     let (result, c') = State.runState (mapM conjecture seqs) c
