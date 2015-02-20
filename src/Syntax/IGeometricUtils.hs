@@ -88,11 +88,12 @@ preprocess = (simplifySequent <$>).(addElementPreds <$>).
   equality relation. -}
 relationalize :: Theory -> Theory
 relationalize thy  = 
-    (fst $ State.runState (relationalizeTheory thy) 0) ++ eqAxs
+    (fst $ State.runState (relationalizeTheory thy) 0) ++ eqAxs ++ integ
     where funcs  = filter (\fa -> snd fa /= 0) $ functionSyms thy
           funcs' = (\(f, a) -> (f, a + 1)) <$> funcs
                    -- arity of functions as relations increases by one
           eqAxs  = equivalenceAxioms
+          integ  = integrityAxioms funcs
 
 linearize :: Theory -> Theory
 linearize thy = (\(Sequent bdy hd) -> Sequent (linearizeFormula bdy) hd) <$> thy
@@ -392,6 +393,15 @@ equivalenceAxioms :: Theory
 equivalenceAxioms =  parseSequent <$> [ "x = x;"
                                       , "x = y => y = x;"
                                       , "x = y & y = z => x = z;"]
+
+integrityAxioms :: [(Sym, Int)] -> [Sequent]
+integrityAxioms fs = seq <$> fs
+    where varY1      = Variable "y1"
+          varY2      = Variable "y2"
+          seq fa     = Sequent (lft fa) (parseFormula "y1 = y2")
+          lft (f, a) = And (Atm (FnRel f (vars a ++ [Var varY1])))
+                           (Atm (FnRel f (vars a ++ [Var varY2])))
+          vars a     = (\i -> Var $ Variable ("x" ++ show i)) <$> [1.. a]
 --------------------------------------------------------------------------------
 -- Adding @Element predicates to deal with free variables in the head of 
 -- sequents

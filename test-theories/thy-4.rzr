@@ -1,0 +1,10 @@
+-- Testing function integrity axioms in the set of possible facts:
+exists x . P(x);
+exists y . Q(y);
+P(x) & Q(y) => x = y;
+P(x) => R(f(x));
+Q(x) => S(f(x));
+R(x) & S(x) => Falsehood;
+
+
+-- This theory is unsatisfiable.
