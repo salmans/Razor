@@ -362,7 +362,7 @@ applyLoneSubs relaxed uni new skMap ethSeq =
                                     DB.toList elms
            temp        <- mapM (uncurry atomSubs) completeAtomsList
            let (ls, rs) = partitionEithers temp           
-           if null rs
+           if not $ null ls
              then do
                let incSeq = -- if relaxed
                             -- then foldr (replaceRelaxIncompleteEx domain) seq $ fst
