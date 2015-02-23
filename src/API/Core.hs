@@ -90,7 +90,7 @@ options =
         "Depth of skolem term for reusing elements (-1 for pure minimal models)"
     , Option "r" ["relax"]
         (NoArg
-            (\cfg -> return cfg { configRelaxMin = True }))
+            (\cfg -> return cfg { configPureMin = True }))
         "Allow models that are not purely minimal"   
     , Option "t" ["tptp", "tptp-path"]
         (ReqArg

@@ -460,8 +460,8 @@ insertTuples tblPair (Proj innerExp col heading skFn unqExp) db depth dpths
                           if (d > -1 && ds >= d)
                           then do
                           cfg <- liftPushMConfig (State.get)
-                          let relax = configRelaxMin cfg
-                          if relax
+                          let pure = configPureMin cfg
+                          if not pure
                             then do
                                let reuse = testElementProvWithDepth d skFn
                                                (Vect.toList tup1) provs

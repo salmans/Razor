@@ -274,12 +274,12 @@ filterTable t = if t == tableFromList [[]]
 relSequentInstances :: Config -> RelSequent -> Database -> Database
                     -> RelResultSet -> ProvInfo -> [(Sub, ObservationSequent)]
 relSequentInstances cfg relSeq uni new resSet provs =
-    let subs    = createSubs relSeq uni new (allResultTuples resSet) provs
-        relaxed = configRelaxMin cfg
+    let subs  = createSubs relSeq uni new (allResultTuples resSet) provs
+        pure  = configPureMin cfg
     in nub [ (s, fromJust inst) | 
               (s, bs, es) <- subs
             , inst        <-  buildObservationSequent <$>
-                              (instantiateSequent relaxed uni new s bs es seq)
+                              (instantiateSequent pure uni new s bs es seq)
             , isJust inst ]
     where seq = toSequent relSeq
 

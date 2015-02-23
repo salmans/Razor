@@ -63,9 +63,9 @@ theoryRun mode (config, thy, mspace, mcoor) command = case parseTheoryCommand co
       prettyPrint 0 foutput $ "Debug mode is now "++(show debug')++"\n"
       return $ Right $ (config {configDebug = debug'}, thy, mspace, mcoor)
     Relax -> do
-      let relax' = not (configRelaxMin config)
-      prettyPrint 0 foutput $ "Relaxation of minimality constraint is now "++(show relax')++"\n"
-      return $ Right $ (config {configRelaxMin = relax'}, thy, mspace, mcoor)
+      let pure' = not (configPureMin config)
+      prettyPrint 0 foutput $ "Relaxation of minimality constraint is now "++(show pure')++"\n"
+      return $ Right $ (config {configPureMin = pure'}, thy, mspace, mcoor)
     DefaultDepth i -> do
       prettyPrint 0 foutput $ "Default skolem depth is now "++(show i)++"\n"
       return $ Right $ (config {configDefaultSkolemDepth = i}, thy, mspace, mcoor)

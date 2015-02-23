@@ -63,7 +63,7 @@ import Common.Model (Model, createModel)
 import SAT.Data
 
 -- Tools
-import Tools.Config ( Config (configRelaxMin) )
+import Tools.Config ( Config (configPureMin) )
 
 -- Error Messages
 unitName = "SAT.SMT"
@@ -595,7 +595,7 @@ closeConnection = do
    generated before construction of this container, as a 'SATIterator'.
    [@containerConnection@] stores an open connection to perform SMT queies 
    incrementally. 
-   [@containerRelaxMin@] if the resulting model is purely minimal 
+   [@containerPureMin@] if the resulting model is purely minimal 
    (homomorphically minimal) or the condition is relaxed -}
 data SMTContainer  = SMTContainer 
     { containerDomain     :: SDomain
@@ -605,7 +605,7 @@ data SMTContainer  = SMTContainer
     , containerAtoms      :: SAtoms
     , containerResult     :: Maybe SatResult
     , containerConnection :: Maybe (SMTConnection SMTPipe)
-    , containerRelaxMin   :: Bool
+    , containerPureMin    :: Bool
     }
 
 
@@ -625,7 +625,7 @@ emptySMTContainer  = SMTContainer { containerDomain     = Map.empty
                                   , containerAtoms      = Map.empty
                                   , containerResult     = Nothing
                                   , containerConnection = Nothing
-                                  , containerRelaxMin   = True }
+                                  , containerPureMin    = True }
 
 {- Returns an SMTLib2 expression for an element name of type 'SMTElement' inside
    the SMTM computation. The symbolic value is fetched from the 'SMTContaiener'
@@ -720,7 +720,7 @@ termValue fn term unintFunc sParams = do
 {- SMTContainer acts as a SATIterator instance. -}
 instance SATIterator SMTContainer where
   satInitialize     = \cfg -> emptySMTContainer {
-                                containerRelaxMin = configRelaxMin cfg
+                                containerPureMin = configPureMin cfg
                                 }
   satStore          = addToSMTContainer
   satSolve cont     = let (res, cont') = minimumResult cont
@@ -877,7 +877,7 @@ reduce res                 = return res
 minimizeResult :: SatResult -> SMTM SBool
 minimizeResult res = do
   container   <- lift State.get
-  let relax    = containerRelaxMin container
+  let pure     = containerPureMin container
   let domain   = containerDomain container
   let rels     = Map.toList $ containerRels container
   let dic      = getSatResultDictionary res
@@ -1110,7 +1110,7 @@ smtSymAtomMap atoms =
 nextResult :: SatResult -> SMTM SBool
 nextResult res = do
   container   <- lift State.get
-  let relax    = containerRelaxMin container
+  let pure     = containerPureMin container
   let domain   = containerDomain container
   let rels     = Map.toList $ containerRels container
   let dic      = getSatResultDictionary res

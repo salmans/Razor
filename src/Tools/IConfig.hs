@@ -76,7 +76,7 @@ data Config = Config { configInput              :: Maybe String
                        -- default depth of Skolem terms for bounding the search
                      , configSkolemDepth        :: SkolemDepthMap
                        -- customized Skolem depth for each Skolem function
-                     , configRelaxMin           :: Bool
+                     , configPureMin           :: Bool
                        -- whether the resulting models are purely minimal or
                        -- the condition is relaxed
                      , configCommand            :: Maybe String
@@ -98,7 +98,7 @@ instance Show Config where
                -- "--input-type=" ++ show (configInputType cfg) ++ "\n" ++
                -- "--iso-elim=" ++ show (configIsoElim cfg) ++ "\n" ++
                "--depth=" ++ show (configDefaultSkolemDepth cfg) ++ "\n" ++
-               "--relax=" ++ show (configRelaxMin cfg) ++ "\n" ++ 
+               "--pure=" ++ show (configPureMin cfg) ++ "\n" ++ 
                "--command=" ++ showOptional (configCommand cfg) ++ "\n" ++
                "--state=" ++ showOptional (configState cfg) 
 
@@ -114,12 +114,12 @@ defaultConfig = Config { configInput              = Nothing
                        -- , configIncremental     = True
                        -- , configAllModels       = True
                        -- , configBound           = Nothing
-                      , configTPTPPath        = "./"
+                      , configTPTPPath            = "./"
                        -- , configInputType       = GeoLog
                        -- , configIsoElim         = False
                        , configDefaultSkolemDepth = -1
                        , configSkolemDepth        = emptySkolemDepthMap
-                       , configRelaxMin           = False
+                       , configPureMin            = False
                        , configCommand            = Nothing 
                        , configState              = Nothing}
 
