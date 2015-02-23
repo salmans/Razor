@@ -71,7 +71,9 @@ This policy is for lab access involving a particular room, a couple of research 
 - (7) Cards are given to members of resident research groups.
 - (8-9) Keys are granted to a person by an employee.
 - (10) Systems research group members are not allowed to have keys.
+
 Whoever is in charge of the lab would like to ensure that a thief could not possibly gain access to the lab under this policy. Using Razor, we can verify if there are any counterexamples: a thief can enter the lab, and is not a part of either resident research group. 
+
 ```Haskell
                           => Enter(`Thief,`TheLab)
 MemberOf(`Thief,`Logic)   => Falsehood
