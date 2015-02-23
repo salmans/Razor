@@ -48,7 +48,7 @@ data TheoryMode = TheoryM
 type TheoryIn = (Config, Maybe Theory, ModelSpace, Maybe ModelCoordinate)
 type TheoryOut = (Config, Maybe Theory, ModelSpace, Maybe ModelCoordinate)
 
-data TheoryCommand = Debug | Relax | DefaultDepth Int | Load TheoryFile Bool
+data TheoryCommand = Debug | Pure | DefaultDepth Int | Load TheoryFile Bool
 type TheoryFile = String
 
 --------------------
@@ -62,9 +62,9 @@ theoryRun mode (config, thy, mspace, mcoor) command = case parseTheoryCommand co
       let debug' = not (configDebug config)
       prettyPrint 0 foutput $ "Debug mode is now "++(show debug')++"\n"
       return $ Right $ (config {configDebug = debug'}, thy, mspace, mcoor)
-    Relax -> do
+    Pure -> do
       let pure' = not (configPureMin config)
-      prettyPrint 0 foutput $ "Relaxation of minimality constraint is now "++(show pure')++"\n"
+      prettyPrint 0 foutput $ "Pure model-finding is now "++(show pure')++"\n"
       return $ Right $ (config {configPureMin = pure'}, thy, mspace, mcoor)
     DefaultDepth i -> do
       prettyPrint 0 foutput $ "Default skolem depth is now "++(show i)++"\n"
@@ -97,7 +97,7 @@ theoryTag mode = "theory"
 theoryHelp :: TheoryMode -> IO()
 theoryHelp cmd = prettyPrint 0 foutput $ ""++ 
   "<expr>:= | debug             Toggle debug mode on/off\n"++
-  "         | relax             Toggle relaxation of producing only minimal models\n"++
+  "         | pure              Toggle producing only minimal models\n"++
   "         | depth <int>       Set the default skolem depth to the given integer value\n"++
   "         | load <string>     Load the given filename as a Razor input theory\n"++
   "         | tptp <string>     (Beta) Load the given filename as a TPTP input theory\n"
@@ -110,17 +110,17 @@ parseTheoryCommand cmd =
 		Right val -> Right $ val
 
 pCommand :: Parser TheoryCommand
-pCommand = pDebug +++ pRelax +++ pDefaultDepth +++ pLoad +++ pTPTP 
+pCommand = pDebug +++ pPure +++ pDefaultDepth +++ pLoad +++ pTPTP 
 
 pDebug :: Parser TheoryCommand
 pDebug = do
   string "debug"
   return Debug
 
-pRelax :: Parser TheoryCommand
-pRelax = do
-  string "relax"
-  return Relax
+pPure :: Parser TheoryCommand
+pPure = do
+  string "pure"
+  return Pure
 
 pDefaultDepth :: Parser TheoryCommand
 pDefaultDepth = do
