@@ -1,0 +1,50 @@
+-- Helper (NE for not equal)
+NE(x, y) & x = y => Falsehood;
+
+Person(p) => Man(p) | Woman(p);
+
+Man(p) => Person(p);
+Woman(p) => Person(p);
+
+Parents(p, p_) => Person(p) & Person(p_);
+
+Parents(p, p_) => Ancestor(p, p_);
+Ancestor(p, a) & Parents(a, a_) => Ancestor(p, a_);
+
+Ancestor(p, p) => Falsehood;
+
+spouse(p) = p_ => Person(p) & Person(p_);
+
+mother(p) = m => Parents(p, m);
+father(p) = f => Parents(p, f);
+
+
+mother(p) = w => Person(p) & Woman(w);
+father(p) = m => Person(p) & Man(m);
+
+Man(p) & Woman(p) => Falsehood;
+
+-- Adam and Eve:
+Man(Adam()) & Woman(Eve());
+
+-- Bible:
+Person(p) => (exists f . exists m . father(p) = f & mother(p) = m & NE(p, Adam()) & NE(p, Eve())) | p = Adam() | p = Eve();
+
+Parents(Adam(), p) => Falsehood;
+Parents(Eve(), p) => Falsehood;
+
+spouse(Adam()) = Eve();
+
+-- Social Norms:
+spouse(p) = p => Falsehood;
+
+spouse(p) = p_ => spouse(p_) = p;
+
+Man(m) & spouse(m) = w => Woman(w);
+Woman(w) & spouse(w) = m => Man(m);
+
+-- No Incest:
+Parents(p, par) & Parents(p_, par) & spouse(p) = p_ => Falsehood;
+Parents(p, par) & spouse(p) = par => Falsehood;
+
+exists p . exists p_ . NE(Adam(), p) & NE(Eve(), p) & spouse(p) = p_;

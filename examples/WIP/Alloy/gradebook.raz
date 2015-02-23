@@ -1,0 +1,26 @@
+Student(x) => Subject(x);
+Professor(x) => Subject(x);
+
+Subject(s) => Student(s) | Professor(s);
+
+Student(x) & Professor(x) => Falsehood;
+
+TAs(c, s) => Class(c) & Student(s);
+instructor(c) = p => Class(c) & Professor(p);
+
+Class(c) => exists p. instructor(c) = p;
+Assignment(a) => exists c. forClass(a) = c;
+Assignment(a) => exists s. submittedBy(a, s);
+
+forClass(a) = c => Assignment(a) & Class(c);
+submittedBy(a, s) => Assignment(a) & Student(s);
+
+PolicyAllowsGrading(s, a) => Subject(s) | Assignment(a);
+PolicyAllowsGrading(s, a) => (exists c. (forClass(a) = c & TAs(c, s))) | (exists c. (forClass(a) = c & instructor(c) = s));
+
+
+-- ? WHO CAN GRADE ASSIGNMENTS?
+--exists s. exists a. Subject(s) & Assignment(a) & PolicyAllowsGrading(s, a);
+
+-- ? CLASS EXISTS
+exists x. Class(x);
