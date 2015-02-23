@@ -34,12 +34,14 @@ There are several modes which logically separate the functions of the REPL into 
 - `depth 5` Sets the Skolem depth to 5. By default the depth is -1, meaning unbounded search. 
 - `load /path/to/razor/theory.raz` Loads the given Razor theory
 - `tptp /path/to/tptp/problem.p` Loads the given TPTP problem
+
 ### Exploration Mode
 - `current` Displays the current model
 - `next` Get the next model available
 - `aug R(e^2, e^100)` Augment the model with the given fact; for fresh elements not in the model, use elements not in the domain, like e^100
 - `aug e^2=e^3` Augment the model with the equality of two elements in the model.
 - `undo` Undo the previous augmentation; next cannot be undone. 
+
 ### Explanation Mode
 - `origin e^0` Display a single origin of element e^0. That is, the instance of the theory sentence that caused this element to exist in the model. 
 - `origins e^0` Display the possibly multiple origins of element e^0. 
