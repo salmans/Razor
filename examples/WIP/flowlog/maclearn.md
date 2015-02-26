@@ -80,7 +80,7 @@ While both packets have been forwarded, it is unclear why each was forwarded. Th
 (3) packet(t_1,p_1) & learned(t_1,sw_1,pt_2,dst_1) <=> forward(t_1,p_1,pt_2)  
 
 (4) packet(t_2,p_2) <=> forward(t_2,p_2,pt_1)
-        | exists ANY. learned(t_2,locSw(p_2),ANY,dlDst(p_2)\\
+        | exists ANY. learned(t_2,locSw(p_2),ANY,dlDst(p_2)
         | locPt(p_2) = pt_1
 ```
 With provenance, it is now clear that the first packet was sent directly to the source port of the second packet, and that the second packet was broadcasted, because the destination has not been learned. In any flowlog program with multiple rules firing the same outgoing events, provenance information can elucidate the rule that caused the event to happen. 
