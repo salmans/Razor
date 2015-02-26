@@ -48,4 +48,3 @@ There are several modes which logically separate the functions of the REPL into 
 - `origin* e^7` Display the single origin of element e^7; also, recursively display the origins of the elements that caused e^7 to exist, and soforth. 
 - `origins* e^7` Display all origins of this element and it's recursive dependents.
 - `blame R(e^2, e^3)` Display the sentence blamed for making R(e^2, e^3) true. That is, the instance of the theory sentence that caused the given fact to be true in the model. 
-- 
