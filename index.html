@@ -17,19 +17,25 @@
       <header>
         <h1>Razor</h1>
         <h2>A Model-Finding Assistant</h2>
-        <h3>Examples</h3>
+        <h3>Example Theories</h3>
         <ul>
           <li><a href="https://github.com/salmans/Razor/blob/razor/examples/school.raz">Simple<strong>School</strong></a></li>
           <li><a href="https://github.com/salmans/Razor/blob/razor/examples/facebook.raz">User Permissions<strong>Facebook</strong></a></li>
           <li><a href="https://github.com/salmans/Razor/blob/razor/examples/filetypes.raz">Bounded Search<strong>Filetypes</strong></a></li>
         </ul>
-        <h3>Binary Releases</h3>
+        <h3>Example Interactions</h3>
+        <ul>
+          <li><a href="https://github.com/salmans/Razor/blob/razor/examples/alas.md">Access Control<strong>Lab Access</strong></a></li>
+          <li><a href="https://github.com/salmans/Razor/blob/razor/examples/WIP/flowlog/maclearn.md">Software Defined Networks<strong>Flowlog</strong></a></li>
+          <li><a href=""></a></li>
+        </ul>
+        <h3>Latest Binary Releases</h3>
         <ul>
           <li><a href="https://github.com/salmans/Razor/releases/download/0.9/razor-0.9-linux.zip">Ubuntu 14.04<strong>Linux</strong></a></li>
           <li><a href="https://github.com/salmans/Razor/releases/download/0.9/razor-0.9-mac.zip">OS-X 10.10<strong>Mac</strong></a></li>
           <li><a href="https://github.com/salmans/Razor/releases/download/0.9/razor-0.9-win.zip">Windows 7<strong>Windows</strong></a></li>
         </ul>
-        <h3>Build From Source</h3>
+        <h3>View/Build The Sourcecode</h3>
         <ul>
           <li><a href="https://github.com/salmans/Razor/zipball/razor">Download <strong>ZIP File</strong></a></li>
           <li><a href="https://github.com/salmans/Razor/tarball/razor">Download <strong>TAR Ball</strong></a></li>
@@ -41,207 +47,110 @@
       
       <section>
       <article class="markdown-body entry-content" itemprop="mainContentOfPage">
-      <h1>
-<a id="user-content-razor-090-beta" class="anchor" href="#razor-090-beta" aria-hidden="true"><span class="octicon octicon-link"></span></a>Razor 0.9.0 (beta)
-</h1>
-
-<p>Razor is a model-finder for first-order theories. A central guiding principle of Razor is that it can be accessible to users who lack expertise in formal methods. Application areas include software design, analysis of security protocols and policies, and configuration management. 
-A core function of the tool is that it supports exploration of the space of models of a given input theory, as well as presents provenance information about the elements and facts of a model. The crucial mathematical tool is the ordering relation on models determined by homomorphism. Razor generates models that are minimal with respect to this homomorphism ordering.</p>
-
-<h1>
-<a id="user-content-example-theory-and-razor-interaction" class="anchor" href="#example-theory-and-razor-interaction" aria-hidden="true"><span class="octicon octicon-link"></span></a>Example Theory and Razor Interaction</h1>
-
-<h2>
-<a id="user-content-lab-door-access-control-policy" class="anchor" href="#lab-door-access-control-policy" aria-hidden="true"><span class="octicon octicon-link"></span></a>Lab Door Access Control Policy</h2>
-
-<p>This policy is for lab access involving a particular room, a couple of research groups, and their respective members. The user's intention for each policy rule follows.</p>
-
-<div class="highlight highlight-Haskell"><pre>(<span class="pl-c1">1</span>) <span class="pl-c1">LabOf</span>(`<span class="pl-c1">Logic</span>,`<span class="pl-c1">TheLab</span>);
-(<span class="pl-c1">2</span>) <span class="pl-c1">LabOf</span>(`<span class="pl-c1">Systems</span>, `<span class="pl-c1">TheLab</span>);
-(<span class="pl-c1">3</span>) <span class="pl-c1">MemberOf</span>(p,r) &amp; <span class="pl-c1">LabOf</span>(r,l) =&gt; <span class="pl-c1">Enter</span>(p,l);
-(<span class="pl-c1">4</span>) <span class="pl-c1">HasKey</span>(p,k) &amp; <span class="pl-c1">KOpens</span>(k,l) =&gt; <span class="pl-c1">Enter</span>(p,l);
-(<span class="pl-c1">5</span>) <span class="pl-c1">COpens</span>(cardOf(p),l) =&gt; <span class="pl-c1">Enter</span>(p,l);
-(<span class="pl-c1">6</span>) <span class="pl-c1">Enter</span>(p,l) =&gt; <span class="pl-c1">COpens</span>(cardOf(p),l) | exists k. <span class="pl-c1">HasKey</span>(p,k) &amp; <span class="pl-c1">KOpens</span>(k,l);
-(<span class="pl-c1">7</span>) <span class="pl-c1">COpens</span>(cardOf(p), l) =&gt; exists r. <span class="pl-c1">MemberOf</span>(p,r) &amp; <span class="pl-c1">LabOf</span>(r,l);
-(<span class="pl-c1">8</span>) <span class="pl-c1">HasKey</span>(p,k) =&gt; exists e. <span class="pl-c1">Grant</span>(e,p,k) &amp; <span class="pl-c1">Employee</span>(e);
-(<span class="pl-c1">9</span>) <span class="pl-c1">Grant</span>(e,p,k)  =&gt; <span class="pl-c1">HasKey</span>(p,k);
-(<span class="pl-c1">10</span>) <span class="pl-c1">MemberOf</span>(p,`<span class="pl-c1">Systems</span>) &amp; <span class="pl-c1">HasKey</span>(p,k) &amp; <span class="pl-c1">KOpens</span>(k,`<span class="pl-c1">TheLab</span>) =&gt; <span class="pl-c1">Falsehood</span>;</pre></div>
-
-<ul class="task-list">
-<li>(1-2) Logic and Systems are research groups belonging to the lab.</li>
-<li>(3-4) Members of a research group in a lab must be able to enter the lab.</li>
-<li>(4-5) Physical access via a key or a card allows a person to enter.</li>
-<li>(6) In order to enter a lab, you must have a valid key or card.</li>
-<li>(7) Cards are given to members of resident research groups.</li>
-<li>(8-9) Keys are granted to a person by an employee.</li>
-<li>(10) Systems research group members are not allowed to have keys.</li>
-</ul>
-<p>
-Whoever is in charge of the lab would like to ensure that a thief could not possibly gain access to the lab under this policy. Using Razor, we can verify if there are any counterexamples: a thief can enter the lab, and is not a part of either resident research group. 
-</p>
-
-<div class="highlight highlight-Haskell"><pre>                          =&gt; <span class="pl-c1">Enter</span>(`<span class="pl-c1">Thief</span>,`<span class="pl-c1">TheLab</span>)
-<span class="pl-c1">MemberOf</span>(`<span class="pl-c1">Thief</span>,`<span class="pl-c1">Logic</span>)   =&gt; <span class="pl-c1">Falsehood</span>
-<span class="pl-c1">MemberOf</span>(`<span class="pl-c1">Thief</span>,`<span class="pl-c1">Systems</span>) =&gt; <span class="pl-c1">Falsehood</span></pre></div>
-
-<p>Razor returns two interesting scenarios in which the thief subverts the specified policy. </p>
-
-<h2>
-<a id="user-content-first-model-the-thief-is-granted-a-key" class="anchor" href="#first-model-the-thief-is-granted-a-key" aria-hidden="true"><span class="octicon octicon-link"></span></a>First Model: The thief is granted a key.</h2>
-
-<div class="highlight highlight-Haskell"><pre><span class="pl-c1">Enter</span>{(p_1, l_1)}                   `<span class="pl-c1">TheLab</span>=l_1
-<span class="pl-c1">Employee</span>{(e_1)}                     `<span class="pl-c1">Systems</span>=r_2
-<span class="pl-c1">Grant</span>{(e_1,p_1,k_1)}                `<span class="pl-c1">Logic</span>=r_1
-<span class="pl-c1">HasKey</span>{(p_1,k_1)}                   `<span class="pl-c1">Thief</span>=p_1
-<span class="pl-c1">KOpens</span>{(k_1,l_1)}
-<span class="pl-c1">LabOf</span>{(r_1,l_1), (r_2,l_1)}</pre></div>
-
-<p>The first situation is rather easy to decipher: some employee granted
-the thief a key to the lab. This is possible because the policy did
-not restrict who can be granted a key. Moreover, there are no
-restrictions over employee and their granting privileges. A curious
-user may ask if the thief could have granted the key to themselves. As
-this is extraneous information, the user must augment the current
-model with this fact. They can do so by exploring <code>aug p_1=e_1</code> in the REPL. Applying the augmentation
-produces one model; the user's curious suspicion is correct.</p>
-
-<h2>
-<a id="user-content-second-model-the-thief-is-a-member-of-a-third-research-group" class="anchor" href="#second-model-the-thief-is-a-member-of-a-third-research-group" aria-hidden="true"><span class="octicon octicon-link"></span></a>Second Model: The thief is a member of a third research group.</h2>
-
-<div class="highlight highlight-Haskell"><pre><span class="pl-c1">Enter</span>{(p_1, l_1)}                           `<span class="pl-c1">TheLab</span>=l_1
-<span class="pl-c1">COpens</span>{(c_1,l_1)}                           `<span class="pl-c1">Systems</span>=r_2
-<span class="pl-c1">MemberOf</span>{(e_1,r_3)}                         `<span class="pl-c1">Logic</span>=r_1
-<span class="pl-c1">LabOf</span>{(r_1,l_1), (r_2,l_1),(r_3,l_1)}       `<span class="pl-c1">Thief</span>=p_1
-                                            cardOf(p_1)=c_1</pre></div>
-
-<p>The second situation is more complex, and most likely raises several
-questions in the user's mind. For instance, where did this third
-research group come from? The user can look at the provenance of this
-research group by explaining <code>origin r_3</code> in the
-REPL. Razor pinpoints the causal sequent and it's grounded instance.</p>
-
-<div class="highlight highlight-Haskell"><pre>(<span class="pl-c1">7</span>) <span class="pl-c1">COpens</span>(c_1,l_1) =&gt; <span class="pl-c1">MemberOf</span>(e_1,r_3) &amp; <span class="pl-c1">LabOf</span>(r_3,l_1)</pre></div>
-
-<p>This policy rule does not restrict which resident research group a
-person must belong to in order for their card to open the lab. Such a
-restriction would force the third research group to be equivalent to
-either the Logic or Systems group. To confirm this policy fix, the
-user can explore the <code>aug ~ r_3=r_2</code> to see if any
-other counter examples exist. Razor confirms that no possible breaches
-occur from this augmented fix. The user may also be curious why the
-thief has a card to begin with. By explaining <code>blame COpens(c_1, l_1)</code>, the user can see the sequent blamed
-for giving the user the card.</p>
-
-<div class="highlight highlight-Haskell"><pre>(<span class="pl-c1">6</span>) <span class="pl-c1">Enter</span>(p_1,l_1) =&gt; <span class="pl-c1">COpens</span>(c_1,l_1) | <span class="pl-c1">HasKey</span>(p_1,k_1) &amp; <span class="pl-c1">KOpens</span>(k_1,l_1)</pre></div>
-
-<p>As shown above, the thief has a card because it is one of the two
-possible ways of accessing the lab. The other is via a key, which is
-exactly the previously discussed model. At this point, the user may be
-curious why the thief belongs to a research group in this scenario,
-but not in the previous one. Being a research group member is only a
-consequence of having a card, not for having a key. Belonging to a
-research group when having a key is extraneous information, so Razor
-does not include this scenario in the minimal models returned.</p>
-
-<h1>
-<a id="user-content-installation" class="anchor" href="#installation" aria-hidden="true"><span class="octicon octicon-link"></span></a>Installation</h1>
-
-<h2>
-<a id="user-content-prerequisites" class="anchor" href="#prerequisites" aria-hidden="true"><span class="octicon octicon-link"></span></a>Prerequisites</h2>
-
-<ol class="task-list">
-<li>
-<strong>Haskell and Cabal.</strong> In order to build Razor, you need to install the latest version of the Haskell platform (<a href="https://www.haskell.org">https://www.haskell.org</a>) and Cabal (<a href="https://www.haskell.org/cabal/">https://www.haskell.org/cabal/</a>) on your machine.</li>
-<li>
-<strong>Z3.</strong> Razor utilizes an SMT solver for constructing models. In order to run the current version of Razor, you need to install Z3 (<a href="http://z3.codeplex.com">http://z3.codeplex.com</a>) on your machine and make sure that <code>z3</code> is in the system path.</li>
-</ol>
-
-<h2>
-<a id="user-content-razor" class="anchor" href="#razor" aria-hidden="true"><span class="octicon octicon-link"></span></a>Razor</h2>
-
-<ol class="task-list">
-<li>Download Razor’s source code available at <a href="https://github.com/salmans/Razor">https://github.com/salmans/Razor</a> to a local directory <code>RAZOR</code>.</li>
-<li>Open a Terminal window and change directory to the local <code>RAZOR/src</code> directory:
-<br> <code>cd RAZOR/src</code>
-</li>
-<li>Install Razor using Cabal:
-<br><code>cabal install</code>
-</li>
-</ol>
-
-<h1>
-<a id="user-content-using-the-repl" class="anchor" href="#using-the-repl" aria-hidden="true"><span class="octicon octicon-link"></span></a>Using the REPL</h1>
-
-<h2>
-<a id="user-content-help" class="anchor" href="#help" aria-hidden="true"><span class="octicon octicon-link"></span></a>Help</h2>
-
-<p>There is overall help (use <code>help</code>), as well as help for each specific mode (use <code>?</code>).</p>
-
-<h2>
-<a id="user-content-modes" class="anchor" href="#modes" aria-hidden="true"><span class="octicon octicon-link"></span></a>Modes</h2>
-
-<p>There are several modes which logically separate the functions of the REPL into different categories. You will have to execute the respective commands (included below) to enter each mode. <em>Note:</em> In future releases, we plan to make the transition between modes automatic, so any command can be executed at any time.</p>
-
-<ul class="task-list">
-<li>
-<code>@theory</code> Starting mode; turn the various knobs of Razor, and load an input theory.</li>
-<li>
-<code>@explore</code> Available once a satisfiable theory is loaded; explore the models of the given theory, and augment them with additional facts.</li>
-<li>
-<code>@explain</code> Available once a satisfiable theory is loaded; query the model's various provenance information for elements and facts.</li>
-</ul>
-
-<h2>
-<a id="user-content-command-examples" class="anchor" href="#command-examples" aria-hidden="true"><span class="octicon octicon-link"></span></a>Command Examples</h2>
-
-<h3>
-<a id="user-content-theory-mode" class="anchor" href="#theory-mode" aria-hidden="true"><span class="octicon octicon-link"></span></a>Theory Mode</h3>
-
-<ul class="task-list">
-<li>
-<code>debug</code> Toggles debug mode</li>
-<li>
-<code>relax</code> Toggles relaxation of pure minimality; models produced in relaxed mode may contain collapses.</li>
-<li>
-<code>depth 5</code> Sets the Skolem depth to 5. By default the depth is -1, meaning unbounded search. </li>
-<li>
-<code>load /path/to/razor/theory.raz</code> Loads the given Razor theory</li>
-<li>
-<code>tptp /path/to/tptp/problem.p</code> Loads the given TPTP problem</li>
-</ul>
-
-<h3>
-<a id="user-content-exploration-mode" class="anchor" href="#exploration-mode" aria-hidden="true"><span class="octicon octicon-link"></span></a>Exploration Mode</h3>
-
-<ul class="task-list">
-<li>
-<code>current</code> Displays the current model</li>
-<li>
-<code>next</code> Get the next model available</li>
-<li>
-<code>aug R(e^2, e^100)</code> Augment the model with the given fact; for fresh elements not in the model, use elements not in the domain, like e^100</li>
-<li>
-<code>aug e^2=e^3</code> Augment the model with the equality of two elements in the model.</li>
-<li>
-<code>undo</code> Undo the previous augmentation; next cannot be undone. </li>
-</ul>
-
-<h3>
-<a id="user-content-explanation-mode" class="anchor" href="#explanation-mode" aria-hidden="true"><span class="octicon octicon-link"></span></a>Explanation Mode</h3>
-
-<ul class="task-list">
-<li>
-<code>origin e^0</code> Display a single origin of element e^0. That is, the instance of the theory sentence that caused this element to exist in the model. </li>
-<li>
-<code>origins e^0</code> Display the possibly multiple origins of element e^0. </li>
-<li>
-<code>origin* e^7</code> Display the single origin of element e^7; also, recursively display the origins of the elements that caused e^7 to exist, and soforth. </li>
-<li>
-<code>origins* e^7</code> Display all origins of this element and it's recursive dependents.</li>
-<li>
-<code>blame R(e^2, e^3)</code> Display the sentence blamed for making R(e^2, e^3) true. That is, the instance of the theory sentence that caused the given fact to be true in the model. </li>
-</ul>
-</article>
+        <a id="user-content-razor-090-beta" class="anchor" href="#razor-090-beta" aria-hidden="true"><span class="octicon octicon-link"></span></a>Razor 0.9.0 (beta)</h1>
+        
+        <p>Razor is a model-finder for first-order theories. A central guiding principle of Razor is that it can be accessible to users who lack expertise in formal methods. Application areas include software design, analysis of security protocols and policies, and configuration management. 
+        A core function of the tool is that it supports exploration of the space of models of a given input theory, as well as presents provenance information about the elements and facts of a model. The crucial mathematical tool is the ordering relation on models determined by homomorphism. Razor generates models that are minimal with respect to this homomorphism ordering.</p>
+        
+        <h1>
+        <a id="user-content-installation" class="anchor" href="#installation" aria-hidden="true"><span class="octicon octicon-link"></span></a>Installation</h1>
+        
+        <h2>
+        <a id="user-content-prerequisites" class="anchor" href="#prerequisites" aria-hidden="true"><span class="octicon octicon-link"></span></a>Prerequisites</h2>
+        
+        <ol class="task-list">
+        <li>
+        <strong>Haskell and Cabal.</strong> In order to build Razor, you need to install the latest version of the Haskell platform (<a href="https://www.haskell.org">https://www.haskell.org</a>) and Cabal (<a href="https://www.haskell.org/cabal/">https://www.haskell.org/cabal/</a>) on your machine.</li>
+        <li>
+        <strong>Z3.</strong> Razor utilizes an SMT solver for constructing models. In order to run the current version of Razor, you need to install Z3 (<a href="http://z3.codeplex.com">http://z3.codeplex.com</a>) on your machine and make sure that <code>z3</code> is in the system path.</li>
+        </ol>
+        
+        <h2>
+        <a id="user-content-razor" class="anchor" href="#razor" aria-hidden="true"><span class="octicon octicon-link"></span></a>Razor</h2>
+        
+        <ol class="task-list">
+        <li>Download Razor’s source code available at <a href="https://github.com/salmans/Razor">https://github.com/salmans/Razor</a> to a local directory <code>RAZOR</code>.</li>
+        <li>Open a Terminal window and change directory to the local <code>RAZOR/src</code> directory:
+        <br> <code>cd RAZOR/src</code>
+        </li>
+        <li>Install Razor using Cabal:
+        <br><code>cabal install</code>
+        </li>
+        </ol>
+        
+        <h1>
+        <a id="user-content-using-the-repl" class="anchor" href="#using-the-repl" aria-hidden="true"><span class="octicon octicon-link"></span></a>Using the REPL</h1>
+        
+        <h2>
+        <a id="user-content-help" class="anchor" href="#help" aria-hidden="true"><span class="octicon octicon-link"></span></a>Help</h2>
+        
+        <p>There is overall help (use <code>help</code>), as well as help for each specific mode (use <code>?</code>).</p>
+        
+        <h2>
+        <a id="user-content-modes" class="anchor" href="#modes" aria-hidden="true"><span class="octicon octicon-link"></span></a>Modes</h2>
+        
+        <p>There are several modes which logically separate the functions of the REPL into different categories. You will have to execute the respective commands (included below) to enter each mode. <em>Note:</em> In future releases, we plan to make the transition between modes automatic, so any command can be executed at any time.</p>
+        
+        <ul class="task-list">
+        <li>
+        <code>@theory</code> Starting mode; turn the various knobs of Razor, and load an input theory.</li>
+        <li>
+        <code>@explore</code> Available once a satisfiable theory is loaded; explore the models of the given theory, and augment them with additional facts.</li>
+        <li>
+        <code>@explain</code> Available once a satisfiable theory is loaded; query the model's various provenance information for elements and facts.</li>
+        </ul>
+        
+        <h2>
+        <a id="user-content-command-examples" class="anchor" href="#command-examples" aria-hidden="true"><span class="octicon octicon-link"></span></a>Command Examples</h2>
+        
+        <h3>
+        <a id="user-content-theory-mode" class="anchor" href="#theory-mode" aria-hidden="true"><span class="octicon octicon-link"></span></a>Theory Mode</h3>
+        
+        <ul class="task-list">
+        <li>
+        <code>debug</code> Toggles debug mode</li>
+        <li>
+        <code>relax</code> Toggles relaxation of pure minimality; models produced in relaxed mode may contain collapses.</li>
+        <li>
+        <code>depth 5</code> Sets the Skolem depth to 5. By default the depth is -1, meaning unbounded search. </li>
+        <li>
+        <code>load /path/to/razor/theory.raz</code> Loads the given Razor theory</li>
+        <li>
+        <code>tptp /path/to/tptp/problem.p</code> Loads the given TPTP problem</li>
+        </ul>
+        
+        <h3>
+        <a id="user-content-exploration-mode" class="anchor" href="#exploration-mode" aria-hidden="true"><span class="octicon octicon-link"></span></a>Exploration Mode</h3>
+        
+        <ul class="task-list">
+        <li>
+        <code>current</code> Displays the current model</li>
+        <li>
+        <code>next</code> Get the next model available</li>
+        <li>
+        <code>aug R(e^2, e^100)</code> Augment the model with the given fact; for fresh elements not in the model, use elements not in the domain, like e^100</li>
+        <li>
+        <code>aug e^2=e^3</code> Augment the model with the equality of two elements in the model.</li>
+        <li>
+        <code>undo</code> Undo the previous augmentation; next cannot be undone. </li>
+        </ul>
+        
+        <h3>
+        <a id="user-content-explanation-mode" class="anchor" href="#explanation-mode" aria-hidden="true"><span class="octicon octicon-link"></span></a>Explanation Mode</h3>
+        
+        <ul class="task-list">
+        <li>
+        <code>origin e^0</code> Display a single origin of element e^0. That is, the instance of the theory sentence that caused this element to exist in the model. </li>
+        <li>
+        <code>origins e^0</code> Display the possibly multiple origins of element e^0. </li>
+        <li>
+        <code>origin* e^7</code> Display the single origin of element e^7; also, recursively display the origins of the elements that caused e^7 to exist, and soforth. </li>
+        <li>
+        <code>origins* e^7</code> Display all origins of this element and it's recursive dependents.</li>
+        <li>
+        <code>blame R(e^2, e^3)</code> Display the sentence blamed for making R(e^2, e^3) true. That is, the instance of the theory sentence that caused the given fact to be true in the model. </li>
+        </ul>
+      </article>
       </section>
       
       
@@ -252,6 +161,5 @@ does not include this scenario in the minimal models returned.</p>
       </footer>
     </div>
     <script src="javascripts/scale.fix.js"></script>
-    
   </body>
 </html>
