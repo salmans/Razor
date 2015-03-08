@@ -18,6 +18,6 @@
   Maintainer  : Salman Saghafi <salmans@wpi.edu>, Ryan Danas <ryandanas@wpi.edu>
 -}
 
-module Tools.Utils ( unions, isRealLine ) where
+module Tools.Utils ( unions, isRealLine, deleteByIndex ) where
 
 import Tools.IUtils

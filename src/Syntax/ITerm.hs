@@ -310,6 +310,11 @@ isVariable :: Term -> Bool
 isVariable (Var _) = True
 isVariable _       = False
 
+{-| Returns True if an input term is an 'Element', otherwise returns False. -}
+isElement :: Term -> Bool
+isElement (Elem _) = True
+isElement _        = False
+
 {-| Returns True if an input term is a 'Constant', otherwise returns False. -}
 isConstant :: Term -> Bool
 isConstant (Cons _) = True

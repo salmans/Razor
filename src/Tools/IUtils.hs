@@ -36,3 +36,7 @@ isRealLine l =
       [] -> False
       ('-':'-':_) -> False
       otherwise -> any (not.isSpace) l
+
+deleteByIndex :: Int -> [a] -> [a]
+deleteByIndex n xs = let (h, t) = splitAt n xs
+                     in  h ++ (tail t)

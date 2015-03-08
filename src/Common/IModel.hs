@@ -21,20 +21,25 @@
 module Common.IModel where
 
 -- Standard
-import Data.List (partition, groupBy, intercalate, sort, nub)
+import Data.List
 import qualified Data.Map as Map
+import Data.Maybe
 
 -- Control
 import Control.Applicative
 
 -- Syntax
-import Syntax.GeometricUtils ( FnSym, RelSym, Element (..)
-                             , Term (..), Atom (..))
+import Syntax.GeometricUtils ( FnSym, RelSym, Variable, Element (..)
+                             , Term (..), Atom (..)
+                             , isVariable, isElement
+                             , termToVariable, termToElement)
+
+import qualified Syntax.FirstOrder as FO
 
 -- Common
 import Common.Observation (Observation (Obs))
 
-import Tools.Trace
+import Tools.Utils (deleteByIndex)
 
 {-| A model consists of a list of 'Observation's and a map from a representative
   element to a list of elements that are in the same euivalence class. -}
@@ -158,3 +163,80 @@ showFunctionTuple es  =
     in  "(" ++ 
         intercalate "," ((\(Elem e) -> show e) <$> args) ++ 
         ") -> " ++ show res
+
+
+data QueryResult = QRTable [Variable] [[Element]]
+                 | QRFull
+                 | QREmpty
+     deriving Show
+
+joinQR :: QueryResult -> QueryResult -> QueryResult
+joinQR QRFull qr  = qr -- hanlde Truth
+joinQR qr QRFull  = joinQR QRFull qr
+
+joinQR QREmpty qr = QREmpty -- handle Falsehood
+joinQR qr QREmpty = joinQR QREmpty qr
+
+joinQR (QRTable vs1 tbl1) (QRTable vs2 tbl2) =
+  let vsInBoth = intersect vs1 vs2
+      inds1    = fromJust <$> (\v -> elemIndex v vs1) <$> vsInBoth
+      inds2    = fromJust <$> (\v -> elemIndex v vs2) <$> vsInBoth
+      rsInBoth = [ (r1, r2) | r1 <- tbl1, r2 <- tbl2
+                            , recordsMatch r1 r2 inds1 inds2]
+      vs       = mergeTuples vs1 vs2 inds2
+      tbl      = (\(r1, r2) -> mergeTuples r1 r2 inds2) <$> rsInBoth
+  in  QRTable vs tbl
+  where recordsMatch r1 r2 inds1 inds2 = let es1 = (\i -> r1 !! i) <$> inds1
+                                             es2 = (\i -> r2 !! i) <$> inds2
+                                         in  es1 == es2
+        mergeTuples  t1 t2 delInds = 
+          t1 ++ (foldr (\i ls -> deleteByIndex i ls) t2 delInds)
+
+
+query :: Model -> FO.Formula -> QueryResult
+query _ FO.Tru  = QRFull
+query _ FO.Fls  = QREmpty
+query mdl (FO.Atm (FO.Rel sym ts)) -- For now
+      | all (\t -> isVariable t || isElement t) ts = 
+            let (vTerms, eTerms) = partition isVariable ts
+                elmInds = fromJust <$> (\e -> elemIndex e ts) <$> eTerms
+                tups = [ fromJust <$> termToElement <$> es |
+                         (Obs (Rel s es)) <- modelObservations mdl
+                         , s == sym
+                         , recordsMatch es eTerms elmInds]
+            in  QRTable (fromJust <$> termToVariable <$> vTerms) tups
+      | otherwise = undefined
+  where recordsMatch r es inds = all (\i -> r !! i == es !! i) inds
+      
+query mdl (FO.Not fmla) =
+  let qr  = query mdl fmla
+      dom = Map.keys $ modelElements mdl
+  in  case qr of
+        QRFull  -> QREmpty
+        QREmpty -> QRFull
+        QRTable vs tbl -> QRTable vs $ (allTuples dom (length vs)) \\ tbl
+query mdl (FO.And fmla1 fmla2) =
+  let qr1 = query mdl fmla1
+      qr2 = query mdl fmla2
+  in  joinQR qr1 qr2
+query _ (FO.Or _ _ ) = undefined
+query _ (FO.Imp _ _) = undefined
+query mdl (FO.Exists _ x fmla) =
+  let qr = query mdl fmla
+  in  case qr of
+        QRFull  -> QRFull
+        QREmpty -> QREmpty
+        QRTable vs tbl ->
+                let ind = elemIndex x vs
+                in  case ind of
+                      Nothing -> qr
+                      Just i  -> let vs'  = deleteByIndex i vs
+                                     tbl' = (deleteByIndex i) <$> tbl
+                                 in  case vs' of
+                                       [] -> QRFull
+                                       _  -> QRTable vs' tbl'
+                                       
+-- Helper
+allTuples :: [Element] -> Int -> [[Element]]
+allTuples es 1 = [return e | e <- es]
+allTuples es n = [e:rest | e <- es, rest <- allTuples es (n - 1)]
