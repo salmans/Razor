@@ -23,17 +23,17 @@ There is overall help (use `help`), as well as help for each specific mode (use 
 ## Modes
 There are several modes which logically separate the functions of the REPL into different categories. You will have to execute the respective commands (included below) to enter each mode. *Note:* In future releases, we plan to make the transition between modes automatic, so any command can be executed at any time.
 - `@theory` Starting mode; turn the various knobs of Razor, and load an input theory.
-- `@explore` Available once a satisfiable theory is loaded; explore the models of the given theory, and augment them with additional facts.
-- `@explain` Available once a satisfiable theory is loaded; query the model's various provenance information for elements and facts.
+- `@explore` Available once a theory is loaded; explore the models of the given theory, and augment them with additional facts.
+- `@explain` Available once a theory is loaded; query the model's various provenance information for elements and facts.
 
 ## Command Examples
 
 ### Theory Mode
 - `debug` Toggles debug mode
-- `relax` Toggles relaxation of pure minimality; models produced in relaxed mode may contain collapses.
+- `pure` Toggles pure minimality.  By default, models produced in relaxed mode may have "accidental" equalities between definable elements; in pure mode, definable elements are distinct unless provably equal.
 - `depth 5` Sets the Skolem depth to 5. By default the depth is -1, meaning unbounded search. 
-- `load /path/to/razor/theory.raz` Loads the given Razor theory
-- `tptp /path/to/tptp/problem.p` Loads the given TPTP problem
+- `load /path/to/razor/theory` Loads the given Razor theory
+- `tptp /path/to/tptp/problem` Loads the given TPTP problem
 
 ### Exploration Mode
 - `current` Displays the current model
