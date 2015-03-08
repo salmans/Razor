@@ -95,9 +95,9 @@
         <li>
         <code>@theory</code> Starting mode; turn the various knobs of Razor, and load an input theory.</li>
         <li>
-        <code>@explore</code> Available once a satisfiable theory is loaded; explore the models of the given theory, and augment them with additional facts.</li>
+        <code>@explore</code> Available once a theory is loaded; explore the models of the given theory, and augment them with additional facts.</li>
         <li>
-        <code>@explain</code> Available once a satisfiable theory is loaded; query the model's various provenance information for elements and facts.</li>
+        <code>@explain</code> Available once a theory is loaded; query the model's various provenance information for elements and facts.</li>
         </ul>
         
         <h2>
@@ -110,13 +110,13 @@
         <li>
         <code>debug</code> Toggles debug mode</li>
         <li>
-        <code>relax</code> Toggles relaxation of pure minimality; models produced in relaxed mode may contain collapses.</li>
+        <code>pure</code> Toggles pure minimality.  By default, models produced in relaxed mode may have "accidental" equalities between definable elements; in pure mode, definable elements are distinct unless provably equal.</li>
         <li>
         <code>depth 5</code> Sets the Skolem depth to 5. By default the depth is -1, meaning unbounded search. </li>
         <li>
-        <code>load /path/to/razor/theory.raz</code> Loads the given Razor theory</li>
+        <code>load /path/to/razor/theory</code> Loads the given Razor theory</li>
         <li>
-        <code>tptp /path/to/tptp/problem.p</code> Loads the given TPTP problem</li>
+        <code>tptp /path/to/tptp/problem</code> Loads the given TPTP problem</li>
         </ul>
         
         <h3>
