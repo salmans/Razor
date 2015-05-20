@@ -62,9 +62,11 @@ exploreRun mode state@(config, theory, mspace, mcoor) command = case parseExplor
       prettyModelCoordinate mcoor
       return $ Right $ (theory, mspace, mcoor)
     Next -> case modelNext (Right mcoor) mspace of
-      Nothing -> return $ Left "No more minimal models in the stream!"
+      Nothing -> return $ Left "No minimal models for the given theory!"
       Just (mspace', mcoor') -> do
-        prettyModel $ modelLookup mspace' (Just mcoor')
+        case (mcoor==mcoor') of
+          True -> prettyPrint 0 ferror "No more minimal models in the stream!\n"
+          False -> prettyModel $ modelLookup mspace' (Just mcoor')
         return $ Right $ (theory, mspace', mcoor')
     Push fml -> case modelspaceLookup mspace mcoor of
       Nothing -> return $ Left "Current model coordinate does not exist!"

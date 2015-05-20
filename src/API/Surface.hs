@@ -110,13 +110,18 @@ modelLookup mspace mcoor = case mcoor of
 
 modelNext :: Either ChaseState ModelCoordinate -> ModelSpace -> Maybe (ModelSpace, ModelCoordinate)
 modelNext seed mspace = case seed of
-  Left chasestate -> nextModelspace chasestate Origin mspace
+  Left chasestate -> nextModelspace chasestate Origin mspace Nothing
   Right mcoor -> case modelspaceLookup mspace mcoor of
     Nothing -> Nothing
-    Just (chasestate, _) -> nextModelspace chasestate mcoor mspace
+    Just (chasestate, mdl) -> nextModelspace chasestate mcoor mspace (Just mdl)
   where
-    nextModelspace (b, p, stream, c) mcoor mspace = case nextModel stream of
-      (Nothing, _) -> Nothing
+    nextModelspace (b, p, stream, c) mcoor mspace oldmdl = case nextModel stream of
+      (Nothing, stream') -> case oldmdl of
+        Just mdl -> do
+          let mcoor' = mcoor
+          let mspace' = Map.insert mcoor' ((b, p, stream', c), mdl) mspace
+          Just (mspace', mcoor')
+        Nothing -> Nothing
       (Just mdl', stream') -> do
         let mcoor' = Stream mcoor
         let mspace' = Map.insert mcoor' ((b, p, stream', c), mdl') mspace

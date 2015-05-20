@@ -189,7 +189,12 @@ augmentBase cfg seqMap (b, p, it, c) obss@((Obs (Rel rsym terms)):rest) = do
 -- In: a model stream
 -- Out: an updated model stream and the next model
 nextModel :: SATIteratorType -> (Maybe Model, SATIteratorType)
-nextModel = satSolve
+nextModel it = do
+  let it' = satPush it
+  case satSolve it' of
+    (Nothing, it'') -> (Nothing, oldit) where
+      oldit = satPop it'
+    els -> els
 --
 --
 upModel :: SATIteratorType -> (Maybe Model, SATIteratorType)
