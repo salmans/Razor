@@ -116,13 +116,13 @@ prettyModelCoordinate mcoor = do
 
 prettyModelCoordinatePlus :: ModelCoordinate -> IO()
 prettyModelCoordinatePlus mcoor = case mcoor of
+  Stream Origin -> prettyPrint 0 foutput "-------------------\n"
   Stream mcoor' -> do
     prettyPrint 0 foutput "next\n"
     prettyModelCoordinatePlus mcoor'
   Stack obs mcoor' -> do
     prettyPrint 0 foutput ("aug "++(show obs)++"\n")
     prettyModelCoordinatePlus mcoor'
-  Origin -> prettyPrint 0 foutput "-------------------\n"
 -----------------------
 -- Command Functions --
 -----------------------
