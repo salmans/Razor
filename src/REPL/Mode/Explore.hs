@@ -34,6 +34,7 @@ import Text.Parsec.Prim
 import Syntax.GeometricUtils
 import Data.List
 import Syntax.IGeometric
+import System.Process
 
 instance LoopMode ExploreMode ExploreIn ExploreOut where
   runOnce	  = exploreRun
@@ -59,6 +60,7 @@ exploreRun mode state@(config, theory, mspace, mcoor) command = case parseExplor
   Right cmd -> case cmd of
     Viz -> do
       xmlModel "model.xml" $ modelLookup mspace (Just mcoor)
+      runViz "model.xml"
       return $ Right $ (theory, mspace, mcoor)
     Current -> do
       prettyModel $ modelLookup mspace (Just mcoor)
@@ -128,6 +130,12 @@ prettyModelCoordinatePlus mcoor = case mcoor of
   Stack obs mcoor' -> do
     prettyPrint 0 foutput ("aug "++(show obs)++"\n")
     prettyModelCoordinatePlus mcoor'
+
+runViz :: String -> IO ()
+runViz modelfile = do
+  r <- createProcess (proc "java" ["-jar", "RazorViz.jar", modelfile])
+  return ()
+
 -----------------------
 -- Command Functions --
 -----------------------

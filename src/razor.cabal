@@ -39,7 +39,7 @@ executable razor
   hs-source-dirs:   .
   -- other-modules:
   -- ghc-options: 	    -rtsopts -prof -fprof-auto -auto-all -caf-all
-  build-depends:       base >= 4.6, filepath ==1.3.*, old-time ==1.1.*, containers ==0.5.*, parsec ==3.1.*, mtl ==2.1.*, deepseq ==1.3.*, QuickCheck ==2.6.*, directory ==1.2.*, vector==0.10.*, haskeline==0.7.*, ansi-terminal==0.6.*, text==0.11.*, smtlib2 == 0.2.*, logic-TPTP ==0.4.*
+  build-depends:       base >= 4.6, filepath ==1.3.*, old-time ==1.1.*, containers ==0.5.*, parsec ==3.1.*, mtl ==2.1.*, deepseq ==1.3.*, QuickCheck ==2.6.*, directory ==1.2.*, vector==0.10.*, haskeline==0.7.*, ansi-terminal==0.6.*, text==0.11.*, smtlib2 == 0.2.*, logic-TPTP ==0.4.*, process==1.2.0.*
 
 
 
