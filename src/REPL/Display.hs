@@ -88,7 +88,7 @@ xmlModel file mdl = case mdl of
         let indexedObs = zip groupedObs $ map (\obs-> fromMaybe 0 (elemIndex obs groupedObs)) groupedObs
     	let str = 	"<alloy builddate=\"0\">\n"++
    			"\t<instance bitwidth=\"0\" maxseq=\"0\" command=\"\" filename=\"\">\n"++
-      		"\t\t<sig label=\"univ\" ID=\"2\" builtin=\"yes\"></sig>\n"++
+      		"\t\t<sig label=\"univ\" ID=\"1\" builtin=\"yes\"></sig>\n"++
       		xmlDomain elemObs ++ "\n" ++
     		intercalate "\n" (xmlObservationGroup <$> indexedObs) ++ "\n" ++
     		"\t</instance>\n"++
@@ -97,7 +97,7 @@ xmlModel file mdl = case mdl of
     	writeFile file str
 
 xmlDomain :: [Observation] -> String
-xmlDomain obs = "\t\t<sig label=\"this/Object\" ID=\"5\" parentID=\"2\" abstract=\"yes\">\n\t\t\t"++
+xmlDomain obs = "\t\t<sig label=\"this/Object\" ID=\"11\" parentID=\"1\" abstract=\"yes\">\n\t\t\t"++
 	intercalate "\n\t\t\t" elems++
 	"\n\t\t</sig>" where 
 		elems = (\(Obs (Rel "@Element" [e])) -> "<atom label=\""++show e++"\"/>") <$> obs
@@ -112,28 +112,38 @@ xmlObservationGroup (obs,i) = case head obs of
 xmlRelationObs :: Int -> RelSym -> [Observation] -> String
 xmlRelationObs i "=" obs = ""
 xmlRelationObs i sym obs = do
-    let elems  = (\(Obs (Rel _ ts)) -> xmlTuple ts) <$> obs
-    "\t\t<field label="++show sym++" ID=\""++show (100+i)++"\" parentID=\"5\">\n\t\t\t"++ 
-    	intercalate "\n\t\t\t" elems ++
-    	"\n\t\t\t<types> " ++ (xmlTypeTuple $ length ts) ++ " </types>" ++
-    	"\n\t\t</field>" where
-    		(Obs (Rel _ ts)) = head obs
+    let tuple  = (\(Obs (Rel _ ts)) -> xmlTuple ts) <$> obs
+    let (Obs (Rel _ ts)) = head obs
+    case length ts of
+    	1 -> "" -- how to display unary relations in alloy? no type system
+    	_ -> "\t\t<field label="++show sym++" ID=\""++show (100+i)++"\" parentID=\"11\">\n\t\t\t"++ 
+    		intercalate "\n\t\t\t" tuple ++
+    		"\n\t\t\t<types> " ++ (xmlTypeTuple $ length ts) ++ " </types>" ++
+    		"\n\t\t</field>"
 
 xmlFunctionObs :: Int -> FnSym -> [Observation] -> String
 xmlFunctionObs i sym obss  = do
-    let elems  = (\(Obs (FnRel _ ts)) -> xmlTuple ts) <$> obss
-    "\t\t<field label="++show sym++" ID=\""++show (100+i)++"\" parentID=\"5\">\n\t\t\t"++ 
-    	intercalate "\n\t\t\t" elems ++
-    	"\n\t\t\t<types> " ++ (xmlTypeTuple $ length ts) ++ "</types>" ++
-    	"\n\t\t</field>" where
-    		(Obs (FnRel _ ts)) = head obss
+	let atoms = (\(Obs (FnRel _ ts)) -> concat (xmlAtom <$> ts)) <$> obss
+	let tuple = (\(Obs (FnRel _ ts)) -> xmlTuple ts) <$> obss
+	let (Obs (FnRel _ ts)) = head obss
+	case length ts of
+		1 -> "\t\t<sig label="++show sym++" ID=\""++show (100+i)++"\" parentID=\"11\">\n\t\t\t"++ 
+			intercalate "\n\t\t\t" atoms ++
+			"\n\t\t</sig>"
+		_ -> "\t\t<field label="++show sym++" ID=\""++show (100+i)++"\" parentID=\"11\">\n\t\t\t"++ 
+			intercalate "\n\t\t\t" tuple ++
+			"\n\t\t\t<types> " ++ (xmlTypeTuple $ length ts) ++ "</types>" ++
+			"\n\t\t</field>"
 
 xmlTuple :: [Term] -> String
 xmlTuple [] = ""
 xmlTuple es = 	"<tuple> " ++ 
-				intercalate " " ((\(Elem e) -> "<atom label=\""++show e++"\"/>") <$> es) ++
+				intercalate " " (xmlAtom <$> es) ++
 				" </tuple>"
+
+xmlAtom :: Term -> String
+xmlAtom (Elem e) = "<atom label=\""++show e++"\"/>"
 
 xmlTypeTuple :: Int -> String
 xmlTypeTuple 0 = ""
-xmlTypeTuple n = "<type ID=\"5\"/> "++xmlTypeTuple (n-1)
+xmlTypeTuple n = "<type ID=\"11\"/> "++xmlTypeTuple (n-1)
