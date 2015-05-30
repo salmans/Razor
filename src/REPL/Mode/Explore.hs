@@ -48,7 +48,7 @@ data ExploreMode = ExploreM
 type ExploreIn = (Config, Theory, ModelSpace, ModelCoordinate)
 type ExploreOut = (Theory, ModelSpace, ModelCoordinate)
 
-data ExploreCommand = Current | Next | Push Formula | Pop
+data ExploreCommand = Viz | Current | Next | Push Formula | Pop
 
 --------------------
 -- Mode Functions --
@@ -57,6 +57,9 @@ exploreRun :: ExploreMode -> ExploreIn -> String -> IO(Either Error ExploreOut)
 exploreRun mode state@(config, theory, mspace, mcoor) command = case parseExploreCommand command of
   Left err -> return $ Left err
   Right cmd -> case cmd of
+    Viz -> do
+      xmlModel "model.xml" $ modelLookup mspace (Just mcoor)
+      return $ Right $ (theory, mspace, mcoor)
     Current -> do
       prettyModel $ modelLookup mspace (Just mcoor)
       prettyModelCoordinate mcoor
@@ -133,7 +136,8 @@ exploreTag mode = "explore"
 
 exploreHelp :: ExploreMode -> IO()
 exploreHelp cmd = prettyPrint 0 foutput $ ""++ 
-  "<expr>:= | current            Display the explore history and current position in the modelspace\n"++
+  "<expr>:= | viz                Visualize the current model as an alloy instance\n"++ 
+  "         | current            Display the explore history and current position in the modelspace\n"++
   "         | next               Get the next minimal model in the stream\n"++
   "         | aug <formula>      Augment the current model with the given formula\n"++
   "         | undo               Undo the most recent augmentation\n"
@@ -146,7 +150,10 @@ parseExploreCommand cmd =
 		Right val -> Right $ val
 
 pCommand :: Parser ExploreCommand
-pCommand = pCurrent <|> pNext <|> pPush <|> pPop
+pCommand = pViz <|> pCurrent <|> pNext <|> pPush <|> pPop
+
+pViz :: Parser ExploreCommand
+pViz = string "viz" >> return Viz
 
 pCurrent :: Parser ExploreCommand
 pCurrent = string "current" >> return Current

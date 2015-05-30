@@ -22,11 +22,14 @@ module REPL.Display where
 import Syntax.GeometricUtils 
 import Common.Basic
 import Common.Model
+import Common.Observation
 import Control.Monad.Trans
+import Control.Applicative
 import System.Console.Haskeline
 import System.Console.ANSI
 import qualified Data.Text as T
 import Data.List
+import Data.Maybe
 
 fuserinput = []
 finput = [SetColor Foreground Dull Yellow, SetConsoleIntensity BoldIntensity]
@@ -72,3 +75,65 @@ prettyModel :: Maybe Model -> IO()
 prettyModel mdl = case mdl of
 	Nothing -> prettyPrint 0 ferror "No current model!\n"
 	Just model -> prettyPrint 0 flow (show model)
+
+xmlModel :: String -> Maybe Model -> IO()
+xmlModel file mdl = case mdl of
+	Nothing -> prettyPrint 0 ferror "No current model!\n"
+	Just (Model eqs obs) -> do
+    	let (elemObs, otherObs) = partition chooseElements obs where 
+    		chooseElements = (\o -> case o of
+    			Obs (Rel "@Element" _) -> True
+    			otherwise              -> False)
+        let groupedObs = groupBy sameRelation $ sort otherObs
+        let indexedObs = zip groupedObs $ map (\obs-> fromMaybe 0 (elemIndex obs groupedObs)) groupedObs
+    	let str = 	"<alloy builddate=\"0\">\n"++
+   			"\t<instance bitwidth=\"0\" maxseq=\"0\" command=\"\" filename=\"\">\n"++
+      		"\t\t<sig label=\"univ\" ID=\"2\" builtin=\"yes\"></sig>\n"++
+      		xmlDomain elemObs ++ "\n" ++
+    		intercalate "\n" (xmlObservationGroup <$> indexedObs) ++ "\n" ++
+    		"\t</instance>\n"++
+    		"\t<source filename=\"\"/>\n"++
+    		"</alloy>\n"
+    	writeFile file str
+
+xmlDomain :: [Observation] -> String
+xmlDomain obs = "\t\t<sig label=\"this/Object\" ID=\"5\" parentID=\"2\" abstract=\"yes\">\n\t\t\t"++
+	intercalate "\n\t\t\t" elems++
+	"\n\t\t</sig>" where 
+		elems = (\(Obs (Rel "@Element" [e])) -> "<atom label=\""++show e++"\"/>") <$> obs
+
+xmlObservationGroup :: ([Observation],Int) -> String
+xmlObservationGroup ([],i) = ""
+xmlObservationGroup (obs,i) = case head obs of
+                             (Obs (Rel sym _))   -> xmlRelationObs i sym obs
+                             (Obs (FnRel sym _)) -> xmlFunctionObs i sym obs
+                             (Obs (Inc _))       -> ""
+
+xmlRelationObs :: Int -> RelSym -> [Observation] -> String
+xmlRelationObs i "=" obs = ""
+xmlRelationObs i sym obs = do
+    let elems  = (\(Obs (Rel _ ts)) -> xmlTuple ts) <$> obs
+    "\t\t<field label="++show sym++" ID=\""++show (100+i)++"\" parentID=\"5\">\n\t\t\t"++ 
+    	intercalate "\n\t\t\t" elems ++
+    	"\n\t\t\t<types> " ++ (xmlTypeTuple $ length ts) ++ " </types>" ++
+    	"\n\t\t</field>" where
+    		(Obs (Rel _ ts)) = head obs
+
+xmlFunctionObs :: Int -> FnSym -> [Observation] -> String
+xmlFunctionObs i sym obss  = do
+    let elems  = (\(Obs (FnRel _ ts)) -> xmlTuple ts) <$> obss
+    "\t\t<field label="++show sym++" ID=\""++show (100+i)++"\" parentID=\"5\">\n\t\t\t"++ 
+    	intercalate "\n\t\t\t" elems ++
+    	"\n\t\t\t<types> " ++ (xmlTypeTuple $ length ts) ++ "</types>" ++
+    	"\n\t\t</field>" where
+    		(Obs (FnRel _ ts)) = head obss
+
+xmlTuple :: [Term] -> String
+xmlTuple [] = ""
+xmlTuple es = 	"<tuple> " ++ 
+				intercalate " " ((\(Elem e) -> "<atom label=\""++show e++"\"/>") <$> es) ++
+				" </tuple>"
+
+xmlTypeTuple :: Int -> String
+xmlTypeTuple 0 = ""
+xmlTypeTuple n = "<type ID=\"5\"/> "++xmlTypeTuple (n-1)

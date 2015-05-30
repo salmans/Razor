@@ -18,7 +18,7 @@
   Maintainer  : Salman Saghafi <salmans@wpi.edu>, Ryan Danas <ryandanas@wpi.edu>
 -}
 
-module Common.Model ( Model (modelElements, modelObservations)
-                    , emptyModel, createModel ) where
+module Common.Model ( Model (..), emptyModel, createModel,
+  sameRelation) where
 
 import Common.IModel
