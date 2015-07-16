@@ -29,12 +29,14 @@ import REPL.Mode
 import REPL.Display
 import Tools.Config
 import Control.Applicative hiding ((<|>), many)
-import Text.ParserCombinators.Parsec
-import Text.Parsec.Prim
+import Text.ParserCombinators.Parsec hiding (try)
+import Text.Parsec.Prim hiding (try)
 import Syntax.GeometricUtils
 import Data.List
 import Syntax.IGeometric
 import System.Process
+import GHC.IO.Handle
+import Control.Exception
 
 instance LoopMode ExploreMode ExploreIn ExploreOut where
   runOnce	  = exploreRun
@@ -44,6 +46,9 @@ instance LoopMode ExploreMode ExploreIn ExploreOut where
 instance Mode ExploreMode where
   showHelp  = exploreHelp
   modeTag   = exploreTag
+  check m cmd = case parseExploreCommand cmd of
+    Left err -> False
+    _ -> True
 
 data ExploreMode = ExploreM
 type ExploreIn = (Config, Theory, ModelSpace, ModelCoordinate)
@@ -70,11 +75,11 @@ exploreRun mode state@(config, theory, mspace, mcoor) command = case parseExplor
       Nothing -> return $ Left "No minimal models for the given theory!"
       Just (mspace', mcoor') -> do
         case (mcoor==mcoor') of
-          True -> prettyPrint 0 ferror "No more minimal models in the stream!\n"
+          True -> prettyPrint 0 ferror "No more minimal models for the given theory!\n"
           False -> prettyModel $ modelLookup mspace' (Just mcoor')
         return $ Right $ (theory, mspace', mcoor')
     Push fml -> case modelspaceLookup mspace mcoor of
-      Nothing -> return $ Left "Current model coordinate does not exist!"
+      Nothing -> return $ Left "No current model!"
       Just (_, model) -> case getAugmentation model fml of
         Nothing -> return $ Left $ "Given formula is not in the form of an augmentation!"
         Just (obs,newelms) -> case modelUp config theory (obs,newelms) mspace mcoor of
@@ -133,8 +138,10 @@ prettyModelCoordinatePlus mcoor = case mcoor of
 
 runViz :: String -> IO ()
 runViz modelfile = do
-  r <- createProcess (proc "java" ["-jar", "RazorViz.jar", modelfile])
-  return ()
+  res <- try (createProcess (proc "java" ["-jar", "RazorViz.jar", modelfile])) :: IO (Either SomeException ((Maybe Handle, Maybe Handle, Maybe Handle, ProcessHandle)))
+  case res of
+    Left ex -> prettyPrint 0 ferror "Could not run visualization jar file!\n" >> return ()
+    _ -> return ()
 
 -----------------------
 -- Command Functions --
@@ -144,11 +151,11 @@ exploreTag mode = "explore"
 
 exploreHelp :: ExploreMode -> IO()
 exploreHelp cmd = prettyPrint 0 foutput $ ""++ 
-  "<expr>:= | viz                Visualize the current model as an alloy instance\n"++ 
-  "         | current            Display the explore history and current position in the modelspace\n"++
-  "         | next               Get the next minimal model in the stream\n"++
-  "         | aug <formula>      Augment the current model with the given formula\n"++
-  "         | undo               Undo the most recent augmentation\n"
+  "viz              Visualize the current model as an alloy instance\n"++ 
+  "current          Display the explore history and current position in the modelspace\n"++
+  "next             Get the next minimal model in the stream\n"++
+  "aug R(e^#, ...)  Augment the current model with the given formula\n"++
+  "undo             Undo the most recent augmentation\n"
 
 parseExploreCommand :: String -> Either Error ExploreCommand
 parseExploreCommand cmd = 

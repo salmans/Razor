@@ -47,6 +47,9 @@ instance LoopMode ExplainMode ExplainIn ExplainOut where
 instance Mode ExplainMode where
   showHelp  = queryHelp
   modeTag   = queryTag
+  check m cmd = case parseExplainCommand cmd of
+    Left err -> False
+    _ -> True
 
 data ExplainMode = ExplainM
 type ExplainIn = (Theory, ChaseState, Model)
@@ -119,12 +122,11 @@ queryTag mode = "explain"
 
 queryHelp :: ExplainMode -> IO()
 queryHelp cmd = prettyPrint 0 foutput $ ""++
-  "<expr>:= | origin<all_flag><rec_flag> <element>    Display the rule that caused this element to exist\n"++
-  "  <all_flag>:=   |                                   Only display the origin of the given element\n"++
-  "                 | s                                 Also display the origins of the representatives in this element's equivalence class\n"++
-  "  <rec_flag>:=   |                                   Only display the origin of the given element\n"++
-  "                 | *                                 Recursively display all origins that caused the rule to fire\n"++
-  "         | blame <formula>                         Display the rule that fired to make the given fact true\n"
+  "origin e^#        Display the rule that caused this element to exist\n"++
+  "origins e^#       Also display the origins of the representatives in this element's equivalence class\n"++
+  "origin* e^#       Recursively display the origins that caused the rule to fire\n"++
+  "origins* e^#      Recursively display all origins that caused the rule to fire in this element's equivalence class\n"++
+  "blame R(e^#, ...) Display the rule that fired to make the given fact true\n"
 
 parseExplainCommand :: String -> Either Error ExplainCommand
 parseExplainCommand cmd = 

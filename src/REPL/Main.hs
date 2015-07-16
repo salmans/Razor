@@ -43,9 +43,8 @@ import qualified REPL.Mode.ModelCheck as I
 import qualified REPL.Mode.Explore as M
 import qualified REPL.Mode.Explain as Q
 
-data REPLCommand = Display Substate | Change REPLMode | ModeHelp | Help | Exit
+data REPLCommand = Display Substate | ModeHelp | Help | Exit
 data Substate = TheConfig | TheTheory | TheModel
-data REPLMode = ModeTheory | ModeExplore | ModeExplain
 
 --------------------
 -- Main REPL/Loop --
@@ -84,38 +83,41 @@ loop state@(RazorState config theory mspace mcoor) mode stin = do
               TheConfig -> lift (prettyPrint 0 foutput ((show config)++"\n")) >> stay
               TheTheory -> lift (prettyTheory theory) >> stay
               TheModel -> lift (prettyModel (modelLookup mspace mcoor)) >> stay
-            Change m -> case m of
-              ModeTheory -> trans T.TheoryM state 
-              ModeExplore -> case mcoor of
-                Nothing -> eTrans I.ModelCheckM M.ExploreM 
-                _ -> trans M.ExploreM state 
-              ModeExplain -> case mcoor of
-                Nothing -> eTrans I.ModelCheckM Q.ExplainM
-                _ -> trans Q.ExplainM state
-            ModeHelp -> lift (showHelp mode) >> stay
+            ModeHelp -> do
+              lift $ showHelp T.TheoryM
+              lift $ showHelp M.ExploreM
+              lift $ showHelp Q.ExplainM
+              stay
             Help -> lift replHelp >> stay
             Exit -> finish
-          -- Try and run the command in the mode
+          -- Auto execute command for the proper mode
           Nothing -> do
-            run <- lift $ runOnce mode stin cmd
-            case run of
-              Left err -> lift (prettyPrint 0 ferror (err++"\n")) >> stay
-              Right stout -> do
-                let (state', stin') = update mode stout state
-                loop state' mode stin'
+            case (check T.TheoryM cmd, check M.ExploreM cmd, check Q.ExplainM cmd) of
+              (True, _, _) -> trans cmd T.TheoryM state
+              (_, True, _) -> eTrans cmd I.ModelCheckM M.ExploreM
+              (_, _, True) -> eTrans cmd I.ModelCheckM Q.ExplainM
+              _ -> lift (prettyPrint 0 ferror "Command not found!\n") >> stay
   where
+    -- execute command in given mode with the given state
+    exec cmd mode stin = do
+      run <- lift $ runOnce mode stin cmd
+      case run of
+        Left err -> lift (prettyPrint 0 ferror (err++"\n")) >> stay
+        Right stout -> do
+          let (state', stin') = update mode stout state
+          loop state' mode stin'
     -- stay in the same mode / state; no changes
     stay = loop state mode stin
     -- finish the REPL
     finish = return (state)
     -- change the REPL mode; update state as well
-    trans m' s = do
+    trans cmd m' s = do
       enter <- lift $ enterMode m' s
       case enter of
         Left err -> lift (prettyPrint 0 ferror err) >> stay
         Right stout -> do
           let (s', stin') = update m' stout s
-          loop s' m' stin'
+          exec cmd m' stin'
     -- enter an implicit mode and get the updated state without looping
     eState m' = do
       enter <- lift $ enterMode m' state
@@ -127,11 +129,11 @@ loop state@(RazorState config theory mspace mcoor) mode stin = do
           let (state', _) = (update m' stout state)
           return $ Just state'
     -- transition from an implicit mode state to another state
-    eTrans m' m'' = do
+    eTrans cmd m' m'' = do
       s' <- eState m'
       case s' of
         Nothing -> stay
-        Just state' -> trans m'' state'
+        Just state' -> trans cmd m'' state'
 
 ------------------------
 -- Main REPL Commands --
@@ -149,17 +151,12 @@ replSplash = prettyPrint 0 foutput $ ""++
   "See LICENSE or <http://www.gnu.org/licenses/> for more details\n"
 replHelp :: IO()
 replHelp = prettyPrint 0 foutput $ ""++
-  "<expr>:= | !<substate>       Display general information\n"++
-  "  <substate>:=   | c           Configuration\n"++
-  "                 | t           Loaded Theory\n"++
-  "                 | m           Current Model\n"++
-  "         | @<mode>           Transition to a different REPL Mode\n"++
-  "  <mode>:=     | theory             Edit Theory and Configuration\n"++
-  "               | explore            Explore the Modelspace of the Current Theory\n"++
-  "               | explain            Query Current Model\n"++
-  "         | ?                 Show REPLMode Specific Help\n"++
-  "         | help              Print This Message\n"++
-  "         | q|quit|exit       Exit Razor\n"
+  "!c           Display Configuration Settings\n"++
+  "!t           Display Loaded Theory\n"++
+  "!m           Display Current Model\n"++
+  "help         Print This Message\n"++
+  "?            Show Help For Every Command\n"++
+  "q|quit|exit  Exit Razor\n"
 parseREPLCommand :: String -> Maybe REPLCommand
 parseREPLCommand cmd = 
   let pResult = parse pCommand "parsing REPL command" cmd
@@ -168,25 +165,7 @@ parseREPLCommand cmd =
     Right val -> Just val
 
 pCommand :: Parser REPLCommand
-pCommand = pChange <|> pDisplay <|> pModeHelp <|> pHelp <|> pExit
-
--- Change
-pChange :: Parser REPLCommand
-pChange = do
-  string "@"
-  Change <$> pMode
-
-pMode :: Parser REPLMode
-pMode = pTheoryM <|> pExplore +++ pExplain
-
-pTheoryM :: Parser REPLMode
-pTheoryM = string "theory" >> return ModeTheory
-
-pExplore :: Parser REPLMode
-pExplore = string "explore" >> return ModeExplore
-
-pExplain :: Parser REPLMode
-pExplain = string "explain" >> return ModeExplain
+pCommand = pDisplay <|> pModeHelp <|> pHelp <|> pExit
 
 -- Display
 pDisplay :: Parser REPLCommand

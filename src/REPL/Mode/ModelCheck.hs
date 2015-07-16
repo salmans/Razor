@@ -43,6 +43,7 @@ instance LoopMode ModelCheckMode ModelCheckIn ModelCheckOut where
 instance Mode ModelCheckMode where
   showHelp  = modelHelp
   modeTag   = modelTag
+  check cmd m = False
 
 data ModelCheckMode = ModelCheckM
 type ModelCheckIn = ()

@@ -31,10 +31,11 @@ import SAT.Impl
 import Chase.Impl
 
 class (Mode m) => LoopMode m i o | m -> i o where
-	runOnce			::		m -> i -> String -> IO(Either Error o)
-	update			::		m -> o -> RazorState -> (RazorState, i)
-	enterMode		::		m -> RazorState -> IO(Either Error o)
-	
+  runOnce     ::    m -> i -> String -> IO(Either Error o)
+  update      ::    m -> o -> RazorState -> (RazorState, i)
+  enterMode   ::    m -> RazorState -> IO(Either Error o)
+  
 class Mode m where
-	showHelp		::		m -> IO()
-	modeTag			::		m -> String
+  showHelp    ::    m -> IO()
+  modeTag     ::    m -> String
+  check       ::    m -> String -> Bool
