@@ -21,10 +21,10 @@ A core function of the tool is that it supports exploration of the space of mode
 There is overall help (use `help`), as well as help for each specific mode (use `?`).
 
 ## Modes
-There are several modes which logically separate the functions of the REPL into different categories. You will have to execute the respective commands (included below) to enter each mode. *Note:* In future releases, we plan to make the transition between modes automatic, so any command can be executed at any time.
-- `@theory` Starting mode; turn the various knobs of Razor, and load an input theory.
-- `@explore` Available once a theory is loaded; explore the models of the given theory, and augment them with additional facts.
-- `@explain` Available once a theory is loaded; query the model's various provenance information for elements and facts.
+There are several modes which logically separate the functions of the REPL into different categories.
+- `theory` Starting mode; turn the various knobs of Razor, and load an input theory.
+- `explore` Available once a theory is loaded; explore the models of the given theory, and augment them with additional facts.
+- `explain` Available once a theory is loaded; query the model's various provenance information for elements and facts.
 
 ## Command Examples
 
