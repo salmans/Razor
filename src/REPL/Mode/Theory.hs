@@ -102,8 +102,7 @@ theoryHelp cmd = prettyPrint 0 foutput $ ""++
   "debug          Toggle debug mode on/off\n"++
   "pure           Toggle producing only minimal models\n"++
   "depth <int>    Set the default skolem depth to the given integer value\n"++
-  "load <string>  Load the given filename as a Razor input theory\n"++
-  "tptp <string>  (Beta) Load the given filename as a TPTP input theory\n"
+  "load <string>  Load the given filename as a Razor input theory\n"
 
 parseTheoryCommand :: String -> Either Error TheoryCommand
 parseTheoryCommand cmd = 
@@ -113,7 +112,7 @@ parseTheoryCommand cmd =
 		Right val -> Right $ val
 
 pCommand :: Parser TheoryCommand
-pCommand = pDebug +++ pPure +++ pDefaultDepth +++ pLoad +++ pTPTP 
+pCommand = pDebug +++ pPure +++ pDefaultDepth +++ pLoad 
 
 pDebug :: Parser TheoryCommand
 pDebug = do
@@ -146,9 +145,3 @@ pLoad = do
   filename <- many (noneOf "\n\t ")
   return $ Load filename False
 
-pTPTP :: Parser TheoryCommand
-pTPTP = do
-  string "tptp"
-  spaces
-  filename <- many (noneOf "\n\t ")
-  return $ Load filename True

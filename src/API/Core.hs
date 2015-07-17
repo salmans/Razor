@@ -44,7 +44,6 @@ import Control.Monad.Trans
 -- Syntax
 import Syntax.GeometricUtils
 import Syntax.Term
-import qualified Syntax.TPTP as TPTP
 
 -- Common
 import Common.Data
@@ -134,15 +133,15 @@ parseInputFile :: Config -> String -> Either String CORE.Input
 parseInputFile config input = CORE.parseInput input
 --
 --
-parseTPTPFile :: String -> Maybe (Theory, [String])
-parseTPTPFile input = case TPTP.parse input of
-  Nothing -> Nothing
-  Just (thy, constants,includes) -> let extra = existsSeq <$> constants
-                           in Just (thy ++ extra,includes)
-  where existsSeq c = let varX = Variable "x"
-                      in  Sequent Tru
-                                  $ Exists Nothing varX
-                                           (Atm $ Rel "=" [Var varX, Cons c])
+--parseTPTPFile :: String -> Maybe (Theory, [String])
+--parseTPTPFile input = case TPTP.parse input of
+--  Nothing -> Nothing
+--  Just (thy, constants,includes) -> let extra = existsSeq <$> constants
+--                           in Just (thy ++ extra,includes)
+--  where existsSeq c = let varX = Variable "x"
+--                      in  Sequent Tru
+--                                  $ Exists Nothing varX
+--                                           (Atm $ Rel "=" [Var varX, Cons c])
 
 ---------------------
 -- Chase Data / G* --
