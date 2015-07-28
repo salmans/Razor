@@ -46,111 +46,78 @@
       
       
       <section>
-      <article class="markdown-body entry-content" itemprop="mainContentOfPage">
-        <h1><a id="user-content-razor-090-beta" class="anchor" href="#razor-090-beta" aria-hidden="true"><span class="octicon octicon-link"></span></a>Razor 0.9.0 (beta)</h1>
-        
-        <p>Razor is a model-finder for first-order theories. A central guiding principle of Razor is that it can be accessible to users who lack expertise in formal methods. Application areas include software design, analysis of security protocols and policies, and configuration management. 
-        A core function of the tool is that it supports exploration of the space of models of a given input theory, as well as presents provenance information about the elements and facts of a model. The crucial mathematical tool is the ordering relation on models determined by homomorphism. Razor generates models that are minimal with respect to this homomorphism ordering.</p>
-        
-        <h1>
-        <a id="user-content-installation" class="anchor" href="#installation" aria-hidden="true"><span class="octicon octicon-link"></span></a>Installation</h1>
-        
-        <h2>
-        <a id="user-content-prerequisites" class="anchor" href="#prerequisites" aria-hidden="true"><span class="octicon octicon-link"></span></a>Prerequisites</h2>
-        
-        <ol class="task-list">
-        <li>
-        <strong>Haskell and Cabal.</strong> In order to build Razor, you need to install the latest version of the Haskell platform (<a href="https://www.haskell.org">https://www.haskell.org</a>) and Cabal (<a href="https://www.haskell.org/cabal/">https://www.haskell.org/cabal/</a>) on your machine.</li>
-        <li>
-        <strong>Z3.</strong> Razor utilizes an SMT solver for constructing models. In order to run the current version of Razor, you need to install Z3 (<a href="http://z3.codeplex.com">http://z3.codeplex.com</a>) on your machine and make sure that <code>z3</code> is in the system path.</li>
-        </ol>
-        
-        <h2>
-        <a id="user-content-razor" class="anchor" href="#razor" aria-hidden="true"><span class="octicon octicon-link"></span></a>Razor</h2>
-        
-        <ol class="task-list">
-        <li>Download Razor’s source code available at <a href="https://github.com/salmans/Razor">https://github.com/salmans/Razor</a> to a local directory <code>RAZOR</code>.</li>
-        <li>Open a Terminal window and change directory to the local <code>RAZOR/src</code> directory:
-        <br> <code>cd RAZOR/src</code>
-        </li>
-        <li>Install Razor using Cabal:
-        <br><code>cabal install</code>
-        </li>
-        </ol>
-        
-        <h1>
-        <a id="user-content-using-the-repl" class="anchor" href="#using-the-repl" aria-hidden="true"><span class="octicon octicon-link"></span></a>Using the REPL</h1>
-        
-        <h2>
-        <a id="user-content-help" class="anchor" href="#help" aria-hidden="true"><span class="octicon octicon-link"></span></a>Help</h2>
-        
-        <p>There is overall help (use <code>help</code>), as well as help for each specific mode (use <code>?</code>).</p>
-        
-        <h2>
-        <a id="user-content-modes" class="anchor" href="#modes" aria-hidden="true"><span class="octicon octicon-link"></span></a>Modes</h2>
-        
-        <p>There are several modes which logically separate the functions of the REPL into different categories. You will have to execute the respective commands (included below) to enter each mode. <em>Note:</em> In future releases, we plan to make the transition between modes automatic, so any command can be executed at any time.</p>
-        
-        <ul class="task-list">
-        <li>
-        <code>@theory</code> Starting mode; turn the various knobs of Razor, and load an input theory.</li>
-        <li>
-        <code>@explore</code> Available once a theory is loaded; explore the models of the given theory, and augment them with additional facts.</li>
-        <li>
-        <code>@explain</code> Available once a theory is loaded; query the model's various provenance information for elements and facts.</li>
-        </ul>
-        
-        <h2>
-        <a id="user-content-command-examples" class="anchor" href="#command-examples" aria-hidden="true"><span class="octicon octicon-link"></span></a>Command Examples</h2>
-        
-        <h3>
-        <a id="user-content-theory-mode" class="anchor" href="#theory-mode" aria-hidden="true"><span class="octicon octicon-link"></span></a>Theory Mode</h3>
-        
-        <ul class="task-list">
-        <li>
-        <code>debug</code> Toggles debug mode</li>
-        <li>
-        <code>pure</code> Toggles pure minimality.  By default, models produced in relaxed mode may have "accidental" equalities between definable elements; in pure mode, definable elements are distinct unless provably equal.</li>
-        <li>
-        <code>depth 5</code> Sets the Skolem depth to 5. By default the depth is -1, meaning unbounded search. </li>
-        <li>
-        <code>load /path/to/razor/theory</code> Loads the given Razor theory</li>
-        <li>
-        <code>tptp /path/to/tptp/problem</code> Loads the given TPTP problem</li>
-        </ul>
-        
-        <h3>
-        <a id="user-content-exploration-mode" class="anchor" href="#exploration-mode" aria-hidden="true"><span class="octicon octicon-link"></span></a>Exploration Mode</h3>
-        
-        <ul class="task-list">
-        <li>
-        <code>current</code> Displays the current model</li>
-        <li>
-        <code>next</code> Get the next model available</li>
-        <li>
-        <code>aug R(e^2, e^100)</code> Augment the model with the given fact; for fresh elements not in the model, use elements not in the domain, like e^100</li>
-        <li>
-        <code>aug e^2=e^3</code> Augment the model with the equality of two elements in the model.</li>
-        <li>
-        <code>undo</code> Undo the previous augmentation; next cannot be undone. </li>
-        </ul>
-        
-        <h3>
-        <a id="user-content-explanation-mode" class="anchor" href="#explanation-mode" aria-hidden="true"><span class="octicon octicon-link"></span></a>Explanation Mode</h3>
-        
-        <ul class="task-list">
-        <li>
-        <code>origin e^0</code> Display a single origin of element e^0. That is, the instance of the theory sentence that caused this element to exist in the model. </li>
-        <li>
-        <code>origins e^0</code> Display the possibly multiple origins of element e^0. </li>
-        <li>
-        <code>origin* e^7</code> Display the single origin of element e^7; also, recursively display the origins of the elements that caused e^7 to exist, and soforth. </li>
-        <li>
-        <code>origins* e^7</code> Display all origins of this element and it's recursive dependents.</li>
-        <li>
-        <code>blame R(e^2, e^3)</code> Display the sentence blamed for making R(e^2, e^3) true. That is, the instance of the theory sentence that caused the given fact to be true in the model. </li>
-        </ul>
-      </article>
+      <article class="markdown-body entry-content" itemprop="mainContentOfPage"><h1><a id="user-content-razor-090-beta" class="anchor" href="#razor-090-beta" aria-hidden="true"><span class="octicon octicon-link"></span></a>Razor 0.9.0 (beta)</h1>
+
+<p>Razor is a model-finder for first-order theories. A central guiding principle of Razor is that it can be accessible to users who lack expertise in formal methods. Application areas include software design, analysis of security protocols and policies, and configuration management. 
+A core function of the tool is that it supports exploration of the space of models of a given input theory, as well as presents provenance information about the elements and facts of a model. The crucial mathematical tool is the ordering relation on models determined by homomorphism. Razor generates models that are minimal with respect to this homomorphism ordering.</p>
+
+<h1><a id="user-content-installation" class="anchor" href="#installation" aria-hidden="true"><span class="octicon octicon-link"></span></a>Installation</h1>
+
+<h2><a id="user-content-prerequisites" class="anchor" href="#prerequisites" aria-hidden="true"><span class="octicon octicon-link"></span></a>Prerequisites</h2>
+
+<ol>
+<li><strong>Haskell and Cabal.</strong> In order to build Razor, you need to install the latest version of the Haskell platform (<a href="https://www.haskell.org">https://www.haskell.org</a>) and Cabal (<a href="https://www.haskell.org/cabal/">https://www.haskell.org/cabal/</a>) on your machine.</li>
+<li><strong>Z3.</strong> Razor utilizes an SMT solver for constructing models. In order to run the current version of Razor, you need to install Z3 (<a href="http://z3.codeplex.com">http://z3.codeplex.com</a>) on your machine and make sure that <code>z3</code> is in the system path.</li>
+</ol>
+
+<h2><a id="user-content-razor" class="anchor" href="#razor" aria-hidden="true"><span class="octicon octicon-link"></span></a>Razor</h2>
+
+<ol>
+<li>Download Razor’s source code available at <a href="https://github.com/salmans/Razor">https://github.com/salmans/Razor</a> to a local directory <code>RAZOR</code>.</li>
+<li>Open a Terminal window and change directory to the local <code>RAZOR/src</code> directory:
+<br> <code>cd RAZOR/src</code></li>
+<li>Install Razor using Cabal:
+<br><code>cabal install</code></li>
+</ol>
+
+<h1><a id="user-content-using-the-repl" class="anchor" href="#using-the-repl" aria-hidden="true"><span class="octicon octicon-link"></span></a>Using the REPL</h1>
+
+<h2><a id="user-content-help" class="anchor" href="#help" aria-hidden="true"><span class="octicon octicon-link"></span></a>Help</h2>
+
+<p>There is overall help (use <code>help</code>), as well as help for each specific mode (use <code>?</code>).</p>
+
+<h2><a id="user-content-modes" class="anchor" href="#modes" aria-hidden="true"><span class="octicon octicon-link"></span></a>Modes</h2>
+
+<p>There are several, implicit modes which logically separate the functions of the REPL into different categories. All the REPL commands are available at any time. The REPL will automatically transition into the mode the command is apart of.</p>
+
+<ul>
+<li><code>theory</code> Starting mode; turn the various knobs of Razor, and load an input theory.</li>
+<li><code>explore</code> Available once a theory is loaded; explore the models of the given theory, and augment them with additional facts.</li>
+<li><code>explain</code> Available once a theory is loaded; query the model's various provenance information for elements and facts.</li>
+</ul>
+
+<h2><a id="user-content-command-examples" class="anchor" href="#command-examples" aria-hidden="true"><span class="octicon octicon-link"></span></a>Command Examples</h2>
+
+<h3><a id="user-content-theory-mode" class="anchor" href="#theory-mode" aria-hidden="true"><span class="octicon octicon-link"></span></a>Theory Mode</h3>
+
+<ul>
+<li><code>debug</code> Toggles debug mode</li>
+<li><code>pure</code> Toggles pure minimality.  By default, models produced in relaxed mode may have "accidental" equalities between definable elements; in pure mode, definable elements are distinct unless provably equal.</li>
+<li><code>depth 5</code> Sets the Skolem depth to 5. By default the depth is -1, meaning unbounded search. </li>
+<li><code>load /path/to/razor/theory</code> Loads the given Razor theory</li>
+<li><code>tptp /path/to/tptp/problem</code> Loads the given TPTP problem</li>
+</ul>
+
+<h3><a id="user-content-exploration-mode" class="anchor" href="#exploration-mode" aria-hidden="true"><span class="octicon octicon-link"></span></a>Exploration Mode</h3>
+
+<ul>
+<li><code>current</code> Displays the current model</li>
+<li><code>next</code> Get the next model available</li>
+<li><code>aug R(e^2, e^100)</code> Augment the model with the given fact; for fresh elements not in the model, use elements not in the domain, like e^100</li>
+<li><code>aug e^2=e^3</code> Augment the model with the equality of two elements in the model.</li>
+<li><code>undo</code> Undo the previous augmentation; next cannot be undone. </li>
+</ul>
+
+<h3><a id="user-content-explanation-mode" class="anchor" href="#explanation-mode" aria-hidden="true"><span class="octicon octicon-link"></span></a>Explanation Mode</h3>
+
+<ul>
+<li><code>origin e^0</code> Display a single origin of element e^0. That is, the instance of the theory sentence that caused this element to exist in the model. </li>
+<li><code>origins e^0</code> Display the possibly multiple origins of element e^0. </li>
+<li><code>origin* e^7</code> Display the single origin of element e^7; also, recursively display the origins of the elements that caused e^7 to exist, and soforth. </li>
+<li><code>origins* e^7</code> Display all origins of this element and it's recursive dependents.</li>
+<li><code>blame R(e^2, e^3)</code> Display the sentence blamed for making R(e^2, e^3) true. That is, the instance of the theory sentence that caused the given fact to be true in the model. </li>
+</ul>
+</article>
       </section>
       
       
