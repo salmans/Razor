@@ -39,7 +39,6 @@ import Text.Parsec.Prim
 import Text.Parsec.Token
 import REPL.Mode
 import qualified REPL.Mode.Theory as T
-import qualified REPL.Mode.ModelCheck as I
 import qualified REPL.Mode.Explore as M
 import qualified REPL.Mode.Explain as Q
 
@@ -94,18 +93,10 @@ loop state@(RazorState config theory mspace mcoor) mode stin = do
           Nothing -> do
             case (check T.TheoryM cmd, check M.ExploreM cmd, check Q.ExplainM cmd) of
               (True, _, _) -> trans cmd T.TheoryM state
-              (_, True, _) -> eTrans cmd I.ModelCheckM M.ExploreM
-              (_, _, True) -> eTrans cmd I.ModelCheckM Q.ExplainM
+              (_, True, _) -> trans cmd M.ExploreM state
+              (_, _, True) -> trans cmd Q.ExplainM state
               _ -> lift (prettyPrint 0 ferror "Command not found!\n") >> stay
   where
-    -- execute command in given mode with the given state
-    exec cmd mode stin = do
-      run <- lift $ runOnce mode stin cmd
-      case run of
-        Left err -> lift (prettyPrint 0 ferror (err++"\n")) >> stay
-        Right stout -> do
-          let (state', stin') = update mode stout state
-          loop state' mode stin'
     -- stay in the same mode / state; no changes
     stay = loop state mode stin
     -- finish the REPL
@@ -118,22 +109,14 @@ loop state@(RazorState config theory mspace mcoor) mode stin = do
         Right stout -> do
           let (s', stin') = update m' stout s
           exec cmd m' stin'
-    -- enter an implicit mode and get the updated state without looping
-    eState m' = do
-      enter <- lift $ enterMode m' state
-      case enter of
-        Left err -> do
-          lift (prettyPrint 0 ferror (err++"\n"))
-          return Nothing
+    -- execute command in given mode with the given state
+    exec cmd mode stin = do
+      run <- lift $ runOnce mode stin cmd
+      case run of
+        Left err -> lift (prettyPrint 0 ferror (err++"\n")) >> stay
         Right stout -> do
-          let (state', _) = (update m' stout state)
-          return $ Just state'
-    -- transition from an implicit mode state to another state
-    eTrans cmd m' m'' = do
-      s' <- eState m'
-      case s' of
-        Nothing -> stay
-        Just state' -> trans cmd m'' state'
+          let (state', stin') = update mode stout state
+          loop state' mode stin'
 
 ------------------------
 -- Main REPL Commands --

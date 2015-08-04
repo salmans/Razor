@@ -51,8 +51,8 @@ instance Mode ExploreMode where
     _ -> True
 
 data ExploreMode = ExploreM
-type ExploreIn = (Config, Theory, ModelSpace, ModelCoordinate)
-type ExploreOut = (Theory, ModelSpace, ModelCoordinate)
+type ExploreIn = (Config, Theory, ModelSpace, Maybe ModelCoordinate)
+type ExploreOut = (Theory, ModelSpace, Maybe ModelCoordinate)
 
 data ExploreCommand = Viz | Current | Next | Push Formula | Pop
 
@@ -62,60 +62,70 @@ data ExploreCommand = Viz | Current | Next | Push Formula | Pop
 exploreRun :: ExploreMode -> ExploreIn -> String -> IO(Either Error ExploreOut)
 exploreRun mode state@(config, theory, mspace, mcoor) command = case parseExploreCommand command of
   Left err -> return $ Left err
-  Right cmd -> case cmd of
-    Viz -> do
-      xmlModel "model.xml" $ modelLookup mspace (Just mcoor)
-      runViz "model.xml"
-      return $ Right $ (theory, mspace, mcoor)
-    Current -> do
-      prettyModel $ modelLookup mspace (Just mcoor)
-      prettyModelCoordinate mcoor
-      return $ Right $ (theory, mspace, mcoor)
-    Next -> case modelNext (Right mcoor) mspace of
-      Nothing -> return $ Left "No minimal models for the given theory!"
-      Just (mspace', mcoor') -> do
-        case (mcoor==mcoor') of
-          True -> prettyPrint 0 ferror "No more minimal models for the given theory!\n"
-          False -> prettyModel $ modelLookup mspace' (Just mcoor')
-        return $ Right $ (theory, mspace', mcoor')
-    Push fml -> case modelspaceLookup mspace mcoor of
-      Nothing -> return $ Left "No current model!"
-      Just (_, model) -> case getAugmentation model fml of
-        Nothing -> return $ Left $ "Given formula is not in the form of an augmentation!"
-        Just (obs,newelms) -> case modelUp config theory (obs,newelms) mspace mcoor of
-          Nothing -> return $ Left "No models exist from adding the given augmentation!"
+  Right cmd -> case mcoor of 
+    -- first model case
+    Nothing -> case cmd of
+      Next -> do
+        let chasestate = chaseTheory config theory
+        case modelNext (Left chasestate) mspace of
+          Nothing -> return $ Left "No minimal models for the given theory!\n"
           Just (mspace', mcoor') -> do
             prettyModel $ modelLookup mspace' (Just mcoor')
-            return $ Right $ (theory, mspace', mcoor')
-    Pop -> case lastAug mcoor of
-      Nothing -> return $ Left "No augmentation in explore history to undo!"
-      Just (obs, mcoor') -> do
-        prettyPrint 0 foutput $ "Undoing last augmentation "++(show obs)++"...\n"
-        case modelDown mspace mcoor mcoor' of
-          Nothing -> return $ Left "Could not undo previous augmentation!"
-          Just mspace' -> do
-            prettyModel $ modelLookup mspace' (Just mcoor')
-            return $ Right $ (theory, mspace', mcoor')
-      where
-        lastAug (Stack obs mcoor') = Just (obs, mcoor')
-        lastAug (Stream mcoor') = lastAug mcoor'
-        lastAug (Origin) = Nothing
+            return $ Right $ (theory, mspace', Just mcoor')
+      _ -> return $ Left "No current model!\n"
+    -- after first model case
+    Just mcoor' -> case cmd of
+      Viz -> do
+        xmlModel "model.xml" $ modelLookup mspace (Just mcoor')
+        runViz "model.xml"
+        return $ Right $ (theory, mspace, Just mcoor')
+      Current -> do
+        prettyModel $ modelLookup mspace (Just mcoor')
+        prettyModelCoordinate mcoor'
+        return $ Right $ (theory, mspace, Just mcoor')
+      Next -> case modelNext (Right mcoor') mspace of
+        Nothing -> return $ Left "No minimal models for the given theory!"
+        Just (mspace', mcoor'') -> do
+          case (mcoor'==mcoor'') of
+            True -> prettyPrint 0 ferror "No more minimal models for the given theory!\n"
+            False -> prettyModel $ modelLookup mspace' (Just mcoor'')
+          return $ Right $ (theory, mspace', Just mcoor'')
+      Push fml -> case modelspaceLookup mspace mcoor' of
+        Nothing -> return $ Left "No current model!"
+        Just (_, model) -> case getAugmentation model fml of
+          Nothing -> return $ Left $ "Given formula is not in the form of an augmentation!"
+          Just (obs,newelms) -> case modelUp config theory (obs,newelms) mspace mcoor' of
+            Nothing -> return $ Left "No models exist from adding the given augmentation!"
+            Just (mspace', mcoor'') -> do
+              prettyModel $ modelLookup mspace' (Just mcoor'')
+              return $ Right $ (theory, mspace', Just mcoor'')
+      Pop -> case lastAug mcoor' of
+        Nothing -> return $ Left "No augmentation in explore history to undo!"
+        Just (obs, mcoor'') -> do
+          prettyPrint 0 foutput $ "Undoing last augmentation "++(show obs)++"...\n"
+          case modelDown mspace mcoor' mcoor'' of
+            Nothing -> return $ Left "Could not undo previous augmentation!"
+            Just mspace' -> do
+              prettyModel $ modelLookup mspace' (Just mcoor'')
+              return $ Right $ (theory, mspace', Just mcoor'')
+        where
+          lastAug (Stack obs mcoor'') = Just (obs, mcoor'')
+          lastAug (Stream mcoor'') = lastAug mcoor''
+          lastAug (Origin) = Nothing
 
             
 ------------------------
 -- RazorState Related --
 ------------------------
 updateExplore :: ExploreMode -> ExploreOut -> RazorState -> (RazorState, ExploreIn)
-updateExplore mode (theory', mspace', mcoor') state@(RazorState config theory mspace mcoor) = (RazorState config theory mspace' (Just mcoor'), (config, theory', mspace', mcoor'))
+updateExplore mode (theory', mspace', mcoor') state@(RazorState config theory mspace mcoor) = (RazorState config theory mspace' mcoor', (config, theory', mspace', mcoor'))
 
 enterExplore :: ExploreMode -> RazorState -> IO(Either Error ExploreOut)
-enterExplore mode state@(RazorState config theory mspace mcoor) = case (theory, mcoor) of
-  (Just theory', Just mcoor') -> case Map.lookup mcoor' mspace of
-    Nothing -> return $ Left "Modelspace not initialized by another mode!"
-    Just (chasestate, model') -> do
-      prettyModel $ Just model'
-      return $ Right (theory', mspace, mcoor')
-  _ -> return $ Left "Modelspace not initialized by another mode!"
+enterExplore mode state@(RazorState config theory mspace mcoor) = case theory of
+  -- Nothing loaded; return error
+  Nothing -> return $ Left $ "Theory not loaded!\n"
+  -- Theory loaded; enter mode
+  Just theory' -> return $ Right $ (theory', mspace, mcoor)
 
 -------------
 -- Helpers --

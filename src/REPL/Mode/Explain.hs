@@ -107,12 +107,12 @@ updateExplain mode (theory, gstar, model) state = (state, (theory, gstar, model)
 enterExplain :: ExplainMode -> RazorState -> IO(Either Error ExplainOut)
 enterExplain mode state@(RazorState config theory mspace mcoor) = case (theory, mcoor) of
   (Just theory', Just mcoor') -> case Map.lookup mcoor' mspace of
-    Nothing -> return $ Left "Current model not initialized by another mode!"
+    Nothing -> return $ Left "No current model!"
     Just (chasestate, model') -> do
       prettyModel $ Just model'
       prettyPrint 0 foutput "Running queries over this model\n"
       return $ Right (theory', chasestate, model')
-  _ -> return $ Left "Current model not initialized by another mode!"
+  _ -> return $ Left "No current model!"
 
 -----------------------
 -- Command Functions --
