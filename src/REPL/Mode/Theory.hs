@@ -99,8 +99,8 @@ theoryTag mode = "theory"
 
 theoryHelp :: TheoryMode -> IO()
 theoryHelp cmd = prettyPrint 0 foutput $ ""++ 
-  "debug          Toggle debug mode on/off\n"++
-  "pure           Toggle producing only minimal models\n"++
+  "debug          Toggle debug mode on/off; Off by default\n"++
+  "pure           Toggle producing only minimal models; On by default\n"++
   "depth <int>    Set the default skolem depth to the given integer value\n"++
   "load <string>  Load the given filename as a Razor input theory\n"
 

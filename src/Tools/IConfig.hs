@@ -119,7 +119,7 @@ defaultConfig = Config { configInput              = Nothing
                        -- , configIsoElim         = False
                        , configDefaultSkolemDepth = -1
                        , configSkolemDepth        = emptySkolemDepthMap
-                       , configPureMin            = False
+                       , configPureMin            = True
                        , configCommand            = Nothing 
                        , configState              = Nothing}
 
