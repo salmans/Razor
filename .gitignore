@@ -1,4 +1,3 @@
-bin/
 dist
 cabal-dev
 *.o
@@ -14,3 +13,4 @@ cabal.config
 .DS_Store
 *~
 src/makefile
+*.xml
