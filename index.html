@@ -31,9 +31,9 @@
         </ul>
         <h3>Latest Binary Releases</h3>
         <ul>
-          <li><a href="https://github.com/salmans/Razor/releases/download/0.9/razor-0.9-linux.zip">Ubuntu 14.04<strong>Linux</strong></a></li>
-          <li><a href="https://github.com/salmans/Razor/releases/download/0.9/razor-0.9-mac.zip">OS-X 10.10<strong>Mac</strong></a></li>
-          <li><a href="https://github.com/salmans/Razor/releases/download/0.9/razor-0.9-win.zip">Windows 7<strong>Windows</strong></a></li>
+          <li><a href="https://github.com/salmans/Razor/releases/download/0.9.1/razor-0.9.1-linux.zip">Ubuntu 14.04<strong>Linux</strong></a></li>
+          <li><a href="https://github.com/salmans/Razor/releases/download/0.9.1/razor-0.9.1-mac.zip">OS-X 10.10<strong>Mac</strong></a></li>
+          <li><a href="https://github.com/salmans/Razor/releases/download/0.9.1/razor-0.9.1-windows.zip">Windows 7<strong>Windows</strong></a></li>
         </ul>
         <h3>View/Build The Sourcecode</h3>
         <ul>
@@ -46,7 +46,7 @@
       
       
       <section>
-      <article class="markdown-body entry-content" itemprop="mainContentOfPage"><h1><a id="user-content-razor-090-beta" class="anchor" href="#razor-090-beta" aria-hidden="true"><span class="octicon octicon-link"></span></a>Razor 0.9.0 (beta)</h1>
+      <article class="markdown-body entry-content" itemprop="mainContentOfPage"><h1><a id="user-content-razor-091-beta" class="anchor" href="#razor-091-beta" aria-hidden="true"><span class="octicon octicon-link"></span></a>Razor 0.9.1 (beta)</h1>
 
 <p>Razor is a model-finder for first-order theories. A central guiding principle of Razor is that it can be accessible to users who lack expertise in formal methods. Application areas include software design, analysis of security protocols and policies, and configuration management. 
 A core function of the tool is that it supports exploration of the space of models of a given input theory, as well as presents provenance information about the elements and facts of a model. The crucial mathematical tool is the ordering relation on models determined by homomorphism. Razor generates models that are minimal with respect to this homomorphism ordering.</p>
@@ -58,6 +58,7 @@ A core function of the tool is that it supports exploration of the space of mode
 <ol>
 <li><strong>Haskell and Cabal.</strong> In order to build Razor, you need to install the latest version of the Haskell platform (<a href="https://www.haskell.org">https://www.haskell.org</a>) and Cabal (<a href="https://www.haskell.org/cabal/">https://www.haskell.org/cabal/</a>) on your machine.</li>
 <li><strong>Z3.</strong> Razor utilizes an SMT solver for constructing models. In order to run the current version of Razor, you need to install Z3 (<a href="http://z3.codeplex.com">http://z3.codeplex.com</a>) on your machine and make sure that <code>z3</code> is in the system path.</li>
+<li><strong>java</strong> The latest version of java is required to run the <code>viz</code> command. The RazorViz.jar in the bin directory should be located in the working directory, or where the razor executable is installed.<br></li>
 </ol>
 
 <h2><a id="user-content-razor" class="anchor" href="#razor" aria-hidden="true"><span class="octicon octicon-link"></span></a>Razor</h2>
@@ -92,16 +93,16 @@ A core function of the tool is that it supports exploration of the space of mode
 
 <ul>
 <li><code>debug</code> Toggles debug mode</li>
-<li><code>pure</code> Toggles pure minimality.  By default, models produced in relaxed mode may have "accidental" equalities between definable elements; in pure mode, definable elements are distinct unless provably equal.</li>
+<li><code>pure</code> Toggles pure minimality.  By default, pure mode is enable: definable elements are distinct unless provably equal. Turning off pure mode generates models that may have "accidental" equalities between definable elements. </li>
 <li><code>depth 5</code> Sets the Skolem depth to 5. By default the depth is -1, meaning unbounded search. </li>
 <li><code>load /path/to/razor/theory</code> Loads the given Razor theory</li>
-<li><code>tptp /path/to/tptp/problem</code> Loads the given TPTP problem</li>
 </ul>
 
 <h3><a id="user-content-exploration-mode" class="anchor" href="#exploration-mode" aria-hidden="true"><span class="octicon octicon-link"></span></a>Exploration Mode</h3>
 
 <ul>
 <li><code>current</code> Displays the current model</li>
+<li><code>viz</code> Visualized the current model using the Alloy Visualizer (<a href="http://alloy.mit.edu/alloy/">http://alloy.mit.edu/alloy/</a>)</li>
 <li><code>next</code> Get the next model available</li>
 <li><code>aug R(e^2, e^100)</code> Augment the model with the given fact; for fresh elements not in the model, use elements not in the domain, like e^100</li>
 <li><code>aug e^2=e^3</code> Augment the model with the equality of two elements in the model.</li>
