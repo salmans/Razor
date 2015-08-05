@@ -1,4 +1,4 @@
-Razor 0.9.0 (beta)
+Razor 0.9.1 (beta)
 ==================
 Razor is a model-finder for first-order theories. A central guiding principle of Razor is that it can be accessible to users who lack expertise in formal methods. Application areas include software design, analysis of security protocols and policies, and configuration management. 
 A core function of the tool is that it supports exploration of the space of models of a given input theory, as well as presents provenance information about the elements and facts of a model. The crucial mathematical tool is the ordering relation on models determined by homomorphism. Razor generates models that are minimal with respect to this homomorphism ordering.
