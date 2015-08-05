@@ -7,7 +7,7 @@ A core function of the tool is that it supports exploration of the space of mode
 ## Prerequisites
 1. **Haskell and Cabal.** In order to build Razor, you need to install the latest version of the Haskell platform (https://www.haskell.org) and Cabal (https://www.haskell.org/cabal/) on your machine.
 2. **Z3.** Razor utilizes an SMT solver for constructing models. In order to run the current version of Razor, you need to install Z3 (http://z3.codeplex.com) on your machine and make sure that `z3` is in the system path.
-3. **Razor Viz.** The jar file is included in the bin directory, which is also where the makefile installs Razor. Make sure the jar file is in the directory that you execute the razor executable in. 
+3. **java** The latest version of java is required to run the `viz` command. The RazorViz.jar in the bin directory should be located in the working directory, or where the razor executable is installed.  
 
 ## Razor
 1. Download Razor’s source code available at https://github.com/salmans/Razor to a local directory `RAZOR`.
