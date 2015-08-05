@@ -7,6 +7,7 @@ A core function of the tool is that it supports exploration of the space of mode
 ## Prerequisites
 1. **Haskell and Cabal.** In order to build Razor, you need to install the latest version of the Haskell platform (https://www.haskell.org) and Cabal (https://www.haskell.org/cabal/) on your machine.
 2. **Z3.** Razor utilizes an SMT solver for constructing models. In order to run the current version of Razor, you need to install Z3 (http://z3.codeplex.com) on your machine and make sure that `z3` is in the system path.
+3. **Razor Viz.** The jar file is included in the bin directory, which is also where the makefile installs Razor. Make sure the jar file is in the directory that you execute the razor executable in. 
 
 ## Razor
 1. Download Razor’s source code available at https://github.com/salmans/Razor to a local directory `RAZOR`.
@@ -30,13 +31,13 @@ There are several, implicit modes which logically separate the functions of the 
 
 ### Theory Mode
 - `debug` Toggles debug mode
-- `pure` Toggles pure minimality.  By default, models produced in relaxed mode may have "accidental" equalities between definable elements; in pure mode, definable elements are distinct unless provably equal.
+- `pure` Toggles pure minimality.  By default, pure mode is enable: definable elements are distinct unless provably equal. Turning off pure mode generates models that may have "accidental" equalities between definable elements. 
 - `depth 5` Sets the Skolem depth to 5. By default the depth is -1, meaning unbounded search. 
 - `load /path/to/razor/theory` Loads the given Razor theory
-- `tptp /path/to/tptp/problem` Loads the given TPTP problem
 
 ### Exploration Mode
 - `current` Displays the current model
+- `viz` Visualized the current model using the Alloy Visualizer (http://alloy.mit.edu/alloy/)
 - `next` Get the next model available
 - `aug R(e^2, e^100)` Augment the model with the given fact; for fresh elements not in the model, use elements not in the domain, like e^100
 - `aug e^2=e^3` Augment the model with the equality of two elements in the model.
