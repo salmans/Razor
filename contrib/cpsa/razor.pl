@@ -40,9 +40,9 @@ razor(In, Out) :-
 	top_forms_pp(Stream, Forms),
 	close(Stream).
 
-%% Ignore all forms except the ones that start with forall.
+%% Ignore all forms except the ones that start with defgoal.
 top_forms_pp(_, []).
-top_forms_pp(Out, [[forall|Rest]|Forms]) :-
+top_forms_pp(Out, [[defgoal, _, [forall|Rest]]|Forms]) :-
 	!,
 	form_to_pretty([forall|Rest], Pretty),
 	pp:pr(Out, 72, Pretty),
