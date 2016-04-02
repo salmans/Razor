@@ -14,7 +14,7 @@
 %%    skey(t) => mesg(t);
 %%    name(t) => mesg(t);
 %%    text(t) => mesg(t);
-%%    name(t) => mesg(t);
+%%    data(t) => mesg(t);
 
 %% The precedes axioms are:
 
