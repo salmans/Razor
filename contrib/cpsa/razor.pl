@@ -55,7 +55,7 @@ top_forms_pp(Out, [_|Forms]) :-
 
 %% Formula classification
 
-form_to_pretty([equal|Terms], Pretty) :-
+form_to_pretty([=|Terms], Pretty) :-
 	!,
 	equal(Terms, Pretty).
 form_to_pretty([implies|Forms], Pretty) :-
@@ -202,13 +202,56 @@ quantifier_rest_exists(Var, [Vn|Vars], Body, [Brk, V| Pretties]) :-
 atomic_form([Pred], Pretty) :-
 	atom(Pred),
 	pp:atm(Pred, Pretty).
+% Role position predicates
+atomic_form([p, Role, Pos, Term], Pretty) :-
+        string(Role),
+	integer(Pos), !,
+	role_pos_symbol(Role, Pos, Symbol),
+	pp:atm(Symbol, P),
+	pp:atm('(', Left),
+	term_to_pretty(Term, T),
+	terms_to_pretty([], Ts),
+	pp:blo(2, [P, Left, T|Ts], Pretty).
+% Role parameter predicates
+atomic_form([p, Role, Var, Term1, Term2], Pretty) :-
+        string(Role),
+	string(Var), !,
+	role_param_symbol(Role, Var, Symbol),
+	pp:atm(Symbol, P),
+	pp:atm('(', Left),
+	term_to_pretty(Term1, T),
+	terms_to_pretty([Term2], Ts),
+	pp:blo(2, [P, Left, T|Ts], Pretty).
+% All other predicates with nonzero arity
 atomic_form([Pred, Term|Terms], Pretty) :-
 	atom(Pred),
-	pp:atm(Pred, P),
+	symbol(Pred, Symbol),
+	pp:atm(Symbol, P),
 	pp:atm('(', Left),
 	term_to_pretty(Term, T),
 	terms_to_pretty(Terms, Ts),
 	pp:blo(2, [P, Left, T|Ts], Pretty).
+
+role_pos_symbol(Role, Pos, Symbol) :-
+        atom_chars(p_, L1),
+	string_to_atom(Role, Atom),
+	atom_chars(Atom, L2),
+	number_chars(Pos, L3),
+	append(L2, ['_'|L3], L4),
+	append(L1, L4, L5),
+	hyphen(L5, L6),
+        atom_chars(Symbol, L6).
+
+role_param_symbol(Role, Var, Symbol) :-
+        atom_chars(p_, L1),
+	string_to_atom(Role, Atom1),
+	atom_chars(Atom1, L2),
+	string_to_atom(Var, Atom2),
+	atom_chars(Atom2, L3),
+	append(L2, ['_'|L3], L4),
+	append(L1, L4, L5),
+	hyphen(L5, L6),
+        atom_chars(Symbol, L6).
 
 terms_to_pretty([], [Right]) :-
 	pp:atm(')', Right).
