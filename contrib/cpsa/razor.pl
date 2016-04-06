@@ -18,8 +18,11 @@
 
 %% The precedes axioms are:
 
-%%    sprec(x, y) => prec(x, y);
-%%    prec(x, y) & prec(y, z) => prec(x, y);
+%%    str_prec(x, y) => strand(x) = strand(y);
+%%    str_prec(x, y) & str_prec(y, z) => str_prec(x, z);
+%%    str_prec(x, y)  => prec(x, y);
+%%    prec(x, y) & prec(y, z) => prec(x, z);
+%%    prec(x, x) => Falsehood;
 
 %% Copyright (c) 2011 The MITRE Corporation
 %%
@@ -239,7 +242,7 @@ role_pos_symbol(Role, Pos, Symbol) :-
         atom_chars(Symbol, L6).
 
 role_param_symbol(Role, Var, Symbol) :-
-        atom_chars(p_, L1),
+        atom_chars(f_, L1),
 	string_to_atom(Role, Atom1),
 	atom_chars(Atom1, L2),
 	string_to_atom(Var, Atom2),

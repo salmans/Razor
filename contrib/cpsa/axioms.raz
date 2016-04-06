@@ -1,12 +1,19 @@
 -- The subsort relations of the message algebra axioms.
 
-   akey(t) => mesg(t);
-   skey(t) => mesg(t);
-   name(t) => mesg(t);
-   text(t) => mesg(t);
-   data(t) => mesg(t);
+akey(t) => mesg(t);
+skey(t) => mesg(t);
+name(t) => mesg(t);
+text(t) => mesg(t);
+data(t) => mesg(t);
 
 -- The precedes axioms.
 
-   sprec(x, y) => prec(x, y);
-   prec(x, y) & prec(y, z) => prec(x, y);
+str_prec(x, y) => strand(x) = strand(y);
+
+str_prec(x, y) & str_prec(y, z) => str_prec(x, z);
+
+str_prec(x, y)  => prec(x, y);
+
+prec(x, y) & prec(y, z) => prec(x, z);
+
+prec(x, x) => Falsehood;
