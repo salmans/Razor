@@ -254,7 +254,7 @@ insertRelSequent seq resSet db = do
                                   in  (it', pr'))
                         (iter, provs) propSeqs
 
-  iter' `deepseq` liftPushMSATIterator (State.put iter')
+  liftPushMSATIterator (State.put iter')
   liftPushMProvs $ State.modify
                  $ \(seqid, vars, _) -> (seqid, vars, provs')
   return result

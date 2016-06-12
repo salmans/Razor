@@ -540,9 +540,6 @@ type ContainerMonad = State.StateT SMTContainer IO
 type SMTM = SMT' ContainerMonad
 
 
-instance NFData SMTContainer -- where
-
-
 {- Runs the given input context and returns the result inside a ContainerMonad.
 -}
 perform :: SMTM a -> ContainerMonad a
