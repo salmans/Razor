@@ -21,7 +21,6 @@
 
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE Rank2Types #-}
-{-# LANGUAGE ImpredicativeTypes #-}
 
 module API.Core where
 
