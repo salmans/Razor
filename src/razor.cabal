@@ -40,21 +40,21 @@ executable razor
   -- other-modules:
   -- ghc-options: 	    -rtsopts -prof -fprof-auto -auto-all -caf-all
   build-depends:
-     QuickCheck ==2.6.*,
-     ansi-terminal==0.6.*,
-     containers ==0.5.*,
-     deepseq ==1.3.*,
-     directory ==1.2.*,
-     filepath ==1.3.*,
-     haskeline==0.7.*,
-     mtl ==2.1.*,
-     old-time ==1.1.*,
-     parsec ==3.1.*,
-     process==1.2.0.*,
-     smtlib2 == 0.2.*,
-     text==0.11.*,
-     vector==0.10.*,
-     base >= 4.6
+     QuickCheck >=2.6 && <2.9,
+     ansi-terminal >=0.6 && <0.7,
+     containers >=0.5 && <0.6,
+     deepseq >=1.3 && <1.5,
+     directory >=1.2 && <1.3,
+     filepath >=1.3 && <1.5,
+     haskeline >=0.7 && <0.8,
+     mtl >=2.1 && <2.3,
+     old-time >=1.1 && <1.2,
+     parsec >=3.1 && <3.2,
+     process >=1.2 && <1.5,
+     smtlib2 >=0.2 && <0.4,
+     text >=0.11 && <1.3,
+     vector >=0.10 && <0.12,
+     base >=4.6
 
 -- ---------
 -- -- CLI --
