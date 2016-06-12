@@ -61,17 +61,17 @@ prettyHighlight tabs high str = do
   let highpieces = intersperse (T.pack high) pieces 
   prettyPrint tabs fuserinput ""
   mapM_ (\p -> case (elemIndex p highpieces) of
-	Nothing -> return ()
-	Just i -> if (even i)
-	  then prettyPrint 0 flow (T.unpack p)
-	  else prettyPrint 0 fhigh (T.unpack p)) highpieces
+        Nothing -> return ()
+        Just i -> if (even i)
+          then prettyPrint 0 flow (T.unpack p)
+          else prettyPrint 0 fhigh (T.unpack p)) highpieces
 
 prettyTheory :: Maybe Theory -> IO()
 prettyTheory thy = case thy of
   Nothing -> prettyPrint 0 ferror "No geometric theory loaded!\n"
   Just theory -> do
-	let displaytheory = intersperse "\n" $ map show theory
-	mapM_ (\s->prettyPrint 0 finput ((show s)++"\n")) theory
+        let displaytheory = intersperse "\n" $ map show theory
+        mapM_ (\s->prettyPrint 0 finput ((show s)++"\n")) theory
 
 prettyModel :: Maybe Model -> IO()
 prettyModel mdl = case mdl of
@@ -82,31 +82,31 @@ xmlModel :: String -> Maybe Model -> IO()
 xmlModel file mdl = case mdl of
   Nothing -> prettyPrint 0 ferror "No current model!\n"
   Just model@(Model eqs obs) -> do
-	-- rework the model into workable data structures
-	let (elemObs, otherObs) = partition chooseElements obs where 
-		chooseElements (Obs (Rel "@Element" _)) = True
-		chooseElements _                        = False
-	let groupedObs = groupBy sameRelation $ sort otherObs
-	let indexedObs = zip groupedObs $ map (\obs-> fromMaybe 0 (elemIndex obs groupedObs)) groupedObs
-	let (unaryObs, multiObs) = partition unary obs where
-		unary (Obs (Rel _ [e])) = True
-		unary (Obs (FnRel _ [e])) = True
-		unary _ = False
-	let typeMap = foldr (addTypeMap) Map.empty unaryObs
-	let typeList = Map.toList typeMap
-	let indexedTypes = zip typeList $ map (\obs-> fromMaybe 0 (elemIndex obs typeList)) typeList
-	-- construct xml file from data structures
-	let str = 
-		"<alloy builddate=\"0\">\n"++
-		"\t<instance bitwidth=\"0\" maxseq=\"0\" command=\"\" filename=\"\">\n"++
-		"\t\t<sig label=\"univ\" ID=\"1\" builtin=\"yes\"></sig>\n"++
-		xmlDomain elemObs ++ "\n" ++
-		intercalate "\n" (xmlObservationGroup <$> indexedObs) ++ "\n" ++
-		intercalate "\n" (xmlTypeGroup <$> indexedTypes) ++ "\n" ++
-		"\t</instance>\n"++
-		"\t<source filename=\"\"/>\n"++
-		"</alloy>\n"
-	writeFile file $ str
+        -- rework the model into workable data structures
+        let (elemObs, otherObs) = partition chooseElements obs where 
+                chooseElements (Obs (Rel "@Element" _)) = True
+                chooseElements _                        = False
+        let groupedObs = groupBy sameRelation $ sort otherObs
+        let indexedObs = zip groupedObs $ map (\obs-> fromMaybe 0 (elemIndex obs groupedObs)) groupedObs
+        let (unaryObs, multiObs) = partition unary obs where
+                unary (Obs (Rel _ [e])) = True
+                unary (Obs (FnRel _ [e])) = True
+                unary _ = False
+        let typeMap = foldr (addTypeMap) Map.empty unaryObs
+        let typeList = Map.toList typeMap
+        let indexedTypes = zip typeList $ map (\obs-> fromMaybe 0 (elemIndex obs typeList)) typeList
+        -- construct xml file from data structures
+        let str = 
+                "<alloy builddate=\"0\">\n"++
+                "\t<instance bitwidth=\"0\" maxseq=\"0\" command=\"\" filename=\"\">\n"++
+                "\t\t<sig label=\"univ\" ID=\"1\" builtin=\"yes\"></sig>\n"++
+                xmlDomain elemObs ++ "\n" ++
+                intercalate "\n" (xmlObservationGroup <$> indexedObs) ++ "\n" ++
+                intercalate "\n" (xmlTypeGroup <$> indexedTypes) ++ "\n" ++
+                "\t</instance>\n"++
+                "\t<source filename=\"\"/>\n"++
+                "</alloy>\n"
+        writeFile file $ str
 
 addTypeMap :: Observation -> Map.Map Element [Sym] -> Map.Map Element [Sym]
 addTypeMap (Obs (Rel sym [(Elem e)])) m = Map.insert e (sym:(fromMaybe [] (Map.lookup e m))) m
@@ -116,26 +116,26 @@ xmlDomain :: [Observation] -> String
 xmlDomain obs = "\t\t<sig label=\"this/Object\" ID=\"11\" parentID=\"1\" abstract=\"yes\">\n\t\t\t"++
   intercalate "\n\t\t\t" elems++
   "\n\t\t</sig>" where 
-	elems = (\(Obs (Rel "@Element" [e])) -> "<atom label=\""++show e++"\"/>") <$> obs
+        elems = (\(Obs (Rel "@Element" [e])) -> "<atom label=\""++show e++"\"/>") <$> obs
 
 xmlObservationGroup :: ([Observation],Int) -> String
 xmlObservationGroup ([],i) = ""
 xmlObservationGroup (obs,i) = case head obs of
-							 (Obs (Rel sym _))   -> xmlRelationObs i sym obs
-							 (Obs (FnRel sym _)) -> xmlFunctionObs i sym obs
-							 (Obs (Inc _))       -> ""
+                                                         (Obs (Rel sym _))   -> xmlRelationObs i sym obs
+                                                         (Obs (FnRel sym _)) -> xmlFunctionObs i sym obs
+                                                         (Obs (Inc _))       -> ""
 
 xmlRelationObs :: Int -> RelSym -> [Observation] -> String
 xmlRelationObs i "=" obs = ""
 xmlRelationObs i sym obs = do
-	let tuple  = (\(Obs (Rel _ ts)) -> xmlTuple ts) <$> obs
-	let (Obs (Rel _ ts)) = head obs
-	case length ts of
-	  1 -> "" --dealt with adhoc
-	  _ -> "\t\t<field label="++show sym++" ID=\""++show (100+i)++"\" parentID=\"11\">\n\t\t\t"++ 
-		intercalate "\n\t\t\t" tuple ++
-		"\n\t\t\t<types> " ++ (xmlTypeTuple $ length ts) ++ " </types>" ++
-		"\n\t\t</field>"
+        let tuple  = (\(Obs (Rel _ ts)) -> xmlTuple ts) <$> obs
+        let (Obs (Rel _ ts)) = head obs
+        case length ts of
+          1 -> "" --dealt with adhoc
+          _ -> "\t\t<field label="++show sym++" ID=\""++show (100+i)++"\" parentID=\"11\">\n\t\t\t"++ 
+                intercalate "\n\t\t\t" tuple ++
+                "\n\t\t\t<types> " ++ (xmlTypeTuple $ length ts) ++ " </types>" ++
+                "\n\t\t</field>"
 
 xmlFunctionObs :: Int -> FnSym -> [Observation] -> String
 xmlFunctionObs i sym obss  = do
@@ -143,17 +143,17 @@ xmlFunctionObs i sym obss  = do
   let tuple = (\(Obs (FnRel _ ts)) -> xmlTuple ts) <$> obss
   let (Obs (FnRel _ ts)) = head obss
   case length ts of
-	1 -> "" -- dealt with adhoc
-	_ -> "\t\t<field label="++show sym++" ID=\""++show (100+i)++"\" parentID=\"11\">\n\t\t\t"++ 
-	  intercalate "\n\t\t\t" tuple ++
-	  "\n\t\t\t<types> " ++ (xmlTypeTuple $ length ts) ++ "</types>" ++
-	  "\n\t\t</field>"
+        1 -> "" -- dealt with adhoc
+        _ -> "\t\t<field label="++show sym++" ID=\""++show (100+i)++"\" parentID=\"11\">\n\t\t\t"++ 
+          intercalate "\n\t\t\t" tuple ++
+          "\n\t\t\t<types> " ++ (xmlTypeTuple $ length ts) ++ "</types>" ++
+          "\n\t\t</field>"
 
 xmlTuple :: [Term] -> String
 xmlTuple [] = ""
 xmlTuple es =   "<tuple> " ++ 
-		intercalate " " (xmlAtom <$> es) ++
-		" </tuple>"
+                intercalate " " (xmlAtom <$> es) ++
+                " </tuple>"
 
 xmlAtom :: Term -> String
 xmlAtom (Elem e) = "<atom label=\""++show e++"\"/>"
@@ -171,7 +171,7 @@ xmlTypeGroup ((e,syms),i) = xmlTypes i e (typesOf e syms []) where
 
 xmlTypes :: Int -> Element -> [Sym] -> String
 xmlTypes i e syms = "\t\t<sig label=\""++typestring++"\" ID=\""++show (200+i)++"\" parentID=\"11\">\n\t\t\t"++ 
-	  intercalate "\n\t\t\t" [xmlAtom (Elem e)] ++
-	  "\n\t\t</sig>" where
-		typestring = intercalate "/" syms
+          intercalate "\n\t\t\t" [xmlAtom (Elem e)] ++
+          "\n\t\t</sig>" where
+                typestring = intercalate "/" syms
 

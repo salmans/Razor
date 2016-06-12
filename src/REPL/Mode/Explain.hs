@@ -40,7 +40,7 @@ import Syntax.IGeometric
 
 
 instance LoopMode ExplainMode ExplainIn ExplainOut where
-  runOnce	  = queryRun
+  runOnce         = queryRun
   update    = updateExplain
   enterMode = enterExplain
 

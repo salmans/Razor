@@ -39,7 +39,7 @@ import GHC.IO.Handle
 import Control.Exception
 
 instance LoopMode ExploreMode ExploreIn ExploreOut where
-  runOnce	  = exploreRun
+  runOnce         = exploreRun
   update    = updateExplore
   enterMode = enterExplore
 
@@ -169,10 +169,10 @@ exploreHelp cmd = prettyPrint 0 foutput $ ""++
 
 parseExploreCommand :: String -> Either Error ExploreCommand
 parseExploreCommand cmd = 
-	let pResult = parse pCommand "parsing EXPLORE command" cmd
-	in case pResult of
-		Left err -> Left $ show err
-		Right val -> Right $ val
+        let pResult = parse pCommand "parsing EXPLORE command" cmd
+        in case pResult of
+                Left err -> Left $ show err
+                Right val -> Right $ val
 
 pCommand :: Parser ExploreCommand
 pCommand = pViz <|> pCurrent <|> pNext <|> pPush <|> pPop
