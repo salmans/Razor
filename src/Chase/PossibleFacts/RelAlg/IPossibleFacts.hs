@@ -279,7 +279,7 @@ relSequentInstances cfg relSeq uni new resSet provs =
     in nub [ (s, fromJust inst) | 
               (s, bs, es) <- subs
             , inst        <-  buildObservationSequent <$>
-                              (instantiateSequent pure uni new s bs es seq)
+                              (instantiateSequent (not pure) uni new s bs es seq)
             , isJust inst ]
     where seq = toSequent relSeq
 
@@ -289,11 +289,9 @@ instantiateSequent relaxed uni new sub bodySub exSub seq =
     let bdy  = formulaExistsSubstitute bodySub (sequentBody seq)
         seq' = substitute sub seq { sequentBody = bdy }
     in  case exSub of
-          Left fns  -> -- if relaxed
-                       -- then return $ foldr (replaceRelaxIncompleteEx domain) seq' fns
-                       -- else return $ foldr replaceIncompleteEx seq' fns
-                       return $ foldr replaceIncompleteEx seq' fns
-                         -- For now, do not reuse in the relax mode
+          Left fns  -> return $ foldr
+                       (if relaxed then replaceRelaxIncompleteEx domain else replaceIncompleteEx)
+                       seq' fns
           Right s   -> let seq''      = sequentExistsSubstitute s seq'
                            loneSkFuns = rights $ skolemFunctions seq''
                            skMap      = Map.fromListWith (++) 
@@ -364,12 +362,9 @@ applyLoneSubs relaxed uni new skMap ethSeq =
            let (ls, rs) = partitionEithers temp           
            if not $ null ls
              then do
-               let incSeq = -- if relaxed
-                            -- then foldr (replaceRelaxIncompleteEx domain) seq $ fst
-                            --      <$> completeAtomsList
-                            -- else foldr replaceIncompleteEx seq $ fst <$> completeAtomsList
-                            foldr replaceIncompleteEx seq $ fst <$> completeAtomsList
-                            -- For now, do not reuse in the relax mode
+               let incSeq = foldr
+                            (if relaxed then replaceRelaxIncompleteEx domain else replaceIncompleteEx)
+                            seq $ fst <$> completeAtomsList
                return $ Left incSeq
              else do
                  let res          = transformTuples rs
