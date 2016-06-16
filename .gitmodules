@@ -1,0 +1,4 @@
+[submodule "smtlib2"]
+	path = smtlib2
+	url = https://github.com/pseudometric/smtlib2.git
+	branch = res
