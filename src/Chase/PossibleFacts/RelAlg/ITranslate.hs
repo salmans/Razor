@@ -489,7 +489,7 @@ insertTuples tblPair (Proj innerExp col heading skFn unqExp) db depth dpths
 
 insertTuples tbl (Sel exp colPairs _) db depth dpths = do
   let totalColumns = length colPairs
-  let inject tup = Vect.map 
+      inject tup = Vect.map 
                    (\i -> case lookup i colPairs of
                             Nothing -> error $ 
                                        unitName ++ ".insertTuples: " ++
@@ -501,9 +501,9 @@ insertTuples tbl (Sel exp colPairs _) db depth dpths = do
              
 insertTuples tbl exp@(Join lExp rExp heads _) db depth dpths = do
   let lTran = unjoinTupleTransformer (header lExp) heads
-  let rTran = unjoinTupleTransformer (header rExp) heads
-  let lSet  = DB.map (\(Tuple tup1 tup2) -> Tuple tup1 (lTran tup2)) tbl
-  let rSet  = DB.map (\(Tuple tup1 tup2) -> Tuple tup1 (rTran tup2)) tbl
+      rTran = unjoinTupleTransformer (header rExp) heads
+      lSet  = DB.map (\(Tuple tup1 tup2) -> Tuple tup1 (lTran tup2)) tbl
+      rSet  = DB.map (\(Tuple tup1 tup2) -> Tuple tup1 (rTran tup2)) tbl
 
   db' <- insertTuples lSet lExp db depth dpths
   insertTuples rSet rExp db' depth dpths

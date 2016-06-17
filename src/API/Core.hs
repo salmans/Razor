@@ -154,26 +154,26 @@ generateChase config theory = chase config theory
 augmentChase :: Config -> Theory -> (ChasePossibleFactsType, ProvInfo,  SATIteratorType, Int) -> (Observation,[Element]) -> (ChasePossibleFactsType, ProvInfo, SATIteratorType, Int)
 augmentChase cfg thy (b, p, it, c) (obs@(Obs (Rel rsym terms)),newelms) = do
   let newElmPreds = map (\e->Obs (elementPred (Elem e))) newelms
-  let obss = (obs:newElmPreds)
-  let newSeq = ObservationSequent [] [obss]
+      obss = (obs:newElmPreds)
+      newSeq = ObservationSequent [] [obss]
   -- update provenance
-  let ep' = foldr (\e->insertProv e (Fn "user" [Fn rsym terms])) (elementProvs p) newelms
-  let op' = Map.insert obs (UserBlame obs) (observationProvs p)
-  let bm' = Map.insert (UserBlame obs) newSeq (blameSequentMap p)
-  let p' = ProvInfo ep' op' bm'
+      ep' = foldr (\e->insertProv e (Fn "user" [Fn rsym terms])) (elementProvs p) newelms
+      op' = Map.insert obs (UserBlame obs) (observationProvs p)
+      bm' = Map.insert (UserBlame obs) newSeq (blameSequentMap p)
+      p' = ProvInfo ep' op' bm'
   -- update SAT iterator
-  let it' = satStore newSeq $ satPush it
+      it' = satStore newSeq $ satPush it
   -- rerun chase
-  let thy' = preprocess thy
-  let seqMap = (buildSequentMap $ fromJust <$> fromSequent <$> thy') :: SequentMap ChaseSequentType
+      thy' = preprocess thy
+      seqMap = (buildSequentMap $ fromJust <$> fromSequent <$> thy') :: SequentMap ChaseSequentType
   augmentBase cfg seqMap (b, p', it', c) obss
 
 --
 --
 augmentBase :: Config -> SequentMap ChaseSequentType -> (ChasePossibleFactsType, ProvInfo, SATIteratorType, Int) -> [Observation] -> (ChasePossibleFactsType, ProvInfo, SATIteratorType, Int)
 augmentBase cfg seqMap (b, p, it, c) obss@((Obs (Rel rsym terms)):rest) = do
-  let d = foldr (\o->addToBase o) emptyBase (obss)
-  let seqMap' = Map.filter (not.startSequent) seqMap
+  let d = foldr addToBase emptyBase obss
+      seqMap' = Map.filter (not.startSequent) seqMap
      -- The current implementation of the Chase instantiate existential
      -- quantifiers even if they are already witnessed by an element in the
      -- model. We don't want to regenerate new elements by processing sequents
@@ -227,21 +227,21 @@ getElementBlames thy prov mdl eqelms = do
       Right blame -> return (blame, [])
       Left skolemtree@(e, f, r) -> do
         let irules = map (\(r', r)->((fromMaybe 0 (elemIndex r' (preprocess thy)))+1, r', r)) $ zip (preprocess thy) thy
-        let blames = catMaybes $ map (\rule->getElementBlame rule mdl skolemtree) irules
+            blames = catMaybes $ map (\rule->getElementBlame rule mdl skolemtree) irules
         return ((head blames), r)
 --
 --
 getElementBlame :: (Id, Sequent, Sequent) -> Model -> (Element, FnSym, [Element]) -> Maybe Blame
 getElementBlame (rid, (Sequent bd' hd'), (Sequent bd hd)) mdl (e, f, r) = do
   let exists = formulaExistentials hd'
-  let ruleskolems = map getskolemnames exists
+      ruleskolems = map getskolemnames exists
   case elem f ruleskolems of
     False -> Nothing
     True -> do
       let freevars = freeVars bd
-      let freefns = freeVars bd' \\ freevars
-      let terms = map (\e->(Elem e)) r
-      let (varterms, fnterms) = splitAt (length freevars) terms
+          freefns = freeVars bd' \\ freevars
+          terms = map (\e->(Elem e)) r
+          (varterms, fnterms) = splitAt (length freevars) terms
       Just $ TheoryBlame rid $ Map.fromList $ (zip freevars varterms) ++ (zip freefns fnterms)
   where
     getskolemnames e = case e of
@@ -252,9 +252,9 @@ getElementBlame (rid, (Sequent bd' hd'), (Sequent bd hd)) mdl (e, f, r) = do
 getObservationBlame :: ObservationProvs -> Model -> Observation -> Maybe Blame
 getObservationBlame prov mdl obv@(Obs (Rel sym ts)) = do
   let eqelms = (map (getEqualElements mdl) ts)
-  let possibilities = combination eqelms
-  let obvs = map (\ts->(Obs (Rel sym (map(\t->(Elem t))ts)))) possibilities
-  let blames = catMaybes $ map (\o->(Map.lookup o prov)) obvs
+      possibilities = combination eqelms
+      obvs = map (\ts->(Obs (Rel sym (map(\t->(Elem t))ts)))) possibilities
+      blames = catMaybes $ map (\o->(Map.lookup o prov)) obvs
   case blames of
     [] -> Nothing
     blame:bs -> Just blame
@@ -323,7 +323,7 @@ atomElements (FnRel _ args)   = catMaybes $ termToElement <$> args
 trueElementSequent :: Model -> ObservationSequent -> Sequent
 trueElementSequent mdl oseq = do
   let eqnamess = Map.elems (modelElements mdl)
-  let renamed = foldr (\eqnames->renameObservationSequent eqnames (head eqnames)) oseq eqnamess
+      renamed = foldr (\eqnames->renameObservationSequent eqnames (head eqnames)) oseq eqnamess
   toSequent renamed
 --
 termRename :: [Element] -> Element -> Term -> Term

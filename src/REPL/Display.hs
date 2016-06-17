@@ -58,7 +58,7 @@ prettyPrint tabs format str = do
 prettyHighlight :: Int -> String -> String -> IO ()
 prettyHighlight tabs high str = do
   let pieces = T.splitOn (T.pack high) (T.pack str)
-  let highpieces = intersperse (T.pack high) pieces 
+      highpieces = intersperse (T.pack high) pieces 
   prettyPrint tabs fuserinput ""
   mapM_ (\p -> case (elemIndex p highpieces) of
         Nothing -> return ()
@@ -86,17 +86,17 @@ xmlModel file mdl = case mdl of
         let (elemObs, otherObs) = partition chooseElements obs where 
                 chooseElements (Obs (Rel "@Element" _)) = True
                 chooseElements _                        = False
-        let groupedObs = groupBy sameRelation $ sort otherObs
-        let indexedObs = zip groupedObs $ map (\obs-> fromMaybe 0 (elemIndex obs groupedObs)) groupedObs
-        let (unaryObs, multiObs) = partition unary obs where
+            groupedObs = groupBy sameRelation $ sort otherObs
+            indexedObs = zip groupedObs $ map (\obs-> fromMaybe 0 (elemIndex obs groupedObs)) groupedObs
+            (unaryObs, multiObs) = partition unary obs where
                 unary (Obs (Rel _ [e])) = True
                 unary (Obs (FnRel _ [e])) = True
                 unary _ = False
-        let typeMap = foldr (addTypeMap) Map.empty unaryObs
-        let typeList = Map.toList typeMap
-        let indexedTypes = zip typeList $ map (\obs-> fromMaybe 0 (elemIndex obs typeList)) typeList
+            typeMap = foldr (addTypeMap) Map.empty unaryObs
+            typeList = Map.toList typeMap
+            indexedTypes = zip typeList $ map (\obs-> fromMaybe 0 (elemIndex obs typeList)) typeList
         -- construct xml file from data structures
-        let str = 
+            str = 
                 "<alloy builddate=\"0\">\n"++
                 "\t<instance bitwidth=\"0\" maxseq=\"0\" command=\"\" filename=\"\">\n"++
                 "\t\t<sig label=\"univ\" ID=\"1\" builtin=\"yes\"></sig>\n"++
@@ -129,7 +129,7 @@ xmlRelationObs :: Int -> RelSym -> [Observation] -> String
 xmlRelationObs i "=" obs = ""
 xmlRelationObs i sym obs = do
         let tuple  = (\(Obs (Rel _ ts)) -> xmlTuple ts) <$> obs
-        let (Obs (Rel _ ts)) = head obs
+            (Obs (Rel _ ts)) = head obs
         case length ts of
           1 -> "" --dealt with adhoc
           _ -> "\t\t<field label="++show sym++" ID=\""++show (100+i)++"\" parentID=\"11\">\n\t\t\t"++ 
@@ -140,8 +140,8 @@ xmlRelationObs i sym obs = do
 xmlFunctionObs :: Int -> FnSym -> [Observation] -> String
 xmlFunctionObs i sym obss  = do
   let atoms = (\(Obs (FnRel _ ts)) -> concat (xmlAtom <$> ts)) <$> obss
-  let tuple = (\(Obs (FnRel _ ts)) -> xmlTuple ts) <$> obss
-  let (Obs (FnRel _ ts)) = head obss
+      tuple = (\(Obs (FnRel _ ts)) -> xmlTuple ts) <$> obss
+      (Obs (FnRel _ ts)) = head obss
   case length ts of
         1 -> "" -- dealt with adhoc
         _ -> "\t\t<field label="++show sym++" ID=\""++show (100+i)++"\" parentID=\"11\">\n\t\t\t"++ 

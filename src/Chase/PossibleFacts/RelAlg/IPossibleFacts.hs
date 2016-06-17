@@ -194,9 +194,9 @@ evaluateRelSequent :: RelSequent -> Database -> Database
 evaluateRelSequent seq@(RelSequent bdy hds bdyDlt _ _ _ _) db dlt = do  
   provs <- liftPullMProvs State.get
   let bdyDltExTbl = evaluateRelExp db dlt bdyDlt
-  let bdyDltTbl   = undecorateTable bdyDltExTbl
+      bdyDltTbl   = undecorateTable bdyDltExTbl
 
-  let hdTbls      = map (\(hd, tran) ->
+      hdTbls      = map (\(hd, tran) ->
                              if   bdyDlt == TblFull || 
                                       (header bdyDlt) == fullTableHeader
                              then decorateTable bdyDltTbl Vect.empty
@@ -217,10 +217,10 @@ insertRelSequent :: (SATIterator it) => RelSequent -> RelResultSet -> Database
                  -> PushM Database it Database
 insertRelSequent seq resSet db = do
   let hds   = relSequentHead seq
-  let tbls  = newResultTuples resSet
+      tbls  = newResultTuples resSet
   cfg       <- liftPushMConfig State.get
   let body  = relSequentBody seq
-  let vars  = case body of
+      vars  = case body of
                 TblEmpty -> []
                 TblFull  -> []
                 _        -> let l = Map.toList $ header body 
@@ -229,7 +229,7 @@ insertRelSequent seq resSet db = do
   liftPushMProvs $ State.modify 
                  $ \(seqid, _, provs) -> (seqid, vars, provs) --change ps to provs
   let depth = configDefaultSkolemDepth cfg
-  let dpths = configSkolemDepth cfg
+      dpths = configSkolemDepth cfg
   result    <- (liftM removeEmptyTables)              
                $ foldM ( \d (e, t) -> insertTuples t e d depth dpths) db 
                $ zip (fst <$> hds) tbls
@@ -368,9 +368,9 @@ applyLoneSubs relaxed uni new skMap ethSeq =
                return $ Left incSeq
              else do
                  let res          = transformTuples rs
-                 let (sub, exSub) = (\(x, y) -> (Map.fromList x, Map.fromList y)) res
-                 let rest'        = Map.map (substitute sub) rest
-                 let subSeq       = sequentExistsSubstitute exSub seq
+                     (sub, exSub) = (\(x, y) -> (Map.fromList x, Map.fromList y)) res
+                     rest'        = Map.map (substitute sub) rest
+                     subSeq       = sequentExistsSubstitute exSub seq
                  applyLoneSubs relaxed uni new rest' $ if isLeft
                                                        then Left  $ subSeq
                                                        else Right $ subSeq

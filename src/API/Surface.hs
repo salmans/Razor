@@ -119,12 +119,12 @@ modelNext seed mspace = case seed of
       (Nothing, stream') -> case oldmdl of
         Just mdl -> do
           let mcoor' = mcoor
-          let mspace' = Map.insert mcoor' ((b, p, stream', c), mdl) mspace
+              mspace' = Map.insert mcoor' ((b, p, stream', c), mdl) mspace
           Just (mspace', mcoor')
         Nothing -> Nothing
       (Just mdl', stream') -> do
         let mcoor' = Stream mcoor
-        let mspace' = Map.insert mcoor' ((b, p, stream', c), mdl') mspace
+            mspace' = Map.insert mcoor' ((b, p, stream', c), mdl') mspace
         Just (mspace', mcoor')
 
 modelUp :: Config -> Theory -> (Observation, [Element]) -> ModelSpace -> ModelCoordinate -> Maybe (ModelSpace, ModelCoordinate)
@@ -136,7 +136,7 @@ modelUp config theory (obs, newelms) mspace mcoor = case modelspaceLookup mspace
       (Nothing, _) -> Nothing
       (Just mdl', stack') -> do
         let mcoor' = Stack obs mcoor
-        let mspace' = Map.insert mcoor' ((b, p, stack', c), mdl') mspace
+            mspace' = Map.insert mcoor' ((b, p, stack', c), mdl') mspace
         Just (mspace', mcoor')
 
 modelDown :: ModelSpace -> ModelCoordinate -> ModelCoordinate -> Maybe ModelSpace
@@ -175,8 +175,8 @@ getOrigin thy gstar@(b,p,it,c) mdl isrec term = do
         True -> case blamed origin eqelms of
           blame@(Right (_, (Sequent bd hd))) -> do
             let freeelms = formulaElements bd
-            let childelms = nub (nextelms++freeelms)
-            let modelchildelms = filter (\e->Map.member e (modelElements mdl)) childelms
+                childelms = nub (nextelms++freeelms)
+                modelchildelms = filter (\e->Map.member e (modelElements mdl)) childelms
             return $ QOriginNode term blame (concatMap (\e->(getOrigin thy gstar mdl isrec (Elem e))) modelchildelms)
           blame -> return $ QOriginNode term blame (concatMap (\e->(getOrigin thy gstar mdl isrec (Elem e))) nextelms)
   where 
