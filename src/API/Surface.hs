@@ -70,11 +70,6 @@ loadTheory :: Config -> Bool -> IO(Either Error (Config, Theory))
 loadTheory config isTPTP = case configInput config of
   Nothing -> return $ Left $ "No theory file specified!"
   Just file -> do
-    --if isTPTP 
-    --  then do
-    --    thy <- loadTPTP file
-    --    return $ Right (config, thy)
-    --  else do
         res1 <- try (readFile file) :: IO (Either SomeException String)
         case res1 of
           Left ex -> return $ Left $ "Unable to read file! "++(show ex)
@@ -83,17 +78,6 @@ loadTheory config isTPTP = case configInput config of
             Right (Input thy dps) -> do
               let config' = config {configSkolemDepth = dps}
               return $ Right (config', thy)
-  --where
-  --  loadTPTP file = do
-  --    res1 <- try (readFile file) :: IO (Either SomeException String)
-  --    case res1 of 
-  --      Left ex -> return $ error ("could not read tptp file:"++file)
-  --      Right raw -> case parseTPTPFile raw of
-  --        Nothing -> return $ error ("could not pasrse tptp file:"++file)
-  --        Just (thy,includes) -> recTPTP thy includes
-  --  recTPTP thy includes = foldM (\t i -> do
-  --    t' <- loadTPTP ((configTPTPPath config)++i)
-  --    return $ t `union` t') thy includes
 
 chaseTheory :: Config -> Theory -> ChaseState
 chaseTheory config theory = generateChase config theory
