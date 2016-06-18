@@ -40,12 +40,12 @@ import qualified SAT.Data (satInitialize, satStore, satSolve, satClose, satPush,
 import Tools.Config (Config)
 
 -- <><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
--- Uncomment to select the implementation:
+-- Uncomment to select the implementation (or you would, if there were in
+-- fact multiple working implementations; non-working code for Picosat and
+-- SBV was removed):
 
--- import SAT.Picosat -- Experimental implementation (Not working)
 import SAT.SMTLib2
--- import SAT.SBV -- This implementation is outdated. The file will be deleted
-                  -- soon.
+
 -- <><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
 
 type SATIteratorState = State.State SATIteratorType
