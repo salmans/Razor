@@ -64,15 +64,6 @@ data TableRef  = ConstTable Constant -- constant tables
 type Tup       = Vect.Vector Element
 
 
-{- A hashable instance to work with IHashSet as the underlying database 
-   implementation. -}
--- instance Hashable Tup where
---     s `hashWithSalt` tup = 
---         fst $ Vect.foldr (\e (res, d) -> 
---                               let he = s `hashWithSalt` e
---                               in  (res + (he * d * 100), d+1)) (0, 0) tup
-
-
 {-| A TupleD is a vector of elements decorated with an object of type @a@. -}
 data TupleD a  = Tuple { tupleElems :: Tup 
                        , tupleDec   :: a
@@ -215,7 +206,7 @@ emptyDatabase =  Map.empty
 {-| Empty 'Database' inititialized with a set of 'Constant's. -}
 emptyDatabaseWithConstants :: [Constant] -> Database
 emptyDatabaseWithConstants []     = emptyDatabase
-emptyDatabaseWithConstants consts = undefined
+emptyDatabaseWithConstants consts = undefined -- XXX
     -- let elemTbl   = DB.fromList $ tuple.(Vect.singleton) <$> elems
     --     constTbls = [ (ConstTable c, mkCTbl name)| c@(Constant name) <- consts]
     -- in  Map.fromList $ (RelTable "@Element", elemTbl):constTbls

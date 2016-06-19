@@ -56,7 +56,7 @@ fromXMLFile :: String -> IO (UState)
 fromXMLFile file = do
   roots <- runX ((xunpickleDocument xpRoot xmlConfigIN file)>>>processXML)
   let (XMLRoot answer (XMLState theory prov model)) = head roots
-  let cfg = Config.defaultConfig
+      cfg = Config.defaultConfig
   return (UState (cfg, theory) (generateGS cfg theory) ((satInitialize emptySATTheory),model) (deriveModelProv theory prov model))
 
 processXML :: IOSArrow XMLRoot XMLRoot

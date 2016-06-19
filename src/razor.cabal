@@ -39,17 +39,46 @@ executable razor
   hs-source-dirs:   .
   -- other-modules:
   -- ghc-options: 	    -rtsopts -prof -fprof-auto -auto-all -caf-all
-  build-depends:       base >= 4.6, filepath ==1.3.*, old-time ==1.1.*, containers ==0.5.*, parsec ==3.1.*, mtl ==2.1.*, deepseq ==1.3.*, QuickCheck ==2.6.*, directory ==1.2.*, vector==0.10.*, haskeline==0.7.*, ansi-terminal==0.6.*, text==0.11.*, smtlib2 == 0.2.*, process==1.2.0.*
+  build-depends:
+     QuickCheck >=2.6 && <2.9,
+     ansi-terminal >=0.6 && <0.7,
+     containers >=0.5 && <0.6,
+     deepseq >=1.3 && <1.5,
+     directory >=1.2 && <1.3,
+     filepath >=1.3 && <1.5,
+     haskeline >=0.7 && <0.8,
+     mtl >=2.1 && <2.3,
+     old-time >=1.1 && <1.2,
+     parsec >=3.1 && <3.2,
+     process >=1.2 && <1.5,
+     safe >=0.3.9 && < 0.4,
+     smtlib2 >=0.2 && <0.4,
+     text >=0.11 && <1.3,
+     vector >=0.10 && <0.12,
+     base >=4.6
 
-
-
----------
--- CLI --
----------
+-- ---------
+-- -- CLI --
+-- ---------
 -- executable razorcli
 --   main-is:          CLI/Main.hs
 --   hs-source-dirs:   .
 --   -- other-modules:
 --   -- ghc-options: 	    -rtsopts -prof -fprof-auto -auto-all -caf-all
---   build-depends:       base >= 4.6, filepath ==1.3.*, old-time ==1.1.*, containers ==0.5.*, parsec ==3.1.*, mtl ==2.1.*, deepseq ==1.3.*, QuickCheck ==2.6.*, directory ==1.2.*, vector==0.10.*, sbv, text==1.1.*, hashmap ==1.*, hxt ==9.3.*, hashable ==1.2.*
---, logic-TPTP ==0.4.*
+--   build-depends:
+--      QuickCheck ==2.6.*,
+--      containers ==0.5.*,
+--      deepseq ==1.3.*,
+--      directory ==1.2.*,
+--      filepath ==1.3.*,
+--      hashable ==1.2.*,
+--      hashmap ==1.*,
+--      hxt ==9.3.*,
+--      logic-TPTP ==0.4.*,
+--      mtl ==2.1.*,
+--      old-time ==1.1.*,
+--      parsec ==3.1.*,
+--      sbv,
+--      text==1.1.*,
+--      vector==0.10.*,
+--      base >= 4.6

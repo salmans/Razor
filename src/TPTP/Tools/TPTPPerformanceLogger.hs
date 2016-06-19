@@ -208,12 +208,12 @@ main = do
 -- returns the content of each file as a separate list of inputs.
 recursiveLoad :: String -> String -> IO [[TP.TPTP_Input]]
 recursiveLoad tptpPath fName = do 
-  { src <- readFile fName
-  ; let inputLines = intersperse "\n" (lines src)
-  ; let tptpInputs = (TP.parse.concat) inputLines
-  ; let (incls, fmlas) = partition isInclude tptpInputs
-  ; rest <- mapM (\i -> recursiveLoad tptpPath (includePath tptpPath i)) incls
-  ; return (fmlas:concat rest) }
+  src <- readFile fName
+  let inputLines = intersperse "\n" (lines src)
+      tptpInputs = (TP.parse.concat) inputLines
+      (incls, fmlas) = partition isInclude tptpInputs
+  rest <- mapM (\i -> recursiveLoad tptpPath (includePath tptpPath i)) incls
+  return (fmlas:concat rest)
 
 isInclude :: TP.TPTP_Input -> Bool
 isInclude (TP.Include _ _) = True

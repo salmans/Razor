@@ -19,9 +19,7 @@
   Maintainer  : Salman Saghafi <salmans@wpi.edu>, Ryan Danas <ryandanas@wpi.edu>
 -}
 
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE Rank2Types #-}
-{-# LANGUAGE ImpredicativeTypes #-}
+{-# LANGUAGE FlexibleContexts, Rank2Types, LambdaCase #-}
 
 module API.Core where
 
@@ -30,6 +28,7 @@ import Data.List
 import qualified Data.Map as Map
 import Data.Maybe
 import qualified Data.Text as T
+import Safe
 import System.Console.GetOpt
 import System.Environment
 import System.Exit (exitWith, ExitCode (..))
@@ -107,41 +106,28 @@ options =
             "FILEPATH")
         "UserState represented as an XML file (program writes to this file)"
     , Option "h" ["help"]
-        (NoArg
-          (\_ -> do
-            prg <- getProgName
-            hPutStrLn stderr (usageInfo prg options)
-            exitWith ExitSuccess))
+        (NoArg . const $ do getProgName >>= hPutStrLn stderr . (`usageInfo` options)
+                            exitWith ExitSuccess)
         "Show help"
     ]
+
 parseConfig :: [String] -> IO Config
 parseConfig args = do
   -- Parse options, getting a list of option actions
   let (actions, nonOptions, errors) = getOpt Permute options args
   -- Here we thread startOptions through all supplied option actions
-  config      <- foldl (>>=) (return defaultConfig) actions
-  let config'  = case configInput config of  -- if the input file not specified
-                   Nothing -> if   null nonOptions
-                              then config
-                              else config {configInput = Just $ head nonOptions}
-                                   -- use the first nonOption for the input file
-                   Just _  -> config
-  return config'
+  config <- foldl (>>=) (return defaultConfig) actions
+  return $ case configInput config of  -- if the input file not specified
+             Nothing -> if null nonOptions then config
+                        else config {configInput = Just $ head nonOptions}
+             -- use the first nonOption for the input file
+             Just _  -> config
+
 -- In: configuration options, user input theory
 -- Out: an input if parsing success
+-- XXX this ignores its Config parameter; why? [res]
 parseInputFile :: Config -> String -> Either String CORE.Input
-parseInputFile config input = CORE.parseInput input
---
---
---parseTPTPFile :: String -> Maybe (Theory, [String])
---parseTPTPFile input = case TPTP.parse input of
---  Nothing -> Nothing
---  Just (thy, constants,includes) -> let extra = existsSeq <$> constants
---                           in Just (thy ++ extra,includes)
---  where existsSeq c = let varX = Variable "x"
---                      in  Sequent Tru
---                                  $ Exists Nothing varX
---                                           (Atm $ Rel "=" [Var varX, Cons c])
+parseInputFile _ = CORE.parseInput
 
 ---------------------
 -- Chase Data / G* --
@@ -155,26 +141,26 @@ generateChase config theory = chase config theory
 augmentChase :: Config -> Theory -> (ChasePossibleFactsType, ProvInfo,  SATIteratorType, Int) -> (Observation,[Element]) -> (ChasePossibleFactsType, ProvInfo, SATIteratorType, Int)
 augmentChase cfg thy (b, p, it, c) (obs@(Obs (Rel rsym terms)),newelms) = do
   let newElmPreds = map (\e->Obs (elementPred (Elem e))) newelms
-  let obss = (obs:newElmPreds)
-  let newSeq = ObservationSequent [] [obss]
+      obss = (obs:newElmPreds)
+      newSeq = ObservationSequent [] [obss]
   -- update provenance
-  let ep' = foldr (\e->insertProv e (Fn "user" [Fn rsym terms])) (elementProvs p) newelms
-  let op' = Map.insert obs (UserBlame obs) (observationProvs p)
-  let bm' = Map.insert (UserBlame obs) newSeq (blameSequentMap p)
-  let p' = ProvInfo ep' op' bm'
+      ep' = foldr (\e->insertProv e (Fn "user" [Fn rsym terms])) (elementProvs p) newelms
+      op' = Map.insert obs (UserBlame obs) (observationProvs p)
+      bm' = Map.insert (UserBlame obs) newSeq (blameSequentMap p)
+      p' = ProvInfo ep' op' bm'
   -- update SAT iterator
-  let it' = satStore newSeq $ satPush it
+      it' = satStore newSeq $ satPush it
   -- rerun chase
-  let thy' = preprocess thy
-  let seqMap = (buildSequentMap $ fromJust <$> fromSequent <$> thy') :: SequentMap ChaseSequentType
+      thy' = preprocess thy
+      seqMap = (buildSequentMap $ fromJust <$> fromSequent <$> thy') :: SequentMap ChaseSequentType
   augmentBase cfg seqMap (b, p', it', c) obss
 
 --
 --
 augmentBase :: Config -> SequentMap ChaseSequentType -> (ChasePossibleFactsType, ProvInfo, SATIteratorType, Int) -> [Observation] -> (ChasePossibleFactsType, ProvInfo, SATIteratorType, Int)
 augmentBase cfg seqMap (b, p, it, c) obss@((Obs (Rel rsym terms)):rest) = do
-  let d = foldr (\o->addToBase o) emptyBase (obss)
-  let seqMap' = Map.filter (not.startSequent) seqMap
+  let d = foldr addToBase emptyBase obss
+      seqMap' = Map.filter (not.startSequent) seqMap
      -- The current implementation of the Chase instantiate existential
      -- quantifiers even if they are already witnessed by an element in the
      -- model. We don't want to regenerate new elements by processing sequents
@@ -197,11 +183,11 @@ nextModel it = do
 --
 --
 upModel :: SATIteratorType -> (Maybe Model, SATIteratorType)
-upModel it = satAugment it
+upModel = satAugment
 --
 --
 downModel :: SATIteratorType -> (Maybe Model, SATIteratorType)
-downModel it = satBacktrack $ satPop it
+downModel = satBacktrack . satPop
 --
 --
 closeSAT :: SATIteratorType -> ()
@@ -228,48 +214,48 @@ getElementBlames thy prov mdl eqelms = do
       Right blame -> return (blame, [])
       Left skolemtree@(e, f, r) -> do
         let irules = map (\(r', r)->((fromMaybe 0 (elemIndex r' (preprocess thy)))+1, r', r)) $ zip (preprocess thy) thy
-        let blames = catMaybes $ map (\rule->getElementBlame rule mdl skolemtree) irules
+            blames = catMaybes $ map (\rule->getElementBlame rule mdl skolemtree) irules
         return ((head blames), r)
 --
 --
 getElementBlame :: (Id, Sequent, Sequent) -> Model -> (Element, FnSym, [Element]) -> Maybe Blame
 getElementBlame (rid, (Sequent bd' hd'), (Sequent bd hd)) mdl (e, f, r) = do
   let exists = formulaExistentials hd'
-  let ruleskolems = map getskolemnames exists
+      ruleskolems = map getskolemnames exists
   case elem f ruleskolems of
     False -> Nothing
     True -> do
       let freevars = freeVars bd
-      let freefns = freeVars bd' \\ freevars
-      let terms = map (\e->(Elem e)) r
-      let (varterms, fnterms) = splitAt (length freevars) terms
-      Just $ TheoryBlame rid $ Map.fromList $ (zip freevars varterms) ++ (zip freefns fnterms)
+          freefns = freeVars bd' \\ freevars
+          terms = map Elem r
+          (varterms, fnterms) = splitAt (length freevars) terms
+      Just . TheoryBlame rid . Map.fromList $ (zip freevars varterms) ++ (zip freefns fnterms)
   where
-    getskolemnames e = case e of
-      Left fn -> fn
+    getskolemnames = \case
+      Left fn       -> fn
       Right (fn, _) -> fn
 --
 --
 getObservationBlame :: ObservationProvs -> Model -> Observation -> Maybe Blame
-getObservationBlame prov mdl obv@(Obs (Rel sym ts)) = do
-  let eqelms = (map (getEqualElements mdl) ts)
-  let possibilities = combination eqelms
-  let obvs = map (\ts->(Obs (Rel sym (map(\t->(Elem t))ts)))) possibilities
-  let blames = catMaybes $ map (\o->(Map.lookup o prov)) obvs
-  case blames of
-    [] -> Nothing
-    blame:bs -> Just blame
+getObservationBlame prov mdl obv@(Obs (Rel sym ts)) =
+  let eqelms = map (getEqualElements mdl) ts
+      obvs   = map (Obs . Rel sym . map Elem) $ combination eqelms
+      blames = catMaybes $ map (`Map.lookup` prov) obvs
+  in headMay blames
+
 getObservationBlame _ _ _ = Nothing
---
---
+
 combination :: [[a]] -> [[a]]
+
 combination [l] = do
   choose <- l
-  return (return choose)
+  return $ return choose
+
 combination (l:ls) = do
   choose <- l
-  rest <- (combination ls)
-  return (choose : rest)
+  rest <- combination ls
+  return $ choose : rest
+
 combination [] = []
 
 -------------------
@@ -277,76 +263,72 @@ combination [] = []
 -------------------
 -- In: model of a theory, a term representing an element
 -- Out: a list of elements this model is equivalent to in the given model
+
 getEqualElements :: Model -> Term -> [Element]
-getEqualElements mdl term = case term of
-  (Elem e) -> case (Map.lookup e (modelElements mdl)) of
-    Nothing -> []
-    Just eqelms -> eqelms
-  _ -> []
---
---
+getEqualElements mdl = \case
+  (Elem e) -> maybe [] id . Map.lookup e $ modelElements mdl
+  _        -> []
+
 getSkolemHead :: Term -> Maybe (Either (FnSym, [Term]) Observation)
-getSkolemHead skolemtree = do
-  case skolemtree of
-    (Fn "user" [(Fn rsym terms)]) -> Just $ Right (Obs (Rel rsym terms))
-    (Fn skolemhead skolemrest) -> Just $ Left (skolemhead, skolemrest)
-    (Cons (Constant skolemhead)) -> Just $ Left (skolemhead, [])
-    _ -> Nothing
---
---
-getSkolemElement :: ElementProvs -> Term -> Maybe Element
-getSkolemElement prov skolemterm = (findElementWithProv skolemterm prov)
---
---
+getSkolemHead = \case
+  (Fn "user" [(Fn rsym terms)]) -> Just $ Right (Obs (Rel rsym terms))
+  (Fn skolemhead skolemrest)    -> Just $ Left (skolemhead, skolemrest)
+  (Cons (Constant skolemhead))  -> Just $ Left (skolemhead, [])
+  _ -> Nothing
+
 getSkolemTree :: ElementProvs -> Model -> Element -> Maybe (Either (Element, FnSym, [Element]) Blame)
-getSkolemTree prov mdl elm = case (getElementProv elm prov) of
-  Nothing   -> Nothing
-  Just t -> case (getSkolemHead t) of
-    Nothing -> Nothing
-    Just tree -> case tree of
-      Left (skolemhead, skolemrest) -> Just $ Left (elm, skolemhead, (concatMap (\t->(maybeToList (getSkolemElement prov t))) skolemrest))
-      Right obs -> Just $ Right (UserBlame obs)
---
---
+getSkolemTree prov mdl elm =
+  (\case Left (skolemhead, skolemrest) ->
+           Left (elm, skolemhead, concatMap (maybeToList . (`findElementWithProv` prov)) skolemrest)
+         Right obs ->
+           Right (UserBlame obs))
+  <$> (getElementProv elm prov >>= getSkolemHead)
+
 formulaElements :: Formula -> [Element]
-formulaElements Tru            = []
-formulaElements Fls            = []
-formulaElements (And f1 f2)    = (formulaElements f1) `union` (formulaElements f2)
-formulaElements (Or  f1 f2)    = (formulaElements f1) `union` (formulaElements f2)
-formulaElements (Atm a)        = atomElements a
-formulaElements (Exists _ x f) = (formulaElements f) 
---
+formulaElements = \case
+  Tru            -> []
+  Fls            -> []
+  (And f1 f2)    -> combine f1 f2
+  (Or  f1 f2)    -> combine f1 f2
+  (Atm a)        -> atomElements a
+  (Exists _ x f) -> formulaElements f
+
+  where combine x y = formulaElements x `union` formulaElements y
+
 atomElements :: Atom -> [Element]
-atomElements (Rel   _ args)   = catMaybes $ termToElement <$> args
-atomElements (FnRel _ args)   = catMaybes $ termToElement <$> args
---
---
+atomElements = \case
+  (Rel   _ args) -> result args
+  (FnRel _ args) -> result args
+  -- XXX refutable match
+  where result = catMaybes . fmap termToElement
+
 trueElementSequent :: Model -> ObservationSequent -> Sequent
-trueElementSequent mdl oseq = do
-  let eqnamess = Map.elems (modelElements mdl)
-  let renamed = foldr (\eqnames->renameObservationSequent eqnames (head eqnames)) oseq eqnamess
-  toSequent renamed
---
-termRename :: [Element] -> Element -> Term -> Term
-termRename eqnames actualelm term@(Elem e) = do
-  if elem e eqnames
-    then Elem actualelm
-    else term
-termRename eqnames actualelm term@(Fn sym terms) = Fn sym $ termRename eqnames actualelm <$> terms
-termRename _ _ term = term
--- 
+trueElementSequent mdl oseq =
+  let eqnames = Map.elems $ modelElements mdl
+      renamed = foldr (liftA2 renameObservationSequent id head) oseq eqnames
+  in toSequent renamed
+
+termRename eqnames actualelm = \case
+  term@(Elem e)       -> if elem e eqnames then Elem actualelm else term
+  term@(Fn sym terms) -> Fn sym $ termRename eqnames actualelm <$> terms
+  term                -> term
+
 renameAtom :: [Element] -> Element -> Atom -> Atom
-renameAtom eqnames actualelm (Rel rsym terms) = Rel rsym $ termRename eqnames actualelm <$> terms
-renameAtom eqnames actualelm (FnRel fsym terms) = FnRel fsym $ termRename eqnames actualelm <$> terms
---
+renameAtom eqnames actualelm = \case
+  (Rel   rsym terms) -> Rel   rsym $ rename terms
+  (FnRel fsym terms) -> FnRel fsym $ rename terms
+  where rename = fmap $ termRename eqnames actualelm
+
 renameObservation :: [Element] -> Element -> Observation -> Observation
 renameObservation eqnames actualelm (Obs atm) = Obs $ renameAtom eqnames actualelm atm
---
+
 renameConjuncts :: [Element] -> Element -> [Observation] -> [Observation]
 renameConjuncts eqnames actualelm cs = filter (not.trivialObservation) $ renameObservation eqnames actualelm <$> cs
---
+
 renameDisjuncts :: [Element] -> Element -> [[Observation]] -> [[Observation]]
 renameDisjuncts eqnames actualelm ds = filter (not.trivialObservation) <$> renameConjuncts eqnames actualelm <$> ds
---
+
 renameObservationSequent :: [Element] -> Element -> ObservationSequent -> ObservationSequent
-renameObservationSequent eqnames actualelm (ObservationSequent bdy hds) = ObservationSequent (renameConjuncts eqnames actualelm bdy) (renameDisjuncts eqnames actualelm hds)
+renameObservationSequent eqnames actualelm (ObservationSequent body heads) =
+  ObservationSequent (renameConjuncts eqnames actualelm body)
+                     (renameDisjuncts eqnames actualelm heads)

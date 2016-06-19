@@ -194,9 +194,9 @@ evaluateRelSequent :: RelSequent -> Database -> Database
 evaluateRelSequent seq@(RelSequent bdy hds bdyDlt _ _ _ _) db dlt = do  
   provs <- liftPullMProvs State.get
   let bdyDltExTbl = evaluateRelExp db dlt bdyDlt
-  let bdyDltTbl   = undecorateTable bdyDltExTbl
+      bdyDltTbl   = undecorateTable bdyDltExTbl
 
-  let hdTbls      = map (\(hd, tran) ->
+      hdTbls      = map (\(hd, tran) ->
                              if   bdyDlt == TblFull || 
                                       (header bdyDlt) == fullTableHeader
                              then decorateTable bdyDltTbl Vect.empty
@@ -217,10 +217,10 @@ insertRelSequent :: (SATIterator it) => RelSequent -> RelResultSet -> Database
                  -> PushM Database it Database
 insertRelSequent seq resSet db = do
   let hds   = relSequentHead seq
-  let tbls  = newResultTuples resSet
+      tbls  = newResultTuples resSet
   cfg       <- liftPushMConfig State.get
   let body  = relSequentBody seq
-  let vars  = case body of
+      vars  = case body of
                 TblEmpty -> []
                 TblFull  -> []
                 _        -> let l = Map.toList $ header body 
@@ -229,7 +229,7 @@ insertRelSequent seq resSet db = do
   liftPushMProvs $ State.modify 
                  $ \(seqid, _, provs) -> (seqid, vars, provs) --change ps to provs
   let depth = configDefaultSkolemDepth cfg
-  let dpths = configSkolemDepth cfg
+      dpths = configSkolemDepth cfg
   result    <- (liftM removeEmptyTables)              
                $ foldM ( \d (e, t) -> insertTuples t e d depth dpths) db 
                $ zip (fst <$> hds) tbls
@@ -254,7 +254,7 @@ insertRelSequent seq resSet db = do
                                   in  (it', pr'))
                         (iter, provs) propSeqs
 
-  iter' `deepseq` liftPushMSATIterator (State.put iter')
+  liftPushMSATIterator (State.put iter')
   liftPushMProvs $ State.modify
                  $ \(seqid, vars, _) -> (seqid, vars, provs')
   return result
@@ -279,7 +279,7 @@ relSequentInstances cfg relSeq uni new resSet provs =
     in nub [ (s, fromJust inst) | 
               (s, bs, es) <- subs
             , inst        <-  buildObservationSequent <$>
-                              (instantiateSequent pure uni new s bs es seq)
+                              (instantiateSequent (not pure) uni new s bs es seq)
             , isJust inst ]
     where seq = toSequent relSeq
 
@@ -289,11 +289,9 @@ instantiateSequent relaxed uni new sub bodySub exSub seq =
     let bdy  = formulaExistsSubstitute bodySub (sequentBody seq)
         seq' = substitute sub seq { sequentBody = bdy }
     in  case exSub of
-          Left fns  -> -- if relaxed
-                       -- then return $ foldr (replaceRelaxIncompleteEx domain) seq' fns
-                       -- else return $ foldr replaceIncompleteEx seq' fns
-                       return $ foldr replaceIncompleteEx seq' fns
-                         -- For now, do not reuse in the relax mode
+          Left fns  -> return $ foldr
+                       (if relaxed then replaceRelaxIncompleteEx domain else replaceIncompleteEx)
+                       seq' fns
           Right s   -> let seq''      = sequentExistsSubstitute s seq'
                            loneSkFuns = rights $ skolemFunctions seq''
                            skMap      = Map.fromListWith (++) 
@@ -364,18 +362,15 @@ applyLoneSubs relaxed uni new skMap ethSeq =
            let (ls, rs) = partitionEithers temp           
            if not $ null ls
              then do
-               let incSeq = -- if relaxed
-                            -- then foldr (replaceRelaxIncompleteEx domain) seq $ fst
-                            --      <$> completeAtomsList
-                            -- else foldr replaceIncompleteEx seq $ fst <$> completeAtomsList
-                            foldr replaceIncompleteEx seq $ fst <$> completeAtomsList
-                            -- For now, do not reuse in the relax mode
+               let incSeq = foldr
+                            (if relaxed then replaceRelaxIncompleteEx domain else replaceIncompleteEx)
+                            seq $ fst <$> completeAtomsList
                return $ Left incSeq
              else do
                  let res          = transformTuples rs
-                 let (sub, exSub) = (\(x, y) -> (Map.fromList x, Map.fromList y)) res
-                 let rest'        = Map.map (substitute sub) rest
-                 let subSeq       = sequentExistsSubstitute exSub seq
+                     (sub, exSub) = (\(x, y) -> (Map.fromList x, Map.fromList y)) res
+                     rest'        = Map.map (substitute sub) rest
+                     subSeq       = sequentExistsSubstitute exSub seq
                  applyLoneSubs relaxed uni new rest' $ if isLeft
                                                        then Left  $ subSeq
                                                        else Right $ subSeq

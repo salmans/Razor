@@ -70,11 +70,6 @@ loadTheory :: Config -> Bool -> IO(Either Error (Config, Theory))
 loadTheory config isTPTP = case configInput config of
   Nothing -> return $ Left $ "No theory file specified!"
   Just file -> do
-    --if isTPTP 
-    --  then do
-    --    thy <- loadTPTP file
-    --    return $ Right (config, thy)
-    --  else do
         res1 <- try (readFile file) :: IO (Either SomeException String)
         case res1 of
           Left ex -> return $ Left $ "Unable to read file! "++(show ex)
@@ -83,17 +78,6 @@ loadTheory config isTPTP = case configInput config of
             Right (Input thy dps) -> do
               let config' = config {configSkolemDepth = dps}
               return $ Right (config', thy)
-  --where
-  --  loadTPTP file = do
-  --    res1 <- try (readFile file) :: IO (Either SomeException String)
-  --    case res1 of 
-  --      Left ex -> return $ error ("could not read tptp file:"++file)
-  --      Right raw -> case parseTPTPFile raw of
-  --        Nothing -> return $ error ("could not pasrse tptp file:"++file)
-  --        Just (thy,includes) -> recTPTP thy includes
-  --  recTPTP thy includes = foldM (\t i -> do
-  --    t' <- loadTPTP ((configTPTPPath config)++i)
-  --    return $ t `union` t') thy includes
 
 chaseTheory :: Config -> Theory -> ChaseState
 chaseTheory config theory = generateChase config theory
@@ -119,12 +103,12 @@ modelNext seed mspace = case seed of
       (Nothing, stream') -> case oldmdl of
         Just mdl -> do
           let mcoor' = mcoor
-          let mspace' = Map.insert mcoor' ((b, p, stream', c), mdl) mspace
+              mspace' = Map.insert mcoor' ((b, p, stream', c), mdl) mspace
           Just (mspace', mcoor')
         Nothing -> Nothing
       (Just mdl', stream') -> do
         let mcoor' = Stream mcoor
-        let mspace' = Map.insert mcoor' ((b, p, stream', c), mdl') mspace
+            mspace' = Map.insert mcoor' ((b, p, stream', c), mdl') mspace
         Just (mspace', mcoor')
 
 modelUp :: Config -> Theory -> (Observation, [Element]) -> ModelSpace -> ModelCoordinate -> Maybe (ModelSpace, ModelCoordinate)
@@ -136,7 +120,7 @@ modelUp config theory (obs, newelms) mspace mcoor = case modelspaceLookup mspace
       (Nothing, _) -> Nothing
       (Just mdl', stack') -> do
         let mcoor' = Stack obs mcoor
-        let mspace' = Map.insert mcoor' ((b, p, stack', c), mdl') mspace
+            mspace' = Map.insert mcoor' ((b, p, stack', c), mdl') mspace
         Just (mspace', mcoor')
 
 modelDown :: ModelSpace -> ModelCoordinate -> ModelCoordinate -> Maybe ModelSpace
@@ -175,8 +159,8 @@ getOrigin thy gstar@(b,p,it,c) mdl isrec term = do
         True -> case blamed origin eqelms of
           blame@(Right (_, (Sequent bd hd))) -> do
             let freeelms = formulaElements bd
-            let childelms = nub (nextelms++freeelms)
-            let modelchildelms = filter (\e->Map.member e (modelElements mdl)) childelms
+                childelms = nub (nextelms++freeelms)
+                modelchildelms = filter (\e->Map.member e (modelElements mdl)) childelms
             return $ QOriginNode term blame (concatMap (\e->(getOrigin thy gstar mdl isrec (Elem e))) modelchildelms)
           blame -> return $ QOriginNode term blame (concatMap (\e->(getOrigin thy gstar mdl isrec (Elem e))) nextelms)
   where 

@@ -51,7 +51,7 @@ inputsToGeo inps = do
   (thy, ts, c) <- 
       foldM (\(fs, ts, c) i -> do 
                let cnjr = (TP.unrole.TP.role) i == "conjecture"
-               let (f, t) = inputToFol i
+                   (f, t) = inputToFol i
                f' <- F2G.formulaToTheory cnjr f
                let (f'', t'', c'') = 
                        if cnjr
@@ -67,7 +67,7 @@ inputsToGeo inps = do
       filterFormula (TP.Include _ _) = False
       includes = do
         let is = filter filterInclude inps
-        let paths = map (\(TP.Include path _)->path) is
+            paths = map (\(TP.Include path _)->path) is
         paths
       filterInclude (TP.AFormula _ _ _ _) = False
       filterInclude (TP.Comment _)        = False
@@ -149,10 +149,10 @@ conjecture seq = do
   let vs = freeVars seq
   cs <- mapM (\v -> do { c <- freshSymbol "cjr"; return (Constant c)}) vs
   let sub  = Map.fromList $ zip vs (Cons <$> cs)
-  let (Sequent bdy hd) = substitute sub seq
-  let hdSequents = (\s -> Sequent s Fls) <$> (splitHead hd)
-  let bdySequent = Sequent Tru bdy
-  let filtered   = 
+      (Sequent bdy hd) = substitute sub seq
+      hdSequents = (\s -> Sequent s Fls) <$> (splitHead hd)
+      bdySequent = Sequent Tru bdy
+      filtered   = 
           filter (\s -> case s of
                           Sequent Tru Tru -> False
                           Sequent Fls Fls -> False

@@ -36,7 +36,7 @@ import Syntax.GeometricUtils
 import Syntax.IGeometric
 
 instance LoopMode TheoryMode TheoryIn TheoryOut where
-  runOnce	  = theoryRun
+  runOnce         = theoryRun
   update = updateTheory
   enterMode = enterTheory
 
@@ -106,10 +106,10 @@ theoryHelp cmd = prettyPrint 0 foutput $ ""++
 
 parseTheoryCommand :: String -> Either Error TheoryCommand
 parseTheoryCommand cmd = 
-	let pResult = parse pCommand "parsing THEORYMODE command" cmd
-	in case pResult of
-		Left err -> Left $ show err
-		Right val -> Right $ val
+        let pResult = parse pCommand "parsing THEORYMODE command" cmd
+        in case pResult of
+                Left err -> Left $ show err
+                Right val -> Right $ val
 
 pCommand :: Parser TheoryCommand
 pCommand = pDebug +++ pPure +++ pDefaultDepth +++ pLoad 

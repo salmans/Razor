@@ -193,12 +193,12 @@ data SatResult = Unsatisfiable
 addObservationSequent :: ObservationSequent -> SMTM ()
 addObservationSequent seq@(ObservationSequent bodies heads) = do
   let bodies'     =  bodies
-  let heads'      =  heads
+      heads'      =  heads
   bodiesVals      <- mapM tranObservation bodies'
   headsVals       <- mapM (mapM tranObservation) heads'
   let bodiesValue =  foldr (.&&.) true bodiesVals
-  let headsValue' =  map (foldr (.&&.) true) headsVals
-  let headsValue  =  foldr (.||.) false headsValue'
+      headsValue' =  map (foldr (.&&.) true) headsVals
+      headsValue  =  foldr (.||.) false headsValue'
   assert $ bodiesValue .=>. headsValue
   where filterFunc b = case b of
                          Obs (FnRel _ [_]) -> False
@@ -215,8 +215,8 @@ getSatResult = do
      then do
             container     <- lift State.get
             let domain     = Map.toList $ containerDomain container
-            let terms      = Map.toList $ containerTerms container
-            let atoms      = Map.toList $ containerAtoms container            
+                terms      = Map.toList $ containerTerms container
+                atoms      = Map.toList $ containerAtoms container            
             domainVals    <- mapM (\(k, v) -> do
                                   v' <- getValue v
                                   return (k, Result RKInteger $ RVInteger v')) domain
@@ -241,7 +241,7 @@ tranObservation obs@(Obs (Rel "=" _)) = do
   return (v1 .==. v2)
 tranObservation obs@(Obs atm@(Rel r ts)) = do
   let (SMTFactObs atom) = smtObservation obs
-  let r'                = smtRelSym r
+      r'                = smtRelSym r
   unintRel  <- unintRelValue r' (length ts) 
                -- Not good! symbols must have their arities with themselves. 
                -- This is subject to refactoring. 
@@ -253,7 +253,7 @@ tranObservation obs@(Obs atm@(FnRel f ts))  = do
   let (SMTFnObs term elm) = smtObservation obs
                          -- smtObservation drops the last parameter for 
                          -- functions
-  let elms  =  smtElement <$> (\(Elem e) -> e) <$> (init ts)
+      elms  =  smtElement <$> (\(Elem e) -> e) <$> (init ts)
   unintFunc <- unintFnValue f (length elms)
   sIns      <- mapM elementValue elms
   sOut      <- elementValue elm
@@ -261,7 +261,7 @@ tranObservation obs@(Obs atm@(FnRel f ts))  = do
   return (val .==. sOut)
 tranObservation obs@(Obs atm@(Inc iden))  = do
   let (SMTIncObs iden) = smtObservation obs
-  let r                = smtRelSym iden
+      r                = smtRelSym iden
   unintRel            <- unintRelValue r 0
                       -- treat incomplete flags as propositions
   val       <- atomValue r iden unintRel []
@@ -540,9 +540,6 @@ type ContainerMonad = State.StateT SMTContainer IO
 type SMTM = SMT' ContainerMonad
 
 
-instance NFData SMTContainer -- where
-
-
 {- Runs the given input context and returns the result inside a ContainerMonad.
 -}
 perform :: SMTM a -> ContainerMonad a
@@ -738,23 +735,23 @@ forceResult :: SatResult -> SMTM SBool
 forceResult res = do
   container   <- lift State.get
   let domain   = containerDomain container
-  let rels     = Map.toList $ containerRels container
-  let dic      = getSatResultDictionary res
-  let classes  = equivalenceClasses dic
-  let sClasses = ((\e -> fromJust $ Map.lookup e domain) <$>) 
+      rels     = Map.toList $ containerRels container
+      dic      = getSatResultDictionary res
+      classes  = equivalenceClasses dic
+      sClasses = ((\e -> fromJust $ Map.lookup e domain) <$>) 
                  <$> (Map.elems classes)
 
-  let (factDic, othDic ) = Map.partition (\s -> resKind s == RKBool) dic
+      (factDic, othDic ) = Map.partition (\s -> resKind s == RKBool) dic
       -- Elements of SatResult that are of type KBool correspond to facts
-  let (posDic, negDic)   = Map.partition (\s -> resValue s == RVBool True) factDic
+      (posDic, negDic)   = Map.partition (\s -> resValue s == RVBool True) factDic
       -- Partitioning factDic into positive and negative facts
 
-  let posFacts = Map.keys posDic -- Positive Facts
+      posFacts = Map.keys posDic -- Positive Facts
 
   -- Creating maps from relation names to symAtoms in posFacts and negFacts:
-  let posAtoms = Map.toList $ smtSymAtomMap posFacts
+      posAtoms = Map.toList $ smtSymAtomMap posFacts
 
-  let termStrs = Map.toList 
+      termStrs = Map.toList 
                  $ Map.filterWithKey (\k _ -> not (isElementString k)) othDic
       -- The keys in the map that correspond to terms have type other than
       -- KBool (coming from othDic) and they are not element names.
@@ -878,35 +875,31 @@ minimizeResult :: SatResult -> SMTM SBool
 minimizeResult res = do
   container   <- lift State.get
   let pure     = containerPureMin container
-  let domain   = containerDomain container
-  let rels     = Map.toList $ containerRels container
-  let dic      = getSatResultDictionary res
-  let classes  = equivalenceClasses dic
-  let sClasses = ((\e -> fromJust $ Map.lookup e domain) <$>) 
+      domain   = containerDomain container
+      rels     = Map.toList $ containerRels container
+      dic      = getSatResultDictionary res
+      classes  = equivalenceClasses dic
+      sClasses = ((\e -> fromJust $ Map.lookup e domain) <$>) 
                  <$> (Map.elems classes)
 
-  let (factDic, othDic ) = Map.partition (\s -> resKind s == RKBool) dic
+      (factDic, othDic ) = Map.partition (\s -> resKind s == RKBool) dic
       -- Elements of SatResult that are of type KBool correspond to facts
-  let (posDic, negDic)   = Map.partition (\s -> resValue s == RVBool True) factDic
+      (posDic, negDic)   = Map.partition (\s -> resValue s == RVBool True) factDic
       -- Partitioning factDic into positive and negative facts
 
-  let posFacts = Map.keys posDic -- Positive Facts
-  let negFacts = Map.keys negDic -- Negative Facts
+      posFacts = Map.keys posDic -- Positive Facts
+      negFacts = Map.keys negDic -- Negative Facts
 
   -- Creating maps from relation names to symAtoms in posFacts and negFacts:
-  let posAtoms = Map.toList $ smtSymAtomMap posFacts
-  let negAtoms = Map.toList $ smtSymAtomMap negFacts
+      posAtoms = Map.toList $ smtSymAtomMap posFacts
+      negAtoms = Map.toList $ smtSymAtomMap negFacts
 
-  let termStrs = Map.toList 
+      termStrs = Map.toList 
                  $ Map.filterWithKey (\k _ -> not (isElementString k)) othDic
       -- The keys in the map that correspond to terms have type other than
       -- KBool (coming from othDic) and they are not element names.
-  -- if   relax
-  --   then relaxMinimize classes rels posAtoms negAtoms termStrs
-  --   else pureMinimize classes sClasses rels posAtoms negAtoms termStrs
-  pureMinimize classes sClasses rels posAtoms negAtoms termStrs
-    -- For now, we don't allow the solver to introduce accidental collapses
-  
+  if pure then pureMinimize classes sClasses rels posAtoms negAtoms termStrs
+          else relaxMinimize classes rels posAtoms negAtoms termStrs
 
 -- a helper for minimizeResult for cases where the resulting model has to be
 -- homomorphically minimal
@@ -915,7 +908,7 @@ pureMinimize :: Map.Map Result [SMTElement] -> [[SElement]]
      -> [(String, [SMTAtom])] -> [(SMTTerm, Result)] -> SMTM (SMTExpr Bool)
 pureMinimize classes sClasses rels posAtoms negAtoms termStrs = do
   let eqNegAx  = equalityNegativeAxioms sClasses
-  let eqFlipAx = foldr (.||.) false $ equalityFlipAxioms <$> sClasses
+      eqFlipAx = foldr (.||.) false $ equalityFlipAxioms <$> sClasses
   negs  <- mapM (\(r, unintRel) -> 
                      case lookup r negAtoms of
                        Nothing -> return true
@@ -927,7 +920,7 @@ pureMinimize classes sClasses rels posAtoms negAtoms termStrs = do
                        Nothing -> return false
                        Just as -> flipAxioms unintRel as) rels
   let negAx    = foldr (.&&.) true negs
-  let flipAx   = foldr (.||.) false flips
+      flipAx   = foldr (.||.) false flips
   return $ negAx .&&. fnNeg .&&. eqNegAx .&&. (flipAx .||. fnFlips .||. eqFlipAx)
 
 -- a helper for minimizeResult for cases where the resulting model does not
@@ -947,7 +940,7 @@ relaxMinimize classes rels posAtoms negAtoms termStrs = do
                        Nothing -> return false
                        Just as -> flipAxioms unintRel as) rels
   let negAx    = foldr (.&&.) true negs
-  let flipAx   = foldr (.||.) false flips
+      flipAx   = foldr (.||.) false flips
   return $ negAx .&&. fnNeg .&&. ( flipAx .||. fnFlips )
 
 
@@ -958,9 +951,9 @@ negativeAxioms :: UninterpretRel -> [SMTAtom] -> SMTM SBool
 negativeAxioms unintRel atoms = do
   container   <- lift State.get
   let domain   = containerDomain container
-  let arity    = unintRelArity unintRel
-  let argNames = atomArgs <$> atoms
-  let args     = ((\a -> fromJust $ Map.lookup a domain) <$>) <$> argNames
+      arity    = unintRelArity unintRel
+      argNames = atomArgs <$> atoms
+      args     = ((\a -> fromJust $ Map.lookup a domain) <$>) <$> argNames
   return $ foldr (.&&.) true $ (\t -> not' $ applyUnintRel unintRel t) <$> args
 
 {- This function creates Positive Axioms for a set of facts that are named by
@@ -970,9 +963,9 @@ posAxioms :: UninterpretRel -> [SMTAtom] -> SMTM SBool
 posAxioms unintRel atoms = do
   container   <- lift State.get
   let domain    = containerDomain container
-  let argNames  = map atomArgs atoms
-  let allArgs   = map (\elm -> fromJust $ Map.lookup elm domain) <$> argNames
-  let posApps   = (applyUnintRel unintRel) <$> allArgs
+      argNames  = map atomArgs atoms
+      allArgs   = map (\elm -> fromJust $ Map.lookup elm domain) <$> argNames
+      posApps   = (applyUnintRel unintRel) <$> allArgs
   return $ foldr (.&&.) true posApps
 
 functionNegativeAxioms :: [(SMTTerm, Result)] -> Map.Map Result [SMTElement]
@@ -980,11 +973,11 @@ functionNegativeAxioms :: [(SMTTerm, Result)] -> Map.Map Result [SMTElement]
 functionNegativeAxioms terms classes = do
   container    <- lift State.get
   let domain    = containerDomain container
-  let contTerms = containerTerms container
-  let classes'  = Map.map (\es -> (\e -> fromJust $ Map.lookup e domain) <$> es) classes
-  let content   = (\(t, cw) -> ( fromJust $ Map.lookup t contTerms
+      contTerms = containerTerms container
+      classes'  = Map.map (\es -> (\e -> fromJust $ Map.lookup e domain) <$> es) classes
+      content   = (\(t, cw) -> ( fromJust $ Map.lookup t contTerms
                                , otherClasses cw classes')) <$> terms
-  let results   = (uncurry functionNegativeAxiomsHelper) <$> content
+      results   = (uncurry functionNegativeAxiomsHelper) <$> content
   return $ foldr (.&&.) true results
     where otherClasses c cs = Map.elems $ Map.delete c cs
 
@@ -999,14 +992,14 @@ functionPositiveAxioms :: [(SMTTerm, Result)] -> Map.Map Result [SMTElement]
 functionPositiveAxioms terms classes = do
   container    <- lift State.get
   let domain    = containerDomain container
-  let contTerms = containerTerms container
-  let classes'  = 
+      contTerms = containerTerms container
+      classes'  = 
           Map.map (\es -> (\e -> fromJust $ 
                                  Map.lookup e domain) <$> es) classes
-  let content   = (\(t, cw) -> ( fromJust $ 
+      content   = (\(t, cw) -> ( fromJust $ 
                                  Map.lookup t contTerms
                                , thisClass cw classes')) <$> terms
-  let results   = (uncurry functionPositiveAxiomsHelper) <$> content
+      results   = (uncurry functionPositiveAxiomsHelper) <$> content
   return $ foldr (.&&.) true results
     where thisClass c cs = Map.findWithDefault [] c cs
   
@@ -1021,14 +1014,14 @@ functionFlipAxioms :: [(SMTTerm, Result)] -> Map.Map Result [SMTElement]
 functionFlipAxioms terms classes = do
   container    <- lift State.get
   let domain    = containerDomain container
-  let contTerms = containerTerms container
-  let classes'  = 
+      contTerms = containerTerms container
+      classes'  = 
           Map.map (\es -> (\e -> fromJust $ 
                                  Map.lookup e domain) <$> es) classes
-  let content   = (\(t, cw) -> ( fromJust $ 
+      content   = (\(t, cw) -> ( fromJust $ 
                                  Map.lookup t contTerms
                                , thisClass cw classes')) <$> terms
-  let results   = (uncurry functionFlipAxiomsHelper) <$> content
+      results   = (uncurry functionFlipAxiomsHelper) <$> content
   return $ foldr (.||.) false results
     where thisClass c cs = Map.findWithDefault [] c cs
   
@@ -1045,9 +1038,9 @@ flipAxioms :: UninterpretRel -> [SMTAtom] -> SMTM SBool
 flipAxioms unintRel atoms = do
   container   <- lift State.get
   let domain    = containerDomain container
-  let argNames  = map atomArgs atoms      
-  let allArgs   = map (\elm -> fromJust $ Map.lookup elm domain) <$> argNames
-  let negApps   = not'.(applyUnintRel unintRel) <$> allArgs
+      argNames  = map atomArgs atoms      
+      allArgs   = map (\elm -> fromJust $ Map.lookup elm domain) <$> argNames
+      negApps   = not'.(applyUnintRel unintRel) <$> allArgs
   return $ foldr (.||.) false negApps
 
 {- Given a set of equivalence classes on all elements, creates the set of 
@@ -1111,29 +1104,25 @@ nextResult :: SatResult -> SMTM SBool
 nextResult res = do
   container   <- lift State.get
   let pure     = containerPureMin container
-  let domain   = containerDomain container
-  let rels     = Map.toList $ containerRels container
-  let dic      = getSatResultDictionary res
-  let termStrs = Map.toList $ Map.filterWithKey
+      domain   = containerDomain container
+      rels     = Map.toList $ containerRels container
+      dic      = getSatResultDictionary res
+      termStrs = Map.toList $ Map.filterWithKey
                  (\k cw -> resKind cw /= RKBool && not (isElementString k)) dic
-  let classes  = equivalenceClasses dic
-  let sClasses = ((\e -> fromJust $ Map.lookup e domain) <$>) 
+      classes  = equivalenceClasses dic
+      sClasses = ((\e -> fromJust $ Map.lookup e domain) <$>) 
                  <$> (Map.elems classes)
-  let factStrs = Map.keys $ Map.filter (\s -> resValue s == RVBool True ) dic
-  let symAtoms = Map.toList $ smtSymAtomMap factStrs
-  let eqFlipAx = foldr (.||.) false $ equalityFlipAxioms <$> sClasses
+      factStrs = Map.keys $ Map.filter (\s -> resValue s == RVBool True ) dic
+      symAtoms = Map.toList $ smtSymAtomMap factStrs
+      eqFlipAx = foldr (.||.) false $ equalityFlipAxioms <$> sClasses
   flips <- mapM (\(r, unintRel) -> 
                      let as = fromMaybe [] (lookup r symAtoms)
                      in  flipAxioms unintRel as) rels
-  let flipAx   = foldr (.||.) false flips
   funFlipAx   <- functionFlipAxioms termStrs classes
-  -- if relax
-  --    then do
-  --      let newEqs = equalityInducingAxioms sClasses
-  --      return $ flipAx .||. eqFlipAx .||. funFlipAx .||. newEqs
-  --    else return $ flipAx .||. eqFlipAx .||. funFlipAx
-  return $ flipAx .||. eqFlipAx .||. funFlipAx
-    -- For now, we don't allow the solver to introduce accidental collapses
+  let flipAx = foldr (.||.) false flips
+
+  return $ (if pure then id else (.||. (equalityInducingAxioms sClasses)))
+           (flipAx .||. eqFlipAx .||. funFlipAx)
 
 {- Given the name of an atomic fact as an instance of type 'SMTAtom', returns 
    the names of the symbolic values of the arguments. -}
@@ -1153,7 +1142,7 @@ disableIncomplete :: SMTM SBool
 disableIncomplete = do
     container <- lift State.get
     let atoms =  containerAtoms container
-    let incs  =  Map.filterWithKey (\k _ -> "@Incomplete#" `isPrefixOf` k) atoms
-    let axm   =  (false .==.) <$> (Map.elems incs)
+        incs  =  Map.filterWithKey (\k _ -> "@Incomplete#" `isPrefixOf` k) atoms
+        axm   =  (false .==.) <$> (Map.elems incs)
     return $ foldr (.&&.) true axm
 
