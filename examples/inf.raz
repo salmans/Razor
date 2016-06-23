@@ -1,0 +1,5 @@
+ -- truly minimal model is infinite
+  Node('z);
+  Node(x) => exists z. Node(z) & E(x, z);
+
+      
