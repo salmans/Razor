@@ -22,8 +22,6 @@
 module Syntax.GeometricParser ( lexer, whiteSpace, symbol, parens, identifier
                               , reserved, reservedOp, commaSep) where
 
--- import Syntax.IGeometricParser
-
 import Text.Parsec.Token ( TokenParser )
 import qualified Text.Parsec.Token as Token
 import Text.ParserCombinators.Parsec.Language

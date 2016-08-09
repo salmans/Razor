@@ -31,10 +31,8 @@ module Syntax.GeometricUtils
     elementPred
     ) where
 
--- import Syntax.IGeometricUtils
 import Syntax.Term as Term
 import Syntax.Geometric as Geometric
-
 
 -- Standard
 import Data.List (nub, union, (\\))
@@ -59,9 +57,9 @@ import Tools.Counter (Counter)
 
 
 unitName = "Syntax.GeometricUtils"
-err_disjInBody   = "the body of a sequent cannot contain disjunctions!"
+err_disjInBody   = "the body of a sequent cannot contain disjunctions"
 err_existsInBody = "the body of a sequent cannot contain existential"
-                   ++ " quantifiers!"
+                   ++ " quantifiers"
 --------------------------------------------------------------------------------
 -- Simplifying Formulas
 simplifySequent :: Sequent -> Sequent
@@ -244,7 +242,7 @@ takeExistsOut Tru = (VarTreeLeaf [], Tru)
 takeExistsOut Fls = (VarTreeLeaf [], Fls)
 takeExistsOut a@(Atm _) = (VarTreeLeaf [], a)
 takeExistsOut (And f1 f2) =
-    -- No disjunction inside conjunction!
+    -- No disjunction inside conjunction
     let (VarTreeLeaf vs1, f1') = takeExistsOut f1
         (VarTreeLeaf vs2, f2') = takeExistsOut f2
     in  (VarTreeLeaf (vs1 ++ vs2), And f1' f2')
