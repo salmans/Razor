@@ -32,7 +32,7 @@ import Syntax.Test.TestData
 import Common.Test.TestData
 
 -- Common
-import Common.IObservation
+import Common.Observation
 import Common.Data (SequentLike (..))
 
 test_toObservation =

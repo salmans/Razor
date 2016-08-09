@@ -47,7 +47,7 @@ import Syntax.Term
 -- Common
 import Common.Data
 import Common.Basic
-import Common.IProvenance
+import Common.Provenance
 import Common.Observation
 import Common.Model (Model (..))
 import qualified Common.Input as CORE

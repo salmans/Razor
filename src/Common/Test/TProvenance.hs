@@ -32,7 +32,7 @@ import Syntax.Test.TestData
 import Common.Test.TestData
 
 -- Common
-import Common.IProvenance
+import Common.Provenance
 
 test_emptyProvInfo = 
     [ "test emptyProvInfo" ~:

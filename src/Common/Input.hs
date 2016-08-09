@@ -13,10 +13,40 @@
   You should have received a copy of the GNU General Public License
   along with Razor.  If not, see <http://www.gnu.org/licenses/>.
 
-  Module      : Common.Input
-  Description : Defines Razor's input.
+  Module      : Common.IInput
+  Description : The module defines Razor's input format and implements a parser
+  for parsing the input file.
   Maintainer  : Salman Saghafi <salmans@wpi.edu>, Ryan Danas <ryandanas@wpi.edu>
 -}
-module Common.Input (Input (..), parseInput ) where
 
-import Common.IInput
+module Common.Input where
+
+-- Standard
+import qualified Data.Map as Map
+
+-- Parsec
+import qualified Text.ParserCombinators.Parsec as P
+
+-- Syntax
+import Syntax.Term (pTerm)
+import Syntax.Geometric (Theory, pTheory)
+
+-- Common
+import Common.Data ( SkolemDepthMap, pSkolemDepthMap )
+
+data Input = Input { inputTheory         :: Theory
+                   , inputSkolemDepthMap :: SkolemDepthMap }
+
+parseInput :: String -> Either String Input
+parseInput input =
+  let pResult = P.parse pInput "parsing input" input
+  in  case pResult of
+        Left err  -> Left (show err)
+        Right val -> Right val
+
+pInput :: P.Parser Input
+pInput  = do
+  thy   <- pTheory
+  skMap <- pSkolemDepthMap
+  P.eof;
+  return $ Input thy skMap

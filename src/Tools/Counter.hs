@@ -14,12 +14,31 @@
   along with Razor.  If not, see <http://www.gnu.org/licenses/>.
 
   Module      : Tools.Counter
-  Description : Provides an interface to work with 'Counter' monad and 
-  'CounterT' monad transformer.
+  Description : The module implements an interface for working with Counter,
+  which is used to keep track of a counting value in a computation.
   Maintainer  : Salman Saghafi <salmans@wpi.edu>, Ryan Danas <ryandanas@wpi.edu>
 -}
 
-module Tools.Counter ( Counter, CounterT
-                     , increment, incrementT) where
+module Tools.Counter where
 
-import Tools.ICounter
+-- Control
+import qualified Control.Monad.State.Lazy as State
+
+{-| Monad and monad transformer for counting. -}
+type Counter  = State.State Int
+type CounterT = State.StateT Int
+
+
+{-| Increments the value in a 'Counter' and returns the current value of the 
+  counter. -}
+increment :: Counter Int
+increment =  State.get >>= 
+             (\c -> State.modify (+1) >>
+             (return c))
+
+{-| Increments the value in a 'CounterT' and returns the current value of the
+  counter. -}
+incrementT :: Monad m => CounterT m Int
+incrementT = State.get >>= 
+             (\c -> State.modify (+1) >>
+             (return c))

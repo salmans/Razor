@@ -14,10 +14,29 @@
   along with Razor.  If not, see <http://www.gnu.org/licenses/>.
 
   Module      : Tools.Utils
-  Description : Offers general helper functions.
+  Description : Implements helper functions.
   Maintainer  : Salman Saghafi <salmans@wpi.edu>, Ryan Danas <ryandanas@wpi.edu>
 -}
 
-module Tools.Utils ( unions, isRealLine, deleteByIndex ) where
+module Tools.Utils where
 
-import Tools.IUtils
+-- Standard
+import Data.Char (isSpace)
+import Data.List (nub)
+
+{-| Computes the union of a list of lists. -}
+unions :: (Ord a) => [[a]] -> [a]
+unions ls = nub $ foldr (++) [] ls
+
+{-| Given an input string (corresponding to a line in the theory file), returns
+  True if the line is not commented out and is not blank. -}
+isRealLine :: String -> Bool
+isRealLine l = 
+    case l of
+      [] -> False
+      ('-':'-':_) -> False
+      otherwise -> any (not.isSpace) l
+
+deleteByIndex :: Int -> [a] -> [a]
+deleteByIndex n xs = let (h, t) = splitAt n xs
+                     in  h ++ (tail t)

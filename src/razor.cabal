@@ -36,6 +36,7 @@ Flag smtlib2
 
 executable razor
   main-is:          REPL/Main.hs
+  -- main-is:          CLI/Main.hs
   hs-source-dirs:   .
   -- other-modules:
   -- ghc-options: 	    -rtsopts -prof -fprof-auto -auto-all -caf-all

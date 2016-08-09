@@ -29,7 +29,7 @@ import Common.Provenance
 import Common.Observation
 import Common.Data (toSequent)
 import Control.Applicative hiding ((<|>), many)
-import SAT.IData
+import SAT.Data
 import Syntax.GeometricUtils
 import SAT.Impl
 import Control.Exception

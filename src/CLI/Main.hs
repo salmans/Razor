@@ -21,8 +21,8 @@
 
 module Main where
 import API.Surface
-import API.UserSyntax
-import CLI.XML
+--import API.UserSyntax
+--import CLI.XML
 import Tools.Config
 
 main :: IO ()

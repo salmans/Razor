@@ -28,7 +28,7 @@ import Test.HUnit
 import Test.HUnit.Text (runTestTT)
 
 -- Common
-import Common.IBasic
+import Common.Basic
 
 test_freshSymbol  = [ "test freshSymbol" ~:
                       "sym#1" ~=? evalState (freshSymbol "sym") 1 
