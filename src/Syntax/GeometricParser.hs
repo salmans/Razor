@@ -22,4 +22,40 @@
 module Syntax.GeometricParser ( lexer, whiteSpace, symbol, parens, identifier
                               , reserved, reservedOp, commaSep) where
 
-import Syntax.IGeometricParser
+-- import Syntax.IGeometricParser
+
+import Text.Parsec.Token ( TokenParser )
+import qualified Text.Parsec.Token as Token
+import Text.ParserCombinators.Parsec.Language
+
+import Text.Parsec
+import Text.Parsec.String
+import Text.Parsec.Expr
+
+import Text.Parsec.Language
+
+def :: LanguageDef ()
+def = emptyDef{ commentStart          = "{-"
+              , commentEnd            = "-}"
+              , commentLine           = "--"
+              , identStart            = letter <|> char '_'
+              , identLetter           = alphaNum <|> char '_'
+              , opStart               = oneOf "~|.;="
+              , opLetter              = oneOf "~|.;=>"
+              , Token.reservedOpNames = ["&", "|", "=>", ".", ";"]
+              , Token.reservedNames   = ["exists", "Exists"
+                                        ,"Truth", "Falsehood"]
+              , caseSensitive         = True }
+
+
+lexer :: TokenParser ()
+lexer = Token.makeTokenParser def
+
+-- Token parsers provided by Text.Parsec.Token
+whiteSpace = Token.whiteSpace lexer
+symbol     = Token.symbol lexer
+parens     = Token.parens lexer
+identifier = Token.identifier lexer
+reserved   = Token.reserved lexer
+reservedOp = Token.reservedOp lexer
+commaSep   = Token.commaSep lexer

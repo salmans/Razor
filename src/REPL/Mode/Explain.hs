@@ -34,9 +34,9 @@ import Text.ParserCombinators.Parsec
 import Text.Parsec.Prim
 import Text.Parsec.Token
 import Syntax.GeometricParser
-import Syntax.ITerm
+import Syntax.Term
 import Data.List
-import Syntax.IGeometric
+import Syntax.Geometric
 
 
 instance LoopMode ExplainMode ExplainIn ExplainOut where
@@ -107,12 +107,12 @@ updateExplain mode (theory, gstar, model) state = (state, (theory, gstar, model)
 enterExplain :: ExplainMode -> RazorState -> IO(Either Error ExplainOut)
 enterExplain mode state@(RazorState config theory mspace mcoor) = case (theory, mcoor) of
   (Just theory', Just mcoor') -> case Map.lookup mcoor' mspace of
-    Nothing -> return $ Left "No current model!"
+    Nothing -> return $ Left "No current model"
     Just (chasestate, model') -> do
       prettyModel $ Just model'
       prettyPrint 0 foutput "Running queries over this model\n"
       return $ Right (theory', chasestate, model')
-  _ -> return $ Left "No current model!"
+  _ -> return $ Left "No current model"
 
 -----------------------
 -- Command Functions --

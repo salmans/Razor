@@ -28,6 +28,7 @@ module Chase.PossibleFacts.RelAlg.DB ( Set(..)
                                     , union, unions, difference ) where
 
 {- Select DB implementation: -}
--- import Chase.PossibleFacts.RelAlg.IListDB as IDB -- based on Haskell lists
-import Chase.PossibleFacts.RelAlg.ISetDB as IDB -- based on Data.Set
--- import Chase.PossibleFacts.RelAlg.IHashSetDB as IDB -- based on Data.HashSet
+-- import Chase.PossibleFacts.RelAlg.ListDB as IDB -- based on Haskell lists
+-- import Chase.PossibleFacts.RelAlg.HashSetDB as IDB -- based on Data.HashSet
+
+import Chase.PossibleFacts.RelAlg.SetDB as IDB -- based on Data.Set

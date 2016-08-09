@@ -33,7 +33,8 @@ import Text.ParserCombinators.Parsec
 import Text.Parsec.Prim
 import Text.Parsec.Token
 import Syntax.GeometricUtils
-import Syntax.IGeometric
+--import Syntax.IGeometric
+import Syntax.Geometric
 
 instance LoopMode TheoryMode TheoryIn TheoryOut where
   runOnce         = theoryRun

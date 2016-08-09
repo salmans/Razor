@@ -26,7 +26,8 @@ import Data.Maybe
 import Data.List
 import qualified Data.Map as Map
 import Syntax.GeometricUtils
-import Syntax.IGeometric
+--import Syntax.IGeometric
+import Syntax.Geometric
 import SAT.Impl
 import System.Console.Haskeline
 import Chase.Impl

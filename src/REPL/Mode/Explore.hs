@@ -33,7 +33,8 @@ import Text.ParserCombinators.Parsec hiding (try)
 import Text.Parsec.Prim hiding (try)
 import Syntax.GeometricUtils
 import Data.List
-import Syntax.IGeometric
+import Syntax.Geometric
+--import Syntax.IGeometric
 import System.Process
 import GHC.IO.Handle
 import Control.Exception
