@@ -30,7 +30,6 @@
 --                    ) where
 
 module Syntax.Term where
--- import Syntax.ITerm
 
 -- Standard
 import Data.List

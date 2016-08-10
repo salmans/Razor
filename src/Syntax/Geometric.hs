@@ -1,6 +1,3 @@
-{-# LANGUAGE TypeSynonymInstances #-}
-{-# LANGUAGE FlexibleInstances #-}
-
 {- This file is part of Razor.
 
   Razor is free software: you can redistribute it and/or modify
@@ -21,6 +18,9 @@
   and theories.
   Maintainer  : Salman Saghafi <salmans@wpi.edu>, Ryan Danas <ryandanas@wpi.edu>
 -}
+
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 -- module Syntax.Geometric ( RelSym
 --                         , Atom (..), Formula (..), Sequent (..), Theory
