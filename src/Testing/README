@@ -1,0 +1,5 @@
+This collects all the "Test" directories from the various modules.
+See the file "AllUnitTests.hs" for a hint about how to run them.
+
+But (i) the paths are all messed up now, and (ii) the tests didn't run anyway.
+
