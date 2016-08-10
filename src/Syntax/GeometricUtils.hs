@@ -24,15 +24,12 @@
 {-# LANGUAGE DoAndIfThenElse #-}
 
 module Syntax.GeometricUtils 
-    ( module Term, module Geometric -- export these two
+    ( module Syntax.Term, module Syntax.Geometric -- export these two
     , RelationBased (..)
     , simplify, preprocess, formulaExistentials, sequentExistentials
     , sequentExistsSubstitute, formulaExistsSubstitute,
     elementPred
     ) where
-
-import Syntax.Term as Term
-import Syntax.Geometric as Geometric
 
 -- Standard
 import Data.List (nub, union, (\\))
