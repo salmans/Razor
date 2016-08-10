@@ -1,4 +1,0 @@
- -- this ought to halt with a 2-element model
-  P_src('z);
-  P_src(x) => exists z. P_tail(z) & P(x, z);
-  P_tail(z) => exists x. P_src(x) & P(x, z);
