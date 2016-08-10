@@ -1,0 +1,50 @@
+-- Translation of the included axiom file PUZ002-0.ax
+
+a_truth(truthteller(X)) | a_truth(liar(X));
+
+a_truth(truthteller(X)) & a_truth(liar(X)) => Falsehood;
+a_truth(truthteller(Truthteller)) & a_truth(says(Truthteller,Statement)) => a_truth(Statement);
+
+
+a_truth(liar(Liar)) & a_truth(says(Liar,Statement)) & a_truth(Statement) => Falsehood;
+a_truth(Statement) & a_truth(says(Truthteller,Statement)) => a_truth(truthteller(Truthteller));
+
+a_truth(says(Liar,Statement)) => a_truth(Statement) | a_truth(liar(Liar));
+
+
+a_truth(truthteller(X)) | a_truth(liar(X));
+a_truth(truthteller(X)) & a_truth(liar(X)) => Falsehood;
+
+a_truth(truthteller(Truthteller)) & a_truth(says(Truthteller,Statement)) => a_truth(Statement);
+
+a_truth(liar(Liar)) & a_truth(says(Liar,Statement)) & a_truth(Statement) => Falsehood;
+a_truth(Statement) & a_truth(says(Truthteller,Statement)) => a_truth(truthteller(Truthteller));
+
+a_truth(says(Liar,Statement)) => a_truth(Statement) | a_truth(liar(Liar));
+
+-- End of PUZ002-0.ax
+
+people(X,Y,Z) & a_truth(liar(X)) & a_truth(liar(Y)) => a_truth(equal_type(X,Y));
+people(X,Y,Z) & a_truth(truthteller(X)) & a_truth(truthteller(Y)) => a_truth(equal_type(X,Y));
+a_truth(equal_type(X,Y)) & a_truth(truthteller(X)) => a_truth(truthteller(Y));
+a_truth(equal_type(X,Y)) & a_truth(liar(X)) => a_truth(liar(Y));
+a_truth(truthteller(X)) => a_truth(equal_type(X,Y)) | a_truth(liar(Y));
+a_truth(liar(X)) => a_truth(equal_type(X,Y)) | a_truth(truthteller(Y));
+
+a_truth(equal_type(X,Y)) => a_truth(equal_type(Y,X));
+
+ask_1_if_2(X,Y) & a_truth(truthteller(X)) & a_truth(Y) => answer('yes);
+ask_1_if_2(X,Y) & a_truth(truthteller(X)) => a_truth(Y) | answer('no);
+ask_1_if_2(X,Y) & a_truth(liar(X)) & a_truth(Y) => answer('no);
+ask_1_if_2(X,Y) & a_truth(liar(X)) =>  a_truth(Y) | answer('yes);
+
+people('b,'c,'a);
+people('a,'b,'a);
+people('a,'c,'b);
+people('c,'b,'a);
+
+a_truth(says('a,equal_type('b,'c)));
+ask_1_if_2('c,equal_type('a,'b));
+~ answer(Answer);
+
+-- We get no models at depth 1

@@ -1,0 +1,54 @@
+monday('a_monday);
+tuesday('a_tuesday);
+wednesday('a_wednesday);
+thursday('a_thursday);
+friday('a_friday);
+saturday('a_saturday);
+sunday('a_sunday);
+
+monday(x) => day(x);
+tuesday(x) => day(x);
+wednesday(x) => day(x);
+thursday(x) => day(x);
+friday(x) => day(x);
+saturday(x) => day(x);
+sunday(x) => day(x);
+
+monday(x) => sunday(yesterday(x));
+tuesday(x) => monday(yesterday(x));
+wednesday(x) => tuesday(yesterday(x));
+thursday(x) => wednesday(yesterday(x));
+friday(x) => thursday(yesterday(x));
+saturday(x) => friday(yesterday(x));
+sunday(x) => saturday(yesterday(x));
+
+monday(x) => lion_lies(x);
+tuesday(x) => lion_lies(x);
+wednesday(x) => lion_lies(x);
+thursday(x) & lion_lies(x) => Falsehood;
+friday(x) & lion_lies(x) => Falsehood;
+saturday(x) & lion_lies(x) => Falsehood;
+sunday(x) & lion_lies(x) => Falsehood;
+
+monday(x) & unicorn_lies(x) => Falsehood;
+tuesday(x) & unicorn_lies(x) => Falsehood;
+wednesday(x) & unicorn_lies(x) => Falsehood;
+thursday(x) => unicorn_lies(x);
+friday(x) => unicorn_lies(x);
+saturday(x) => unicorn_lies(x);
+sunday(x) & unicorn_lies(x) => Falsehood;
+
+lion_lies(x) => day(x);
+unicorn_lies(x) => day(x);
+
+day(x) & day(y) & lion_lies(x) & lion_lies(y) & lies_on_one_of('a_lion, x, y) => Falsehood;
+day(x) & day(y) & lies_on_one_of('a_lion, x, y) => lion_lies(x) | lion_lies(y);
+day(x) & day(y) & lion_lies(y) => lion_lies(x) | lies_on_one_of('a_lion, x, y);
+day(x) & day(y) & lion_lies(x) => lion_lies(y) | lies_on_one_of('a_lion, x, y);
+
+day(x) & day(y) & unicorn_lies(x) & unicorn_lies(y) & lies_on_one_of('a_unicorn, x, y) => Falsehood;
+day(x) & day(y) & lies_on_one_of('a_unicorn, x, y) => unicorn_lies(x) | unicorn_lies(y);
+day(x) & day(y) & unicorn_lies(y) => unicorn_lies(x) | lies_on_one_of('a_unicorn, x, y);
+day(x) & day(y) & unicorn_lies(x) => unicorn_lies(y) | lies_on_one_of('a_unicorn, x, y);
+
+exists x . day(x) & lies_on_one_of('a_lion, x, yesterday(x)) & lies_on_one_of('a_unicorn, x, yesterday(x));

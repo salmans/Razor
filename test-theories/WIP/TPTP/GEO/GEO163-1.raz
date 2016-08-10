@@ -1,0 +1,71 @@
+----------------------------------------------------------------------------
+-- File     : GEO163-1 : TPTP v6.1.0. Released v2.7.0.
+-- Domain   : Geometry
+-- Problem  : Not enough axioms to prove collinearity of a finite set of points
+-- Version  : [Cla03] axioms : Especial.
+-- English  : Given a finite set of points such that for all points x, y
+--            there is a 3rd (different) point z collinear with x and y.
+--            Show that all points in the set are collinear.
+
+-- Refs     : [Cla03] Claessen (2003), Email to G. Sutcliffe
+-- Source   : [Cla03]
+-- Names    :
+
+-- Status   : Satisfiable
+-- Rating   : 0.40 v6.1.0, 0.44 v6.0.0, 0.43 v5.5.0, 0.50 v5.4.0, 0.80 v5.3.0, 0.78 v5.2.0, 0.80 v5.0.0, 0.78 v4.1.0, 0.71 v4.0.1, 0.80 v4.0.0, 0.50 v3.7.0, 0.33 v3.4.0, 0.50 v3.3.0, 0.33 v3.2.0, 0.80 v3.1.0, 0.67 v2.7.0
+-- Syntax   : Number of clauses     :    8 (   1 non-Horn;   5 unit;   6 RR)
+--            Number of atoms       :   15 (   5 equality)
+--            Maximal clause size   :    6 (   2 average)
+--            Number of predicates  :    2 (   0 propositional; 2-3 arity)
+--            Number of functors    :    4 (   3 constant; 0-2 arity)
+--            Number of variables   :   18 (   3 singleton)
+--            Maximal term depth    :    2 (   1 average)
+-- SPC : CNF_SAT_RFO_EQU_NUE
+
+-- Comments :
+-- Razor Notes:
+--  depth 0 = quick incomplete
+--  depth 1 = 
+----------------------------------------------------------------------------
+--cnf(two_points_collinear,axiom,
+--    ( collinear(X,X,Y) )).
+collinear(x,x,y);
+
+--cnf(rotate_collinear,axiom,
+--    ( collinear(Y,X,Z)
+--    | ~ collinear(X,Y,Z) )).
+collinear(x,y,z) => collinear(y,x,z);
+
+--cnf(swap_collinear,axiom,
+--    ( collinear(Z,X,Y)
+--    | ~ collinear(X,Y,Z) )).
+collinear(x,y,z) => collinear(z,x,y);
+
+--cnf(transitivity_collinear,axiom,
+--    ( collinear(X,Y1,Z)
+--    | X = Y2
+--    | Y1 = Y2
+--    | Y2 = Z
+--    | ~ collinear(Y1,Y2,Z)
+--    | ~ collinear(X,Y1,Y2) )).
+-- TODO not correct
+collinear(y1,y2,z) & collinear(x,y1,y2) => collinear(x,y1,z) 
+                                         | x=y2 | y1=y2 | y2=z;
+
+--cnf(third_point_collinear,hypothesis,
+--    ( collinear(X,Y,third(X,Y)) )).
+collinear(x,y,third(x,y));
+
+--cnf(third_point_different_1a,hypothesis,
+--    (  X != third(X,Y) )).
+x=third(x,y) => Falsehood;
+
+--cnf(third_point_different_1b,hypothesis,
+--    (  Y != third(X,Y) )).
+y=third(x,y) => Falsehood;
+
+--cnf(conjecture,negated_conjecture,
+--    ( ~ collinear(p1,p2,p3) )).
+collinear('p1,'p2,'p3);
+
+----------------------------------------------------------------------------

@@ -1,0 +1,28 @@
+exists x . lives(x) & killed(x, 'agatha);
+
+lives('agatha);
+lives('butler);
+lives('charles);
+
+lives(x) => x = 'agatha | x = 'butler | x = 'charles;
+
+killed(x, y) => hates(x, y);
+killed(x, y) & richer(x, y) => Falsehood;
+
+hates('agatha, x) & hates('charles, x) => Falsehood;
+hates('agatha, x) | x = 'butler;
+hates('butler, x) | richer(x, 'agatha);
+hates('agatha, x) => hates('butler, x);
+
+-- Do we need to Skolemize?
+-- exists y . ~hates(x, y)
+
+exists y . friendOf(x) = y;
+hates(x, friendOf(x)) => Falsehood;
+
+'agatha = 'butler => Falsehood;
+
+-- conjecture:
+killed('agatha, 'agatha) => Falsehood;
+
+-- We get UNSAT at depth 2

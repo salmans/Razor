@@ -1,0 +1,52 @@
+-- Translation of the included axiom file PUZ002-0.ax
+
+a_truth(truthteller(X)) | a_truth(liar(X));
+
+a_truth(truthteller(X)) & a_truth(liar(X)) => Falsehood;
+a_truth(truthteller(Truthteller)) & a_truth(says(Truthteller,Statement)) => a_truth(Statement);
+
+
+a_truth(liar(Liar)) & a_truth(says(Liar,Statement)) & a_truth(Statement) => Falsehood;
+a_truth(Statement) & a_truth(says(Truthteller,Statement)) => a_truth(truthteller(Truthteller));
+
+a_truth(says(Liar,Statement)) => a_truth(Statement) | a_truth(liar(Liar));
+
+
+a_truth(truthteller(X)) | a_truth(liar(X));
+a_truth(truthteller(X)) & a_truth(liar(X)) => Falsehood;
+
+a_truth(truthteller(Truthteller)) & a_truth(says(Truthteller,Statement)) => a_truth(Statement);
+
+a_truth(liar(Liar)) & a_truth(says(Liar,Statement)) & a_truth(Statement) => Falsehood;
+a_truth(Statement) & a_truth(says(Truthteller,Statement)) => a_truth(truthteller(Truthteller));
+
+a_truth(says(Liar,Statement)) => a_truth(Statement) | a_truth(liar(Liar));
+
+-- End of PUZ002-0.ax
+
+
+a_truth(says(X,'one_truthteller)) & people(X,Y,Z) & a_truth(truthteller(X)) & a_truth(truthteller(Y)) & a_truth(truthteller(Z)) => Falsehood;
+
+a_truth('one_truthteller) & people(X,Y,Z) => a_truth(truthteller(X)) | a_truth(truthteller(Y)) | a_truth(truthteller(Z));
+a_truth('one_truthteller) & people(X,Y,Z) & a_truth(truthteller(Y)) & a_truth(truthteller(X)) & a_truth(truthteller(Z)) => Falsehood;
+
+a_truth(one_truthteller) & people(X,Y,Z) & a_truth(liar(X)) & a_truth(truthteller(Y)) => a_truth(liar(Z));
+
+people(X,Y,Z) & a_truth(liar(X)) & a_truth(truthteller(Y)) => a_truth('one_truthteller) | a_truth(truthteller(Z));
+people(X,Y,Z) & a_truth(liar(X)) & a_truth(liar(Y)) => a_truth('one_truthteller) | a_truth(liar(Z));
+
+a_truth(says(X,'all_are_liars)) & people(X,Y,Z) & a_truth(truthteller(X)) => Falsehood;
+
+people(X,Y,Z) => a_truth('all_are_liars) | a_truth(truthteller(X)) | a_truth(truthteller(Y)) | a_truth(truthteller(Z));
+
+people('b,'c,'a);
+people('a,'c,'b);
+people('c,'b,'a);
+
+a_truth(says('a,'all_are_liars));
+a_truth(says('b,'one_truthteller));
+
+~ a_truth(truthteller(Truthteller));
+
+
+-- We get no models at depth 1

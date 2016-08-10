@@ -1,0 +1,40 @@
+from(e) = s       => Address(s) & Email(e);
+Receives(r, e)    => Address(r) & Email(e);
+forward(e2) = e1  => Email(e1) & Email(e2);
+reply(e2) = e1    => Email(e1) & Email(e2);
+replyAll(e1) = e2 => Email(e1) & Email(e2);
+
+
+Email(e)       => exists s . from(e) = s;
+Email(e)       => exists r . Receives(r, e);
+
+To(r, e)       => Receives(r, e);
+CC(r, e)       => Receives(r, e);
+BCC(r, e)      => Receives(r, e);
+Receives(r, e) => To(r, e) | CC(r, e) | BCC(r, e);
+
+
+-- Sender of a FW email must have received the original email:
+forward(e2) = e1  => Receives(from(e2), e1);
+
+
+reply(e2) = e1    => Receives(from(e2), e1) & Receives(from(e1), e2);
+
+replyAll(e2) = e1 => Receives(from(e2), e1) & Receives(from(e1), e2);
+replyAll(e2) = e1 & To(r, e1) => To(r, e2);
+replyAll(e2) = e1 & CC(r, e1) => CC(r, e2);
+
+
+-- Secret(e) & Receives(r1, e) & Receives(r2, e) => r1 = r2;
+
+-- Queries
+-- exists e . Email(e);
+
+
+-- exists e1 e2 . reply(e1) = e2;
+
+-- exists e1 e2 . reply(e2) = e1 & Secret(e1) & Secret(e2);
+
+-- REPLY ALL QUERY:
+-- exists e1 e2 . replyAll(e2) = e1;
+

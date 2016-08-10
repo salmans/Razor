@@ -1,0 +1,24 @@
+wind_in_east => sunshine;
+
+cold & foggy => neighbor_practices_flute;
+fire_smokes => door_is_open;
+
+cold & i_feel_rheumatic => fire_is_lit;
+wind_in_east & wind_in_gusts => fire_smokes;
+
+door_is_open & headache => Falsehood;
+
+sunshine & foggy => cold | window_is_shut;
+
+
+fire_is_lit & i_feel_rheumatic => door_is_open | wind_in_gusts;
+
+sunshine => foggy;
+
+neighbor_practices_flute & door_is_open => Falsehood;
+
+foggy & wind_in_east => i_feel_rheumatic;
+
+
+wind_in_east;
+~ window_is_shut;

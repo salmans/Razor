@@ -1,0 +1,25 @@
+-- Translation of the included axiom file PUZ002-0.ax
+
+a_truth(truthteller(X)) | a_truth(liar(X));
+
+a_truth(truthteller(X)) & a_truth(liar(X)) => Falsehood;
+a_truth(truthteller(Truthteller)) & a_truth(says(Truthteller,Statement)) => a_truth(Statement);
+
+
+a_truth(liar(Liar)) & a_truth(says(Liar,Statement)) & a_truth(Statement) => Falsehood;
+a_truth(Statement) & a_truth(says(Truthteller,Statement)) => a_truth(truthteller(Truthteller));
+
+a_truth(says(Liar,Statement)) => a_truth(Statement) | a_truth(liar(Liar));
+
+
+a_truth(truthteller(X)) | a_truth(liar(X));
+a_truth(truthteller(X)) & a_truth(liar(X)) => Falsehood;
+
+a_truth(truthteller(Truthteller)) & a_truth(says(Truthteller,Statement)) => a_truth(Statement);
+
+a_truth(liar(Liar)) & a_truth(says(Liar,Statement)) & a_truth(Statement) => Falsehood;
+a_truth(Statement) & a_truth(says(Truthteller,Statement)) => a_truth(truthteller(Truthteller));
+
+a_truth(says(Liar,Statement)) => a_truth(Statement) | a_truth(liar(Liar));
+
+-- End of PUZ002-0.ax

@@ -1,0 +1,50 @@
+-- Translation of the included axiom file PUZ003-0.ax
+
+a_truth(truthteller(X)) | a_truth(liar(X)) | a_truth(normal(X));
+a_truth(truthteller(X)) & a_truth(normal(X)) => Falsehood;
+a_truth(truthteller(X)) & a_truth(liar(X)) => Falsehood;
+a_truth(liar(X)) & a_truth(normal(X)) => Falsehood;
+a_truth(truthteller(X)) & a_truth(says(X,Y)) => a_truth(Y);
+
+a_truth(liar(X)) & a_truth(says(X,Y)) & a_truth(Y) => Falsehood;
+a_truth(X) & a_truth(says(Y,X)) => a_truth(truthteller(Y)) | a_truth(normal(Y));
+
+a_truth(says(Y,X)) => a_truth(X) | a_truth(liar(Y)) | a_truth(normal(Y));
+-- End of PUZ003-0.ax
+
+a_truth(not_lower(X,X));
+
+a_truth(not_lower(X,Y)) & a_truth(lower(X,Y)) => Falsehood;
+
+a_truth(not_lower(X,Y)) | a_truth(lower(X,Y));
+
+a_truth(lower(X,Y)) & a_truth(liar(X)) => a_truth(normal(Y)) | a_truth(truthteller(Y));
+a_truth(lower(X,Y)) & a_truth(normal(X)) => a_truth(truthteller(Y));
+
+a_truth(lower(X,Y)) & a_truth(truthteller(X)) => Falsehood;
+a_truth(lower(X,Y)) & a_truth(truthteller(Y)) => a_truth(normal(X)) | a_truth(liar(X));
+
+a_truth(lower(X,Y)) & a_truth(normal(Y)) => a_truth(liar(X));
+
+a_truth(lower(X,Y)) & a_truth(liar(Y)) => Falsehood;
+
+a_truth(not_lower(X,Y)) & a_truth(truthteller(X)) => a_truth(truthteller(Y)) | a_truth(lower(Y,X));
+a_truth(not_lower(X,Y)) & a_truth(liar(X)) => a_truth(liar(Y)) | a_truth(lower(Y,X));
+a_truth(not_lower(X,Y)) & a_truth(normal(X)) => a_truth(normal(Y)) | a_truth(lower(Y,X));
+
+
+a_truth(says('a,lower('a,'b)));
+a_truth(says('b,not_lower('a,'b)));
+
+a_truth(truthteller('a)) & a_truth(truthteller('b)) => answer('a_and_b_truthteller);
+a_truth(truthteller('a)) & a_truth(normal('b)) => answer('a_truthteller_b_normal);
+a_truth(truthteller('a)) & a_truth(liar('b)) => answer('a_truthteller_b_liar);
+a_truth(normal('a)) & a_truth(truthteller('b)) => answer('a_normal_b_truthteller);
+
+a_truth(normal('a)) & a_truth(normal('b)) => answer('a_and_b_normal);
+a_truth(normal('a)) & a_truth(liar('b)) => answer('a_normal_b_liar);
+a_truth(liar('a)) & a_truth(truthteller('b)) => answer('a_liar_b_truthteller);
+a_truth(liar('a)) & a_truth(normal('b)) => answer('a_liar_b_normal);
+a_truth(liar('a)) & a_truth(liar('b)) => answer('a_and_b_liar);
+
+~ answer(Answer);

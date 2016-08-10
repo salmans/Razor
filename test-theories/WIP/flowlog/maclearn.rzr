@@ -1,0 +1,65 @@
+---------------------
+-- Flowlog Program --
+---------------------
+--TABLE learned(switchid, port, macaddr)
+--
+--ON packet_in(pkt):
+--  INSERT (pkt.locSw, pkt.locPt, pkt.dlSrc) INTO learned WHERE
+--    NOT learned(pkt.locSw, pkt.locPt, pkt.dlSrc);
+--  DELETE (pkt.locSw, pt, pkt.dlSrc) FROM learned WHERE
+--    NOT pt = pkt.locPt;
+--  DO forward(new) WHERE
+--    learned(pkt.locSw, new.locPt, pkt.dlDst);
+--  DO forward(new) WHERE
+--    NOT learned(pkt.locSw, ANY, pkt.dlDst)
+--    AND NOT pkt.locPt = new.locPt;
+
+---------------------------
+-- Events / Time / State --
+---------------------------
+-- Rows in the incoming tables (events) cause time to exist
+ONpacket_in(t, pkt) => exists st. succ(t)=st;
+-- TABLE
+TABLElearned(t, sw, pt, dl) & succ(t)=st => TABLElearned(st, sw, pt, dl) | DELETElearned(t, sw, pt, dl);
+-- INSERT
+INSERTlearned(t, sw, pt, dl) & succ(t)=st => TABLElearned(st, sw, pt, dl);
+-- DELETE
+DELETElearned(t, sw, pt, dl) & TABLElearned(t, sw, pt, dl) & succ(t)=st & TABLElearned(st, sw, pt, dl) => INSERTlearned(t, sw, pt, dl);
+
+-----------
+-- Rules --
+-----------
+-- [RULE] ON packet_in(pkt): INSERT (pkt.locSw, pkt.locPt, pkt.dlSrc) INTO learned WHERE NOT learned(pkt.locSw, pkt.locPt, pkt.dlSrc)
+-- [FOL] packet_in(pkt) & ~TABLElearned(pkt.locSw, pkt.locPt, pkt.dlSrc) <=> INSERTlearned(pkt.locSw, pkt.locPt, pkt.dlSrc)
+ONpacket_in(t, pkt)  => INSERTlearned(t, locSw(pkt), locPt(pkt), dlSrc(pkt)) | TABLElearned(t, locSw(pkt), locPt(pkt), dlSrc(pkt));
+INSERTlearned(t, locSw(pkt), locPt(pkt), dlSrc(pkt)) => ONpacket_in(t, pkt);
+INSERTlearned(t, locSw(pkt), locPt(pkt), dlSrc(pkt)) & TABLElearned(t, locSw(pkt), locPt(pkt), dlSrc(pkt)) => Falsehood;
+
+-- [RULE] ON packet_in(pkt): DELETE (pkt.locSw, pt, pkt.dlSrc) FROM learned WHERE NOT pt = pkt.locPt;
+-- [FOL] packet_in(pkt) & TABLElearned(pkt.locSw, pt, pkt.dlSrc) & ~(pt = pkt.locPt) <=> DELETElearned(pkt.locSw, pt, pkt.dlSrc)
+ONpacket_in(t, pkt) & TABLElearned(t, locSw(pkt), pt, dlSrc(pkt)) => DELETElearned(t, locSw(pkt), pt, dlSrc(pkt)) | locPt(pkt)=pt;
+DELETElearned(t, locSw(pkt), pt, dlSrc(pkt)) => ONpacket_in(t, pkt) & TABLElearned(t, locSw(pkt), pt, dlSrc(pkt));
+DELETElearned(t, locSw(pkt), pt, dlSrc(pkt)) & locPt(pkt)=pt => Falsehood;
+
+-- [RULE] ON packet_in(pkt): DO forward(new) WHERE learned(pkt.locSw, new.locPt, pkt.dlDt);
+-- [FOL] packet_in(pkt) & TABLElearned(pkt.locSw, new.locPt, pkt.dlSrc) <=> DOforward(new)
+ONpacket_in(t, pkt) & TABLElearned(t, locSw(pkt), locPt(new), dlDst(pkt)) => DOforward(t, pkt, locPt(new));
+DOforward(t, pkt, locPt(new)) => ONpacket_in(t, pkt) & TABLElearned(t, locSw(pkt), locPt(new), dlDst(pkt));
+
+-- [RULE] ON packet_in(pkt): DO forward(new) WHERE NOT learned(pkt.locSw, ANY, pkt.dlDt) AND NOT pkt.locPt = new.locPt;
+-- [FOL] packet_in(pkt) & ~TABLElearned(pkt.locSw, ANY, pkt.dlDst) & ~(pkt.locPt = new.locPt) <=> DOforward(new)
+ONpacket_in(t, pkt) & locPt(new)=np => DOforward(t, pkt, np) 
+										| exists <createport> ANY. TABLElearned(t, locSw(pkt), ANY, dlDst(pkt))
+										| locPt(pkt)=np;
+DOforward(t, pkt, np) => ONpacket_in(t, pkt);
+DOforward(t, pkt, np) & locPt(pkt)=np => Falsehood;
+DOforward(t, pkt, np) & TABLElearned(t, locSw(pkt), ANY, dlDst(pkt)) => ANY=np;
+
+-------------
+-- Queries --
+-------------
+-- one packet event
+exists t pkt. ONpacket_in(t, pkt);
+
+-- all models in which a DELETE statechange occurs
+--exists t pkt. DELETElearned(t, locSw(pkt), 'SomePort, dlSrc(pkt));

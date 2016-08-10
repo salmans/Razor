@@ -1,0 +1,25 @@
+equal_fruits(X,X);
+equal_boxes(X,X);
+label(X,Y) & contains(X,Y) => Falsehood;
+
+contains('boxa,X) | contains('boxb,X) | contains('boxc,X);
+contains(X,'apples) | contains(X,'bananas) | contains(X,'oranges);
+
+contains(X,Y) & contains(X,Z) => equal_fruits(Y,Z);
+contains(X,Y) & contains(Z,Y) => equal_boxes(X,Z);
+
+~ equal_boxes('boxa,'boxb);
+~ equal_boxes('boxb,'boxc);
+~ equal_boxes('boxa,'boxc);
+
+~ equal_fruits('apples,'bananas);
+~ equal_fruits('bananas,'oranges);
+~ equal_fruits('apples,'oranges);
+
+
+label('boxa,'apples);
+label('boxb,'oranges);
+label('boxc,'bananas);
+
+contains('boxb,'apples);
+contains('boxa,'bananas) & contains('boxc,'oranges) => Falsehood;
