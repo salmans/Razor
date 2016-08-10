@@ -24,9 +24,9 @@ import Text.XML.HXT.Arrow.Pickle
 import Text.XML.HXT.Core
 import API.Surface
 import API.Core
-import Common.IModel
+import Common.Model
 import Common.Provenance
-import Common.IObservation
+import Common.Observation
 import Syntax.Term
 import Syntax.GeometricUtils
 import Syntax.Geometric

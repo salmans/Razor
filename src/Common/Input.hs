@@ -13,7 +13,7 @@
   You should have received a copy of the GNU General Public License
   along with Razor.  If not, see <http://www.gnu.org/licenses/>.
 
-  Module      : Common.IInput
+  Module      : Common.Input
   Description : The module defines Razor's input format and implements a parser
   for parsing the input file.
   Maintainer  : Salman Saghafi <salmans@wpi.edu>, Ryan Danas <ryandanas@wpi.edu>
