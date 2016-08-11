@@ -1,0 +1,71 @@
+
+-- FirstOrder
+Common/Model.hs:import qualified Syntax.FirstOrder as FO
+Syntax/TPTP.hs:import qualified Syntax.FirstOrder as Fol
+Syntax/FirstOrderUtils.hs:import Syntax.FirstOrder 
+
+
+-- Geometric
+
+Chase/PossibleFacts/RelAlg/Lang.hs:import Syntax.Geometric (RelSym)
+Common/Input.hs:import Syntax.Geometric (Theory, pTheory) 
+REPL/Main.hs:import Syntax.Geometric 
+REPL/Mode/Explain.hs:import Syntax.Geometric 
+REPL/Mode/Explore.hs:import Syntax.Geometric 
+REPL/Mode/Theory.hs:import Syntax.Geometric 
+Syntax/GeometricUtils.hs:import Syntax.Geometric 
+Syntax/TPTP.hs:import Syntax.Geometric 
+
+
+--FirstOrderParser
+Common/Data.hs:import Syntax.FirstOrderParser -- for parsing skolem terms
+Syntax/FirstOrder.hs:import Syntax.FirstOrderParser
+Syntax/Term.hs:import Syntax.FirstOrderParser
+
+--Geometric Parser
+REPL/Mode/Explain.hs:import Syntax.GeometricParser
+Syntax/Geometric.hs:import Syntax.GeometricParser
+
+
+-- FirstOrderUtils
+Tools/FolToGeo.hs:import qualified Syntax.FirstOrderUtils as Fol 
+
+
+--GeometricUtils
+
+API/Core.hs:import Syntax.GeometricUtils
+API/Surface.hs:import Syntax.GeometricUtils
+Chase/Chase.hs:import Syntax.GeometricUtils (Theory, preprocess, Constant (..))
+Chase/Data.hs:import Syntax.GeometricUtils ( Theory, Sequent(..), Formula (..), Atom (..)
+Chase/Impl.hs:import Syntax.GeometricUtils (Theory, preprocess)
+Chase/PossibleFacts/RelAlg/PossibleFacts.hs:import Syntax.GeometricUtils
+Chase/PossibleFacts/RelAlg/Translate.hs:import Syntax.GeometricUtils 
+Common/Data.hs:import Syntax.GeometricUtils
+Common/Model.hs:import Syntax.GeometricUtils ( FnSym, RelSym, Variable, Element (..)
+Common/Observation.hs:import Syntax.GeometricUtils ( Sequent (..), Formula (..), Atom (..), Term (..)
+REPL/Display.hs:import Syntax.GeometricUtils 
+REPL/Main.hs:import Syntax.GeometricUtils
+REPL/Mode.hs:import Syntax.GeometricUtils 
+REPL/Mode/Explore.hs:import Syntax.GeometricUtils
+REPL/Mode/Theory.hs:import Syntax.GeometricUtils
+SAT/SMTLib2.hs:import Syntax.GeometricUtils ( FnSym, RelSym, Atom (..), Term (..)
+TPTP/Tools/TPTPPerformanceLogger.hs:import Syntax.GeometricUtils ( Theory, Sequent, Constant, Element
+Tools/FolToGeo.hs:import qualified Syntax.GeometricUtils as Geo
+importGeometricUtils:Tools/FolToGeo.hs:import qualified Syntax.GeometricUtils as Geo
+
+-- Term
+
+API/Core.hs:import Syntax.Term
+Chase/Data.hs:import Syntax.Term ( Term (Elem), Element (..), Variable, Sub, FnSym)
+Chase/PossibleFacts/RelAlg/Lang.hs:import Syntax.Term ( Variable, Constant (..), Element (..), FnSym
+Common/Data.hs:-- import Syntax.Term
+Common/Input.hs:import Syntax.Term (pTerm)
+Common/Observation.hs:import Syntax.Term
+Common/Provenance.hs:import Syntax.Term ( Term (..), SkolemTerm, Element (..), Constant (..)
+REPL/Mode/Explain.hs:import Syntax.Term
+Syntax/FirstOrder.hs:import Syntax.Term ( FnSym, Variable (..), Element (..), Term
+Syntax/FirstOrderUtils.hs:import Syntax.Term
+Syntax/Geometric.hs:import Syntax.Term
+Syntax/GeometricUtils.hs:import Syntax.Term
+Syntax/TPTP.hs:import Syntax.Term (Term (..), Variable (..), Element (..), Constant (..)
+Tools/FolToGeo.hs:import Syntax.Term
